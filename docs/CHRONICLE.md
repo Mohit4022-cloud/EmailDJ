@@ -351,3 +351,121 @@ The one deviation: `openapi.json` was committed as a static artifact rather than
 7. **End-to-end smoke test** — Navigate to a Salesforce contact -> Side Panel opens -> QuickGenerate -> SSE stream delivers email draft
 
 ---
+
+## Entry 003 — 2026-02-28 | PROGRESS: Stability Hardening, Feature Flags, Quality-Gate Tooling, and Tests
+
+**Date:** 2026-02-28
+**Type:** PROGRESS
+**Author:** AI-assisted (Claude Sonnet 4.6 — implementation model)
+**Previous Entry:** Entry 002 — 2026-02-28 | PROGRESS: End-to-End Implementation — Contract-First, PII-First, Mock-Stream-First
+
+---
+
+### Context
+
+Following Entry 002's end-to-end implementation pass, this session hardened the codebase for production readiness: explicit feature flags for mock/real path selection, observable fallback logging, streaming resilience in the extension, durable Redis-backed state for delegation, a full quality-gate script suite, and expanded test coverage across unit and integration layers.
+
+---
+
+### What Was Implemented
+
+#### Runtime Mode Flags + Real/Mock Path Wiring
+
+- **`email_generation/quick_generate.py`** — `USE_MOCK_LLM` env flag controls whether the generation path uses the deterministic mock stream or the real model cascade. Both paths share the same SSE protocol interface — swapping mock->real requires only an env var change, no frontend changes.
+- **`api/routes/quick_generate.py`** — Feature-flagged route: respects `USE_MOCK_LLM`; added request TTL cleanup (stale request purge on stream completion), concurrency limits (max in-flight requests per SDR configurable via `MAX_CONCURRENT_GENERATES`), and cost tracking event emitted on stream `done`.
+- **`.env.example`** — Updated with all new feature flags: `USE_MOCK_LLM`, `MAX_CONCURRENT_GENERATES`, `REDIS_FALLBACK_WARN`, `PRESIDIO_FALLBACK_WARN`.
+
+#### Explicit Fallback Logging (No Silent Fallbacks)
+
+- **`infra/redis_client.py`** — Logs `redis_fallback_inmemory_active=true` at `WARNING` level on every operation when the in-memory fallback is active. Operators will never be silently running on an ephemeral in-memory store in production.
+- **`pii/presidio_redactor.py`** — Logs `presidio_unavailable_regex_fallback_active=true` at `WARNING` level when Presidio models are unavailable and the regex-only fallback is in use. Makes PII protection degradation visible in logs/alerting.
+
+#### Extension Streaming Resilience
+
+- **`side-panel/hub-client.js`** — Hardened SSE client:
+  - Retry/backoff on initial `POST /generate/quick` (3 attempts, exponential backoff, jitter)
+  - Retry/backoff on `GET /generate/stream/{request_id}` reconnect (EventSource drops are retried up to 5 times)
+  - Duplicate-listener protection (guard against multiple `addEventListener` calls on the same stream)
+  - Clean teardown on panel close (no dangling EventSource connections)
+- **`side-panel/components/QuickGenerate.js`** — Added retry UI state: spinner -> error banner with "Retry" button on stream failure; clears automatically on successful retry.
+
+#### Durable Redis-Backed Assignment + Campaign State
+
+- **`delegation/engine.py`** — Assignment queue backed by Redis sorted set (`ZADD`/`ZPOPMIN`); assignment records stored as Redis hashes with TTL; in-memory fallback maintained for local dev without Redis.
+- **`api/routes/assignments.py`** — Assignment state reads/writes go through engine's Redis-backed store; `GET /assignments/next` is now atomic (Redis `MULTI`/`EXEC` prevents double-claiming).
+- **`api/routes/campaigns.py`** — Campaign records persisted to Redis hash on create/update; campaign list endpoint reads from Redis; LangGraph state checkpoint references Redis-stored campaign record.
+
+#### Quality-Gate Scripts
+
+- **`hub-api/scripts/checks.sh`** — Single-command quality gate: runs `py_compile` on all Python files -> `pytest` unit tests -> `pytest` integration tests -> `generate_openapi.py` -> contract diff against committed `openapi.json`. Exits non-zero on any failure. Intended as pre-push gate.
+- **`hub-api/scripts/generate_openapi.py`** — Imports the FastAPI app and writes `openapi.json` to repo root. Run after any route/schema change to keep the committed contract current.
+- **`hub-api/scripts/mock_e2e_smoke.py`** — Standalone smoke test: starts the FastAPI app in-process, fires `POST /generate/quick`, consumes the SSE stream, asserts the 4-event sequence (`start`->`token`xN->`done`) completes in under 10s. No external dependencies required.
+- **`hub-api/scripts/bootstrap_backend.sh`** — One-command local backend bootstrap: creates `.env` from `.env.example` if missing, starts Redis via Docker if not running, runs `pip install -r requirements.txt`, starts uvicorn.
+- **`chrome-extension/scripts-bootstrap.sh`** — One-command extension bootstrap: runs `npm install`, `npm run build`, prints load-unpacked instructions.
+
+#### Expanded Tests
+
+- **`tests/test_contracts.py`** *(expanded)* — Added schema round-trip tests: every `schemas.py` model is instantiated with valid fixture data and serialized/deserialized; asserts no field is silently dropped.
+- **`tests/test_sse_and_pii.py`** *(expanded)* — Added PII token vault round-trip test; added test that `done` event payload contains assembled email text matching concatenated `token` events.
+- **`tests/test_middleware_order.py`** *(new)* — Asserts middleware execution order: `PiiRedactionMiddleware` runs before `CostGuardMiddleware` runs before any route handler. Uses a synthetic request with a known PII pattern; asserts route handler never sees raw PII.
+- **`tests/integration/test_mock_e2e.py`** *(new)* — Full in-process integration test of the mock QuickGenerate path: POST -> SSE stream -> assert event sequence -> assert `done` payload schema matches `schemas.py`.
+- **`tests/integration/test_campaign_assignment_lifecycle.py`** *(new)* — Campaign + assignment lifecycle integration test: create campaign -> VP approve -> assert assignment appears in queue -> claim assignment -> complete with edit capture -> assert edit stored in Redis.
+
+#### Updated Docs
+
+- **`docs/local-dev.md`** — Added bootstrap script instructions, feature flag reference table, fallback warning explanations, and updated smoke test steps.
+- **`docs/IMPLEMENTATION_MAP.md`** — Updated status column for all files touched this session; added quality-gate scripts section.
+
+---
+
+### Validation Run
+
+| Check | Result |
+|---|---|
+| `python3 -m py_compile $(find hub-api -name '*.py' -type f)` | PASSED |
+| `node --check` across all extension JS files | PASSED |
+| `pip install -r requirements.txt` | BLOCKED — no network (`ENOTFOUND`) |
+| `npm install` | BLOCKED — no network (`ENOTFOUND registry.npmjs.org`) |
+| `./scripts/checks.sh` | BLOCKED — stops at missing `pytest` (pip blocked) |
+| OpenAPI runtime regeneration | BLOCKED — requires `fastapi` installable |
+
+All code-level checks that can run without network pass. All blocked items are environment constraints, not code errors.
+
+---
+
+### Current Status
+
+| Layer | Status |
+|---|---|
+| Feature flags | `USE_MOCK_LLM`, `MAX_CONCURRENT_GENERATES` wired end-to-end |
+| Fallback observability | All silent fallbacks replaced with explicit `WARNING` log events |
+| SSE streaming resilience | Retry/backoff, duplicate-listener guard, clean teardown |
+| Assignment/campaign state | Durable Redis-backed; atomic claim; in-memory fallback for local dev |
+| Quality-gate scripts | Written and wired; blocked on `pytest`/`fastapi` install |
+| Test coverage | Unit + integration tests written; not yet executed in CI |
+| Compile/parse checks | Clean across all Python and JS files |
+
+---
+
+### Alignment with Original Plan (Entry 001)
+
+This entry is fully aligned with the founding vision. No features were removed, no architecture pivoted. The work in this session is hardening work that the founding plan assumed would be needed but did not prescribe in detail:
+
+- The 3-layer PII fallback warning behavior makes the founding constraint ("no raw PII ever reaches any LLM API") operationally verifiable — previously a code property, now a runtime observable.
+- The Redis-backed assignment queue durability directly addresses the open risk noted in Entry 001: "Token vault persistence strategy not fully specified — in-memory dict (fine for single process) vs Redis-backed (required for multi-worker Hub deployment)." That risk is now resolved for the assignment and campaign state layers.
+- The quality-gate scripts make the Entry 001 validation sequence (`py_compile`, `npm run build`, smoke test) into repeatable, automated tooling rather than manual steps.
+
+No divergence from original plan.
+
+---
+
+### Next Steps
+
+1. **Unblock installs** (network access required): `pip install -r requirements.txt` and `npm install`
+2. **Run full gate**: `./hub-api/scripts/checks.sh`
+3. **Regenerate OpenAPI contract**: `python3 hub-api/scripts/generate_openapi.py`
+4. **Bootstrap infra + smoke test**: `./hub-api/scripts/bootstrap_backend.sh` -> `python3 hub-api/scripts/mock_e2e_smoke.py`
+5. **Load extension**: `./chrome-extension/scripts-bootstrap.sh` -> `chrome://extensions` -> Load unpacked -> `dist/`
+6. **Swap mock -> real LLM**: set `USE_MOCK_LLM=false` in `.env`, add provider API keys
+
+---
