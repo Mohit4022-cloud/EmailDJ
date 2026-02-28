@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "emaildj-hub-api"
+version = "0.1.0"
+description = "EmailDJ Hub API — orchestration and generation engine"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "agents*", "context_vault*", "email_generation*", "pii*", "delegation*", "infra*"]

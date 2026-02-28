@@ -1,0 +1,15 @@
+{
+  "name": "emaildj-chrome-extension",
+  "version": "0.1.0",
+  "description": "EmailDJ Chrome Extension — MV3 CRM intelligence layer",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.23",
+    "vite": "^5.0.0"
+  }
+}
