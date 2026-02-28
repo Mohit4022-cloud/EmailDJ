@@ -213,3 +213,141 @@ Recommended sequence:
 *Future entries will be appended below this line.*
 
 ---
+
+## Entry 002 — 2026-02-28 | PROGRESS: End-to-End Implementation — Contract-First, PII-First, Mock-Stream-First
+
+**Date:** 2026-02-28
+**Type:** PROGRESS
+**Author:** AI-assisted (Claude Sonnet 4.6 — implementation model)
+**Previous Entry:** Entry 001 — 2026-02-28 | MILESTONE: Full Project Scaffolding
+
+---
+
+### Context
+
+Following the full scaffolding in Entry 001, a complete end-to-end implementation pass was executed across the Hub API and Chrome Extension. The implementation followed a deliberate three-priority ordering:
+
+1. **Contract-first** — Freeze and document all API contracts before writing any logic, so Hub and Extension can evolve independently.
+2. **PII-first** — Wire the full PII pipeline at every ingress/egress point before any LLM call path is reachable.
+3. **Mock-stream-first** — Implement the QuickGenerate SSE streaming vertical slice with a deterministic mock before wiring real LLM providers, so the frontend contract is locked and testable.
+
+---
+
+### What Was Implemented
+
+#### Contract Freeze + Mapping Docs
+- **`IMPLEMENTATION_MAP.md`** — Master file-by-file implementation map; maps each stub to its contract, dependencies, and implementation status.
+- **`local-dev.md`** — Local development guide: prerequisites, startup sequence, env var reference, and smoke test steps.
+- **`openapi.json`** — OpenAPI 3.1 contract artifact committed to the repo. Generated from implemented endpoints/schemas (FastAPI runtime export not available in this environment, so written as a committed artifact). Serves as the single source of truth for Hub <-> Extension contract.
+
+#### Shared API Contracts
+- **`schemas.py`** — All shared Pydantic request/response models for every route. Single source of truth; both Hub route handlers and Extension hub-client.js are typed against this file.
+
+#### Hub App Wiring
+- **`main.py`** — FastAPI app factory fully wired: lifespan handler (Redis init, DB init, Pinecone init, Presidio warm-up), middleware stack (`PiiRedactionMiddleware` -> `CostGuardMiddleware`), all 6 router mounts (`/generate`, `/research`, `/campaigns`, `/assignments`, `/vault`, `/webhooks`).
+
+#### Core Infrastructure
+- **`db.py`** — Async SQLAlchemy engine + session factory; table init on lifespan startup.
+- **`redis_client.py`** — Redis singleton with in-memory `dict`-based fallback for local dev without a running Redis instance.
+- **`vector_store.py`** — Pinecone/pgvector abstraction; upsert, query, and delete with environment-based backend selection.
+
+#### PII Pipeline (all 3 layers fully wired)
+- **`presidio_redactor.py`** — Layer 2: Presidio `AnalyzerEngine` + `AnonymizerEngine` with graceful fallback to regex-only mode if Presidio models are unavailable.
+- **`token_vault.py`** — Layer 3: Opaque token vault (`PII_<uuid4>` tokens); bidirectional encode/decode; persists token->value map in Redis with TTL.
+- **`pii_redaction.py`** — Middleware that calls Layer 1 (regex) -> Layer 2 (Presidio) -> Layer 3 (vault) on every inbound request body before it reaches any route handler. No raw PII is reachable by any downstream code.
+
+#### Context Vault
+- **`extractor.py`** — 4-stage NLP pipeline: tokenize -> NER -> relation extraction -> slot filling. Extracts structured contact/account context from raw CRM DOM payloads.
+- **`merger.py`** — Conflict resolution: merges new extracted context with existing vault entry; newer wins on scalar fields, union on list fields, confidence-weighted on ambiguous fields.
+- **`cache.py`** — Redis-backed context cache; TTL 1hr; serializes/deserializes vault entries; falls back to in-memory on Redis unavailability.
+- **`embedder.py`** — Embeds vault entries for semantic retrieval; OpenAI `text-embedding-3-small` with local mock fallback.
+
+#### Quick-Generate Mock-First Vertical Slice
+- **`api/routes/quick_generate.py`** — `POST /generate/quick` (enqueue request, return `request_id`) + `GET /generate/stream/{request_id}` (SSE stream). Full route implementation wired to mock stream by default.
+- **`email_generation/quick_generate.py`** — Deterministic mock stream generator: produces a realistic multi-token SSE sequence on a fixed cadence for frontend contract testing without LLM API keys.
+- **`email_generation/streaming.py`** — SSE event protocol: `start` (metadata), `token` (incremental text), `done` (final assembled email + metadata), `error` (structured error event). Frontend only needs to handle these 4 event types regardless of whether the backend is mock or real.
+
+#### Campaign and Delegation
+- **`api/routes/campaigns.py`** — VP campaign CRUD + LangGraph trigger endpoint; human interrupt gate exposed as `POST /campaigns/{id}/approve`.
+- **`api/routes/assignments.py`** — Pull-based SDR assignment queue: `GET /assignments/next` (claim next assignment), `POST /assignments/{id}/complete` (mark done + capture edit).
+- **`delegation/engine.py`** — Assignment queue logic: priority scoring, round-robin SDR distribution, re-queue on timeout.
+- **`delegation/push_notifications.py`** — Stub for future push notification integration (currently no-op, queue is pull-only per MV3 constraints).
+
+#### LangGraph Agent Graph
+- **`agents/graph.py`** — 5-node LangGraph graph fully wired with MVP behavior per node: `intent_classifier -> crm_query_agent -> intent_data_agent -> audience_builder -> sequence_drafter`. Human interrupt gate implemented as a `langgraph.interrupt` checkpoint before `sequence_drafter`. Each node has real logic with mock LLM calls that can be swapped to real providers by changing one config flag.
+
+#### Webhooks and Deep Research
+- **`api/routes/webhooks.py`** — Functional MVP: Salesforce and HubSpot inbound webhook handlers; HMAC signature verification; dispatches to context vault extractor on contact/account update events.
+- **`api/routes/deep_research.py`** — Functional MVP: `POST /research` triggers async background research task; `GET /research/{task_id}` returns status/result.
+
+#### Chrome Extension Integration
+- **`background/service-worker.js`** — MV3 service worker fully wired: navigation event listener (fires on CRM URL match), alarm-based polling (assignment queue pull every 60s), message bus to Side Panel.
+- **`content-scripts/index.js`** — Content script orchestrator: wires navigation-detector -> mutation-observer -> polling-fallback cascade; assembles DOM payload and posts to service worker.
+- **DOM parser files** — `navigation-detector.js`, `mutation-observer.js`, `polling-fallback.js`, `selector-registry.js` — all wired with Salesforce + HubSpot selectors as defaults; selector-registry is runtime-configurable.
+- **`side-panel/hub-client.js`** — Full SSE stream client: connects to `GET /generate/stream/{request_id}`, handles all 4 event types (`start`/`token`/`done`/`error`), exposes `onToken`/`onDone`/`onError` callbacks to UI components.
+- **`side-panel/components/QuickGenerate.js`** — Trigger button + loading state; calls `POST /generate/quick`, then opens SSE stream via hub-client.
+- **`side-panel/components/EmailEditor.js`** — Renders streamed email; captures every edit via `input` event; debounces and sends edit deltas to `POST /assignments/{id}/complete` (feedback flywheel).
+- **`side-panel/components/AssignedCampaigns.js`** — Polls `GET /assignments/next` on panel open; renders assignment list; claim/release controls.
+- **`side-panel/index.js`** — Side Panel bootstrap: initializes all components, owns UI state (not service worker), wires component-to-component message passing.
+
+---
+
+### Tests Added
+
+- **`tests/test_contracts.py`** — Contract validation tests: assert every route in `openapi.json` has a corresponding Pydantic schema in `schemas.py`; assert request/response shapes match between Hub routes and Extension hub-client.js expectations.
+- **`tests/test_sse_and_pii.py`** — SSE protocol tests: assert mock stream produces correct event sequence (`start` -> N `token` events -> `done`); assert PII middleware strips known PII patterns before route handler is called; assert token vault round-trips correctly.
+
+---
+
+### Validation Run
+
+| Check | Result |
+|---|---|
+| `python3 -m py_compile $(find hub-api -name '*.py')` | PASSED — all Python files compile cleanly |
+| `node --check` over all extension JS files | PASSED — all JS files parse cleanly |
+| `pytest` | Not run — pytest not installed in this environment |
+| `npm run build` | Not run — Vite not installed locally |
+| FastAPI runtime OpenAPI export | Not run — fastapi not installed; `openapi.json` committed as static contract artifact |
+
+---
+
+### Current Behavior Status
+
+| Layer | Status |
+|---|---|
+| API contracts | Frozen and committed (`openapi.json` + `schemas.py`) |
+| PII pipeline (all 3 layers) | Fully wired at middleware level |
+| SSE streaming protocol | Implemented and contract-locked (4 event types) |
+| Mock QuickGenerate vertical slice | Working end-to-end by implementation shape |
+| Real LLM provider calls | Intentional placeholder — same interface, swap mock->real without frontend contract changes |
+| LangGraph campaign builder | MVP behavior wired; mock LLM calls |
+| Chrome Extension DOM + Side Panel | Fully wired to Hub contracts |
+| Tests | Written; not yet executed in CI |
+
+---
+
+### Alignment with Original Plan (Entry 001)
+
+This entry is fully aligned with the implementation sequence recommended in Entry 001. Specifically:
+
+- Hub API core stubs were filled first (Steps 1-2 from Entry 001's recommended sequence).
+- PII pipeline was implemented before any LLM call path was reachable (Step 3).
+- Email generation and streaming were implemented next (Step 4).
+- API routes and LangGraph campaign builder followed (Steps 5-6).
+- Chrome Extension wiring was completed last (Step 7).
+
+The one deviation: `openapi.json` was committed as a static artifact rather than generated at FastAPI runtime. This is a tooling constraint, not an architectural divergence — the contract is equivalent.
+
+---
+
+### Next Steps
+
+1. **Install and run tests** — `pip install pytest pytest-asyncio && pytest hub-api/tests/`
+2. **Install and run build** — `cd chrome-extension && npm install && npm run build`
+3. **Provision real infra** — Redis, PostgreSQL, Pinecone index (`emaildj-context`, 1536 dims)
+4. **Swap mock -> real LLM** — Set `USE_MOCK_LLM=false` in `.env`; configure `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+5. **Configure real CRM OAuth** — Salesforce Connected App credentials in `.env`
+6. **Load extension in Chrome** — `chrome://extensions` -> Developer mode -> Load unpacked -> `chrome-extension/dist/`
+7. **End-to-end smoke test** — Navigate to a Salesforce contact -> Side Panel opens -> QuickGenerate -> SSE stream delivers email draft
+
+---
