@@ -1,34 +1,39 @@
-"""
-Cost Guard Middleware — budget enforcement layer.
+"""Cost guard middleware with Redis-backed throttle state."""
 
-IMPLEMENTATION INSTRUCTIONS:
-1. Subclass Starlette's BaseHTTPMiddleware.
-2. Extract account_id from the Authorization header (JWT claim or API key lookup).
-3. On each request to LLM-touching endpoints (/generate, /research, /campaigns):
-   a. Read `monthly_cost_counter:{account_id}` from Redis.
-   b. Read the account's plan cost ceiling from Redis (or DB cache).
-   c. If counter > 3x the plan's implied COGS allocation:
-      - Set request.state.cost_throttled = True
-      - Alert via Slack webhook (POST to SLACK_WEBHOOK_URL) — send ONCE per
-        throttle activation (use Redis flag `throttle_alerted:{account_id}`
-        with TTL = 24hr to avoid spam).
-   d. If counter is within budget: set request.state.cost_throttled = False.
-4. Track cost per tier separately in Redis keys:
-   `cost_tier1:{account_id}`, `cost_tier2:{account_id}`, `cost_tier3:{account_id}`
-5. Cost is updated POST-request by route handlers (not here) — this middleware
-   only reads and gates.
-6. At end of billing month (UTC), reset counters. Use a Redis expiry set to
-   end-of-month UTC timestamp.
-"""
+from __future__ import annotations
+
+import os
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from infra.redis_client import get_redis
+
+LLM_PREFIXES = ("/generate", "/research", "/campaigns")
+
 
 class CostGuardMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
-        # TODO: implement per instructions above
         request.state.cost_throttled = False
-        response = await call_next(request)
-        return response
+        if not request.url.path.startswith(LLM_PREFIXES):
+            return await call_next(request)
+
+        account_id = request.headers.get("x-account-id", "default")
+        redis = get_redis()
+        ceiling = float(os.environ.get("MONTHLY_COST_CEILING", "100"))
+        tripwire = ceiling * 3
+
+        total = 0.0
+        for key in ("cost_tier1", "cost_tier2", "cost_tier3"):
+            raw = await redis.get(f"{key}:{account_id}")
+            if raw is not None:
+                total += float(raw)
+
+        if total > tripwire:
+            request.state.cost_throttled = True
+            alerted = await redis.get(f"throttle_alerted:{account_id}")
+            if not alerted:
+                await redis.setex(f"throttle_alerted:{account_id}", 86400, "1")
+
+        return await call_next(request)

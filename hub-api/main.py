@@ -1,36 +1,82 @@
-"""
-EmailDJ Hub API — FastAPI app factory.
+"""EmailDJ Hub API app factory."""
 
-IMPLEMENTATION INSTRUCTIONS:
-1. Import FastAPI, CORSMiddleware, and all routers from api/routes/*.
-2. Create FastAPI app with title="EmailDJ Hub API", version="0.1.0".
-3. Add CORSMiddleware — allow origin from env var CHROME_EXTENSION_ORIGIN
-   (chrome-extension://...) plus http://localhost for dev. Allow methods=["*"],
-   headers=["*"].
-4. Add PiiRedactionMiddleware from api/middleware/pii_redaction.py (runs BEFORE
-   route handlers on every POST request body).
-5. Add CostGuardMiddleware from api/middleware/cost_guard.py.
-6. Mount all routers with prefixes:
-   - quick_generate router → /generate
-   - deep_research router → /research
-   - campaigns router → /campaigns
-   - assignments router → /assignments
-   - context_vault router → /vault
-   - webhooks router → /webhooks
-7. Set LANGCHAIN_TRACING_V2=true in env / load via python-dotenv at startup.
-8. Add a root health check: GET / → {"status": "ok", "version": "0.1.0"}.
-9. Configure SSE via sse-starlette (no extra setup needed; routes handle it).
-10. Use lifespan context manager to initialize Redis connection pool on startup
-    and close on shutdown.
-"""
+from __future__ import annotations
+
+import logging
+import os
+from contextlib import asynccontextmanager
+
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover
+
+    def load_dotenv():
+        return None
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# TODO: implement per instructions above
-app = FastAPI(title="EmailDJ Hub API", version="0.1.0")
+from api.middleware.cost_guard import CostGuardMiddleware
+from api.middleware.pii_redaction import PiiRedactionMiddleware
+from api.routes.assignments import router as assignments_router
+from api.routes.campaigns import router as campaigns_router
+from api.routes.context_vault import router as context_vault_router
+from api.routes.deep_research import router as deep_research_router
+from api.routes.quick_generate import router as quick_generate_router
+from api.routes.webhooks import router as webhooks_router
+from infra.db import init_engine, shutdown_engine
+from infra.redis_client import close_redis, get_redis
+
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+
+REQUIRED_ENV_VARS = ["CHROME_EXTENSION_ORIGIN"]
+
+
+def _validate_env() -> None:
+    missing = [k for k in REQUIRED_ENV_VARS if not os.environ.get(k)]
+    if missing:
+        raise RuntimeError(f"Missing required env vars: {', '.join(missing)}")
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    load_dotenv()
+    _validate_env()
+    init_engine()
+    redis = get_redis()
+    await redis.ping()
+    try:
+        yield
+    finally:
+        await close_redis()
+        await shutdown_engine()
+
+
+app = FastAPI(title="EmailDJ Hub API", version="0.1.0", lifespan=lifespan)
+
+chrome_origin = os.environ.get("CHROME_EXTENSION_ORIGIN", "")
+allow_origins = ["http://localhost", "http://localhost:5173"]
+if chrome_origin:
+    allow_origins.append(chrome_origin)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allow_origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# Cost guard runs before handlers; PII redaction scrubs request payloads seen by handlers.
+app.add_middleware(PiiRedactionMiddleware)
+app.add_middleware(CostGuardMiddleware)
+
+app.include_router(quick_generate_router, prefix="/generate", tags=["generate"])
+app.include_router(deep_research_router, prefix="/research", tags=["research"])
+app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
+app.include_router(assignments_router, prefix="/assignments", tags=["assignments"])
+app.include_router(context_vault_router, prefix="/vault", tags=["vault"])
+app.include_router(webhooks_router, prefix="/webhooks", tags=["webhooks"])
 
 
 @app.get("/")
-async def health():
-    # TODO: return real status including Redis connectivity check
+async def health() -> dict[str, str]:
     return {"status": "ok", "version": "0.1.0"}

@@ -1,50 +1,42 @@
-"""
-Context Vault Cache — Redis-based caching for AccountContext.
+"""Redis-backed context cache with local-memory DB fallback."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Exports: get_or_fetch(account_id: str) → AccountContext | None
-         set(account_id: str, context: AccountContext) → None
-         invalidate(account_id: str) → None
-
-get_or_fetch(account_id):
-1. Try Redis first: HGET "vault:{account_id}" "data"
-   - Target: <10ms cache hit.
-   - Deserialize JSON → AccountContext.model_validate_json(cached_json).
-   - If hit: return immediately.
-2. On Redis miss: fetch from primary DB (PostgreSQL via infra.db).
-   - Query: SELECT context_json FROM account_contexts WHERE account_id = ?
-   - If found: populate Redis cache with TTL=3600s (SETEX key 3600 value).
-   - Return AccountContext.
-3. If neither: return None (caller handles missing context).
-4. Pre-staging optimization: the extension sends a payload on every CRM navigation
-   (before SDR clicks Generate). This triggers /vault/prefetch which calls
-   get_or_fetch() to pre-warm the cache. By the time the SDR clicks Generate,
-   the context is already in Redis. This is critical for the 2-second P95 budget.
-
-set(account_id, context):
-1. Serialize: json_str = context.model_dump_json()
-2. HSET "vault:{account_id}" "data" json_str
-3. EXPIRE "vault:{account_id}" 3600
-
-invalidate(account_id):
-1. DEL "vault:{account_id}"
-2. Also invalidate from vector DB: call vector_store.delete(account_id) if stale.
-"""
+from __future__ import annotations
 
 from typing import Optional
+
 from context_vault.models import AccountContext
+from infra.redis_client import get_redis
+from infra import vector_store
+
+_DB: dict[str, str] = {}
 
 
 async def get_or_fetch(account_id: str) -> Optional[AccountContext]:
-    # TODO: implement per instructions above
+    redis = get_redis()
+    key = f"vault:{account_id}"
+    cached = await redis.hget(key, "data")
+    if cached:
+        return AccountContext.model_validate_json(cached)
+
+    db_row = _DB.get(account_id)
+    if db_row:
+        await redis.hset(key, mapping={"data": db_row})
+        await redis.expire(key, 3600)
+        return AccountContext.model_validate_json(db_row)
     return None
 
 
 async def set(account_id: str, context: AccountContext) -> None:
-    # TODO: implement per instructions above
-    pass
+    json_str = context.model_dump_json()
+    _DB[account_id] = json_str
+    redis = get_redis()
+    key = f"vault:{account_id}"
+    await redis.hset(key, mapping={"data": json_str})
+    await redis.expire(key, 3600)
 
 
 async def invalidate(account_id: str) -> None:
-    # TODO: implement per instructions above
-    pass
+    _DB.pop(account_id, None)
+    redis = get_redis()
+    await redis.delete(f"vault:{account_id}")
+    await vector_store.delete(account_id)

@@ -1,63 +1,130 @@
-"""
-Campaigns route — VP Campaign Builder endpoints.
+"""Campaign creation, approval, and assignment endpoints."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Endpoints:
-  POST /campaigns                    → VP creates a campaign
-  GET  /campaigns/{id}               → get campaign details + status
-  POST /campaigns/{id}/approve       → VP approves audience (human gate)
-  POST /campaigns/{id}/assign        → VP assigns to SDR(s)
+from __future__ import annotations
 
-POST /campaigns logic:
-1. Parse VP command from request body: { command: str, campaign_name: str }.
-2. Kick off LangGraph pipeline: call build_vp_campaign_graph() from agents/graph.py.
-3. Invoke graph with initial state: AgentState(vp_command=command).
-4. Graph runs: intent_classifier → crm_query_agent → intent_data_agent →
-   audience_builder → [HUMAN INTERRUPT] → sequence_drafter.
-5. Graph pauses at human_review interrupt after audience_builder.
-6. Store campaign in DB with status='awaiting_approval', save graph checkpoint thread_id.
-7. Return { campaign_id, status: 'awaiting_approval', estimated_audience_size }.
+import json
+from uuid import uuid4
 
-POST /campaigns/{id}/approve logic:
-1. Load campaign from DB. Verify VP identity from auth.
-2. If audience count > BLAST_RADIUS_CONFIRM_THRESHOLD (default 200):
-   - Require request body to contain { confirm: "CONFIRM" } (exact string).
-   - If not present, return 400 with { error: 'blast_radius_confirmation_required',
-     audience_count, threshold }.
-3. Resume LangGraph graph from checkpoint (thread_id) — this triggers sequence_drafter.
-4. Update campaign status to 'drafting'.
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
-POST /campaigns/{id}/assign logic:
-1. Verify campaign status is 'sequences_ready'.
-2. Parse { sdr_ids: list[str] } from request body.
-3. Call delegation.engine.create_assignment() for each SDR.
-4. Update campaign status to 'assigned'.
-"""
-
-from fastapi import APIRouter
+from agents.graph import build_vp_campaign_graph
+from delegation import engine, push_notifications
+from infra.redis_client import get_redis
 
 router = APIRouter()
 
-
-@router.post("/campaigns")
-async def create_campaign():
-    # TODO: implement per instructions above
-    pass
+BLAST_RADIUS_CONFIRM_THRESHOLD = 200
+_CAMPAIGNS: dict[str, dict] = {}
 
 
-@router.get("/campaigns/{campaign_id}")
+class CampaignCreateRequest(BaseModel):
+    command: str
+    campaign_name: str
+
+
+class CampaignApproveRequest(BaseModel):
+    confirm: str | None = None
+
+
+class CampaignAssignRequest(BaseModel):
+    sdr_ids: list[str] = Field(min_length=1)
+
+
+async def _save_campaign(campaign: dict) -> None:
+    _CAMPAIGNS[campaign["id"]] = campaign
+    redis = get_redis()
+    await redis.hset(f"campaign:{campaign['id']}", mapping={"data": json.dumps(campaign)})
+
+
+async def _load_campaign(campaign_id: str) -> dict | None:
+    if campaign_id in _CAMPAIGNS:
+        return _CAMPAIGNS[campaign_id]
+    redis = get_redis()
+    raw = await redis.hget(f"campaign:{campaign_id}", "data")
+    if not raw:
+        return None
+    data = json.loads(raw)
+    _CAMPAIGNS[campaign_id] = data
+    return data
+
+
+@router.post("/")
+async def create_campaign(req: CampaignCreateRequest):
+    campaign_id = str(uuid4())
+    graph = build_vp_campaign_graph()
+    state = await graph.ainvoke({"vp_command": req.command, "errors": []})
+
+    campaign = {
+        "id": campaign_id,
+        "name": req.campaign_name,
+        "vp_command": req.command,
+        "status": "awaiting_approval",
+        "audience": state.get("audience", []),
+        "sequences": state.get("sequences", {}),
+        "thread_id": str(uuid4()),
+    }
+    await _save_campaign(campaign)
+    return {
+        "campaign_id": campaign_id,
+        "status": campaign["status"],
+        "estimated_audience_size": len(campaign["audience"]),
+    }
+
+
+@router.get("/{campaign_id}")
 async def get_campaign(campaign_id: str):
-    # TODO: implement per instructions above
-    pass
+    campaign = await _load_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    return campaign
 
 
-@router.post("/campaigns/{campaign_id}/approve")
-async def approve_campaign(campaign_id: str):
-    # TODO: implement per instructions above
-    pass
+@router.post("/{campaign_id}/approve")
+async def approve_campaign(campaign_id: str, req: CampaignApproveRequest):
+    campaign = await _load_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+
+    audience_count = len(campaign.get("audience", []))
+    if audience_count > BLAST_RADIUS_CONFIRM_THRESHOLD and req.confirm != "CONFIRM":
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "blast_radius_confirmation_required",
+                "audience_count": audience_count,
+                "threshold": BLAST_RADIUS_CONFIRM_THRESHOLD,
+            },
+        )
+
+    campaign["status"] = "sequences_ready"
+    await _save_campaign(campaign)
+    return {"status": campaign["status"], "campaign_id": campaign_id}
 
 
-@router.post("/campaigns/{campaign_id}/assign")
-async def assign_campaign(campaign_id: str):
-    # TODO: implement per instructions above
-    pass
+@router.post("/{campaign_id}/assign")
+async def assign_campaign(campaign_id: str, req: CampaignAssignRequest):
+    campaign = await _load_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    if campaign.get("status") != "sequences_ready":
+        raise HTTPException(status_code=400, detail={"error": "campaign_not_ready"})
+
+    created = []
+    accounts = campaign.get("audience", [])
+    for sdr_id in req.sdr_ids:
+        assignment_id = await engine.create_assignment(
+            campaign_id=campaign_id,
+            sdr_id=sdr_id,
+            accounts=accounts,
+            campaign_name=campaign.get("name", "Campaign"),
+            vp_name="VP",
+            rationale=campaign.get("vp_command", ""),
+        )
+        created.append(assignment_id)
+        await push_notifications.notify_sdr(sdr_id, {"assignment_id": assignment_id})
+
+    campaign["status"] = "assigned"
+    campaign["assignment_ids"] = created
+    await _save_campaign(campaign)
+    return {"status": "assigned", "assignment_ids": created}

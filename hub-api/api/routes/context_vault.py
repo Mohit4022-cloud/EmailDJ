@@ -1,60 +1,53 @@
-"""
-Context Vault route — manual vault management endpoints.
+"""Context vault endpoints for ingest, retrieval, and cache management."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Endpoints:
-  POST /vault/extract          → extract context from raw CRM notes
-  GET  /vault/{account_id}     → retrieve cached AccountContext
-  POST /vault/{account_id}/invalidate → clear cache entry
-  GET  /vault/{account_id}/freshness  → return freshness status + last_enriched_at
+from __future__ import annotations
 
-POST /vault/extract logic:
-1. Parse { account_id, raw_notes, salesforce_url } from body.
-2. Call context_vault.extractor.extract(raw_notes, account_id).
-3. Store result in Redis cache via context_vault.cache.set().
-4. Trigger async embedding: context_vault.embedder.embed_and_store() as BackgroundTask.
-5. Return the extracted AccountContext (without waiting for embedding).
+from fastapi import APIRouter, HTTPException
 
-GET /vault/{account_id} logic:
-1. Call context_vault.cache.get_or_fetch(account_id).
-2. If None, return 404 with { error: 'not_found', message: 'No context found.
-   Trigger extraction via POST /vault/extract' }.
-3. Return AccountContext with freshness field computed on the fly.
-
-Pre-staging endpoint (called by extension before SDR clicks Generate):
-POST /vault/prefetch → accepts array of account_ids, pre-warms Redis cache.
-"""
-
-from fastapi import APIRouter
+from api.schemas import ProspectPayload, VaultIngestRequest, VaultPrefetchRequest
+from context_vault import cache, extractor
+from context_vault.models import AccountContext
 
 router = APIRouter()
 
 
-@router.post("/vault/extract")
-async def extract_context():
-    # TODO: implement per instructions above
-    pass
+async def _payload_to_context(payload: ProspectPayload) -> AccountContext:
+    notes_text = "\n".join(payload.notes + payload.activityTimeline)
+    context = await extractor.extract(raw_notes=notes_text, account_id=payload.accountId)
+    if payload.accountName:
+        context.account_name = payload.accountName
+    context.domain = payload.extractionMetadata.salesforceUrl if payload.extractionMetadata else context.domain
+    context.industry = payload.industry or context.industry
+    context.employee_count = payload.employeeCount or context.employee_count
+    return context
 
 
-@router.get("/vault/{account_id}")
-async def get_context(account_id: str):
-    # TODO: implement per instructions above
-    pass
+@router.post("/ingest")
+async def ingest_context(req: VaultIngestRequest):
+    context = await _payload_to_context(req.payload)
+    await cache.set(req.payload.accountId, context)
+    return {"status": "ok", "account_id": req.payload.accountId, "freshness": context.freshness}
 
 
-@router.post("/vault/{account_id}/invalidate")
-async def invalidate_context(account_id: str):
-    # TODO: implement per instructions above
-    pass
+@router.get("/context/{prospect_id}")
+async def get_context(prospect_id: str):
+    context = await cache.get_or_fetch(prospect_id)
+    if context is None:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "message": "No context found"})
+    return {"account_id": prospect_id, "context": context.model_dump()}
 
 
-@router.get("/vault/{account_id}/freshness")
-async def get_freshness(account_id: str):
-    # TODO: implement per instructions above
-    pass
+@router.post("/context/{prospect_id}/invalidate")
+async def invalidate_context(prospect_id: str):
+    await cache.invalidate(prospect_id)
+    return {"status": "ok", "account_id": prospect_id}
 
 
-@router.post("/vault/prefetch")
-async def prefetch_contexts():
-    # TODO: implement per instructions above
-    pass
+@router.post("/prefetch")
+async def prefetch_contexts(req: VaultPrefetchRequest):
+    found = 0
+    for account_id in req.account_ids:
+        context = await cache.get_or_fetch(account_id)
+        if context is not None:
+            found += 1
+    return {"requested": len(req.account_ids), "found": found}

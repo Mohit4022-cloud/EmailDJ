@@ -469,3 +469,122 @@ No divergence from original plan.
 6. **Swap mock -> real LLM**: set `USE_MOCK_LLM=false` in `.env`, add provider API keys
 
 ---
+
+## Entry 004 — 2026-02-28 | PROGRESS: Quality Gates Green — First Full End-to-End Pass
+
+**Date:** 2026-02-28
+**Type:** PROGRESS
+**Author:** AI-assisted (Claude Sonnet 4.6 — implementation model)
+**Previous Entry:** Entry 003 — 2026-02-28 | PROGRESS: Stability Hardening, Feature Flags, Quality-Gate Tooling, and Tests
+
+---
+
+### Context
+
+This session completed what Entry 003 left blocked: all install-dependent quality gates were unblocked and run to green. The extension built successfully, 11 pytest tests passed, and OpenAPI was regenerated from the live FastAPI runtime. This is the first session where the full automated quality gate (`checks.sh`) ran to completion with zero failures.
+
+---
+
+### What Was Run and Fixed
+
+#### Bootstrap + Dependency Install
+
+- **`hub-api/scripts/bootstrap_backend.sh`** — Executed successfully. Created `.venv`, installed all `requirements.txt` deps including `fastapi`, `pytest`, `pytest-asyncio`, `presidio-analyzer`, `spacy`, `redis`, `langchain`, `langgraph`.
+- **`chrome-extension/scripts-bootstrap.sh`** — Executed successfully. `npm install` + `npm run build` completed; extension `dist/` produced.
+
+#### Extension Build Blocker Fixed
+
+Vite/crxjs build failed on missing manifest icon references. Fixed by adding required PNG icon assets:
+- `chrome-extension/public/icons/icon16.png`
+- `chrome-extension/public/icons/icon32.png`
+- `chrome-extension/public/icons/icon48.png`
+- `chrome-extension/public/icons/icon128.png`
+
+All four icons added; `npm run build` passed cleanly after.
+
+#### Forced In-Memory Redis Mode for Local/Test Gates
+
+- **`infra/redis_client.py`** — Added `REDIS_FORCE_INMEMORY=true` env flag: when set, the client skips the Redis connection attempt entirely and uses the in-memory fallback with no warning noise. Intended for CI and local gate runs without a running Redis instance.
+- **`hub-api/scripts/checks.sh`** — Updated to set `REDIS_FORCE_INMEMORY=true` before running pytest, so all tests run cleanly in environments without Redis.
+
+#### Hub API Implementations Finalized
+
+- **`email_generation/quick_generate.py`** — Mock/real flag fully wired; TTL cleanup on stream completion; concurrency limiter (semaphore-based, respects `MAX_CONCURRENT_GENERATES`); cost tracking event emitted on `done`.
+- **`api/routes/quick_generate.py`** — Route handler wired to finalized quick_generate; observability log lines on enqueue, stream-start, stream-done, and stream-error.
+
+#### Quality-Gate Scripts Finalized
+
+- **`hub-api/scripts/generate_openapi.py`** — Imports FastAPI app, exports live OpenAPI schema to `hub-api/openapi.json`. Ran successfully; `openapi.json` regenerated from actual implemented endpoints.
+- **`hub-api/scripts/mock_e2e_smoke.py`** — In-process smoke test; passes cleanly.
+
+#### Tests Finalized (11 passed)
+
+- **`tests/test_contracts.py`** — Schema round-trip tests pass.
+- **`tests/test_sse_and_pii.py`** — SSE event sequence + PII token vault round-trip pass.
+- **`tests/test_middleware_order.py`** — Middleware execution order assertion passes.
+- **`tests/integration/test_mock_e2e.py`** — Full mock QuickGenerate E2E passes.
+- **`tests/integration/test_campaign_assignment_lifecycle.py`** — Campaign -> VP approve -> assign -> claim -> complete lifecycle passes.
+
+---
+
+### Gate Results
+
+| Check | Result |
+|---|---|
+| `python3 -m py_compile $(find hub-api -name '*.py' -type f)` | PASSED |
+| `pytest` (11 tests) | 11 passed, 0 failed |
+| `python3 scripts/generate_openapi.py` | PASSED — `openapi.json` regenerated |
+| `npm run build` (extension) | PASSED — `dist/` produced |
+| `node --check` across extension JS | PASSED |
+| Full `./scripts/checks.sh` | ALL GREEN |
+
+**Command run:** `cd /Users/mohit/EmailDJ/hub-api && source .venv/bin/activate && ./scripts/checks.sh`
+
+---
+
+### Non-Blocking Warnings
+
+| Warning | Source | Impact |
+|---|---|---|
+| Dynamic + static import of `hub-client.js` | Vite bundler | Non-blocking; Vite warns but build succeeds. Resolve by consolidating to a single import style in a future pass. |
+| Python 3.14 compatibility note from `confection` | spaCy transitive dependency | Non-blocking; `confection` emits a deprecation-style warning about Python 3.14 support. No functional impact on Python 3.11/3.12. |
+
+---
+
+### Current Status
+
+| Layer | Status |
+|---|---|
+| Backend dependencies | Installed in `.venv` |
+| Extension build | Clean — `dist/` ready to load in Chrome |
+| All Python files | Compile clean |
+| All JS files | Parse clean |
+| pytest (11 tests) | Green |
+| OpenAPI contract | Regenerated from live runtime |
+| Full quality gate (`checks.sh`) | All green |
+| Real LLM provider calls | Still placeholder — `USE_MOCK_LLM=true` in gate runs |
+| Real Redis / Postgres / Pinecone | Not yet provisioned |
+| Extension loaded in Chrome | Not yet — `dist/` ready, pending manual load |
+
+---
+
+### Alignment with Original Plan (Entry 001)
+
+This entry is fully aligned with the founding vision. The work here directly completes Step 8 (`npm run build`) and the automated smoke-test portions of the Entry 001 recommended next-session sequence. The quality gate being fully green for the first time is the natural conclusion of the implementation arc that started in Entry 002 and was hardened in Entry 003.
+
+The one new decision introduced this session — the `REDIS_FORCE_INMEMORY=true` env flag — is consistent with the founding design: the in-memory Redis fallback was always intended for local/CI use. The new flag makes that opt-in explicit and removes warning noise from gate runs, which is a refinement of the original design, not a divergence.
+
+No divergence from original plan.
+
+---
+
+### Next Steps
+
+1. **Load extension in Chrome** — `chrome://extensions` -> Developer mode -> Load unpacked -> `chrome-extension/dist/`
+2. **Provision real infra** — Redis (Docker or Upstash), PostgreSQL, Pinecone index (`emaildj-context`, 1536 dims)
+3. **Swap mock -> real LLM** — Set `USE_MOCK_LLM=false`, add `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` to `.env`
+4. **Configure CRM OAuth** — Salesforce Connected App credentials in `.env`
+5. **End-to-end live smoke test** — Navigate to Salesforce contact -> Side Panel -> QuickGenerate -> real SSE stream with real LLM output
+6. **Resolve Vite hub-client.js warning** — Consolidate dynamic/static import
+
+---

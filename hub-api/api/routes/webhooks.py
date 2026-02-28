@@ -1,53 +1,57 @@
-"""
-Webhooks route — inbound signal capture for feedback flywheel.
+"""Webhook endpoints for edit/send/reply signals."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Endpoints:
-  POST /webhooks/edit   → capture SDR edit (original vs final email)
-  POST /webhooks/send   → capture send event (email actually sent)
-  POST /webhooks/reply  → capture reply signal (inbound from CRM webhook)
+from __future__ import annotations
 
-POST /webhooks/edit logic:
-1. Parse { assignment_id, original_draft: str, final_edit: str, account_id } from body.
-2. Compute diff between original_draft and final_edit (use difflib or similar).
-3. Store the diff in DB table `edit_signals` with timestamp.
-4. If edit length delta > 30% (major rewrite), flag for prompt evolution review:
-   store in `prompt_evolution_queue` table with flag=True.
-5. Return { status: 'captured', diff_size_chars }.
-6. This data is the most important feedback flywheel — every SDR edit teaches the
-   prompt templates what to change.
-
-POST /webhooks/send logic:
-1. Parse { assignment_id, account_id, email_draft: str, sent_at } from body.
-2. Call delegation.engine.mark_sent(assignment_id, email_draft, final_edit).
-3. Update campaign stats in DB (sent_count++).
-4. Return { status: 'ok' }.
-
-POST /webhooks/reply logic:
-1. Parse inbound CRM webhook payload (Salesforce outbound message format).
-2. Extract account_id, contact_id, reply_timestamp.
-3. Store reply signal. Update Context Vault engagement recency for this account.
-4. Return 200 (Salesforce requires 200 to confirm webhook receipt).
-"""
+import difflib
+from datetime import datetime, timezone
 
 from fastapi import APIRouter
 
+from api.schemas import WebhookEditRequest, WebhookReplyRequest, WebhookSendRequest
+from delegation import engine
+
 router = APIRouter()
 
-
-@router.post("/webhooks/edit")
-async def capture_edit():
-    # TODO: implement per instructions above
-    pass
+_EDIT_SIGNALS: list[dict] = []
+_SEND_SIGNALS: list[dict] = []
+_REPLY_SIGNALS: list[dict] = []
 
 
-@router.post("/webhooks/send")
-async def capture_send():
-    # TODO: implement per instructions above
-    pass
+@router.post("/edit")
+async def capture_edit(req: WebhookEditRequest):
+    diff = list(difflib.ndiff(req.original_draft.splitlines(), req.final_edit.splitlines()))
+    diff_size_chars = abs(len(req.final_edit) - len(req.original_draft))
+    major = len(req.final_edit) > 0 and diff_size_chars / max(len(req.original_draft), 1) > 0.3
+
+    _EDIT_SIGNALS.append(
+        {
+            "assignment_id": req.assignment_id,
+            "account_id": req.account_id,
+            "original_draft": req.original_draft,
+            "final_edit": req.final_edit,
+            "diff": diff,
+            "prompt_evolution_flag": major,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    return {"status": "captured", "diff_size_chars": diff_size_chars}
 
 
-@router.post("/webhooks/reply")
-async def capture_reply():
-    # TODO: implement per instructions above
-    pass
+@router.post("/send")
+async def capture_send(req: WebhookSendRequest):
+    final_edit = req.final_edit or req.email_draft
+    await engine.mark_sent(req.assignment_id, req.email_draft, final_edit)
+    _SEND_SIGNALS.append(
+        {
+            "assignment_id": req.assignment_id,
+            "account_id": req.account_id,
+            "sent_at": (req.sent_at or datetime.now(timezone.utc)).isoformat(),
+        }
+    )
+    return {"status": "ok"}
+
+
+@router.post("/reply")
+async def capture_reply(req: WebhookReplyRequest):
+    _REPLY_SIGNALS.append(req.model_dump())
+    return {"status": "ok"}

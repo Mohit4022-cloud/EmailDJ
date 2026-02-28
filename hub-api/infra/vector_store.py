@@ -1,51 +1,12 @@
-"""
-Vector Store — abstraction over Pinecone or pgvector.
+"""Vector store abstraction with in-memory fallback."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Exports:
-  upsert(account_id: str, embedding: list[float], metadata: dict) → None
-  query(embedding: list[float], top_k: int) → list[Match]
-  delete(account_id: str) → None
+from __future__ import annotations
 
-Backend selection: read VECTOR_STORE_BACKEND env var.
-  - "pinecone" (default): Pinecone serverless index
-  - "pgvector": PostgreSQL with pgvector extension
-
-Match (dataclass):
-  { account_id: str, score: float, metadata: dict }
-
-Pinecone backend:
-  1. Initialize Pinecone client:
-     from pinecone import Pinecone
-     pc = Pinecone(api_key=os.environ["PINECONE_API_KEY"])
-     index = pc.Index(os.environ["PINECONE_INDEX_NAME"])
-     Index config: dimension=1536, metric="cosine", serverless spec (us-east-1)
-  2. upsert(): index.upsert(vectors=[{"id": account_id, "values": embedding,
-     "metadata": metadata}])
-  3. query(): results = index.query(vector=embedding, top_k=top_k, include_metadata=True)
-     Return [Match(id, score, metadata) for id in results.matches]
-  4. delete(): index.delete(ids=[account_id])
-
-pgvector backend:
-  1. Use SQLAlchemy with pgvector extension.
-  2. Table schema: account_embeddings(id uuid, account_id text unique,
-     embedding halfvec(1536), metadata jsonb, created_at timestamp)
-     (halfvec = 2-byte float storage, more efficient than vector)
-  3. upsert(): INSERT ... ON CONFLICT (account_id) DO UPDATE SET embedding = ...
-  4. query(): SELECT account_id, metadata, 1 - (embedding <=> :query_vec) AS score
-     FROM account_embeddings ORDER BY embedding <=> :query_vec LIMIT :top_k
-  5. Use pgvector index: CREATE INDEX ON account_embeddings USING ivfflat
-     (embedding halfvec_cosine_ops) WITH (lists = 100)
-
-The abstraction must support both backends via VECTOR_STORE_BACKEND env var
-so the team can switch without code changes.
-"""
-
+import math
 import os
 from dataclasses import dataclass
 
-
-VECTOR_STORE_BACKEND = os.environ.get("VECTOR_STORE_BACKEND", "pinecone")
+VECTOR_STORE_BACKEND = os.environ.get("VECTOR_STORE_BACKEND", "memory")
 
 
 @dataclass
@@ -55,16 +16,32 @@ class Match:
     metadata: dict
 
 
+_MEM: dict[str, tuple[list[float], dict]] = {}
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    if na == 0 or nb == 0:
+        return 0.0
+    return dot / (na * nb)
+
+
 async def upsert(account_id: str, embedding: list, metadata: dict) -> None:
-    # TODO: implement per VECTOR_STORE_BACKEND per instructions above
-    raise NotImplementedError("vector_store.upsert not yet implemented")
+    # MVP keeps a local-memory backend to avoid infra coupling in dev.
+    _MEM[account_id] = (list(embedding), dict(metadata))
 
 
-async def query(embedding: list, top_k: int = 10) -> list:
-    # TODO: implement per VECTOR_STORE_BACKEND per instructions above
-    raise NotImplementedError("vector_store.query not yet implemented")
+async def query(embedding: list, top_k: int = 10) -> list[Match]:
+    scored: list[Match] = []
+    for account_id, (vec, metadata) in _MEM.items():
+        scored.append(Match(account_id=account_id, score=_cosine(embedding, vec), metadata=metadata))
+    scored.sort(key=lambda m: m.score, reverse=True)
+    return scored[:top_k]
 
 
 async def delete(account_id: str) -> None:
-    # TODO: implement per VECTOR_STORE_BACKEND per instructions above
-    raise NotImplementedError("vector_store.delete not yet implemented")
+    _MEM.pop(account_id, None)

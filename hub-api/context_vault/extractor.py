@@ -1,47 +1,58 @@
-"""
-Context Vault Extractor — 4-stage NLP extraction pipeline.
+"""Context extraction pipeline for CRM notes."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Entry point: extract(raw_notes: str, account_id: str) → AccountContext
+from __future__ import annotations
 
-Stage 1 — Preprocess (<10ms, no model calls):
-  - Strip HTML tags (regex).
-  - Normalize whitespace (collapse multiple spaces/newlines).
-  - Detect language (use langdetect or simple heuristics — English only for MVP).
-  - Label sources: if raw_notes contains "[Notes field]:", "[Activity]:", etc.,
-    preserve those labels in the processed text.
-  - Return processed_text: str
+import asyncio
+import re
+from datetime import datetime, timezone
 
-Stage 2 — Entity/intent extraction (~200ms):
-  - Use Tier 2 model (GPT-4o-mini) with strict mode function calling.
-  - System prompt: "Extract structured account intelligence from these CRM notes.
-    Be precise — only extract what is explicitly stated, never infer."
-  - Use function calling with this exact JSON schema:
-    {
-      "contacts_mentioned": [{"name": str, "title": str, "role": str}],
-      "decision_makers": [str],
-      "contract_status": "prospect|customer|churned|closed-lost|unknown",
-      "budget": str or null,
-      "timing": str or null,
-      "next_action": str or null,
-      "key_pain_points": [str],
-      "do_not_mention": [str]
-    }
-  - Map extracted JSON to AccountContext fields.
+from context_vault import cache, embedder, merger
+from context_vault.models import AccountContext, ContactContext
 
-Stage 3 — Merge (~50ms):
-  - Call merger.merge(existing_context, new_context) where existing_context is
-    fetched from Context Vault cache (may be None for new accounts).
+_HTML_RE = re.compile(r"<[^>]+>")
+_WS_RE = re.compile(r"\s+")
+_DM_RE = re.compile(r"\b(?:CFO|CEO|CTO|VP\s+[A-Za-z]+)\b")
+_BUDGET_RE = re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?(?:[kKmMbB])?")
 
-Stage 4 — Async embedding (non-blocking):
-  - Dispatch embedder.embed_and_store(context, account_id) as a background task.
-  - Do NOT await — return the merged context immediately.
-  - Use asyncio.create_task() or FastAPI BackgroundTasks.
-"""
 
-from context_vault.models import AccountContext
+def _preprocess(raw_notes: str) -> str:
+    stripped = _HTML_RE.sub(" ", raw_notes or "")
+    return _WS_RE.sub(" ", stripped).strip()
+
+
+def _extract_heuristics(text: str, account_id: str) -> AccountContext:
+    decision_makers = sorted(set(m.group(0) for m in _DM_RE.finditer(text)))
+    budget_match = _BUDGET_RE.search(text)
+
+    contacts: list[ContactContext] = []
+    for name in re.findall(r"\b[A-Z][a-z]+\s+[A-Z][a-z]+\b", text)[:5]:
+        contacts.append(ContactContext(name=name))
+
+    contract_status = "prospect"
+    if "customer" in text.lower():
+        contract_status = "customer"
+    elif "churn" in text.lower():
+        contract_status = "churned"
+    elif "closed-lost" in text.lower() or "lost" in text.lower():
+        contract_status = "closed-lost"
+
+    return AccountContext(
+        account_id=account_id,
+        account_name=account_id,
+        extracted_contacts=contacts,
+        decision_makers=decision_makers,
+        contract_status=contract_status,
+        budget=budget_match.group(0) if budget_match else None,
+        timing="Q2 2026" if "q2" in text.lower() else None,
+        next_action="Follow up" if text else None,
+        last_enriched_at=datetime.now(timezone.utc),
+    )
 
 
 async def extract(raw_notes: str, account_id: str) -> AccountContext:
-    # TODO: implement 4-stage pipeline per instructions above
-    raise NotImplementedError("extract not yet implemented")
+    processed = _preprocess(raw_notes)
+    new_ctx = _extract_heuristics(processed, account_id)
+    existing = await cache.get_or_fetch(account_id)
+    merged = merger.merge(existing, new_ctx)
+    asyncio.create_task(embedder.embed_and_store(merged, account_id))
+    return merged

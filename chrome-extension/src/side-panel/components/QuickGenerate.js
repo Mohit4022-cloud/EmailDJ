@@ -1,61 +1,8 @@
-/**
- * QuickGenerate — Main email generation UI component.
- *
- * IMPLEMENTATION INSTRUCTIONS:
- * Vanilla JS class (no framework dependency for MV3 compatibility).
- *
- * States:
- *   - 'idle':       Show ContextSummary + Generate button + PersonalizationSlider
- *   - 'generating': Show streaming skeleton with first words visible as SSE begins
- *   - 'complete':   Show full email in EmailEditor with Copy/Edit/Send actions
- *
- * Constructor(container: HTMLElement):
- *   this.container = container;
- *   this.state = 'idle';
- *   this.currentPayload = null;  // set by content script message
- *   this.sliderValue = 5;        // PersonalizationSlider default
- *   this.render();
- *   this.setupMessageListener();  // listen for PAYLOAD_READY from service worker
- *   this.pollAssignmentsOnMount();
- *
- * setupMessageListener():
- *   chrome.runtime.onMessage.addListener((msg) => {
- *     if (msg.type === 'PAYLOAD_READY') {
- *       this.currentPayload = msg.payload;
- *       this.currentTokenMap = msg.tokenMap;
- *       this.setState('idle');  // update context summary
- *     }
- *   });
- *
- * pollAssignmentsOnMount():
- *   hubClient.pollAssignments().then(({ count, assignments }) => {
- *     if (count > 0) this.showAssignmentBadge(count);
- *   }).catch(console.error);
- *   setInterval(() => this.pollAssignmentsOnMount(), 30000);
- *
- * onGenerateClick():
- *   this.setState('generating');
- *   Listen for emailToken events → pass to EmailEditor.appendToken(token)
- *   Listen for emailComplete → this.setState('complete')
- *   Listen for emailError → show error state with retry button
- *   hubClient.generateEmail(this.currentPayload, this.sliderValue)
- *
- * For cold accounts (no Context Vault data / accountId not found):
- *   Show "Researching [Company]..." skeleton with animated progress indicator.
- *   Do NOT show an error state — frame it as the system working hard for them.
- *
- * PersonalizationSlider:
- *   <input type="range" min="0" max="10" value="5">
- *   Label: "⚡ Efficiency" ←→ "🎯 Personalization"
- *   On change: update this.sliderValue
- *
- * render():
- *   Build DOM tree, attach event listeners. Use innerHTML for initial render.
- *
- * setState(newState):
- *   this.state = newState;
- *   Update DOM to reflect new state (show/hide elements).
- */
+/** Main Quick Generate UI component. */
+
+import { generateEmail, pollAssignments } from '../hub-client.js';
+import { ContextSummary } from './ContextSummary.js';
+import { EmailEditor } from './EmailEditor.js';
 
 export class QuickGenerate {
   constructor(container) {
@@ -64,36 +11,139 @@ export class QuickGenerate {
     this.currentPayload = null;
     this.currentTokenMap = {};
     this.sliderValue = 5;
-    // TODO: implement full class per instructions above
+    this.emailEditor = null;
+    this._pollInterval = null;
+    this._listenersAttached = false;
+    this._handlers = null;
     this.render();
+    this.setupMessageListener();
+    this.pollAssignmentsOnMount();
+  }
+
+  setupMessageListener() {
+    if (this._listenersAttached) return;
+    this._listenersAttached = true;
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === 'PAYLOAD_READY') {
+        this.currentPayload = msg.payload;
+        this.currentTokenMap = msg.tokenMap || {};
+        this.setState('idle');
+      }
+    });
+  }
+
+  pollAssignmentsOnMount() {
+    pollAssignments().then(({ count }) => {
+      if (count > 0) this.showAssignmentBadge(count);
+    }).catch(() => {});
+    if (!this._pollInterval) {
+      this._pollInterval = setInterval(() => this.pollAssignmentsOnMount(), 30000);
+    }
   }
 
   render() {
-    // TODO: implement DOM construction per instructions above
     this.container.innerHTML = `
       <div class="quick-generate">
-        <div class="context-summary" id="contextSummary">
-          <p>Open a Salesforce Account record to begin.</p>
-        </div>
-        <div class="slider-container">
-          <label>⚡ Efficiency
+        <div class="context-summary" id="contextSummary"></div>
+        <div class="slider-container" id="sliderContainer">
+          <label>Efficiency
             <input type="range" id="personalizationSlider" min="0" max="10" value="5">
-            🎯 Personalization
+            Personalization
           </label>
         </div>
         <button id="generateBtn" class="generate-btn">Generate Email</button>
+        <button id="retryBtn" class="generate-btn" style="display:none; margin-top:8px;">Retry</button>
+        <div id="statusLine" style="margin-top:8px; font-size:12px; color:#666;"></div>
         <div class="email-editor-container" id="emailEditorContainer" style="display:none;"></div>
       </div>
     `;
-    // TODO: attach event listeners
+
+    this.contextSummary = new ContextSummary(this.container.querySelector('#contextSummary'));
+    this.contextSummary.update(this.currentPayload, null);
+
+    this.container.querySelector('#personalizationSlider')?.addEventListener('input', (e) => {
+      this.sliderValue = parseInt(e.target.value, 10);
+    });
+
+    this.container.querySelector('#generateBtn')?.addEventListener('click', () => this.onGenerateClick());
+    this.container.querySelector('#retryBtn')?.addEventListener('click', () => this.onGenerateClick());
   }
 
-  setState(newState) {
+  setState(newState, errorText = '') {
     this.state = newState;
-    // TODO: update DOM per state
+    const status = this.container.querySelector('#statusLine');
+    const btn = this.container.querySelector('#generateBtn');
+    const retryBtn = this.container.querySelector('#retryBtn');
+    if (!status || !btn || !retryBtn) return;
+
+    if (newState === 'idle') {
+      status.textContent = this.currentPayload ? 'Context ready.' : 'Open a Salesforce Account record to begin.';
+      btn.disabled = !this.currentPayload;
+      retryBtn.style.display = 'none';
+      this.contextSummary.update(this.currentPayload, null);
+    } else if (newState === 'generating') {
+      status.textContent = 'Generating draft...';
+      btn.disabled = true;
+      retryBtn.style.display = 'none';
+    } else if (newState === 'complete') {
+      status.textContent = 'Draft complete.';
+      btn.disabled = false;
+      retryBtn.style.display = 'none';
+    } else if (newState === 'error') {
+      status.textContent = errorText || 'Generation failed. Please retry.';
+      btn.disabled = false;
+      retryBtn.style.display = 'block';
+    }
+  }
+
+  onGenerateClick() {
+    if (!this.currentPayload) return;
+
+    this.setState('generating');
+    const editorContainer = this.container.querySelector('#emailEditorContainer');
+    editorContainer.style.display = 'block';
+    editorContainer.innerHTML = '';
+    this.emailEditor = new EmailEditor(editorContainer);
+
+    if (this._handlers) {
+      window.removeEventListener('emailToken', this._handlers.onToken);
+      window.removeEventListener('emailComplete', this._handlers.onComplete);
+      window.removeEventListener('emailError', this._handlers.onError);
+    }
+
+    const onToken = (ev) => this.emailEditor?.appendToken(ev.detail || '');
+    const onComplete = () => {
+      this.emailEditor?.markComplete();
+      this.setState('complete');
+      cleanup();
+    };
+    const onError = (ev) => {
+      this.setState('error', ev?.detail || 'Generation failed. Please retry.');
+      cleanup();
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('emailToken', onToken);
+      window.removeEventListener('emailComplete', onComplete);
+      window.removeEventListener('emailError', onError);
+      this._handlers = null;
+    };
+
+    this._handlers = { onToken, onComplete, onError };
+    window.addEventListener('emailToken', onToken);
+    window.addEventListener('emailComplete', onComplete);
+    window.addEventListener('emailError', onError);
+
+    generateEmail(this.currentPayload, this.sliderValue).catch((err) => {
+      this.setState('error', String(err?.message || err));
+      cleanup();
+    });
   }
 
   showAssignmentBadge(count) {
-    // TODO: show badge on AssignedCampaigns tab
+    const badge = document.getElementById('assignmentBadge');
+    if (!badge) return;
+    badge.textContent = String(count);
+    badge.style.display = 'inline-block';
   }
 }

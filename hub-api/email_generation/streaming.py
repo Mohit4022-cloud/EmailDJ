@@ -1,46 +1,55 @@
-"""
-SSE Streaming — wraps async token generators in EventSourceResponse.
+"""SSE wrapper utilities."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Exports: stream_response(generator: AsyncGenerator) → EventSourceResponse
+from __future__ import annotations
 
-1. Import EventSourceResponse from sse_starlette.sse.
-2. Define an async generator wrapper that formats SSE events:
-   async def event_generator(token_gen):
-     try:
-       async for token in token_gen:
-         yield { "event": "token", "data": token }
-       yield { "event": "done", "data": "" }
-     except Exception as e:
-       yield { "event": "error", "data": str(e) }
-
-3. Return EventSourceResponse(event_generator(generator)).
-
-4. SSE event format (sse_starlette handles serialization):
-   event: token
-   data: <chunk_text>
-
-   event: done
-   data:
-
-   event: error
-   data: <error_message>
-
-5. Side Panel's EventSource listener behavior (for reference, implemented in JS):
-   - On "token" event: append data to EmailEditor contenteditable div.
-   - On "done" event: mark draft complete, show Copy/Edit/Send buttons.
-   - On "error" event: show error state with retry button.
-
-6. The key UX metric: time-to-first-visible-word (TFVW).
-   Target: <400ms from click. This is achieved by streaming start, not waiting
-   for full generation. The user sees words appearing in ~800ms total.
-
-7. Set ping_interval=15 to keep SSE connection alive during inference.
-"""
-
+import json
+import time
 from typing import AsyncGenerator
 
+from fastapi.responses import StreamingResponse
 
-async def stream_response(generator: AsyncGenerator):
-    # TODO: implement per instructions above
-    raise NotImplementedError("stream_response not yet implemented")
+try:
+    from sse_starlette.sse import EventSourceResponse
+except Exception:  # pragma: no cover
+    EventSourceResponse = None  # type: ignore[assignment]
+
+
+async def _event_generator(request_id: str, generator: AsyncGenerator[str, None]):
+    sequence = 0
+    yield {
+        "event": "start",
+        "data": {"request_id": request_id, "sequence": sequence, "timestamp": time.time()},
+    }
+    sequence += 1
+    try:
+        async for token in generator:
+            yield {
+                "event": "token",
+                "data": {"request_id": request_id, "sequence": sequence, "timestamp": time.time(), "token": token},
+            }
+            sequence += 1
+        yield {
+            "event": "done",
+            "data": {"request_id": request_id, "sequence": sequence, "timestamp": time.time()},
+        }
+    except Exception as exc:
+        yield {
+            "event": "error",
+            "data": {
+                "request_id": request_id,
+                "sequence": sequence,
+                "timestamp": time.time(),
+                "error": str(exc),
+            },
+        }
+
+
+async def _raw_sse_stream(request_id: str, generator: AsyncGenerator[str, None]):
+    async for item in _event_generator(request_id, generator):
+        yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
+
+
+async def stream_response(request_id: str, generator: AsyncGenerator[str, None]):
+    if EventSourceResponse is not None:
+        return EventSourceResponse(_event_generator(request_id, generator), ping=15)
+    return StreamingResponse(_raw_sse_stream(request_id, generator), media_type="text/event-stream")

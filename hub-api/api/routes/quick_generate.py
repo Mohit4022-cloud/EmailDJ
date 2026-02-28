@@ -1,38 +1,102 @@
-"""
-Quick Generate route — the 2-second P95 fast path.
+"""Quick-generate route set with mock/real mode, TTL cleanup, and concurrency controls."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Endpoint: POST /generate
-Request body: { payload: PayloadObject, slider_value: int (0-10) }
-Response: text/event-stream (SSE)
+from __future__ import annotations
 
-Latency budget:
-  - 50ms  → Context Vault Redis lookup
-  - 100ms → Prompt assembly
-  - 800–1200ms → Model inference (streaming)
+import asyncio
+import logging
+import os
+import time
+from dataclasses import dataclass
+from uuid import uuid4
 
-Logic:
-1. Parse request body. Check request.state.cost_throttled.
-2. If cost_throttled=True → force Tier 3 (Groq Llama 3.3 70B).
-   Else → use Tier 2 (GPT-4o-mini or Claude Haiku 3.5).
-   Use model_cascade.get_model(tier=2, task='quick_generate', throttled=...).
-3. Call context_vault.cache.get_or_fetch(account_id) — must be <50ms on cache hit.
-4. Assemble prompt via prompt_templates.get_quick_generate_prompt(
-     payload, account_context, slider_value).
-5. Call email_generation.quick_generate.quick_generate(...) — returns AsyncGenerator.
-6. Wrap in streaming.stream_response() → return EventSourceResponse.
-7. After stream ends, increment cost counter in Redis:
-   INCRBYFLOAT cost_tier2:{account_id} <estimated_cost>
-   (Tier 2 cost: ~$0.0006 per email on GPT-4o-mini — 2500 input + 300 output tokens)
-8. Return Content-Type: text/event-stream.
-"""
+from fastapi import APIRouter, HTTPException, Request
 
-from fastapi import APIRouter
+from api.schemas import QuickGenerateAccepted, QuickGenerateRequest
+from context_vault import cache
+from email_generation.quick_generate import quick_generate
+from email_generation.streaming import stream_response
+from infra.redis_client import get_redis
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+REQUEST_TTL_SECONDS = int(os.environ.get("QUICK_REQUEST_TTL_SECONDS", "300"))
+MAX_CONCURRENT_STREAMS = int(os.environ.get("QUICK_MAX_CONCURRENT_STREAMS", "32"))
 
-@router.post("/generate")
-async def quick_generate():
-    # TODO: implement per instructions above
-    pass
+
+@dataclass
+class RequestRecord:
+    payload: dict
+    created_at: float
+
+
+_REQUESTS: dict[str, RequestRecord] = {}
+_STREAM_SEM = asyncio.Semaphore(MAX_CONCURRENT_STREAMS)
+
+
+def _cleanup_expired() -> None:
+    now = time.time()
+    expired = [rid for rid, rec in _REQUESTS.items() if now - rec.created_at > REQUEST_TTL_SECONDS]
+    for rid in expired:
+        del _REQUESTS[rid]
+
+
+async def _track_cost(account_id: str, request_id: str, input_size: int, output_size: int, throttled: bool) -> None:
+    redis = get_redis()
+    tier_key = "cost_tier3" if throttled else "cost_tier2"
+    estimated = round((input_size / 4000.0) * 0.0002 + (output_size / 2000.0) * 0.0004, 7)
+    key = f"{tier_key}:{account_id or 'default'}"
+    current_raw = await redis.get(key)
+    current = float(current_raw or 0.0)
+    await redis.set(key, f"{current + estimated:.7f}")
+    logger.info(
+        "quick_generate_cost_tracked",
+        extra={"request_id": request_id, "account_id": account_id, "tier_key": tier_key, "estimated_cost": estimated},
+    )
+
+
+@router.post("/quick", response_model=QuickGenerateAccepted)
+async def start_quick_generate(req: QuickGenerateRequest) -> QuickGenerateAccepted:
+    _cleanup_expired()
+    request_id = str(uuid4())
+    _REQUESTS[request_id] = RequestRecord(payload=req.model_dump(), created_at=time.time())
+    return QuickGenerateAccepted(request_id=request_id, stream_url=f"/generate/stream/{request_id}")
+
+
+@router.get("/stream/{request_id}")
+async def stream_quick_generate(request_id: str, request: Request):
+    _cleanup_expired()
+    rec = _REQUESTS.pop(request_id, None)
+    if rec is None:
+        raise HTTPException(status_code=404, detail={"error": "not_found", "request_id": request_id})
+
+    body = rec.payload["payload"]
+    slider_value = rec.payload.get("slider_value", 5)
+    account_id = body.get("accountId", "")
+    throttled = bool(getattr(request.state, "cost_throttled", False))
+    mode = os.environ.get("EMAILDJ_QUICK_GENERATE_MODE", "mock")
+    logger.info(
+        "quick_generate_stream_start",
+        extra={"request_id": request_id, "account_id": account_id, "slider_value": slider_value, "mode": mode, "throttled": throttled},
+    )
+
+    account_context = await cache.get_or_fetch(account_id)
+    base_gen = quick_generate(
+        payload=body,
+        account_context=account_context,
+        slider_value=slider_value,
+        throttled=throttled,
+        use_mock=None,
+    )
+
+    async def _bounded_and_tracked():
+        input_size = len(str(body))
+        output_size = 0
+        async with _STREAM_SEM:
+            async for chunk in base_gen:
+                output_size += len(chunk)
+                yield chunk
+        await _track_cost(account_id=account_id, request_id=request_id, input_size=input_size, output_size=output_size, throttled=throttled)
+
+    return await stream_response(request_id=request_id, generator=_bounded_and_tracked())

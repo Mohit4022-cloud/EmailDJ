@@ -1,33 +1,27 @@
-"""
-Assignments route — Delegation Engine pull endpoint for SDRs.
+"""Assignment polling/accept endpoints."""
 
-IMPLEMENTATION INSTRUCTIONS:
-Endpoint: GET /assignments
-Query params: sdr_id (or inferred from auth token)
-Response: { count: int, summary: list[AssignmentSummary] }
+from __future__ import annotations
 
-Design rationale: MV3 service workers cannot maintain persistent connections.
-The Side Panel polls this endpoint every 30 seconds. This endpoint MUST be
-lightweight — no full payload, no DB joins for email content.
+from fastapi import APIRouter, Response
 
-Logic:
-1. Extract sdr_id from auth token (or query param for dev).
-2. Call delegation.engine.get_pending_assignments(sdr_id).
-3. Return count + summary only:
-   { count: int, assignments: [{ id, campaign_name, vp_name, account_count,
-     rationale_snippet: str (first 140 chars of VP's rationale), created_at }] }
-4. Full campaign payload (pre-drafted emails) is fetched separately via
-   GET /campaigns/{id} when the SDR clicks an assignment — NOT here.
-5. Add Cache-Control: no-cache header (polling endpoint, always fresh).
-6. Target response time: <100ms (Redis-backed, no LLM calls).
-"""
-
-from fastapi import APIRouter
+from delegation import engine
 
 router = APIRouter()
 
 
-@router.get("/assignments")
-async def get_assignments():
-    # TODO: implement per instructions above
-    pass
+@router.get("/poll")
+async def poll_assignments(response: Response, sdr_id: str = "demo-sdr"):
+    summaries = await engine.get_pending_assignments(sdr_id=sdr_id)
+    response.headers["Cache-Control"] = "no-cache"
+    return {
+        "count": len(summaries),
+        "assignments": [engine.serialize_summary(s) for s in summaries],
+    }
+
+
+@router.post("/{assignment_id}/accept")
+async def accept_assignment(assignment_id: str):
+    ok = await engine.set_assignment_status(assignment_id, "in-review")
+    if not ok:
+        return {"status": "not_found", "assignment_id": assignment_id}
+    return {"status": "ok", "assignment_id": assignment_id}

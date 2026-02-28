@@ -1,0 +1,1185 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EmailDJ Hub API",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/generate/quick": {
+      "post": {
+        "tags": [
+          "generate"
+        ],
+        "summary": "Start Quick Generate",
+        "operationId": "start_quick_generate_generate_quick_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QuickGenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuickGenerateAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/generate/stream/{request_id}": {
+      "get": {
+        "tags": [
+          "generate"
+        ],
+        "summary": "Stream Quick Generate",
+        "operationId": "stream_quick_generate_generate_stream__request_id__get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Request Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/research/": {
+      "post": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Start Research",
+        "operationId": "start_research_research__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeepResearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/research/{job_id}/status": {
+      "get": {
+        "tags": [
+          "research"
+        ],
+        "summary": "Get Research Status",
+        "operationId": "get_research_status_research__job_id__status_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Campaign",
+        "operationId": "create_campaign_campaigns__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Campaign",
+        "operationId": "get_campaign_campaigns__campaign_id__get",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/approve": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Approve Campaign",
+        "operationId": "approve_campaign_campaigns__campaign_id__approve_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/campaigns/{campaign_id}/assign": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Assign Campaign",
+        "operationId": "assign_campaign_campaigns__campaign_id__assign_post",
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignAssignRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignments/poll": {
+      "get": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Poll Assignments",
+        "operationId": "poll_assignments_assignments_poll_get",
+        "parameters": [
+          {
+            "name": "sdr_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "demo-sdr",
+              "title": "Sdr Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/assignments/{assignment_id}/accept": {
+      "post": {
+        "tags": [
+          "assignments"
+        ],
+        "summary": "Accept Assignment",
+        "operationId": "accept_assignment_assignments__assignment_id__accept_post",
+        "parameters": [
+          {
+            "name": "assignment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Assignment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/ingest": {
+      "post": {
+        "tags": [
+          "vault"
+        ],
+        "summary": "Ingest Context",
+        "operationId": "ingest_context_vault_ingest_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultIngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/context/{prospect_id}": {
+      "get": {
+        "tags": [
+          "vault"
+        ],
+        "summary": "Get Context",
+        "operationId": "get_context_vault_context__prospect_id__get",
+        "parameters": [
+          {
+            "name": "prospect_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prospect Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/context/{prospect_id}/invalidate": {
+      "post": {
+        "tags": [
+          "vault"
+        ],
+        "summary": "Invalidate Context",
+        "operationId": "invalidate_context_vault_context__prospect_id__invalidate_post",
+        "parameters": [
+          {
+            "name": "prospect_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Prospect Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vault/prefetch": {
+      "post": {
+        "tags": [
+          "vault"
+        ],
+        "summary": "Prefetch Contexts",
+        "operationId": "prefetch_contexts_vault_prefetch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VaultPrefetchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/edit": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Capture Edit",
+        "operationId": "capture_edit_webhooks_edit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEditRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/send": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Capture Send",
+        "operationId": "capture_send_webhooks_send_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookSendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/reply": {
+      "post": {
+        "tags": [
+          "webhooks"
+        ],
+        "summary": "Capture Reply",
+        "operationId": "capture_reply_webhooks_reply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookReplyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "summary": "Health",
+        "operationId": "health__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health  Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CampaignApproveRequest": {
+        "properties": {
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          }
+        },
+        "type": "object",
+        "title": "CampaignApproveRequest"
+      },
+      "CampaignAssignRequest": {
+        "properties": {
+          "sdr_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Sdr Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sdr_ids"
+        ],
+        "title": "CampaignAssignRequest"
+      },
+      "CampaignCreateRequest": {
+        "properties": {
+          "command": {
+            "type": "string",
+            "title": "Command"
+          },
+          "campaign_name": {
+            "type": "string",
+            "title": "Campaign Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "command",
+          "campaign_name"
+        ],
+        "title": "CampaignCreateRequest"
+      },
+      "DeepResearchRequest": {
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "title": "Account Id"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "company_name": {
+            "type": "string",
+            "title": "Company Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_id",
+          "domain",
+          "company_name"
+        ],
+        "title": "DeepResearchRequest"
+      },
+      "ExtractionMetadataIn": {
+        "properties": {
+          "selectorConfidences": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Selectorconfidences"
+          },
+          "extractedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extractedat"
+          },
+          "salesforceUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salesforceurl"
+          }
+        },
+        "type": "object",
+        "title": "ExtractionMetadataIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ProspectPayload": {
+        "properties": {
+          "accountId": {
+            "type": "string",
+            "title": "Accountid"
+          },
+          "accountName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountname"
+          },
+          "industry": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Industry"
+          },
+          "employeeCount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employeecount"
+          },
+          "openOpportunities": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Openopportunities"
+          },
+          "lastActivityDate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastactivitydate"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "activityTimeline": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Activitytimeline"
+          },
+          "extractionMetadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExtractionMetadataIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "accountId"
+        ],
+        "title": "ProspectPayload"
+      },
+      "QuickGenerateAccepted": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "title": "Request Id"
+          },
+          "stream_url": {
+            "type": "string",
+            "title": "Stream Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "stream_url"
+        ],
+        "title": "QuickGenerateAccepted"
+      },
+      "QuickGenerateRequest": {
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/ProspectPayload"
+          },
+          "slider_value": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Slider Value",
+            "default": 5
+          }
+        },
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "title": "QuickGenerateRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VaultIngestRequest": {
+        "properties": {
+          "payload": {
+            "$ref": "#/components/schemas/ProspectPayload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "payload"
+        ],
+        "title": "VaultIngestRequest"
+      },
+      "VaultPrefetchRequest": {
+        "properties": {
+          "account_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Account Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account_ids"
+        ],
+        "title": "VaultPrefetchRequest"
+      },
+      "WebhookEditRequest": {
+        "properties": {
+          "assignment_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignment Id"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "original_draft": {
+            "type": "string",
+            "title": "Original Draft"
+          },
+          "final_edit": {
+            "type": "string",
+            "title": "Final Edit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_draft",
+          "final_edit"
+        ],
+        "title": "WebhookEditRequest"
+      },
+      "WebhookReplyRequest": {
+        "properties": {
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "contact_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Id"
+          },
+          "reply_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reply Timestamp"
+          },
+          "raw_payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw Payload"
+          }
+        },
+        "type": "object",
+        "title": "WebhookReplyRequest"
+      },
+      "WebhookSendRequest": {
+        "properties": {
+          "assignment_id": {
+            "type": "string",
+            "title": "Assignment Id"
+          },
+          "account_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Id"
+          },
+          "email_draft": {
+            "type": "string",
+            "title": "Email Draft"
+          },
+          "final_edit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Edit"
+          },
+          "sent_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sent At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "assignment_id",
+          "email_draft"
+        ],
+        "title": "WebhookSendRequest"
+      }
+    }
+  }
+}
