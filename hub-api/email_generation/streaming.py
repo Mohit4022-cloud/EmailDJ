@@ -49,7 +49,12 @@ async def _raw_sse_stream(request_id: str, generator: AsyncGenerator[str, None])
         yield f"event: {item['event']}\ndata: {json.dumps(item['data'])}\n\n"
 
 
+async def _eventsource_stream(request_id: str, generator: AsyncGenerator[str, None]):
+    async for item in _event_generator(request_id, generator):
+        yield {"event": item["event"], "data": json.dumps(item["data"])}
+
+
 async def stream_response(request_id: str, generator: AsyncGenerator[str, None]):
     if EventSourceResponse is not None:
-        return EventSourceResponse(_event_generator(request_id, generator), ping=15)
+        return EventSourceResponse(_eventsource_stream(request_id, generator), ping=15)
     return StreamingResponse(_raw_sse_stream(request_id, generator), media_type="text/event-stream")

@@ -150,7 +150,7 @@ async def _real_generate(prompt: list[dict[str, str]], throttled: bool = False) 
         return await _anthropic_messages(prompt, "claude-3-5-haiku-latest")
     if preferred == "groq":
         return await _groq_chat_completion(prompt, "llama-3.3-70b-versatile")
-    return await _openai_chat_completion(prompt, "gpt-4o-mini")
+    return await _openai_chat_completion(prompt, "gpt-4.1-nano")
 
 
 async def quick_generate(

@@ -23,6 +23,81 @@ def _clamp(value: float) -> float:
     return max(-1.0, min(1.0, float(value)))
 
 
+def _normalize_optional_text(value: Any, max_length: int) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    if len(text) > max_length:
+        return text[:max_length].rstrip() + "..."
+    return text
+
+
+def _catalog_items(raw: str | None) -> list[str]:
+    if not raw:
+        return []
+    items: list[str] = []
+    seen: set[str] = set()
+    for line in raw.splitlines():
+        for part in line.replace(";", ",").split(","):
+            candidate = part.strip(" -*\t")
+            if not candidate:
+                continue
+            key = candidate.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            items.append(candidate)
+            if len(items) >= 8:
+                return items
+    return items
+
+
+def normalize_company_context(company_context: dict[str, Any] | None) -> dict[str, str]:
+    source = company_context or {}
+    normalized: dict[str, str] = {}
+    for key, max_length in (
+        ("company_name", 160),
+        ("company_url", 400),
+        ("current_product", 240),
+        ("other_products", 8000),
+        ("company_notes", 8000),
+    ):
+        value = _normalize_optional_text(source.get(key), max_length=max_length)
+        if value:
+            normalized[key] = value
+    return normalized
+
+
+def build_company_context_brief(company_context: dict[str, Any] | None) -> str:
+    normalized = normalize_company_context(company_context)
+    if not normalized:
+        return "No sender company context provided."
+
+    lines: list[str] = []
+    company_name = normalized.get("company_name")
+    company_url = normalized.get("company_url")
+    current_product = normalized.get("current_product")
+    other_products = _catalog_items(normalized.get("other_products"))
+    notes = normalized.get("company_notes")
+
+    if company_name:
+        lines.append(f"Sender company: {company_name}.")
+    if company_url:
+        lines.append(f"Website: {company_url}.")
+    if current_product:
+        lines.append(f"Primary offering: {current_product}.")
+    if other_products:
+        lines.append(f"Adjacent offerings: {', '.join(other_products[:4])}.")
+    if notes:
+        compact_notes = " ".join(notes.split())
+        if len(compact_notes) > 800:
+            compact_notes = compact_notes[:800].rstrip() + "..."
+        lines.append(f"Context notes: {compact_notes}")
+    return " ".join(lines)
+
+
 def normalize_style_profile(style_profile: dict[str, Any]) -> dict[str, float]:
     return {
         "formality": _clamp(style_profile.get("formality", 0.0)),
@@ -53,11 +128,20 @@ def build_factual_brief(prospect: dict[str, Any], research_text: str) -> str:
     )
 
 
-def build_anchors(prospect: dict[str, Any]) -> dict[str, str]:
+def build_anchors(prospect: dict[str, Any], company_context: dict[str, Any] | None = None) -> dict[str, str]:
+    normalized = normalize_company_context(company_context)
+    focus = normalized.get("current_product")
+    seller = normalized.get("company_name") or "your company"
+    mapping_anchor = (
+        f"Map {focus} from {seller} to {prospect.get('company')}'s current outbound priorities with one concrete value bridge."
+        if focus
+        else f"Map the most relevant capability from {seller} to {prospect.get('company')}'s current outbound priorities with one concrete value bridge."
+    )
     return {
         "intent": f"Help {prospect.get('company')} improve SDR response quality and throughput.",
         "cta": "Offer a low-friction 15-minute walkthrough next week.",
         "constraint": "One clear ask, no fabricated claims, and explicit relevance to current initiatives.",
+        "service_mapping": mapping_anchor,
     }
 
 
@@ -83,7 +167,11 @@ def style_directives(style_profile: dict[str, float]) -> dict[str, str]:
     }
 
 
-def _mock_subject(directives: dict[str, str], company: str) -> str:
+def _mock_subject(directives: dict[str, str], company: str, company_context: dict[str, Any] | None = None) -> str:
+    normalized = normalize_company_context(company_context)
+    focus = normalized.get("current_product")
+    if focus:
+        return f"Subject: {focus} fit for {company}'s outbound goals"
     if "pain/problem" in directives["orientation"]:
         return f"Subject: Quick fix for {company}'s outbound bottleneck"
     if "outcomes and upside" in directives["orientation"]:
@@ -91,7 +179,18 @@ def _mock_subject(directives: dict[str, str], company: str) -> str:
     return f"Subject: A practical outbound idea for {company}"
 
 
-def _mock_body(prospect: dict[str, Any], anchors: dict[str, str], directives: dict[str, str]) -> str:
+def _mock_body(
+    prospect: dict[str, Any],
+    anchors: dict[str, str],
+    directives: dict[str, str],
+    company_context: dict[str, Any] | None = None,
+) -> str:
+    normalized = normalize_company_context(company_context)
+    focus = normalized.get("current_product")
+    seller = normalized.get("company_name") or "our team"
+    catalog = _catalog_items(normalized.get("other_products"))
+    notes = normalized.get("company_notes")
+
     opener = (
         f"Hi {prospect.get('name')}, I noticed teams like {prospect.get('company')} often lose replies when messaging sounds generic."
         if "pain/problem" in directives["orientation"]
@@ -107,16 +206,34 @@ def _mock_body(prospect: dict[str, Any], anchors: dict[str, str], directives: di
         if "diplomatic" in directives["assertiveness"]
         else "Can we lock a 15-minute walkthrough next week to test this on one live sequence?"
     )
+    mapping_line = (
+        f"Given {prospect.get('company')}'s push on outbound quality, {seller}'s {focus} maps directly to higher reply quality through prospect-specific messaging."
+        if focus
+        else "I can map the most relevant parts of our offering to your active outbound initiatives without adding process drag."
+    )
+    adjacent_line = ""
+    if focus and catalog:
+        adjacent = [item for item in catalog if item.lower() != focus.lower()]
+        if adjacent:
+            adjacent_line = f"If helpful, related offerings include {', '.join(adjacent[:2])}."
+    notes_line = ""
+    if notes:
+        compact_notes = " ".join(notes.split())
+        if len(compact_notes) > 180:
+            compact_notes = compact_notes[:180].rstrip() + "..."
+        notes_line = f"Context from our side: {compact_notes}"
+
     if "very short" in directives["length"]:
-        return f"{opener} {tone_line} {ask}"
+        return f"{opener} {mapping_line} {ask}"
     if "expanded" in directives["length"]:
         return (
             f"{opener} {tone_line} "
+            f"{mapping_line} "
             f"The goal is simple: preserve factual relevance while letting reps shape tone, structure, and persuasion instantly. "
             f"This aligns with your role as {prospect.get('title')} and the current outbound pressure teams are facing. "
-            f"{anchors['cta']} {ask}"
+            f"{adjacent_line} {notes_line} {anchors['cta']} {ask}"
         )
-    return f"{opener} {tone_line} {ask}"
+    return f"{opener} {tone_line} {mapping_line} {adjacent_line} {ask}"
 
 
 @dataclass
@@ -177,8 +294,8 @@ async def build_draft(
     mode = _mode()
 
     if mode != "real":
-        subject = _mock_subject(directives, session["prospect"]["company"])
-        body = _mock_body(session["prospect"], session["anchors"], directives)
+        subject = _mock_subject(directives, session["prospect"]["company"], session.get("company_context"))
+        body = _mock_body(session["prospect"], session["anchors"], directives, session.get("company_context"))
         draft = f"{subject}\n\n{body}"
     else:
         prompt = get_web_mvp_prompt(
@@ -186,6 +303,8 @@ async def build_draft(
             factual_brief=session["factual_brief"],
             anchors=session["anchors"],
             style_profile=_compose_prompt_style(normalized, directives),
+            company_context_brief=session.get("company_context_brief", "No sender company context provided."),
+            product_focus=(session.get("company_context") or {}).get("current_product"),
             prior_draft=session.get("last_draft"),
         )
         draft = await _real_generate(prompt=prompt, throttled=throttled)
@@ -203,13 +322,21 @@ async def build_draft(
     return DraftResult(draft=draft, style_key=style_key, style_profile=normalized)
 
 
-def create_session_payload(prospect: dict[str, Any], research_text: str, initial_style: dict[str, Any]) -> dict[str, Any]:
+def create_session_payload(
+    prospect: dict[str, Any],
+    research_text: str,
+    initial_style: dict[str, Any],
+    company_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     normalized = normalize_style_profile(initial_style)
+    normalized_company = normalize_company_context(company_context)
     return {
         "prospect": prospect,
+        "company_context": normalized_company,
+        "company_context_brief": build_company_context_brief(normalized_company),
         "research_text": research_text,
         "factual_brief": build_factual_brief(prospect=prospect, research_text=research_text),
-        "anchors": build_anchors(prospect=prospect),
+        "anchors": build_anchors(prospect=prospect, company_context=normalized_company),
         "last_draft": "",
         "last_style_profile": normalized,
         "style_history": [normalized],

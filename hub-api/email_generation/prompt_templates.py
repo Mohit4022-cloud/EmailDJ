@@ -52,6 +52,8 @@ def get_web_mvp_prompt(
     factual_brief: str,
     anchors: dict,
     style_profile: dict,
+    company_context_brief: str,
+    product_focus: str | None,
     prior_draft: str | None = None,
 ) -> list[dict[str, str]]:
     mode = "initial generation" if not prior_draft else "remix"
@@ -70,8 +72,12 @@ def get_web_mvp_prompt(
                 f"Prospect: {prospect}\n"
                 f"Factual brief (immutable): {factual_brief}\n"
                 f"CTA/intent anchors (preserve): {anchors}\n"
+                f"Sender company context (user-managed): {company_context_brief}\n"
+                f"Primary product/service to map: {product_focus or 'not specified'}\n"
                 f"Style controls (continuous -1 to 1): {style_profile}\n"
                 f"Prior draft for remix: {prior_draft or 'N/A'}\n"
+                "When a primary product/service is provided, explicitly map it to one or two concrete prospect signals. "
+                "You may mention one adjacent product only if it directly supports the same use-case.\n"
                 "Return only: Subject line, blank line, email body."
             ),
         },

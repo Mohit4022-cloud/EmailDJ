@@ -59,3 +59,23 @@ def test_factual_brief_and_anchors_include_prospect_facts():
     assert "LinkedIn URL" in brief
     assert "Acme" in anchors["intent"]
     assert "15-minute walkthrough" in anchors["cta"]
+
+
+def test_company_context_brief_and_mapping_anchor_include_focus_product():
+    from email_generation.remix_engine import build_anchors, build_company_context_brief
+
+    company_context = {
+        "company_name": "EmailDJ",
+        "company_url": "https://emaildj.ai",
+        "current_product": "Remix Studio",
+        "other_products": "Prospect Enrichment, Sequence QA",
+        "company_notes": "Built for SDR teams that need faster personalization with control.",
+    }
+    prospect = {"name": "Alex", "title": "SDR Manager", "company": "Acme", "linkedin_url": None}
+    brief = build_company_context_brief(company_context)
+    anchors = build_anchors(prospect, company_context=company_context)
+
+    assert "EmailDJ" in brief
+    assert "Remix Studio" in brief
+    assert "Prospect Enrichment" in brief
+    assert "Remix Studio" in anchors["service_mapping"]

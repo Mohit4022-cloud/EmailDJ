@@ -35,6 +35,9 @@ class WebBetaAccessMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         if not path.startswith("/web/v1"):
             return await call_next(request)
+        # Browser CORS preflight requests do not include custom auth headers.
+        if request.method == "OPTIONS":
+            return await call_next(request)
 
         key = request.headers.get("x-emaildj-beta-key", "").strip()
         if not key or key not in _allowed_keys():

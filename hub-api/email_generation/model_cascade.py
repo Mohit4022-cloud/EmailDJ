@@ -23,5 +23,5 @@ def get_model(tier: int, task: str, throttled: bool = False) -> ModelSpec:
     if tier == 1:
         return ModelSpec(tier=1, provider="openai", model_name="gpt-4o", temperature=temperature)
     if tier == 2:
-        return ModelSpec(tier=2, provider="openai", model_name="gpt-4o-mini", temperature=temperature)
+        return ModelSpec(tier=2, provider="openai", model_name="gpt-4.1-nano", temperature=temperature)
     return ModelSpec(tier=3, provider="groq", model_name="llama-3.3-70b-versatile", temperature=temperature)

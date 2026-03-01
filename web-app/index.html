@@ -77,6 +77,9 @@
         min-height: 180px;
         resize: vertical;
       }
+      .field textarea.compact {
+        min-height: 86px;
+      }
       .row {
         display: grid;
         grid-template-columns: 1fr;
@@ -89,6 +92,11 @@
         display: flex;
         flex-wrap: wrap;
         gap: 10px;
+      }
+      #inputPanel hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 12px 0;
       }
       button {
         border: none;
@@ -145,6 +153,8 @@
         border: 1px solid var(--line);
         border-radius: 12px;
         background: #fff;
+        color: var(--text);
+        caret-color: var(--text);
         min-height: 250px;
         padding: 12px;
         white-space: pre-wrap;

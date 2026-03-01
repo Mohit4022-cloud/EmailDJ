@@ -1,6 +1,7 @@
 import asyncio
+import json
 
-from email_generation.streaming import _event_generator
+from email_generation.streaming import _event_generator, _eventsource_stream
 from pii.token_vault import detokenize, tokenize
 
 
@@ -47,3 +48,20 @@ def test_token_vault_empty_string():
     assert tok.text == ''
     assert tok.vault == {}
     assert detokenize(tok.text, tok.vault) == ''
+
+
+def test_eventsource_stream_serializes_json_data():
+    async def collect():
+        async def gen():
+            yield 'hello'
+
+        items = []
+        async for item in _eventsource_stream('req-2', gen()):
+            items.append(item)
+        return items
+
+    items = asyncio.run(collect())
+    token = next(item for item in items if item['event'] == 'token')
+    payload = json.loads(token['data'])
+    assert payload['request_id'] == 'req-2'
+    assert payload['token'] == 'hello'

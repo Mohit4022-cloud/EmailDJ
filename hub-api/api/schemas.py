@@ -50,10 +50,19 @@ class WebStyleProfile(BaseModel):
     assertiveness: float = Field(default=0.0, ge=-1.0, le=1.0)
 
 
+class WebCompanyContext(BaseModel):
+    company_name: str | None = Field(default=None, max_length=160)
+    company_url: str | None = Field(default=None, max_length=400)
+    current_product: str | None = Field(default=None, max_length=240)
+    other_products: str | None = Field(default=None, max_length=8000)
+    company_notes: str | None = Field(default=None, max_length=8000)
+
+
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
     research_text: str = Field(min_length=20, max_length=20000)
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+    company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 
 
 class WebGenerateAccepted(BaseModel):

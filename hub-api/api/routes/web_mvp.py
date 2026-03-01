@@ -84,6 +84,7 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         prospect=req.prospect.model_dump(),
         research_text=req.research_text,
         initial_style=req.style_profile.model_dump(),
+        company_context=req.company_context.model_dump(exclude_none=True),
     )
     await save_session(session_id, session)
 
