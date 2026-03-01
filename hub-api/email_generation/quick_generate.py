@@ -12,6 +12,7 @@ from typing import AsyncGenerator
 import httpx
 
 from context_vault.models import AccountContext
+from infra.alerting import emit_provider_failure_alert
 from email_generation.model_cascade import get_model
 from email_generation.prompt_templates import get_quick_generate_prompt
 from infra.redis_client import get_redis
@@ -98,11 +99,15 @@ async def _record_provider_failure(provider: str, error: str) -> None:
     redis = get_redis()
     day = datetime.now(timezone.utc).strftime("%Y%m%d")
     key = f"quick_provider_failures:{provider}:{day}"
+    alert_last_key = f"quick_provider_failure_alert_last:{provider}:{day}"
     raw = await redis.get(key)
     count = int(raw or 0) + 1
     await redis.set(key, str(count))
 
     threshold = int(os.environ.get("QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD", "5"))
+    alert_step = int(os.environ.get("QUICK_PROVIDER_FAILURE_ALERT_STEP", "5"))
+    if alert_step <= 0:
+        alert_step = 5
     logger.error(
         "quick_generate_provider_failed",
         extra={"provider": provider, "failure_count": count, "error": error},
@@ -110,8 +115,26 @@ async def _record_provider_failure(provider: str, error: str) -> None:
     if count >= threshold:
         logger.warning(
             "quick_generate_provider_failure_threshold_exceeded",
-            extra={"provider": provider, "failure_count": count, "threshold": threshold},
+            extra={"provider": provider, "failure_count": count, "threshold": threshold, "alert_step": alert_step},
         )
+        raw_last = await redis.get(alert_last_key)
+        last_alert_count = int(raw_last) if raw_last is not None else None
+        should_alert = last_alert_count is None or count >= (last_alert_count + alert_step)
+        if should_alert:
+            payload = {
+                "event": "quick_provider_failure_threshold_exceeded",
+                "provider": provider,
+                "failure_count": count,
+                "threshold": threshold,
+                "alert_step": alert_step,
+                "date_utc": day,
+                "timestamp_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "environment": os.environ.get("APP_ENV", "local").strip() or "local",
+                "service": "hub-api",
+                "error_sample": error,
+            }
+            await emit_provider_failure_alert(payload)
+            await redis.set(alert_last_key, str(count))
 
 
 async def _real_generate(prompt: list[dict[str, str]], throttled: bool = False) -> str:
