@@ -36,6 +36,49 @@ class QuickGenerateAccepted(BaseModel):
     stream_url: str
 
 
+class WebProspectInput(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    title: str = Field(min_length=1, max_length=120)
+    company: str = Field(min_length=1, max_length=160)
+    linkedin_url: str | None = None
+
+
+class WebStyleProfile(BaseModel):
+    formality: float = Field(default=0.0, ge=-1.0, le=1.0)
+    orientation: float = Field(default=0.0, ge=-1.0, le=1.0)
+    length: float = Field(default=0.0, ge=-1.0, le=1.0)
+    assertiveness: float = Field(default=0.0, ge=-1.0, le=1.0)
+
+
+class WebGenerateRequest(BaseModel):
+    prospect: WebProspectInput
+    research_text: str = Field(min_length=20, max_length=20000)
+    style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+
+
+class WebGenerateAccepted(BaseModel):
+    request_id: str
+    session_id: str
+    stream_url: str
+
+
+class WebRemixRequest(BaseModel):
+    session_id: str = Field(min_length=1)
+    style_profile: WebStyleProfile
+
+
+class WebRemixAccepted(BaseModel):
+    request_id: str
+    stream_url: str
+
+
+class WebFeedbackRequest(BaseModel):
+    session_id: str = Field(min_length=1)
+    draft_before: str = Field(min_length=1, max_length=40000)
+    draft_after: str = Field(min_length=1, max_length=40000)
+    style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+
+
 class VaultIngestRequest(BaseModel):
     payload: ProspectPayload
 

@@ -45,3 +45,34 @@ def get_sequence_email_prompt(angle: dict, cross_thread_context: str, email_numb
             ),
         }
     ]
+
+
+def get_web_mvp_prompt(
+    prospect: dict,
+    factual_brief: str,
+    anchors: dict,
+    style_profile: dict,
+    prior_draft: str | None = None,
+) -> list[dict[str, str]]:
+    mode = "initial generation" if not prior_draft else "remix"
+    return [
+        {
+            "role": "system",
+            "content": (
+                "You write high-performing outbound SDR emails. "
+                "Preserve factual accuracy and never invent company facts."
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Task mode: {mode}\n"
+                f"Prospect: {prospect}\n"
+                f"Factual brief (immutable): {factual_brief}\n"
+                f"CTA/intent anchors (preserve): {anchors}\n"
+                f"Style controls (continuous -1 to 1): {style_profile}\n"
+                f"Prior draft for remix: {prior_draft or 'N/A'}\n"
+                "Return only: Subject line, blank line, email body."
+            ),
+        },
+    ]
