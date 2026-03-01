@@ -1060,3 +1060,170 @@ Updated:
 No public API or SSE contract changes were introduced.
 
 ---
+
+## Entry 010 — 2026-03-01 | PROGRESS: Extension PII/Slider Completion + Hybrid Extraction Upgrade
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 009 — 2026-03-01 | PROGRESS: Post-TASK-001 Hygiene, Sink Validation, and Placeholder Reduction Slice
+
+---
+
+### Scope
+
+Recorded shipped changes from commit `7cb6a86`, covering extension-side completion work and backend hybrid extraction/deep-research upgrades.
+
+---
+
+### Extension Changes
+
+Updated:
+
+- `chrome-extension/src/content-scripts/pii-prefilter.js`
+- `chrome-extension/src/side-panel/components/PersonalizationSlider.js`
+- `chrome-extension/src/side-panel/components/QuickGenerate.js`
+
+Added extension tests:
+
+- `chrome-extension/tests/pii-prefilter.test.js`
+- `chrome-extension/tests/personalization-slider.test.js`
+
+Also added extension test command in `chrome-extension/package.json`.
+
+---
+
+### Backend Changes
+
+Updated:
+
+- `hub-api/context_vault/extractor.py`
+  - feature-flagged enrichment path (`EMAILDJ_EXTRACTOR_ENABLE_ENRICHMENT`)
+  - confidence overlay path for enrichment fields
+- `hub-api/agents/nodes/deep_research_agent.py`
+  - stronger source grounding + evidence-aware synthesis
+
+---
+
+### Validation
+
+- Extension unit tests: `npm test` -> pass
+- Extension syntax/build: `npm run check:syntax && npm run build` -> pass
+- Full backend gate: `source .venv/bin/activate && bash scripts/checks.sh` -> pass (`21 passed` in pytest step)
+
+---
+
+### Contracts
+
+No external API contract changes were introduced.
+No SSE schema changes were introduced (`start/token/done/error` unchanged).
+
+---
+
+## Entry 011 — 2026-03-01 | PROGRESS: Durability + Observability Hardening (Deep Research, Webhooks, Extractor, CI)
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 010 — 2026-03-01 | PROGRESS: Extension PII/Slider Completion + Hybrid Extraction Upgrade
+
+---
+
+### Scope
+
+Implemented the next five production-readiness steps while preserving external API/SSE contracts:
+
+1. deep-research job durability (Redis-backed)
+2. webhook signal persistence (Redis-backed)
+3. extractor enrichment guardrails + structured logs
+4. deep-research evidence rubric hardening + fallback logging
+5. local runbook and CI coverage updates
+
+---
+
+### 1) Deep-Research Job Durability
+
+Updated `hub-api/api/routes/deep_research.py`:
+
+- replaced in-memory `_JOBS` with Redis-backed storage (`hset/hget`)
+- introduced job helpers (`_save_job`, `_load_job`, `_job_key`)
+- added TTL control: `DEEP_RESEARCH_JOB_TTL_SECONDS` (default `86400`)
+- preserved route response shape (`job_id`, `status`, `progress`, `result`)
+
+Added integration test:
+
+- `hub-api/tests/integration/test_deep_research_durability.py`
+- verifies queued/running/complete lifecycle and restart-safe retrieval via module reload + Redis-backed load
+
+---
+
+### 2) Webhook Signal Persistence
+
+Updated `hub-api/api/routes/webhooks.py`:
+
+- replaced `_EDIT_SIGNALS/_SEND_SIGNALS/_REPLY_SIGNALS` in-memory lists
+- persisted events to Redis by signal kind (`edit`, `send`, `reply`)
+- added internal helpers:
+  - `_append_signal(kind, payload)`
+  - `_load_signals(kind, limit)`
+- preserved existing webhook response contracts
+
+Added integration test:
+
+- `hub-api/tests/integration/test_webhook_signal_persistence.py`
+- verifies persisted signal availability and shape consistency for edit/send/reply
+
+---
+
+### 3) Extractor Enrichment Guardrails
+
+Updated `hub-api/context_vault/extractor.py`:
+
+- added strict confidence parser/guardrail:
+  - `EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN`
+  - invalid/out-of-range values fallback to `0.75` with warning logs
+- added structured logs for:
+  - enrichment applied
+  - enrichment skipped (flag disabled)
+  - overlay fields actually applied
+
+Added tests:
+
+- `hub-api/tests/test_extractor_guardrails.py`
+- covers invalid threshold fallback, high-confidence overlay apply, low-confidence no-op
+
+---
+
+### 4) Deep-Research Evidence Rubric Hardening
+
+Updated `hub-api/agents/nodes/deep_research_agent.py`:
+
+- added minimum evidence threshold handling with explicit fallback logging
+- expanded scoring rubric with bounded adjustments
+- preserved `state["research"]` key structure
+
+Extended tests:
+
+- updated `hub-api/tests/test_deep_research_node.py` with conflicting-signal bounded behavior assertions
+
+---
+
+### 5) Runbook + CI Coverage
+
+Updated:
+
+- `docs/local-dev.md`
+  - added execution matrix + pass/fail criteria for extension tests, syntax/build, backend pytest, and full gate
+- `.github/workflows/ci.yml`
+  - added explicit extension unit test step (`npm test`) before full checks
+- `hub-api/.env.example`
+  - added `DEEP_RESEARCH_JOB_TTL_SECONDS=86400`
+
+---
+
+### Contracts
+
+No external API route schema changes.
+No SSE event schema changes (`start/token/done/error`).
+
+---

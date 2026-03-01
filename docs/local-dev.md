@@ -17,13 +17,25 @@
 ## Chrome extension
 1. `cd /Users/mohit/EmailDJ/chrome-extension`
 2. `npm install`
-3. `npm run check:syntax`
-4. `npm run build`
-5. Load `dist/` in Chrome Extensions (Developer Mode).
+3. `npm test`
+4. `npm run check:syntax`
+5. `npm run build`
+6. Load `dist/` in Chrome Extensions (Developer Mode).
 
-## Full quality-gate command
-From `/Users/mohit/EmailDJ/hub-api`:
-- `./scripts/checks.sh`
+## Execution matrix
+
+1. Extension unit tests:
+   - Command: `cd /Users/mohit/EmailDJ/chrome-extension && npm test`
+   - Pass criteria: all tests pass, no uncaught runtime errors.
+2. Extension static/build checks:
+   - Command: `cd /Users/mohit/EmailDJ/chrome-extension && npm run check:syntax && npm run build`
+   - Pass criteria: syntax command exits 0; Vite build completes with no fatal errors.
+3. Backend targeted quality checks:
+   - Command: `cd /Users/mohit/EmailDJ/hub-api && source .venv/bin/activate && pytest -q tests`
+   - Pass criteria: pytest suite passes (warnings are tracked separately).
+4. Full quality gate:
+   - Command: `cd /Users/mohit/EmailDJ/hub-api && source .venv/bin/activate && ./scripts/checks.sh`
+   - Pass criteria: all seven steps pass (`python compile`, `pytest`, `openapi`, extension syntax/build, mock smoke, real-mode smoke).
 
 ## Quick smoke test
 1. Open Salesforce record page.

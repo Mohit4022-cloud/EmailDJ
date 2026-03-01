@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -37,9 +38,30 @@ _NEXT_ACTION_HINTS = [
     ("pilot", "Start pilot"),
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def _env_enabled(name: str) -> bool:
     return os.environ.get(name, "0").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _enrichment_min_confidence() -> float:
+    raw = os.environ.get("EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN", "0.75").strip()
+    try:
+        value = float(raw)
+    except ValueError:
+        logger.warning(
+            "extractor_enrich_confidence_invalid",
+            extra={"raw": raw, "fallback": 0.75},
+        )
+        return 0.75
+    if not 0.0 <= value <= 1.0:
+        logger.warning(
+            "extractor_enrich_confidence_out_of_range",
+            extra={"raw": raw, "fallback": 0.75},
+        )
+        return 0.75
+    return value
 
 
 def _preprocess(raw_notes: str) -> str:
@@ -127,8 +149,9 @@ def _extract_heuristics(text: str, account_id: str) -> AccountContext:
 
 
 def _apply_confidence_overlay(base: AccountContext, enriched: AccountContext, confidence: dict[str, float]) -> AccountContext:
-    min_conf = float(os.environ.get("EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN", "0.75"))
+    min_conf = _enrichment_min_confidence()
     out = base.model_copy(deep=True)
+    applied_fields: list[str] = []
 
     scalar_fields = ["industry", "timing", "next_action", "contract_status", "budget", "domain", "employee_count"]
     for field in scalar_fields:
@@ -137,11 +160,23 @@ def _apply_confidence_overlay(base: AccountContext, enriched: AccountContext, co
         new_value = getattr(enriched, field, None)
         if new_value is not None and new_value != "":
             setattr(out, field, new_value)
+            applied_fields.append(field)
 
     if confidence.get("decision_makers", 0.0) >= min_conf and enriched.decision_makers:
         out.decision_makers = sorted(set(out.decision_makers + enriched.decision_makers))
+        applied_fields.append("decision_makers")
     if confidence.get("extracted_contacts", 0.0) >= min_conf and enriched.extracted_contacts:
         out.extracted_contacts = out.extracted_contacts + enriched.extracted_contacts
+        applied_fields.append("extracted_contacts")
+
+    logger.info(
+        "extractor_enrichment_overlay",
+        extra={
+            "min_confidence": min_conf,
+            "applied_fields": applied_fields,
+            "available_confidence_fields": sorted(confidence.keys()),
+        },
+    )
 
     return out
 
@@ -188,6 +223,9 @@ async def extract(raw_notes: str, account_id: str) -> AccountContext:
     if _env_enabled("EMAILDJ_EXTRACTOR_ENABLE_ENRICHMENT"):
         enriched_ctx, confidence = await _model_assisted_enrichment(processed, account_id)
         new_ctx = _apply_confidence_overlay(new_ctx, enriched_ctx, confidence)
+        logger.info("extractor_enrichment_applied", extra={"account_id": account_id})
+    else:
+        logger.info("extractor_enrichment_skipped", extra={"account_id": account_id, "reason": "flag_disabled"})
     existing = await cache.get_or_fetch(account_id)
     merged = merger.merge(existing, new_ctx)
     asyncio.create_task(embedder.embed_and_store(merged, account_id))

@@ -65,3 +65,25 @@ async def test_deep_research_node_dedupes_and_limits_sources():
 
     assert research['sources'] == ['https://example.com/a', 'https://example.com/b', 'https://example.com/c']
     assert len(research['sources']) == len(set(research['sources']))
+
+
+@pytest.mark.asyncio
+async def test_deep_research_node_conflicting_signals_stays_bounded():
+    from agents.nodes.deep_research_agent import deep_research_agent_node
+
+    state = {
+        'vp_command': 'Contoso',
+        'crm_results': [
+            {'summary': 'Contoso announced expansion hiring and AI investment.', 'source_url': 'https://example.com/expansion'},
+            {'notes': 'Contoso announced layoffs and hard cost freezes.', 'source_url': 'https://example.com/costs'},
+            {'signal': 'Security review and migration pilot are both active.', 'source_url': 'https://example.com/security'},
+        ],
+    }
+
+    out = await deep_research_agent_node(state)
+    research = out['research']
+
+    assert 1 <= research['icp_fit_score'] <= 10
+    assert len(research['key_initiatives']) >= 1
+    assert len(research['financial_signals']) >= 1
+    assert len(research['sources']) == 3

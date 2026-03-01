@@ -33,6 +33,10 @@ jobs:
         working-directory: chrome-extension
         run: npm install
 
+      - name: Run extension unit tests
+        working-directory: chrome-extension
+        run: npm test
+
       - name: Run checks
         working-directory: hub-api
         run: |

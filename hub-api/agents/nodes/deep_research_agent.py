@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import logging
 import re
 
 from agents.state import AgentState
@@ -23,6 +24,7 @@ _FINANCIAL_HINTS = [
 ]
 _NEWS_RE = re.compile(r"([^.!?]*(?:announced|launched|acquired|raised|partnered|expanded)[^.!?]*[.!?])", re.IGNORECASE)
 _EVIDENCE_THRESHOLD = 2
+logger = logging.getLogger(__name__)
 
 
 def _collect_text_blob(state: AgentState) -> str:
@@ -75,7 +77,9 @@ def _ensure_minimum_evidence(items: list[str], fallback: str) -> list[str]:
     if len(deduped) >= _EVIDENCE_THRESHOLD:
         return deduped[:4]
     if not deduped:
+        logger.info("deep_research_fallback_used", extra={"reason": "no_evidence", "fallback": fallback})
         return [fallback]
+    logger.info("deep_research_fallback_used", extra={"reason": "insufficient_evidence", "fallback": fallback, "current_count": len(deduped)})
     return deduped + [fallback]
 
 
@@ -138,4 +142,12 @@ async def deep_research_agent_node(state: AgentState) -> AgentState:
         "research_date": datetime.now(timezone.utc).isoformat(),
         "sources": sources,
     }
+    logger.info(
+        "deep_research_compiled",
+        extra={
+            "sources_count": len(sources),
+            "tech_hints_count": len(state["research"]["tech_stack_hints"]),
+            "icp_fit_score": state["research"]["icp_fit_score"],
+        },
+    )
     return state
