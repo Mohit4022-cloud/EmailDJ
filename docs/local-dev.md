@@ -42,3 +42,20 @@
 2. Verify side panel receives `PAYLOAD_READY`.
 3. Click `Generate Email`.
 4. Confirm token stream appears in editor and `emailComplete` state is reached.
+
+## Web app MVP
+1. `cd /Users/mohit/EmailDJ/web-app`
+2. `npm install`
+3. `npm test`
+4. `npm run check:syntax`
+5. `npm run dev`
+6. Open `http://localhost:5174` and set beta key (`dev-beta-key` by default).
+
+## Web MVP smoke test
+1. Ensure Hub API is running with:
+   - `WEB_APP_ORIGIN=http://localhost:5174`
+   - `EMAILDJ_WEB_BETA_KEYS=dev-beta-key`
+2. In web app, fill prospect fields and paste research text (>=20 chars).
+3. Click `Generate` and verify streamed draft appears.
+4. Move sliders and verify remix runs automatically after short debounce.
+5. Click `Save Remix` and verify draft copies to clipboard.

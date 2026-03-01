@@ -50,6 +50,13 @@ class InMemoryRedis:
         self.data[key] = str(value)
         self.expires[key] = time() + ttl
 
+    async def incr(self, key):
+        self._check_exp(key)
+        current = int(self.data.get(key, "0"))
+        current += 1
+        self.data[key] = str(current)
+        return current
+
     async def delete(self, key):
         self.data.pop(key, None)
         self.hashes.pop(key, None)

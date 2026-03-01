@@ -16,6 +16,7 @@ except Exception:  # pragma: no cover
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from api.middleware.beta_access import WebBetaAccessMiddleware
 from api.middleware.cost_guard import CostGuardMiddleware
 from api.middleware.pii_redaction import PiiRedactionMiddleware
 from api.routes.assignments import router as assignments_router
@@ -23,6 +24,7 @@ from api.routes.campaigns import router as campaigns_router
 from api.routes.context_vault import router as context_vault_router
 from api.routes.deep_research import router as deep_research_router
 from api.routes.quick_generate import router as quick_generate_router
+from api.routes.web_mvp import router as web_mvp_router
 from api.routes.webhooks import router as webhooks_router
 from infra.db import init_engine, shutdown_engine
 from infra.redis_client import close_redis, get_redis
@@ -58,6 +60,9 @@ chrome_origin = os.environ.get("CHROME_EXTENSION_ORIGIN", "")
 allow_origins = ["http://localhost", "http://localhost:5173"]
 if chrome_origin:
     allow_origins.append(chrome_origin)
+web_origin = os.environ.get("WEB_APP_ORIGIN", "http://localhost:5174")
+if web_origin:
+    allow_origins.append(web_origin)
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,11 +71,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 # Cost guard runs before handlers; PII redaction scrubs request payloads seen by handlers.
+app.add_middleware(WebBetaAccessMiddleware)
 app.add_middleware(PiiRedactionMiddleware)
 app.add_middleware(CostGuardMiddleware)
 
 app.include_router(quick_generate_router, prefix="/generate", tags=["generate"])
 app.include_router(deep_research_router, prefix="/research", tags=["research"])
+app.include_router(web_mvp_router, prefix="/web/v1", tags=["web-mvp"])
 app.include_router(campaigns_router, prefix="/campaigns", tags=["campaigns"])
 app.include_router(assignments_router, prefix="/assignments", tags=["assignments"])
 app.include_router(context_vault_router, prefix="/vault", tags=["vault"])

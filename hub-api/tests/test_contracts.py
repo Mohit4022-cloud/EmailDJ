@@ -19,6 +19,10 @@ def test_quick_generate_schema_present():
     schemas = spec['components']['schemas']
     assert 'QuickGenerateRequest' in schemas
     assert 'QuickGenerateAccepted' in schemas
+    assert 'WebGenerateRequest' in schemas
+    assert 'WebGenerateAccepted' in schemas
+    assert 'WebRemixRequest' in schemas
+    assert 'WebRemixAccepted' in schemas
 
 
 def test_openapi_snapshot_matches_runtime_core_paths():
@@ -34,6 +38,10 @@ def test_openapi_snapshot_matches_runtime_core_paths():
     for path in [
         '/generate/quick',
         '/generate/stream/{request_id}',
+        '/web/v1/generate',
+        '/web/v1/remix',
+        '/web/v1/stream/{request_id}',
+        '/web/v1/feedback',
         '/vault/ingest',
         '/vault/context/{prospect_id}',
         '/assignments/poll',
