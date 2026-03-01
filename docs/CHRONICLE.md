@@ -857,3 +857,206 @@ Validated real-mode OpenAI provider calls with a live API key in an unrestricted
 - Public API and SSE contracts remain unchanged.
 
 ---
+
+## Entry 008 — 2026-03-01 | PROGRESS: TASK-001 Provider Failure Alert Sinks Implemented
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 007 — 2026-02-28 | VALIDATION: Live OpenAI Real-Mode Success
+
+---
+
+### Scope
+
+Implemented TASK-001 from `docs/TASKS.md`: provider failure threshold alert sink integration for Slack + HTTP metrics, with duplicate suppression and integration tests.
+
+---
+
+### What Changed
+
+#### 1. Alert Sink Module Added
+
+Created `hub-api/infra/alerting.py` with:
+
+- `send_slack_alert(payload)`
+- `send_metrics_event(payload)`
+- `emit_provider_failure_alert(payload)`
+
+Behavior implemented:
+
+- sink URLs are optional (`SLACK_WEBHOOK_URL`, `PROVIDER_FAILURE_METRICS_WEBHOOK_URL`)
+- request timeout controlled by `ALERT_SINK_TIMEOUT_SECONDS` (default `5`)
+- sink failures are logged and do not bubble up to request handling
+
+#### 2. Provider Failure Threshold Logic Extended
+
+Updated `hub-api/email_generation/quick_generate.py`:
+
+- kept daily failure counter: `quick_provider_failures:{provider}:{YYYYMMDD}`
+- added suppression-tracking key: `quick_provider_failure_alert_last:{provider}:{YYYYMMDD}`
+- added env-controlled alert step: `QUICK_PROVIDER_FAILURE_ALERT_STEP` (default `5`)
+- alert rules now:
+  - first alert at threshold breach
+  - additional alerts only every configured step (`+5` by default)
+- alert payload now includes:
+  - `event`, `provider`, `failure_count`, `threshold`, `alert_step`
+  - `date_utc`, `timestamp_utc`
+  - `environment` (`APP_ENV`, default `local`)
+  - `service` (`hub-api`)
+  - `error_sample`
+
+Existing fallback generation behavior and SSE contract were preserved.
+
+#### 3. Environment Documentation Updated
+
+Updated `hub-api/.env.example` with:
+
+- `PROVIDER_FAILURE_METRICS_WEBHOOK_URL`
+- `ALERT_SINK_TIMEOUT_SECONDS`
+- `APP_ENV`
+- `QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD`
+- `QUICK_PROVIDER_FAILURE_ALERT_STEP`
+
+#### 4. Integration Test Coverage Added
+
+Added `hub-api/tests/integration/test_provider_failure_alerting.py` covering:
+
+- below-threshold no-alert behavior
+- first threshold breach emits alerts
+- suppression between threshold and threshold+step
+- re-alert at step boundary
+- sink failure resilience (non-bubbling behavior)
+
+---
+
+### Validation Results
+
+- `pytest -q tests/integration/test_provider_failure_alerting.py` -> `2 passed`
+- `pytest -q tests/integration/test_real_mode_pii.py` -> `1 passed`
+- Full gate: `source .venv/bin/activate && bash scripts/checks.sh` -> `all checks passed`
+  - total pytest in gate: `14 passed`
+
+No OpenAPI drift was introduced.
+
+---
+
+### Commit and Push
+
+- Commit: `e28a9fe`
+- Message: `Implement provider failure alert sinks with suppression and integration tests`
+- Pushed to: `origin/main` (`https://github.com/Mohit4022-cloud/EmailDJ.git`)
+
+---
+
+## Entry 009 — 2026-03-01 | PROGRESS: Post-TASK-001 Hygiene, Sink Validation, and Placeholder Reduction Slice
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 008 — 2026-03-01 | PROGRESS: TASK-001 Provider Failure Alert Sinks Implemented
+
+---
+
+### Scope
+
+Executed the next three post-TASK-001 steps:
+
+1. closed tracking drift (`TASK-001` marked done)
+2. validated real sink delivery/suppression behavior in a staging-like local profile
+3. delivered a contract-preserving placeholder-reduction slice across context extraction and deep research
+
+---
+
+### Step 1 — Tracking and Hygiene
+
+- Updated `docs/TASKS.md`:
+  - `TASK-001` status changed from `Open` to `Done`
+  - completion date recorded: `2026-03-01`
+
+---
+
+### Step 2 — Real Sink Validation (Staging Profile)
+
+Configured `hub-api/.env` (local, gitignored) with staging-like sink values:
+
+- `APP_ENV=staging`
+- `SLACK_WEBHOOK_URL=http://127.0.0.1:18081/slack`
+- `PROVIDER_FAILURE_METRICS_WEBHOOK_URL=http://127.0.0.1:18082/metrics`
+- `QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD=5`
+- `QUICK_PROVIDER_FAILURE_ALERT_STEP=5`
+
+Validation method:
+
+- started local webhook listeners for both sink endpoints
+- forced 10 provider failures via `_record_provider_failure(...)`
+
+Observed evidence:
+
+- `slack_alert_count=2`
+- `metrics_alert_count=2`
+- alert counts observed at `failure_count=[5, 10]`
+- confirms suppression between threshold and threshold+step, with re-alert at +5
+- sample payload fields included:
+  - `event=quick_provider_failure_threshold_exceeded`
+  - `provider=openai`
+  - `threshold=5`
+  - `alert_step=5`
+  - `environment=staging`
+  - `timestamp_utc=2026-03-01T00:27:06.362924Z`
+
+---
+
+### Step 3 — Placeholder/Heuristic Reduction (Contract-Preserving)
+
+Updated:
+
+- `hub-api/context_vault/models.py`
+- `hub-api/context_vault/extractor.py`
+- `hub-api/agents/nodes/deep_research_agent.py`
+
+#### What changed
+
+1. **Context models hardening**
+- replaced placeholder typing with concrete types/defaults
+- added bounded fields:
+  - `CompanyProfile.icp_fit_score` in `1..10`
+  - `EmailDraft.sequence_position` in `1..3`
+  - `EmailDraft.model_tier` in `1..3`
+  - `EmailDraft.personalization_score` in `0..10`
+- freshness computation remains backward-compatible and automatic
+
+2. **Extractor improvements**
+- expanded parsing for:
+  - domain inference from emails
+  - employee count extraction
+  - industry hints
+  - quarter/month timing extraction
+  - next-action inference from intent phrases
+  - broader decision-maker title patterns
+- preserved output contract (`AccountContext`) and merge/embed pipeline behavior
+
+3. **Deep research node improvements**
+- replaced static placeholder output with deterministic synthesis from `vp_command` + `crm_results`
+- derives initiatives, leadership signals, tech hints, news snippets, financial signals, sources, and icp score from available state
+- preserves node interface and state shape
+
+#### New tests added
+
+- `hub-api/tests/test_context_models.py`
+- `hub-api/tests/test_context_extractor.py`
+- `hub-api/tests/test_deep_research_node.py`
+
+---
+
+### Validation Results
+
+- targeted tests:
+  - `pytest -q tests/test_context_models.py tests/test_context_extractor.py tests/test_deep_research_node.py` -> `4 passed`
+- full gate:
+  - `source .venv/bin/activate && bash scripts/checks.sh` -> `all checks passed`
+  - pytest total in gate: `18 passed`
+
+No public API or SSE contract changes were introduced.
+
+---
