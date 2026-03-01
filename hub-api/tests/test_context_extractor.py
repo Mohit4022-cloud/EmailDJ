@@ -56,3 +56,24 @@ async def test_extract_parses_core_fields_and_merges(monkeypatch):
     await asyncio.gather(*created_tasks)
     assert captured['embed_context_id'] == 'acme-001'
     assert captured['embed_account_id'] == 'acme-001'
+
+
+@pytest.mark.asyncio
+async def test_extract_enrichment_flag_overlays_high_confidence_fields(monkeypatch):
+    from context_vault import extractor
+
+    async def fake_get_or_fetch(_account_id):
+        return None
+
+    monkeypatch.setattr('context_vault.extractor.cache.get_or_fetch', fake_get_or_fetch)
+    monkeypatch.setattr('context_vault.extractor.embedder.embed_and_store', lambda *_args, **_kwargs: asyncio.sleep(0))
+    monkeypatch.setenv('EMAILDJ_EXTRACTOR_ENABLE_ENRICHMENT', '1')
+    monkeypatch.setenv('EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN', '0.75')
+
+    notes = 'Acme renewal is active and security review is expected soon.'
+    out = await extractor.extract(notes, 'acme-002')
+
+    # Heuristic default is Follow up; enrichment upgrades this to Send proposal.
+    assert out.next_action == 'Send proposal'
+    # Enrichment path adds deterministic timing evidence.
+    assert out.timing == 'in 2 months'

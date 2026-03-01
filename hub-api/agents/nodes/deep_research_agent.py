@@ -22,6 +22,7 @@ _FINANCIAL_HINTS = [
     ("efficiency", "Efficiency mandate present"),
 ]
 _NEWS_RE = re.compile(r"([^.!?]*(?:announced|launched|acquired|raised|partnered|expanded)[^.!?]*[.!?])", re.IGNORECASE)
+_EVIDENCE_THRESHOLD = 2
 
 
 def _collect_text_blob(state: AgentState) -> str:
@@ -37,12 +38,21 @@ def _collect_text_blob(state: AgentState) -> str:
             value = row.get(key)
             if isinstance(value, str):
                 chunks.append(value)
+
+    # Optional external research context can be provided by upstream callers.
+    for row in state.get("research_inputs", []) or []:
+        if not isinstance(row, dict):
+            continue
+        for key in ("summary", "notes", "snippet", "signal"):
+            value = row.get(key)
+            if isinstance(value, str):
+                chunks.append(value)
     return " ".join(chunks)
 
 
 def _collect_sources(state: AgentState) -> list[str]:
     sources: list[str] = []
-    for row in state.get("crm_results", []) or []:
+    for row in (state.get("crm_results", []) or []) + (state.get("research_inputs", []) or []):
         if not isinstance(row, dict):
             continue
         source_url = row.get("source_url")
@@ -60,6 +70,15 @@ def _extract_news(text: str) -> list[str]:
     return []
 
 
+def _ensure_minimum_evidence(items: list[str], fallback: str) -> list[str]:
+    deduped = list(dict.fromkeys(item for item in items if item))
+    if len(deduped) >= _EVIDENCE_THRESHOLD:
+        return deduped[:4]
+    if not deduped:
+        return [fallback]
+    return deduped + [fallback]
+
+
 def _extract_tech_hints(text: str) -> list[str]:
     lower = text.lower()
     return [hint.capitalize() for hint in _TECH_HINTS if hint in lower][:5]
@@ -68,17 +87,13 @@ def _extract_tech_hints(text: str) -> list[str]:
 def _extract_initiatives(text: str, target_name: str) -> list[str]:
     lower = text.lower()
     initiatives = [label for needle, label in _INITIATIVE_HINTS if needle in lower]
-    if not initiatives:
-        initiatives = [f"{target_name} modernization"]
-    return initiatives[:4]
+    return _ensure_minimum_evidence(initiatives, f"{target_name} modernization")
 
 
 def _extract_financial_signals(text: str) -> list[str]:
     lower = text.lower()
     signals = [label for needle, label in _FINANCIAL_HINTS if needle in lower]
-    if not signals:
-        signals = ["Budget scrutiny likely"]
-    return signals[:3]
+    return _ensure_minimum_evidence(signals, "Budget scrutiny likely")
 
 
 def _extract_leadership_signals(text: str) -> list[str]:
@@ -88,9 +103,7 @@ def _extract_leadership_signals(text: str) -> list[str]:
         signals.append("Expansion hiring")
     if "cfo" in lower or "ceo" in lower or "vp" in lower:
         signals.append("Executive sponsorship signal")
-    if not signals:
-        signals.append("Leadership signals limited in CRM snapshot")
-    return signals[:3]
+    return _ensure_minimum_evidence(signals, "Leadership signals limited in CRM snapshot")
 
 
 def _score_icp_fit(text: str, tech_hints: list[str], sources: list[str]) -> int:
@@ -98,10 +111,14 @@ def _score_icp_fit(text: str, tech_hints: list[str], sources: list[str]) -> int:
     lower = text.lower()
     if any(term in lower for term in ("ai", "automation", "modernization")):
         score += 2
+    if any(term in lower for term in ("security review", "migration", "pilot", "expansion")):
+        score += 1
     if tech_hints:
         score += 1
-    if sources:
+    if len(sources) >= _EVIDENCE_THRESHOLD:
         score += 1
+    if len(sources) == 0:
+        score -= 1
     return max(1, min(score, 10))
 
 

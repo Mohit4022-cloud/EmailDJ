@@ -44,9 +44,9 @@ const PATTERNS = {
  * @returns {{ redacted: string, tokenMap: Record<string, string> }}
  */
 export function scrub(text) {
-  // TODO: implement per instructions above
+  const source = typeof text === 'string' ? text : String(text ?? '');
   const tokenMap = {};
-  let redacted = text;
+  let redacted = source;
   const counters = {};
 
   for (const [type, pattern] of Object.entries(PATTERNS)) {

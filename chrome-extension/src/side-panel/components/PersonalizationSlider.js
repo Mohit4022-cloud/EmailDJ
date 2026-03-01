@@ -38,16 +38,15 @@ export class PersonalizationSlider {
   }
 
   render() {
-    // TODO: implement DOM construction per instructions above
     this.container.innerHTML = `
       <div class="personalization-slider">
         <div class="slider-labels">
           <span class="label-left">⚡ Efficiency</span>
           <span class="label-right">🎯 Personalization</span>
         </div>
-        <input type="range" id="persSlider" min="0" max="10" step="1" value="${this.value}"
+        <input type="range" id="persSlider" min="0" max="10" step="1" value="${this.value}" aria-label="Personalization slider"
                class="slider-input">
-        <div class="slider-tooltip" id="sliderTooltip">Balanced</div>
+        <div class="slider-tooltip" id="sliderTooltip">Balanced (~2s)</div>
       </div>
     `;
 
@@ -57,6 +56,7 @@ export class PersonalizationSlider {
       this.updateTooltip();
       if (this.onChange) this.onChange(this.value);
     });
+    this.updateTooltip();
   }
 
   updateTooltip() {
@@ -83,9 +83,11 @@ export class PersonalizationSlider {
   }
 
   setValue(n) {
-    this.value = Math.max(0, Math.min(10, n));
+    const normalized = Number.isFinite(Number(n)) ? Number(n) : 5;
+    this.value = Math.max(0, Math.min(10, Math.round(normalized)));
     const input = this.container.querySelector('#persSlider');
     if (input) input.value = String(this.value);
     this.updateTooltip();
+    if (this.onChange) this.onChange(this.value);
   }
 }

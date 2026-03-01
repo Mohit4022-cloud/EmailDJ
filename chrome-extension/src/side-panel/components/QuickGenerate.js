@@ -3,6 +3,7 @@
 import { generateEmail, pollAssignments } from '../hub-client.js';
 import { ContextSummary } from './ContextSummary.js';
 import { EmailEditor } from './EmailEditor.js';
+import { PersonalizationSlider } from './PersonalizationSlider.js';
 
 export class QuickGenerate {
   constructor(container) {
@@ -12,6 +13,7 @@ export class QuickGenerate {
     this.currentTokenMap = {};
     this.sliderValue = 5;
     this.emailEditor = null;
+    this.personalizationSlider = null;
     this._pollInterval = null;
     this._listenersAttached = false;
     this._handlers = null;
@@ -46,10 +48,6 @@ export class QuickGenerate {
       <div class="quick-generate">
         <div class="context-summary" id="contextSummary"></div>
         <div class="slider-container" id="sliderContainer">
-          <label>Efficiency
-            <input type="range" id="personalizationSlider" min="0" max="10" value="5">
-            Personalization
-          </label>
         </div>
         <button id="generateBtn" class="generate-btn">Generate Email</button>
         <button id="retryBtn" class="generate-btn" style="display:none; margin-top:8px;">Retry</button>
@@ -61,9 +59,13 @@ export class QuickGenerate {
     this.contextSummary = new ContextSummary(this.container.querySelector('#contextSummary'));
     this.contextSummary.update(this.currentPayload, null);
 
-    this.container.querySelector('#personalizationSlider')?.addEventListener('input', (e) => {
-      this.sliderValue = parseInt(e.target.value, 10);
-    });
+    const sliderContainer = this.container.querySelector('#sliderContainer');
+    if (sliderContainer) {
+      this.personalizationSlider = new PersonalizationSlider(sliderContainer, (value) => {
+        this.sliderValue = value;
+      });
+      this.personalizationSlider.setValue(this.sliderValue);
+    }
 
     this.container.querySelector('#generateBtn')?.addEventListener('click', () => this.onGenerateClick());
     this.container.querySelector('#retryBtn')?.addEventListener('click', () => this.onGenerateClick());

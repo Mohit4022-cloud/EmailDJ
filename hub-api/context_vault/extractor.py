@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import re
 from datetime import datetime, timezone
 
@@ -35,6 +36,10 @@ _NEXT_ACTION_HINTS = [
     ("send proposal", "Send proposal"),
     ("pilot", "Start pilot"),
 ]
+
+
+def _env_enabled(name: str) -> bool:
+    return os.environ.get(name, "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _preprocess(raw_notes: str) -> str:
@@ -121,9 +126,68 @@ def _extract_heuristics(text: str, account_id: str) -> AccountContext:
     )
 
 
+def _apply_confidence_overlay(base: AccountContext, enriched: AccountContext, confidence: dict[str, float]) -> AccountContext:
+    min_conf = float(os.environ.get("EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN", "0.75"))
+    out = base.model_copy(deep=True)
+
+    scalar_fields = ["industry", "timing", "next_action", "contract_status", "budget", "domain", "employee_count"]
+    for field in scalar_fields:
+        if confidence.get(field, 0.0) < min_conf:
+            continue
+        new_value = getattr(enriched, field, None)
+        if new_value is not None and new_value != "":
+            setattr(out, field, new_value)
+
+    if confidence.get("decision_makers", 0.0) >= min_conf and enriched.decision_makers:
+        out.decision_makers = sorted(set(out.decision_makers + enriched.decision_makers))
+    if confidence.get("extracted_contacts", 0.0) >= min_conf and enriched.extracted_contacts:
+        out.extracted_contacts = out.extracted_contacts + enriched.extracted_contacts
+
+    return out
+
+
+async def _model_assisted_enrichment(text: str, account_id: str) -> tuple[AccountContext, dict[str, float]]:
+    """Optional deterministic enrichment layer behind a feature flag.
+
+    This simulates model-assisted extraction in local-safe mode by applying additional
+    text rules and emitting confidence scores per field.
+    """
+    confidence: dict[str, float] = {}
+    enriched = AccountContext(account_id=account_id, account_name=account_id, last_enriched_at=datetime.now(timezone.utc))
+    lower = text.lower()
+
+    if "renewal" in lower or "expansion" in lower:
+        enriched.next_action = "Send proposal"
+        confidence["next_action"] = 0.82
+    if "pilot" in lower and "q" in lower:
+        enriched.contract_status = "prospect"
+        confidence["contract_status"] = 0.78
+    if "security review" in lower:
+        enriched.timing = enriched.timing or "in 2 months"
+        confidence["timing"] = 0.80
+
+    title_hits = sorted(set(m.group(0) for m in _DM_RE.finditer(text)))
+    if title_hits:
+        enriched.decision_makers = title_hits
+        confidence["decision_makers"] = 0.84
+
+    contacts, inferred_domain = _extract_contacts(text)
+    if contacts:
+        enriched.extracted_contacts = contacts
+        confidence["extracted_contacts"] = 0.76
+    if inferred_domain:
+        enriched.domain = inferred_domain
+        confidence["domain"] = 0.90
+
+    return enriched, confidence
+
+
 async def extract(raw_notes: str, account_id: str) -> AccountContext:
     processed = _preprocess(raw_notes)
     new_ctx = _extract_heuristics(processed, account_id)
+    if _env_enabled("EMAILDJ_EXTRACTOR_ENABLE_ENRICHMENT"):
+        enriched_ctx, confidence = await _model_assisted_enrichment(processed, account_id)
+        new_ctx = _apply_confidence_overlay(new_ctx, enriched_ctx, confidence)
     existing = await cache.get_or_fetch(account_id)
     merged = merger.merge(existing, new_ctx)
     asyncio.create_task(embedder.embed_and_store(merged, account_id))
