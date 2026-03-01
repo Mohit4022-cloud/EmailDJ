@@ -1,5 +1,7 @@
 /** Streaming email display + edit capture component. */
 
+import { captureEdit } from '../hub-client.js';
+
 export class EmailEditor {
   constructor(container) {
     this.container = container;
@@ -62,9 +64,7 @@ export class EmailEditor {
   onEditorBlur() {
     const edited = this.editorEl?.innerText ?? '';
     if (edited !== this.originalDraft) {
-      import('../hub-client.js')
-        .then(({ captureEdit }) => captureEdit(this.originalDraft, edited))
-        .catch(console.error);
+      captureEdit(this.originalDraft, edited).catch(console.error);
     }
   }
 

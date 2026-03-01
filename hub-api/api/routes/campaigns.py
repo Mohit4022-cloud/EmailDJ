@@ -38,15 +38,18 @@ async def _save_campaign(campaign: dict) -> None:
 
 
 async def _load_campaign(campaign_id: str) -> dict | None:
-    if campaign_id in _CAMPAIGNS:
-        return _CAMPAIGNS[campaign_id]
+    # Primary path: Redis-backed campaign state.
     redis = get_redis()
     raw = await redis.hget(f"campaign:{campaign_id}", "data")
-    if not raw:
-        return None
-    data = json.loads(raw)
-    _CAMPAIGNS[campaign_id] = data
-    return data
+    if raw:
+        data = json.loads(raw)
+        _CAMPAIGNS[campaign_id] = data
+        return data
+
+    # Secondary fallback: in-process cache.
+    if campaign_id in _CAMPAIGNS:
+        return _CAMPAIGNS[campaign_id]
+    return None
 
 
 @router.post("/")

@@ -51,8 +51,9 @@ async def test_blast_radius_requires_confirm():
         create = await client.post('/campaigns/', json={'command': 'Broad enterprise campaign', 'campaign_name': 'Big Blast'})
         campaign_id = create.json()['campaign_id']
 
-        # Force threshold condition by mutating in-memory campaign for test.
-        campaigns_mod._CAMPAIGNS[campaign_id]['audience'] = [{'id': str(i)} for i in range(campaigns_mod.BLAST_RADIUS_CONFIRM_THRESHOLD + 1)]
+        campaign = await campaigns_mod._load_campaign(campaign_id)
+        campaign['audience'] = [{'id': str(i)} for i in range(campaigns_mod.BLAST_RADIUS_CONFIRM_THRESHOLD + 1)]
+        await campaigns_mod._save_campaign(campaign)
 
         bad = await client.post(f'/campaigns/{campaign_id}/approve', json={})
         assert bad.status_code == 400

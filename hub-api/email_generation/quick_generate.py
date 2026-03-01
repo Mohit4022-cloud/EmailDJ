@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from typing import AsyncGenerator
 
 import httpx
@@ -13,6 +14,7 @@ import httpx
 from context_vault.models import AccountContext
 from email_generation.model_cascade import get_model
 from email_generation.prompt_templates import get_quick_generate_prompt
+from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,10 @@ async def _mock_stream(text: str) -> AsyncGenerator[str, None]:
 
 def _mode() -> str:
     return os.environ.get("EMAILDJ_QUICK_GENERATE_MODE", "mock").strip().lower() or "mock"
+
+
+def _preferred_provider() -> str:
+    return os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai"
 
 
 async def _openai_chat_completion(prompt: list[dict[str, str]], model_name: str) -> str:
@@ -88,8 +94,28 @@ async def _groq_chat_completion(prompt: list[dict[str, str]], model_name: str) -
     return data["choices"][0]["message"]["content"]
 
 
+async def _record_provider_failure(provider: str, error: str) -> None:
+    redis = get_redis()
+    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    key = f"quick_provider_failures:{provider}:{day}"
+    raw = await redis.get(key)
+    count = int(raw or 0) + 1
+    await redis.set(key, str(count))
+
+    threshold = int(os.environ.get("QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD", "5"))
+    logger.error(
+        "quick_generate_provider_failed",
+        extra={"provider": provider, "failure_count": count, "error": error},
+    )
+    if count >= threshold:
+        logger.warning(
+            "quick_generate_provider_failure_threshold_exceeded",
+            extra={"provider": provider, "failure_count": count, "threshold": threshold},
+        )
+
+
 async def _real_generate(prompt: list[dict[str, str]], throttled: bool = False) -> str:
-    preferred = os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").lower()
+    preferred = _preferred_provider()
     model = get_model(tier=2, task="quick_generate", throttled=throttled)
 
     logger.info(
@@ -138,10 +164,11 @@ async def quick_generate(
         return
 
     logger.info("quick_generate_mode", extra={"mode": "real"})
+    provider = _preferred_provider()
     try:
         output = await _real_generate(prompt=prompt, throttled=throttled)
     except Exception as exc:
-        logger.exception("quick_generate_real_failed")
+        await _record_provider_failure(provider=provider, error=str(exc))
         output = f"Subject: Quick idea\n\nUnable to reach provider in real mode ({exc})."
 
     words = output.split(" ")

@@ -18,6 +18,7 @@ async def _set_request_body(request: Request, body: bytes) -> None:
         return {"type": "http.request", "body": body, "more_body": False}
 
     request._receive = receive  # type: ignore[attr-defined]
+    request._body = body  # type: ignore[attr-defined]
 
 
 def _walk_and_redact(value: Any, vault: dict[str, str]) -> Any:

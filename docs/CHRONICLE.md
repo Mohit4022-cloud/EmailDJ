@@ -588,3 +588,272 @@ No divergence from original plan.
 6. **Resolve Vite hub-client.js warning** — Consolidate dynamic/static import
 
 ---
+
+## Entry 005 — 2026-02-28 | PROGRESS: Real-Mode Hardening, CI Workflow, and Expanded Green Gates
+
+**Date:** 2026-02-28
+**Type:** PROGRESS
+**Author:** AI-assisted (GPT-5 Codex — implementation model)
+**Previous Entry:** Entry 004 — 2026-02-28 | PROGRESS: Quality Gates Green — First Full End-to-End Pass
+
+---
+
+### Context
+
+This session advanced the project from "mock vertical slice with green baseline gates" to a more production-oriented shape by adding real-mode generation controls, provider failure observability, Redis-backed campaign persistence, CI automation, and an expanded quality gate that now includes both mock and real-mode smoke tests.
+
+The objective was to keep public interfaces stable while improving reliability and release-readiness.
+
+---
+
+### What Was Implemented
+
+#### 1. Real-Mode Path + Runtime Controls
+
+- `EMAILDJ_QUICK_GENERATE_MODE=mock|real` remains the primary switch.
+- Real-mode provider routing is now implemented in `hub-api/email_generation/quick_generate.py` using:
+  - OpenAI (`/v1/chat/completions`)
+  - Anthropic (`/v1/messages`)
+  - Groq (`/openai/v1/chat/completions`)
+- Provider selection uses `EMAILDJ_REAL_PROVIDER=openai|anthropic|groq`.
+
+#### 2. Provider Failure Policy and Alerting
+
+Added explicit failure tracking and threshold alerts in real mode:
+
+- Redis counter key: `quick_provider_failures:{provider}:{YYYYMMDD}`
+- Threshold env: `QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD` (default: `5`)
+- On failure:
+  - structured error log emitted
+  - counter incremented
+  - threshold-exceeded warning emitted
+- Existing graceful fallback response behavior is preserved so SSE contract remains intact.
+
+#### 3. Quick-Generate Route Hardening
+
+In `hub-api/api/routes/quick_generate.py`:
+
+- request-store TTL cleanup
+- bounded concurrency via semaphore
+- stream-completion cost tracking events
+- structured stream lifecycle logs (`start`, mode, throttled state, cost tracked)
+
+No endpoint contract changes were introduced.
+
+#### 4. PII Middleware Reliability Fix
+
+In `hub-api/api/middleware/pii_redaction.py`:
+
+- request body override now updates both request receive channel and cached body (`request._body`) to ensure downstream parsing consistently sees redacted/tokenized content.
+
+This resolved a real-mode integration gap found by tests.
+
+#### 5. Campaign Persistence Hardening
+
+In `hub-api/api/routes/campaigns.py`:
+
+- campaign loads now use Redis-backed state as primary source
+- in-process dict is retained only as secondary fallback cache
+
+This reduces process-local state dependence while keeping route contracts unchanged.
+
+#### 6. Extension Build Warning Cleanup
+
+In `chrome-extension/src/side-panel/components/EmailEditor.js`:
+
+- replaced dynamic import of `hub-client.js` with static import of `captureEdit`
+- removed Vite warning about mixed dynamic/static import graph
+
+Extension build now completes without that warning.
+
+#### 7. CI Workflow Added
+
+Created GitHub Actions workflow:
+
+- `.github/workflows/ci.yml`
+- Runs on PR and push (`main`, `master`)
+- Sets up Python + Node
+- Installs backend and extension dependencies
+- Executes `hub-api/scripts/checks.sh`
+
+#### 8. New Smoke + Integration Coverage
+
+Added:
+
+- `hub-api/scripts/real_mode_smoke.py`
+- `hub-api/tests/integration/test_real_mode_pii.py`
+
+`test_real_mode_pii.py` verifies provider-bound prompt text in real mode does not contain raw email/phone from request payload.
+
+---
+
+### Quality Gate Expansion and Result
+
+`hub-api/scripts/checks.sh` expanded from 6 steps to 7 steps:
+
+1. Python compile
+2. Pytest
+3. OpenAPI generation from runtime
+4. Extension JS syntax check
+5. Extension build
+6. Mock E2E smoke
+7. Real-mode smoke
+
+**Final result:** all checks passed.
+
+- `12 passed` in pytest
+- OpenAPI regenerated successfully (`hub-api/openapi.json`)
+- Extension build passed
+- Mock smoke passed
+- Real-mode smoke passed
+
+---
+
+### Current Status
+
+| Area | Status |
+|---|---|
+| Public API contracts | Stable (unchanged) |
+| SSE schema (`start/token/done/error`) | Stable |
+| Mock mode | Green |
+| Real mode path | Implemented + smoke-tested |
+| Provider failure observability | Implemented |
+| Campaign persistence | Redis-first reads |
+| CI automation | Added |
+| Full quality gate | Green |
+
+---
+
+### Next Steps
+
+1. Run a live real-provider smoke with valid provider key(s) in `.env` (outside mocked/fallback path).
+2. Add webhook/metrics sink integration for provider-failure threshold events (Slack/incident sink).
+3. Begin replacing heuristic extraction/model placeholders with production implementations while preserving current contracts.
+
+---
+
+## Entry 006 — 2026-02-28 | VALIDATION: Real-Mode Smoke + PII + Failure Observability
+
+**Date:** 2026-02-28
+**Type:** VALIDATION
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 005 — 2026-02-28 | PROGRESS: Real-Mode Hardening, CI Workflow, and Expanded Green Gates
+
+---
+
+### Scope
+
+Executed the real-provider smoke validation plan without changing public API contracts:
+
+1. configured local `hub-api/.env` profile for `EMAILDJ_QUICK_GENERATE_MODE=real` and `EMAILDJ_REAL_PROVIDER=openai`
+2. ran full quality gate from `hub-api/` (`scripts/checks.sh`)
+3. ran focused real-mode smoke with timing (`scripts/real_mode_smoke.py`)
+4. ran real-mode PII integration coverage (`tests/integration/test_real_mode_pii.py`)
+5. reviewed provider-failure threshold logging behavior in:
+   - `hub-api/email_generation/quick_generate.py`
+   - `hub-api/api/middleware/pii_redaction.py`
+
+---
+
+### Results
+
+#### Baseline Quality Gate
+
+- Command: `source .venv/bin/activate && bash scripts/checks.sh` (run from `hub-api/`)
+- Result: PASS
+- Pytest: `12 passed`
+- Extension build: PASS
+- Mock smoke: PASS
+- Real-mode smoke: PASS
+- OpenAPI drift: none (`hub-api/openapi.json` unchanged after regeneration)
+
+#### Focused Real-Mode Smoke
+
+- Command: `source .venv/bin/activate && /usr/bin/time -p python scripts/real_mode_smoke.py`
+- Result: PASS
+- Runtime: `real 0.68s`
+- Observed logs include:
+  - `quick_generate_mode` (real)
+  - `quick_generate_model_selected`
+  - `quick_generate_provider_failed`
+  - `quick_generate_ttft`
+  - `quick_generate_total`
+
+Interpretation: real-mode code path is exercised; when provider credentials are missing/invalid, fallback output is returned while failure telemetry is emitted.
+
+#### Real-Mode PII Validation
+
+- Command: `PYTHONPATH=/Users/mohit/EmailDJ/hub-api pytest -q tests/integration/test_real_mode_pii.py`
+- Result: PASS (`1 passed`)
+- Assertion confirmed: provider-bound prompt text does not include raw email or phone from request payload.
+
+---
+
+### Failure Signaling Verification
+
+`quick_generate.py` currently:
+
+- increments provider/day failure counter in Redis key pattern `quick_provider_failures:{provider}:{YYYYMMDD}`
+- logs `quick_generate_provider_failed` on each provider exception
+- emits warning `quick_generate_provider_failure_threshold_exceeded` when count reaches `QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD` (default `5`)
+
+Current gap: threshold breach is logged, but no external incident sink (Slack/webhook/metrics) is invoked yet.
+
+---
+
+### Follow-Up Task Opened
+
+Added follow-up backlog item in `docs/TASKS.md`:
+
+- implement outbound alert sink for provider failure threshold events
+- include Slack webhook + metrics counter integration
+- keep existing API and SSE contracts unchanged
+
+---
+
+## Entry 007 — 2026-02-28 | VALIDATION: Live OpenAI Real-Mode Success
+
+**Date:** 2026-02-28
+**Type:** VALIDATION
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 006 — 2026-02-28 | VALIDATION: Real-Mode Smoke + PII + Failure Observability
+
+---
+
+### Scope
+
+Validated real-mode OpenAI provider calls with a live API key in an unrestricted network context.
+
+---
+
+### Results
+
+#### Direct Provider Probe
+
+- Executed `_openai_chat_completion(...)` directly.
+- Result: `SUCCESS`
+- Response returned from OpenAI model (`gpt-4o-mini`).
+
+#### Real-Mode Smoke (Live Provider)
+
+- Command: `python scripts/real_mode_smoke.py` with `EMAILDJ_QUICK_GENERATE_MODE=real`, `EMAILDJ_REAL_PROVIDER=openai`, and live `OPENAI_API_KEY`.
+- Result: PASS
+- Observed upstream call: `POST https://api.openai.com/v1/chat/completions` -> `HTTP/1.1 200 OK`
+- Runtime: `real 5.25s`
+
+#### Full Quality Gate (Live Provider)
+
+- Command: `bash scripts/checks.sh` with live `OPENAI_API_KEY`
+- Result: PASS (`all checks passed`)
+- Pytest: `12 passed`
+- Real-mode smoke step: PASS with upstream OpenAI `200 OK`
+
+---
+
+### Notes
+
+- In sandbox-restricted networking, provider calls fail with DNS/connect errors and exercise fallback behavior.
+- In unrestricted networking, live provider path is confirmed healthy.
+- Public API and SSE contracts remain unchanged.
+
+---
