@@ -737,9 +737,16 @@
               }
             ],
             "title": "Confirm"
+          },
+          "approval_reason": {
+            "type": "string",
+            "title": "Approval Reason"
           }
         },
         "type": "object",
+        "required": [
+          "approval_reason"
+        ],
         "title": "CampaignApproveRequest"
       },
       "CampaignAssignRequest": {

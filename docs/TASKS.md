@@ -48,3 +48,29 @@ Introduce provider interfaces and env-driven adapter resolution for CRM + intent
 2. Default mode prefers real providers when configuration is present; explicit `fallback` mode remains available.
 3. Campaign create/approve flows continue to work without contract changes.
 4. Integration tests cover create/approve with provider stubs and fallback behavior.
+
+---
+
+## TASK-003 — VP Approval Gate Hardening + Audit Trail
+
+**Created:** 2026-03-01
+**Source:** VP campaign approval hardening review (`hub-api/api/routes/campaigns.py`)
+**Priority:** High
+**Status:** Done
+**Completed:** 2026-03-01
+
+### Problem
+
+Campaign approval was a simple state flip without approver identity checks, role enforcement, or immutable approval history.
+
+### Required Outcome
+
+Make approval a policy-enforced, auditable gate before assignments can be created.
+
+### Acceptance Criteria
+
+1. Approval requires authenticated approver identity and VP/admin role check.
+2. Approval record persists `campaign_id`, `approver_id`, timestamp, audience count, and approval reason.
+3. Approval is invalidated when audience or sequence content changes after approval.
+4. Assignment endpoint blocks unless latest approval is valid.
+5. Integration tests cover unauthorized approval, valid approval, post-approval mutation invalidation, and assignment blocking.

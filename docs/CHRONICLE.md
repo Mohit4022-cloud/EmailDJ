@@ -1294,3 +1294,87 @@ No external campaign API contract changes (`/campaigns` create/get/approve/assig
 No SSE event schema changes.
 
 ---
+
+## Entry 013 — 2026-03-01 | PROGRESS: TASK-003 VP Approval Gate Hardening + Audit Trail
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 012 — 2026-03-01 | PROGRESS: TASK-002 Campaign Intelligence Provider Adapters
+
+---
+
+### Scope
+
+Implemented TASK-003 from `docs/TASKS.md`: hardened campaign approval into a role-gated, auditable checkpoint with immutable approval records and signature-based invalidation before assignment.
+
+---
+
+### Changes
+
+1. Campaign approval policy enforcement:
+- updated `hub-api/api/routes/campaigns.py`
+  - approval now requires:
+    - `x-user-id`
+    - `x-user-role` in `{vp, admin}`
+    - non-empty `approval_reason`
+  - new errors:
+    - `approver_auth_required` (401)
+    - `approver_forbidden` (403)
+    - `approval_reason_required` (400)
+  - approval response now includes:
+    - `approval_id`
+    - `approved_at`
+
+2. Immutable approval audit trail:
+- added Redis-backed append-only approval storage:
+  - `campaign_approvals:{campaign_id}:ids`
+  - `campaign_approval:{campaign_id}:{approval_id}`
+- persisted per-approval fields:
+  - `approval_id`, `campaign_id`, `approver_id`, `approver_role`
+  - `approved_at`, `audience_count`, `approval_reason`
+  - `campaign_signature`
+
+3. Approval invalidation and assignment gate:
+- added deterministic campaign signature (`sha256`) over canonicalized:
+  - `audience`
+  - `sequences`
+- campaign now tracks:
+  - `latest_approval_id`
+  - `latest_approval_signature`
+  - `latest_approved_at`
+- assignment now blocks with:
+  - `approval_required` when no latest approval exists
+  - `approval_invalidated` when campaign changed since latest approval
+
+4. Integration tests:
+- updated `hub-api/tests/integration/test_campaign_assignment_lifecycle.py`
+  - approval auth required (401)
+  - role enforcement (403)
+  - approval reason required (400)
+  - valid approval with headers/reason
+  - assignment blocked when no approval exists
+  - assignment blocked after post-approval audience mutation
+  - existing lifecycle and blast-radius confirm behavior updated for new approval contract
+
+5. OpenAPI refresh:
+- regenerated `hub-api/openapi.json` to reflect `approval_reason` request schema and approve response changes.
+
+---
+
+### Validation
+
+- targeted campaign integration:
+  - `pytest -q hub-api/tests/integration/test_campaign_assignment_lifecycle.py`
+- full local gate:
+  - `bash hub-api/scripts/checks.sh`
+
+---
+
+### Contracts
+
+Campaign route paths unchanged.
+Approval request contract now requires `approval_reason` and approver identity headers for `/campaigns/{campaign_id}/approve`.
+No SSE event schema changes.
+
+---
