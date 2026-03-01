@@ -1227,3 +1227,70 @@ No external API route schema changes.
 No SSE event schema changes (`start/token/done/error`).
 
 ---
+
+## Entry 012 — 2026-03-01 | PROGRESS: TASK-002 Campaign Intelligence Provider Adapters
+
+**Date:** 2026-03-01
+**Type:** PROGRESS
+**Author:** Codex (GPT-5)
+**Previous Entry:** Entry 011 — 2026-03-01 | PROGRESS: Durability + Observability Hardening (Deep Research, Webhooks, Extractor, CI)
+
+---
+
+### Scope
+
+Implemented TASK-002 from `docs/TASKS.md`: replaced hardcoded mock campaign intelligence with provider adapter interfaces, env-driven runtime selection, explicit fallback mode handling, and integration tests for campaign create/approve flows using stubs.
+
+---
+
+### Changes
+
+1. Added provider adapter layer:
+- `hub-api/agents/providers/campaign_intelligence.py`
+  - provider protocols (`CRMProvider`, `IntentProvider`)
+  - real adapters (`SalesforceCRMProvider`, `BomboraIntentProvider`)
+  - mock adapters (`MockCRMProvider`, `MockIntentProvider`)
+  - runtime resolution with `EMAILDJ_CAMPAIGN_INTELLIGENCE_MODE`:
+    - `auto`: use real providers when configured, else mock
+    - `real`: require real provider configuration
+    - `mock`: force mock providers
+    - `fallback`: use real first, then mock on runtime provider failures
+
+2. Updated campaign intelligence nodes:
+- `hub-api/agents/nodes/crm_query_agent.py`
+- `hub-api/agents/nodes/intent_data_agent.py`
+  - converted both nodes to async
+  - integrated provider runtime resolution
+  - added config/runtime error handling with state error accumulation
+
+3. Updated graph execution:
+- `hub-api/agents/graph.py`
+  - now awaits async CRM + intent nodes
+  - preserved downstream audience/approval flow behavior
+
+4. Added env configuration:
+- `hub-api/.env.example`
+  - added campaign intelligence mode/provider vars
+  - added Salesforce runtime connection vars (`SALESFORCE_INSTANCE_URL`, `SALESFORCE_ACCESS_TOKEN`)
+  - added Bombora vars (`BOMBORA_API_KEY`, `BOMBORA_API_URL`)
+
+5. Added integration tests:
+- `hub-api/tests/integration/test_campaign_assignment_lifecycle.py`
+  - create/approve flow with real-provider stubs
+  - explicit `fallback` mode flow with failing primary providers and mock fallback
+
+---
+
+### Validation
+
+- targeted integration run:
+  - `pytest -q hub-api/tests/integration/test_campaign_assignment_lifecycle.py`
+
+---
+
+### Contracts
+
+No external campaign API contract changes (`/campaigns` create/get/approve/assign unchanged).
+No SSE event schema changes.
+
+---

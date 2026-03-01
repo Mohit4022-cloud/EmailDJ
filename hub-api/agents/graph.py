@@ -13,8 +13,8 @@ from agents.state import AgentState
 class SimpleGraph:
     async def ainvoke(self, state: AgentState, config: dict | None = None) -> AgentState:
         state = intent_classifier_node(state)
-        state = crm_query_agent_node(state)
-        state = intent_data_agent_node(state)
+        state = await crm_query_agent_node(state)
+        state = await intent_data_agent_node(state)
         state = audience_builder_node(state)
         if state.get("human_review_required", True):
             state.setdefault("status", "awaiting_approval")

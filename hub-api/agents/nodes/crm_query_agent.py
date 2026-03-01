@@ -1,25 +1,39 @@
-"""CRM query node with mock fallback."""
+"""CRM query node with adapter-backed provider resolution."""
 
 from __future__ import annotations
 
+from agents.providers.campaign_intelligence import (
+    ProviderConfigError,
+    ProviderExecutionError,
+    resolve_crm_provider_runtime,
+)
 from agents.state import AgentState
 
 
-def _mock_accounts() -> list[dict]:
-    return [
-        {
-            "account_id": f"001xx000000{i}",
-            "name": f"Acme {i}",
-            "industry": "SaaS",
-            "website": f"https://acme{i}.example.com",
-            "last_activity_days": i * 5,
-        }
-        for i in range(1, 6)
-    ]
-
-
-def crm_query_agent_node(state: AgentState) -> AgentState:
-    state["crm_results"] = _mock_accounts()
-    state["data_source"] = "mock"
+async def crm_query_agent_node(state: AgentState) -> AgentState:
     state.setdefault("errors", [])
+    command = state.get("vp_command", "")
+    try:
+        runtime = resolve_crm_provider_runtime()
+    except ProviderConfigError as exc:
+        state["crm_results"] = []
+        state["data_source"] = "unavailable"
+        state["errors"].append(str(exc))
+        return state
+
+    provider = runtime.primary
+    try:
+        state["crm_results"] = await provider.fetch_accounts(command=command)
+        state["data_source"] = provider.name
+        return state
+    except ProviderExecutionError as exc:
+        if runtime.mode == "fallback" and runtime.fallback is not None:
+            fallback = runtime.fallback
+            state["errors"].append(f"CRM provider failed; fallback applied: {exc}")
+            state["crm_results"] = await fallback.fetch_accounts(command=command)
+            state["data_source"] = fallback.name
+            return state
+        state["errors"].append(str(exc))
+        state["crm_results"] = []
+        state["data_source"] = "unavailable"
     return state

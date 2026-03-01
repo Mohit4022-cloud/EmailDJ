@@ -23,3 +23,28 @@ When failure threshold is exceeded for a provider/day window, emit an actionable
 3. Duplicate alerts are suppressed per provider/day unless count increases by a configured step.
 4. Existing routes and SSE contracts remain unchanged.
 5. Integration tests cover threshold crossing and sink invocation behavior.
+
+---
+
+## TASK-002 — Replace Mock Campaign Intelligence with Real Provider Adapters
+
+**Created:** 2026-03-01
+**Source:** VP campaign mock-intelligence gap review (`hub-api/agents/nodes/crm_query_agent.py`, `hub-api/agents/nodes/intent_data_agent.py`, `hub-api/agents/graph.py`)
+**Priority:** High
+**Status:** Done
+**Completed:** 2026-03-01
+
+### Problem
+
+VP campaign creation/approval relied on hardcoded mock CRM and intent data, preventing production use of configured external intelligence providers.
+
+### Required Outcome
+
+Introduce provider interfaces and env-driven adapter resolution for CRM + intent data while preserving explicit fallback behavior and campaign endpoint contracts.
+
+### Acceptance Criteria
+
+1. CRM and intent nodes use provider adapters with env configuration and real-provider support.
+2. Default mode prefers real providers when configuration is present; explicit `fallback` mode remains available.
+3. Campaign create/approve flows continue to work without contract changes.
+4. Integration tests cover create/approve with provider stubs and fallback behavior.
