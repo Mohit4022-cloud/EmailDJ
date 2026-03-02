@@ -20,6 +20,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--changelog", default="reports/judge/calibration/threshold_changelog.jsonl")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default=os.environ.get("EMAILDJ_JUDGE_MODE", "mock"))
     parser.add_argument("--judge-model", default=os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini"))
+    parser.add_argument(
+        "--judge-model-version",
+        default=(
+            os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
+            or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip()
+            or "gpt-4.1-mini"
+        ),
+    )
     parser.add_argument("--judge-sample-count", type=int, default=int(os.environ.get("EMAILDJ_JUDGE_SAMPLE_COUNT", "1")))
     parser.add_argument("--judge-cache-dir", default="reports/judge/cache")
     parser.add_argument("--candidate-id", default="calibration")
@@ -195,6 +203,7 @@ def main() -> int:
             model=(args.judge_model.strip() or "gpt-4.1-mini"),
             timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
             sample_count=max(1, int(args.judge_sample_count)),
+            model_version=(args.judge_model_version.strip() or args.judge_model.strip() or "gpt-4.1-mini"),
             secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
         ),
     )
@@ -265,6 +274,7 @@ def main() -> int:
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "judge_mode": args.judge_mode,
         "judge_model": args.judge_model,
+        "judge_model_version": args.judge_model_version,
         "dataset": args.calibration,
         "examples": len(expected_rows),
         "current_thresholds": {
@@ -311,6 +321,7 @@ def main() -> int:
             "examples": len(expected_rows),
             "judge_mode": args.judge_mode,
             "judge_model": args.judge_model,
+            "judge_model_version": args.judge_model_version,
             "recommended_thresholds": result["recommended_thresholds"],
             "previous_recommended_thresholds": previous,
             "delta_overall": result["stability"]["delta_overall"],
@@ -327,6 +338,8 @@ def main() -> int:
 
     print("Judge Calibration")
     print(f"- Examples: {len(expected_rows)}")
+    print(f"- Judge model: {args.judge_model}")
+    print(f"- Judge model version: {args.judge_model_version}")
     print(
         f"- Current thresholds: overall>={PASS_THRESHOLD_OVERALL:.1f}, credibility>={PASS_THRESHOLD_CREDIBILITY:.1f}"
     )

@@ -7,6 +7,7 @@ export REDIS_FORCE_INMEMORY="${REDIS_FORCE_INMEMORY:-1}"
 export CHROME_EXTENSION_ORIGIN="${CHROME_EXTENSION_ORIGIN:-chrome-extension://dev}"
 export EMAILDJ_JUDGE_MODE="${EMAILDJ_JUDGE_MODE:-mock}"
 export EMAILDJ_JUDGE_MODEL="${EMAILDJ_JUDGE_MODEL:-gpt-4.1-mini}"
+export EMAILDJ_JUDGE_MODEL_VERSION="${EMAILDJ_JUDGE_MODEL_VERSION:-$EMAILDJ_JUDGE_MODEL}"
 export EMAILDJ_JUDGE_CANDIDATE_ID="${EMAILDJ_JUDGE_CANDIDATE_ID:-${GITHUB_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo local)}}"
 PYTHON_BIN="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
 if [ ! -x "$PYTHON_BIN" ]; then
@@ -21,6 +22,7 @@ fi
   --judge \
   --judge-mode "$EMAILDJ_JUDGE_MODE" \
   --judge-model "$EMAILDJ_JUDGE_MODEL" \
+  --judge-model-version "$EMAILDJ_JUDGE_MODEL_VERSION" \
   --judge-sample-count 3 \
   --judge-candidate-id "$EMAILDJ_JUDGE_CANDIDATE_ID" \
   "$@"

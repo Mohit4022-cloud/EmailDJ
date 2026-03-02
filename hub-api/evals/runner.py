@@ -19,7 +19,7 @@ from evals.judge.client import JudgeClient, JudgeRuntime
 from evals.judge.prompts import prompt_contract_hash
 from evals.judge.redaction import redact_text
 from evals.judge.reliability import calibration_metrics, load_calibration_set
-from evals.judge.reporting import actionable_feedback, compute_judge_summary
+from evals.judge.reporting import actionable_feedback, compute_judge_summary, synthesize_prompt_adjustments
 from evals.io import load_cases, load_smoke_ids, write_reports
 from evals.models import EvalResult, REQUIRED_VIOLATION_CODES, ScorecardSummary, Violation
 from email_generation.remix_engine import build_draft, create_session_payload
@@ -66,6 +66,14 @@ def _parse_args() -> argparse.Namespace:
         default=(os.environ.get("EMAILDJ_JUDGE_MODE", "mock").strip().lower() or "mock"),
     )
     parser.add_argument("--judge-model", default=(os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini"))
+    parser.add_argument(
+        "--judge-model-version",
+        default=(
+            os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
+            or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip()
+            or "gpt-4.1-mini"
+        ),
+    )
     parser.add_argument("--judge-sample-count", type=int, default=_env_int("EMAILDJ_JUDGE_SAMPLE_COUNT", 1))
     parser.add_argument("--judge-cache-dir", default=(os.environ.get("EMAILDJ_JUDGE_CACHE_DIR", "reports/judge/cache").strip() or "reports/judge/cache"))
     parser.add_argument("--judge-candidate-id", default=_default_candidate_id())
@@ -259,6 +267,7 @@ async def _amain() -> int:
 
     judge_summary = None
     top_quality_failures = None
+    recommended_prompt_adjustments: list[dict[str, Any]] | None = None
     if args.judge:
         judge_cache = JudgeCache(Path(args.judge_cache_dir))
         judge_runtime = JudgeRuntime(
@@ -266,6 +275,7 @@ async def _amain() -> int:
             model=args.judge_model,
             timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
             sample_count=max(1, int(args.judge_sample_count)),
+            model_version=(args.judge_model_version.strip() or args.judge_model.strip()),
             secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
         )
         judge_client = JudgeClient(cache=judge_cache, runtime=judge_runtime)
@@ -363,10 +373,12 @@ async def _amain() -> int:
         judge_summary, top_quality_failures = compute_judge_summary(
             results=results,
             model=judge_runtime.model,
+            model_version=judge_runtime.model_version or judge_runtime.model,
             mode=judge_runtime.mode,
             prompt_contract_hash=prompt_contract_hash(),
             calibration=calibration,
         )
+        recommended_prompt_adjustments = synthesize_prompt_adjustments(results=results, max_items=3)
     else:
         for result in results:
             result.judge = {"status": "disabled", "repair_actions": []}
@@ -383,6 +395,7 @@ async def _amain() -> int:
         top_failures=top_failures,
         judge_summary=judge_summary,
         top_quality_failures=top_quality_failures,
+        recommended_prompt_adjustments=recommended_prompt_adjustments,
     )
 
     if args.judge and judge_summary is not None:
@@ -398,6 +411,7 @@ async def _amain() -> int:
             "source_report_md": str(latest_md),
             "candidate_id": args.judge_candidate_id,
             "judge_model": judge_summary.model,
+            "judge_model_version": judge_summary.model_version,
             "judge_mode": judge_summary.mode,
             "prompt_contract_hash": judge_summary.prompt_contract_hash,
         }

@@ -16,6 +16,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", default="reports/judge/stability")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default="mock")
     parser.add_argument("--judge-model", default="gpt-4.1-nano")
+    parser.add_argument("--judge-model-version", default=os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "gpt-4.1-nano"))
     parser.add_argument("--judge-sample-count", type=int, default=1)
     parser.add_argument("--pairwise-model", default="gpt-4.1-nano")
     return parser.parse_args()
@@ -101,6 +102,7 @@ def main() -> int:
         {
             "EMAILDJ_JUDGE_MODE": args.judge_mode,
             "EMAILDJ_JUDGE_MODEL": args.judge_model,
+            "EMAILDJ_JUDGE_MODEL_VERSION": args.judge_model_version.strip() or args.judge_model,
             "EMAILDJ_JUDGE_SAMPLE_COUNT": str(args.judge_sample_count),
             "EMAILDJ_JUDGE_CACHE_DIR": str(cache_dir),
             "EMAILDJ_JUDGE_CANDIDATE_ID": "stability-check",
@@ -145,6 +147,9 @@ def main() -> int:
 
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "judge_model": args.judge_model,
+        "judge_model_version": args.judge_model_version.strip() or args.judge_model,
+        "judge_mode": args.judge_mode,
         "checks": {
             "same_inputs_same_aggregate_scores": aggregate_identical,
             "same_inputs_same_per_case_scores": case_identical,
@@ -190,4 +195,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

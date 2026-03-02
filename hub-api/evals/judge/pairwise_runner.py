@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,11 +20,18 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--report-dir", default="reports/judge")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default="mock")
     parser.add_argument("--judge-model", default="gpt-4.1-mini")
+    parser.add_argument("--judge-model-version", default=(os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()))
     parser.add_argument("--judge-sample-count", type=int, default=1)
     parser.add_argument("--judge-cache-dir", default="reports/judge/cache")
     parser.add_argument("--label-a", default="A")
     parser.add_argument("--label-b", default="B")
-    return parser.parse_args()
+    args = parser.parse_args()
+    args.judge_model_version = (
+        str(args.judge_model_version).strip()
+        or args.judge_model.strip()
+        or "gpt-4.1-mini"
+    )
+    return args
 
 
 def _load_report(path: Path) -> dict[str, Any]:
@@ -48,6 +56,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"- Generated at: `{payload['generated_at']}`")
     lines.append(f"- Judge model: `{payload['judge']['model']}`")
+    lines.append(f"- Judge model version: `{payload['judge'].get('model_version', payload['judge']['model'])}`")
     lines.append(f"- Judge mode: `{payload['judge']['mode']}`")
     lines.append(f"- Candidate A: `{payload['candidate_a']}`")
     lines.append(f"- Candidate B: `{payload['candidate_b']}`")
@@ -93,6 +102,7 @@ def main() -> int:
             model=args.judge_model,
             timeout_seconds=float(30),
             sample_count=max(1, int(args.judge_sample_count)),
+            model_version=args.judge_model_version,
             secondary_model=None,
         ),
     )
@@ -155,6 +165,7 @@ def main() -> int:
         "candidate_b": args.label_b,
         "judge": {
             "model": args.judge_model,
+            "model_version": args.judge_model_version,
             "mode": args.judge_mode,
         },
         "summary": {

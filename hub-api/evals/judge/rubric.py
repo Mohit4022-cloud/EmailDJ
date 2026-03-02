@@ -66,6 +66,7 @@ ALL_FLAGS = (
 @dataclass(frozen=True)
 class JudgeConfig:
     model: str
+    model_version: str
     mode: str
     sample_count: int
     secondary_model: str | None = None

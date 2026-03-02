@@ -13,6 +13,8 @@ Run from `hub-api/`:
 - `./scripts/eval:judge:calibrate`
 - `./scripts/eval:judge:regression-gate --baseline-report <...> --candidate-report <...> --pairwise-report <...>`
 - `./scripts/eval:judge:trend`
+- `./scripts/eval:judge:drift-guard`
+- `./scripts/eval:judge:real-corpus`
 
 ## Hard Gate Rule
 
@@ -26,6 +28,12 @@ Lock compliance remains the hard gate. Any lock failure skips judge scoring for 
 - Binary overclaim check hard-fail: `auto_fail_overclaim_present`.
 
 Thresholds are calibrated from `evals/judge/calibration_set.v2.json` using `eval:judge:calibrate`.
+
+Every judge report header includes:
+
+- `judge_model`
+- `judge_model_version`
+- `judge_mode`
 
 ## Determinism + Cache Verification
 
@@ -53,10 +61,58 @@ Coverage:
 
 ## Actionable Feedback Tags
 
+- `OVERCLAIM_REWRITE` -> rewrite claims to hedged language, remove numbers, avoid guarantees.
+- `FILLER_COMPRESSION` -> compress body by 20%, remove generic openers, require one concrete hook.
+- `CLARITY_STRUCTURE` -> enforce one-sentence opener + two bullets + one final CTA.
 - `HOOK_TOO_GENERIC` -> require one specific research fact in opening hook.
-- `CREDIBILITY_OVERCLAIM` -> hedge claims and remove unsupported numbers.
 - `CTA_WEAK` -> switch to explicit low-friction CTA template.
 - `TONE_MISMATCH` -> adjust tone instructions/sliders to professional-neutral.
+
+Nightly report footer includes `Recommended Next Prompt Adjustments` with 2-3 concrete actions derived deterministically from top binary/flag signals.
+
+## Trend Triage (under 60 seconds)
+
+Open `reports/judge/trend/latest.md` and read in order:
+
+1. `What Got Worse` delta table (overall/relevance/credibility/overclaim/pass-rate).
+2. `Top 5 Rising Failure Flags` (filler/clarity signals).
+3. `Most Regressed 10 Cases` (IDs + snippets + rationale).
+
+This is the fastest path to answer "what regressed?".
+
+## Judge Drift Protection
+
+Nightly drift guard compares current calibration metadata vs previous nightly metadata artifact.
+
+- If `judge_model` or `judge_model_version` changed:
+  - calibration still runs
+  - threshold deltas are computed and written to `reports/judge/drift_guard/latest.json`
+  - gate is blocked unless `workflow_dispatch` is run with `allow_judge_drift_override=true`
+
+No silent threshold drift is allowed.
+
+## CI Artifacts
+
+Nightly uploads:
+
+- `judge-nightly-reports` (latest eval/trend/calibration/real-corpus/drift reports)
+- `judge-nightly-metadata` (`nightly_metadata.json`)
+
+Fetch artifacts:
+
+- `gh run list --workflow ci.yml --limit 5`
+- `gh run download <run-id> -n judge-nightly-reports -D /tmp/judge-nightly`
+- `gh run download <run-id> -n judge-nightly-metadata -D /tmp/judge-nightly-meta`
+
+## Real Corpus
+
+Dataset path: `evals/judge/real_corpus.v1.json`
+
+Minimum workflow:
+
+1. Collect 100-300 anonymized outputs.
+2. Label at least 50-100 with `quality` (`good|ok|bad`) and `overclaim_present` (`true|false`).
+3. Run nightly `./scripts/eval:judge:real-corpus`.
 
 ## Prompt Regression Gate
 

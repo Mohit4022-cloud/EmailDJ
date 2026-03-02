@@ -5,8 +5,18 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      allow_judge_drift_override:
+        description: 'Allow nightly judge drift override when model/version changes'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
   checks:
@@ -111,6 +121,20 @@ jobs:
             --candidate-report "${CANDIDATE_REPORT}" \
             --pairwise-report "${PAIRWISE_DIR}/pairwise_latest.json"
 
+      - name: Upload judge CI artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-ci-reports
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            hub-api/reports/latest.json
+            hub-api/reports/latest.md
+            hub-api/reports/judge/ci_candidate/**
+            hub-api/reports/judge/ci_pairwise/**
+            hub-api/reports/judge/sanity/latest.json
+
   real-mode-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -139,6 +163,29 @@ jobs:
         working-directory: chrome-extension
         run: npm install
 
+      - name: Fetch previous nightly metadata artifact
+        working-directory: hub-api
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/judge
+          PREV_RUN_ID="$(gh run list --workflow ci.yml --limit 40 --json databaseId,event,conclusion --jq ".[] | select((.databaseId|tostring)!=\"$CURRENT_RUN_ID\" and (.event==\"schedule\" or .event==\"workflow_dispatch\") and .conclusion==\"success\") | .databaseId" | head -n 1 || true)"
+          if [ -z "${PREV_RUN_ID}" ]; then
+            echo "No previous successful nightly run found; drift guard will run without baseline."
+            exit 0
+          fi
+          mkdir -p /tmp/judge-nightly-prev
+          if gh run download "${PREV_RUN_ID}" -n judge-nightly-metadata -D /tmp/judge-nightly-prev; then
+            if [ -f /tmp/judge-nightly-prev/nightly_metadata.json ]; then
+              cp /tmp/judge-nightly-prev/nightly_metadata.json reports/judge/previous_nightly_metadata.json
+              echo "Previous nightly metadata restored from run ${PREV_RUN_ID}."
+            fi
+          else
+            echo "Previous metadata artifact not available; continuing without baseline."
+          fi
+
       - name: Run checks with credentialed real smoke
         working-directory: hub-api
         env:
@@ -163,9 +210,10 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EMAILDJ_JUDGE_MODE: real
           EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
+          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
         run: |
           source .venv/bin/activate
-          ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini
+          ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini
 
       - name: Calibrate judge thresholds (real mode)
         working-directory: hub-api
@@ -173,12 +221,70 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EMAILDJ_JUDGE_MODE: real
           EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
+          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
         run: |
           source .venv/bin/activate
-          ./scripts/eval:judge:calibrate --judge-mode real --judge-model gpt-4.1-mini --judge-sample-count 3
+          ./scripts/eval:judge:calibrate --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini --judge-sample-count 3
 
       - name: Build judge trend report
         working-directory: hub-api
         run: |
           source .venv/bin/activate
           ./scripts/eval:judge:trend --mode full
+
+      - name: Run real corpus judge eval
+        working-directory: hub-api
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EMAILDJ_JUDGE_MODE: real
+          EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
+          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:judge:real-corpus --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini
+
+      - name: Enforce judge drift guard
+        working-directory: hub-api
+        env:
+          ALLOW_JUDGE_DRIFT_OVERRIDE: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.allow_judge_drift_override) || 'false' }}
+        run: |
+          set -euo pipefail
+          source .venv/bin/activate
+          EXTRA_ARGS=""
+          if [ "${ALLOW_JUDGE_DRIFT_OVERRIDE}" = "true" ]; then
+            EXTRA_ARGS="--allow-drift-override"
+          fi
+          ./scripts/eval:judge:drift-guard \
+            --current-calibration reports/judge/calibration/latest.json \
+            --previous-metadata reports/judge/previous_nightly_metadata.json \
+            --out reports/judge/drift_guard/latest.json \
+            --out-metadata reports/judge/nightly_metadata.json \
+            ${EXTRA_ARGS}
+
+      - name: Upload nightly judge reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-nightly-reports
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            hub-api/reports/latest.json
+            hub-api/reports/latest.md
+            hub-api/reports/judge/trend/latest.json
+            hub-api/reports/judge/trend/latest.md
+            hub-api/reports/judge/calibration/latest.json
+            hub-api/reports/judge/calibration/threshold_changelog.jsonl
+            hub-api/reports/judge/sanity/latest.json
+            hub-api/reports/judge/real_corpus/latest.json
+            hub-api/reports/judge/real_corpus/latest.md
+            hub-api/reports/judge/drift_guard/latest.json
+
+      - name: Upload nightly metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-nightly-metadata
+          retention-days: 30
+          if-no-files-found: warn
+          path: hub-api/reports/judge/nightly_metadata.json

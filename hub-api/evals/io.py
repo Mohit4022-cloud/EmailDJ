@@ -99,6 +99,7 @@ def write_reports(
     top_failures: list[dict[str, Any]],
     judge_summary: JudgeSummary | None = None,
     top_quality_failures: list[dict[str, Any]] | None = None,
+    recommended_prompt_adjustments: list[dict[str, Any]] | None = None,
 ) -> tuple[Path, Path]:
     report_dir.mkdir(parents=True, exist_ok=True)
     history_dir = report_dir / "history"
@@ -122,6 +123,7 @@ def write_reports(
         payload["judge"] = {
             "summary": judge_summary.to_dict(),
             "top_recurring_quality_failures": top_quality_failures or [],
+            "recommended_prompt_adjustments": recommended_prompt_adjustments or [],
         }
 
     latest_json = report_dir / "latest.json"
@@ -182,6 +184,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append("|---|---:|")
         lines.append(f"| Enabled | {judge_summary.get('enabled', False)} |")
         lines.append(f"| Model | `{judge_summary.get('model', 'unknown')}` |")
+        lines.append(f"| Model version | `{judge_summary.get('model_version', judge_summary.get('model', 'unknown'))}` |")
         lines.append(f"| Mode | `{judge_summary.get('mode', 'unknown')}` |")
         lines.append(f"| Schema version | `{judge_summary.get('schema_version', 'unknown')}` |")
         lines.append(f"| Evaluated cases | {judge_summary.get('evaluated_cases', 0)} |")
@@ -190,7 +193,9 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"| Failed | {judge_summary.get('failed_cases', 0)} |")
         lines.append(f"| Pass rate | {judge_summary.get('pass_rate', 0):.2%} |")
         lines.append(f"| Mean overall | {judge_summary.get('mean_overall', 0):.2f} |")
+        lines.append(f"| Mean relevance | {judge_summary.get('mean_relevance', 0):.2f} |")
         lines.append(f"| Mean credibility | {judge_summary.get('mean_credibility', 0):.2f} |")
+        lines.append(f"| Overclaim fail count | {judge_summary.get('overclaim_fail_count', 0)} |")
         lines.append(f"| Threshold overall | {judge_summary.get('threshold_overall', 0):.2f} |")
         lines.append(f"| Threshold credibility | {judge_summary.get('threshold_credibility', 0):.2f} |")
         lines.append(f"| Cache hits | {judge_summary.get('cache_hits', 0)} / {judge_summary.get('cache_lookups', 0)} |")
@@ -209,6 +214,19 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         if top_quality:
             for row in top_quality:
                 lines.append(f"- `{row['flag']}` x{row['count']}")
+        else:
+            lines.append("- None")
+        lines.append("")
+        lines.append("## Recommended Next Prompt Adjustments")
+        lines.append("")
+        recommendations = judge.get("recommended_prompt_adjustments", [])
+        if recommendations:
+            for row in recommendations:
+                action = str((row or {}).get("action", "")).strip()
+                signal = str((row or {}).get("signal", "")).strip() or "quality_signal"
+                count = int((row or {}).get("count", 0) or 0)
+                if action:
+                    lines.append(f"- `{signal}` ({count}): {action}")
         else:
             lines.append("- None")
         lines.append("")

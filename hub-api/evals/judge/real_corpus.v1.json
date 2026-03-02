@@ -1,0 +1,53 @@
+[
+  {
+    "id": "real_001",
+    "source": "internal_usage",
+    "captured_at": "2026-03-01",
+    "subject": "Quick thought on Brand Protection at [REDACTED_COMPANY]",
+    "body": "Hi [REDACTED_NAME], noticed your team is tightening outbound governance this quarter. Brand Protection can reduce risky language and keep message consistency across reps.\n\nOpen to a 15-min chat next week?",
+    "prospect_role": "VP Sales",
+    "prospect_company": "[REDACTED_COMPANY]",
+    "offer_lock": "Brand Protection",
+    "cta_lock": "Open to a 15-min chat next week?",
+    "allowed_facts_summary": "The team is tightening outbound governance and message controls.",
+    "tone_target": "professional, balanced",
+    "labels": {
+      "quality": "good",
+      "overclaim_present": false
+    }
+  },
+  {
+    "id": "real_002",
+    "source": "internal_usage",
+    "captured_at": "2026-03-01",
+    "subject": "Sequence Governance for [REDACTED_COMPANY]",
+    "body": "Hi [REDACTED_NAME], teams with cross-functional messaging standards usually need cleaner sequence controls. Sequence Governance helps enforce consistent messaging and clear handoffs.\n\nOpen to a 15-min chat next week?",
+    "prospect_role": "SDR Manager",
+    "prospect_company": "[REDACTED_COMPANY]",
+    "offer_lock": "Sequence Governance",
+    "cta_lock": "Open to a 15-min chat next week?",
+    "allowed_facts_summary": "Cross-functional teams are standardizing messaging and handoffs.",
+    "tone_target": "professional, balanced",
+    "labels": {
+      "quality": "ok",
+      "overclaim_present": false
+    }
+  },
+  {
+    "id": "real_003",
+    "source": "internal_usage",
+    "captured_at": "2026-03-01",
+    "subject": "Guaranteed 30% reply lift for your team",
+    "body": "Hi [REDACTED_NAME], we guarantee at least 30% lift in replies in two weeks and can ensure quota acceleration across your outbound team.\n\nCan we talk sometime?",
+    "prospect_role": "Head of Revenue Operations",
+    "prospect_company": "[REDACTED_COMPANY]",
+    "offer_lock": "Compliance QA",
+    "cta_lock": "Open to a 15-min chat next week?",
+    "allowed_facts_summary": "No approved proof points for guaranteed outcomes.",
+    "tone_target": "professional, balanced",
+    "labels": {
+      "quality": "bad",
+      "overclaim_present": true
+    }
+  }
+]

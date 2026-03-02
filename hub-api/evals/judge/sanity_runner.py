@@ -21,6 +21,14 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--report-dir", default="reports/judge/sanity")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default=os.environ.get("EMAILDJ_JUDGE_MODE", "mock"))
     parser.add_argument("--judge-model", default=os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-nano"))
+    parser.add_argument(
+        "--judge-model-version",
+        default=(
+            os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
+            or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-nano").strip()
+            or "gpt-4.1-nano"
+        ),
+    )
     parser.add_argument("--judge-sample-count", type=int, default=int(os.environ.get("EMAILDJ_JUDGE_SAMPLE_COUNT", "1")))
     parser.add_argument("--judge-cache-dir", default="reports/judge/cache")
     parser.add_argument("--allow-failures", action="store_true")
@@ -99,6 +107,7 @@ def main() -> int:
             model=(args.judge_model.strip() or "gpt-4.1-nano"),
             timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
             sample_count=max(1, int(args.judge_sample_count)),
+            model_version=(args.judge_model_version.strip() or args.judge_model.strip() or "gpt-4.1-nano"),
             secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
         ),
     )
@@ -181,6 +190,7 @@ def main() -> int:
     report = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "judge_model": args.judge_model,
+        "judge_model_version": args.judge_model_version,
         "judge_mode": args.judge_mode,
         "total_cases": total,
         "passed_cases": passed,

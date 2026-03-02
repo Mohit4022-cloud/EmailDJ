@@ -92,6 +92,7 @@ class ScorecardSummary:
 class JudgeSummary:
     enabled: bool
     model: str
+    model_version: str
     mode: str
     schema_version: str
     evaluated_cases: int
@@ -100,7 +101,9 @@ class JudgeSummary:
     failed_cases: int
     pass_rate: float
     mean_overall: float
+    mean_relevance: float
     mean_credibility: float
+    overclaim_fail_count: int
     failure_count_by_flag: dict[str, int]
     prompt_contract_hash: str
     threshold_overall: float = 0.0

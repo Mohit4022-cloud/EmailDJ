@@ -8,6 +8,7 @@ def derive_repair_actions(judge_result: dict[str, Any]) -> list[dict[str, str]]:
         return []
 
     scores = judge_result.get("scores") or {}
+    binary_checks = judge_result.get("binary_checks") or {}
     flags = {str(flag).strip() for flag in judge_result.get("flags", []) if str(flag).strip()}
     actions: list[dict[str, str]] = []
 
@@ -25,12 +26,36 @@ def derive_repair_actions(judge_result: dict[str, Any]) -> list[dict[str, str]]:
                 "reason": "Relevance/personalization is weak for the target prospect context.",
             }
         )
+    if bool(binary_checks.get("overclaim_present", False)):
+        actions.append(
+            {
+                "tag": "OVERCLAIM_REWRITE",
+                "action": "Rewrite claims to hedged language, remove unsupported numbers, and avoid guarantees.",
+                "reason": "Binary overclaim detector fired.",
+            }
+        )
     if credibility <= 3 or "auto_fail_guaranteed_outcome" in flags or "auto_fail_overclaim_present" in flags:
         actions.append(
             {
                 "tag": "CREDIBILITY_OVERCLAIM",
                 "action": "Rewrite claims with hedged language and remove unsupported numbers or guarantees.",
                 "reason": "Credibility signals indicate overclaim risk.",
+            }
+        )
+    if bool(binary_checks.get("filler_padding_present", False)):
+        actions.append(
+            {
+                "tag": "FILLER_COMPRESSION",
+                "action": "Compress body by 20%, remove generic openers, and require one concrete prospect hook.",
+                "reason": "Binary filler/padding detector fired.",
+            }
+        )
+    if bool(binary_checks.get("clarity_violation_present", False)):
+        actions.append(
+            {
+                "tag": "CLARITY_STRUCTURE",
+                "action": "Enforce structure: one-sentence opener, two bullets, and one explicit CTA as the final line.",
+                "reason": "Binary clarity violation detector fired.",
             }
         )
     if cta_quality <= 3 or "weak_cta" in flags:

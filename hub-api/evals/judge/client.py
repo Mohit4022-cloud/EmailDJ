@@ -38,6 +38,7 @@ class JudgeRuntime:
     model: str
     timeout_seconds: float
     sample_count: int
+    model_version: str = ""
     secondary_model: str | None = None
 
 
@@ -54,6 +55,11 @@ class JudgeClient:
             model=os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini",
             timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
             sample_count=max(1, int(os.environ.get("EMAILDJ_JUDGE_SAMPLE_COUNT", "1"))),
+            model_version=(
+                os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
+                or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip()
+                or "gpt-4.1-mini"
+            ),
             secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
         )
 
@@ -61,6 +67,7 @@ class JudgeClient:
     def config(self) -> JudgeConfig:
         return JudgeConfig(
             model=self.runtime.model,
+            model_version=self.runtime.model_version or self.runtime.model,
             mode=self.runtime.mode,
             sample_count=self.runtime.sample_count,
             secondary_model=self.runtime.secondary_model,
@@ -82,7 +89,7 @@ class JudgeClient:
         if self.cache is not None:
             cache_key = self.cache.build_key(
                 case_id=case.id,
-                model_version=self.runtime.model,
+                model_version=self.runtime.model_version or self.runtime.model,
                 prompt_contract_hash=contract_hash,
                 candidate_id=candidate_id,
                 eval_mode=eval_mode,
@@ -119,6 +126,7 @@ class JudgeClient:
             "status": "scored",
             "schema_version": JUDGE_SCHEMA_VERSION,
             "judge_model": self.runtime.model,
+            "judge_model_version": self.runtime.model_version or self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
             "content_hash": content_hash,
@@ -146,7 +154,7 @@ class JudgeClient:
         if self.cache is not None:
             cache_key = self.cache.build_key(
                 case_id=case_id,
-                model_version=self.runtime.model,
+                model_version=self.runtime.model_version or self.runtime.model,
                 prompt_contract_hash=contract_hash,
                 candidate_id=candidate_id,
                 eval_mode=eval_mode,
@@ -183,6 +191,7 @@ class JudgeClient:
             "status": "scored",
             "schema_version": JUDGE_SCHEMA_VERSION,
             "judge_model": self.runtime.model,
+            "judge_model_version": self.runtime.model_version or self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
             "content_hash": content_hash,
@@ -263,6 +272,7 @@ class JudgeClient:
         return {
             "status": "scored",
             "judge_model": self.runtime.model,
+            "judge_model_version": self.runtime.model_version or self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
             "eval_mode": eval_mode,

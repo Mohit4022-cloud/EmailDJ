@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from evals.judge.actions import derive_repair_actions
 from evals.judge.client import JudgeClient, JudgeRuntime
+from evals.judge.reporting import synthesize_prompt_adjustments
 from evals.judge.reliability import calibration_metrics, deterministic_order_swap
 from evals.judge.scoring import normalize_scored_output
 from evals.judge.schemas import validate_judge_output
-from evals.models import EvalCase, EvalExpected
+from evals.models import EvalCase, EvalExpected, EvalResult
 
 
 def _case() -> EvalCase:
@@ -139,6 +140,64 @@ def test_repair_actions_mapping() -> None:
     assert "CREDIBILITY_OVERCLAIM" in tags
     assert "CTA_WEAK" in tags
     assert "TONE_MISMATCH" in tags
+
+
+def test_binary_repair_actions_mapping() -> None:
+    actions = derive_repair_actions(
+        {
+            "status": "scored",
+            "scores": {
+                "relevance_to_prospect": 4,
+                "clarity_and_structure": 3,
+                "credibility_no_overclaim": 3,
+                "personalization_quality": 4,
+                "cta_quality": 4,
+                "tone_match": 4,
+                "conciseness_signal_density": 3,
+                "value_prop_specificity": 4,
+            },
+            "binary_checks": {
+                "overclaim_present": True,
+                "filler_padding_present": True,
+                "clarity_violation_present": True,
+            },
+            "flags": [],
+        }
+    )
+    tags = {item["tag"] for item in actions}
+    assert "OVERCLAIM_REWRITE" in tags
+    assert "FILLER_COMPRESSION" in tags
+    assert "CLARITY_STRUCTURE" in tags
+
+
+def test_synthesize_prompt_adjustments_returns_ranked_actions() -> None:
+    rows: list[EvalResult] = []
+    for idx in range(3):
+        item = EvalResult(
+            id=f"row_{idx}",
+            tags=["judge"],
+            passed=True,
+            duration_ms=1,
+            mode="mock",
+            subject="s",
+            body="b",
+            draft="d",
+            violations=[],
+        )
+        item.judge = {
+            "status": "scored",
+            "binary_checks": {
+                "overclaim_present": idx == 0,
+                "filler_padding_present": True,
+                "clarity_violation_present": idx >= 1,
+            },
+            "flags": ["weak_cta"] if idx == 2 else [],
+        }
+        rows.append(item)
+    recommendations = synthesize_prompt_adjustments(results=rows, max_items=3)
+    assert 2 <= len(recommendations) <= 3
+    assert recommendations[0]["signal"] == "overclaim_present"
+    assert any(row["signal"] == "filler_padding_present" for row in recommendations)
 
 
 def test_binary_overclaim_forces_fail_even_with_high_scores() -> None:
