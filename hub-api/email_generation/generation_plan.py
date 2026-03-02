@@ -101,6 +101,52 @@ def _forbidden_product_terms(session: dict[str, Any], offer_lock: str) -> list[s
     return forbidden
 
 
+def _stable_pick(values: list[str], seed: str) -> str:
+    if not values:
+        return ""
+    if not seed:
+        return values[0]
+    index = sum(ord(ch) for ch in seed) % len(values)
+    return values[index]
+
+
+def _contains_forbidden_term(text: str, forbidden_terms: list[str]) -> bool:
+    lowered = _compact(text).lower()
+    if not lowered:
+        return False
+    for term in forbidden_terms:
+        token = _compact(term).lower()
+        if not token:
+            continue
+        if " " in token:
+            if token in lowered:
+                return True
+            continue
+        if re.search(rf"\b{re.escape(token)}\b", lowered):
+            return True
+    return False
+
+
+def _rewrite_forbidden_sentence(
+    sentence: str,
+    *,
+    offer_lock: str,
+    context_key: str,
+    forbidden_terms: list[str],
+) -> str:
+    text = _compact(sentence)
+    if not text:
+        return ""
+    if not _contains_forbidden_term(text, forbidden_terms):
+        return _normalize_sentence(text)
+    candidates = [
+        f"{offer_lock} helps keep outreach specific while reducing execution drag.",
+        "The practical goal is improving message quality without adding process overhead.",
+        "Most teams start by tightening consistency before scaling volume.",
+    ]
+    return _normalize_sentence(_stable_pick(candidates, f"{context_key}|{offer_lock}|{text}"))
+
+
 def _first_sentence(text: str) -> str:
     value = _compact(text)
     if not value:
@@ -358,15 +404,18 @@ def apply_generation_plan(
         directness=directness,
         minutes=20 if style_sliders.get("length_short_long", 50) >= 67 else 15,
     )
+    forbidden_terms = _forbidden_product_terms(session, offer_lock)
 
     fact_hint = ""
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
     if allowed_facts:
         fact_hint = _first_sentence(allowed_facts[0])
+    if _contains_forbidden_term(fact_hint, forbidden_terms):
+        fact_hint = ""
     model_signal = _first_sentence(body)
     if model_signal and re.match(r"^(Hi|Hello)\s+[^,\n]+,", model_signal):
         model_signal = re.sub(r"^(Hi|Hello)\s+[^,\n]+,\s*", "", model_signal).strip()
-    if model_signal and _word_count(model_signal) >= 6:
+    if model_signal and _word_count(model_signal) >= 6 and not _contains_forbidden_term(model_signal, forbidden_terms):
         fact_hint = model_signal
 
     blocks: dict[str, str] = {
@@ -388,11 +437,26 @@ def apply_generation_plan(
         sentence = _compact(blocks.get(key))
         if not sentence:
             continue
-        parts.append(_apply_tone(_normalize_sentence(sentence), plan.tone_style))
+        toned = _apply_tone(_normalize_sentence(sentence), plan.tone_style)
+        parts.append(
+            _rewrite_forbidden_sentence(
+                toned,
+                offer_lock=offer_lock,
+                context_key=f"part:{key}",
+                forbidden_terms=forbidden_terms,
+            )
+        )
         if len(parts) >= sentence_budget:
             break
     if not parts:
-        parts.append(_apply_tone(_normalize_sentence(plan.wedge_outcome), plan.tone_style))
+        parts.append(
+            _rewrite_forbidden_sentence(
+                _apply_tone(_normalize_sentence(plan.wedge_outcome), plan.tone_style),
+                offer_lock=offer_lock,
+                context_key="part:fallback",
+                forbidden_terms=forbidden_terms,
+            )
+        )
 
     claim_source = merge_claim_sources(
         [
@@ -422,13 +486,28 @@ def apply_generation_plan(
         allowed_numeric_claims=allowed_numeric_claims,
     )
     main_text = enforce_information_density(main_text)
+    main_text = " ".join(
+        _rewrite_forbidden_sentence(
+            sentence,
+            offer_lock=offer_lock,
+            context_key=f"main:{index}",
+            forbidden_terms=forbidden_terms,
+        )
+        for index, sentence in enumerate(split_sentences(main_text))
+    ).strip()
 
     base_sentences = cap_repeated_ngrams(dedupe_sentence_list(split_sentences(main_text)), max_count=2, min_n=3, max_n=5)
     for index, sentence in enumerate(base_sentences):
-        base_sentences[index] = rewrite_unverified_claims(
+        rewritten = rewrite_unverified_claims(
             sentence,
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
+        )
+        base_sentences[index] = _rewrite_forbidden_sentence(
+            rewritten,
+            offer_lock=offer_lock,
+            context_key=f"base:{index}",
+            forbidden_terms=forbidden_terms,
         )
 
     length_slider = style_sliders.get("length_short_long", 50)
@@ -437,6 +516,7 @@ def apply_generation_plan(
         allowed_facts=session.get("allowed_facts") or [],
         offer_lock=offer_lock,
         company=company,
+        forbidden_terms=forbidden_terms,
     )
     proof_block = section_pool[0:1]
     mechanism_block = section_pool[1:2]
@@ -450,14 +530,22 @@ def apply_generation_plan(
         extra_sections = [*proof_block, *mechanism_block, *deliverable_block]
     else:
         extra_sections = [*mechanism_block]
-    extra_sections = [
-        rewrite_unverified_claims(
+    sanitized_sections: list[str] = []
+    for index, section in enumerate(extra_sections):
+        rewritten = rewrite_unverified_claims(
             section,
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
         )
-        for section in extra_sections
-    ]
+        sanitized_sections.append(
+            _rewrite_forbidden_sentence(
+                rewritten,
+                offer_lock=offer_lock,
+                context_key=f"extra:{index}",
+                forbidden_terms=forbidden_terms,
+            )
+        )
+    extra_sections = sanitized_sections
 
     rendered_body = compose_body_without_padding_loops(
         base_sentences=base_sentences,
@@ -470,11 +558,8 @@ def apply_generation_plan(
     strategy = get_preset_strategy(plan.preset_id)
     fallback_subject = _subject_fallback(strategy, company, offer_lock)
     next_subject = _trim_subject(subject) or _trim_subject(fallback_subject)
-    for forbidden in _forbidden_product_terms(session, offer_lock):
-        token = _compact(forbidden)
-        if token:
-            next_subject = re.sub(re.escape(token), "", next_subject, flags=re.IGNORECASE)
-    next_subject = re.sub(r"\s{2,}", " ", next_subject).strip(" -")
+    if _contains_forbidden_term(next_subject, forbidden_terms):
+        next_subject = _trim_subject(f"{offer_lock} for your team")
     if not next_subject:
         next_subject = _trim_subject(fallback_subject)
     next_subject = rewrite_unverified_claims(
@@ -482,4 +567,6 @@ def apply_generation_plan(
         claim_source,
         allowed_numeric_claims=allowed_numeric_claims,
     )
+    if _contains_forbidden_term(next_subject, forbidden_terms):
+        next_subject = _trim_subject(f"{offer_lock} for your team")
     return next_subject, rendered_body

@@ -233,3 +233,24 @@ def test_preview_normalization_allows_generic_ai_opener_for_research_anchored_ho
     ]
     normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
     assert "scales its enterprise ai initiatives" in normalized[0].body.lower()
+
+
+def test_preview_normalization_sections_avoid_search_enrich_act_phrase():
+    req = _request_payload("NoSearchEnrichAct")
+    summary_pack = _mock_summary_pack(req)
+    raw_items = [
+        {
+            "preset_id": "challenger",
+            "label": "The Challenger",
+            "subject": "Quick angle",
+            "body": (
+                "Hi Alex, Acme is tightening outbound controls while preserving rep workflow quality.\n\n"
+                f"{req.cta_lock_text}"
+            ),
+            "vibeLabel": "Risk-led",
+            "vibeTags": ["Direct", "Specific"],
+            "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
+        }
+    ]
+    normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
+    assert "search, enrich, act" not in normalized[0].body.lower()

@@ -13,6 +13,33 @@ import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
 import { debounce } from './utils.js';
 
+const DEFAULT_PALANTIR_PROFILE_TEXT = `Palantir Technologies is an American software company that develops data integration and analytics platforms for government agencies, militaries, and large corporations.
+Wikipedia
+Wikipedia
++1
+Current Financial Status (March 2, 2026)
+Stock Symbol: PLTR (Nasdaq).
+Stock Price: Trending Up. Shares jumped over 6% today following rising geopolitical tensions in the Middle East and a surge in defense-related stocks.
+Market Capitalization: Exceeds $400 billion.
+Profitability: Reported record revenue growth of 70% year-over-year in late 2025 and is consistently profitable under GAAP metrics.
+Wikipedia
+Wikipedia
++4
+Core Platforms
+Palantir Gotham: Primarily used by defense and intelligence agencies (e.g., CIA, FBI, DoD) to identify patterns in disparate datasets.
+Palantir Foundry: A "central operating system" for commercial and civil data. It is widely used in healthcare, manufacturing, and supply chain management.
+Palantir AIP (Artificial Intelligence Platform): Integrates large language models (LLMs) into private networks to automate decision-making.
+Palantir Apollo: A control layer that manages the deployment and delivery of software across diverse environments, from data centers to "the edge".
+Wikipedia
+Wikipedia
++7
+Key Recent Developments
+Headquarters Move: In February 2026, the company announced it is moving its headquarters from Denver, Colorado, to Miami (Aventura), Florida.
+Government Partnerships:
+The U.S. Navy awarded a nearly $1 billion software contract in late 2024.
+Under the second Trump administration, Palantir has been selected to help the Department of Government Efficiency (DOGE) compile a master database for immigration enforcement and potential deportations.
+NVIDIA Collaboration: Partnered with NVIDIA to integrate GPU-accelerated computing and specialized AI agents into its Palantir AIP framework.`;
+
 const DEFAULT_COMPANY_CONTEXT = {
   company_name: 'Corsearch',
   company_url: 'https://corsearch.com',
@@ -20,8 +47,7 @@ const DEFAULT_COMPANY_CONTEXT = {
   cta_offer_lock: '',
   cta_type: '',
   other_products: 'Trademark Watching\nOnline Brand Protection\nDomain Monitoring',
-  company_notes:
-    'Corsearch helps legal and brand teams reduce trademark risk and protect brands across domains, marketplaces, and social platforms.',
+  company_notes: DEFAULT_PALANTIR_PROFILE_TEXT,
 };
 
 const DEFAULT_TARGET_CONTEXT = {
@@ -31,8 +57,7 @@ const DEFAULT_TARGET_CONTEXT = {
   linkedin_url: '',
 };
 
-// Empty default — let the user paste their own research to avoid contaminating outputs
-const DEFAULT_RESEARCH_TEXT = '';
+const DEFAULT_RESEARCH_TEXT = DEFAULT_PALANTIR_PROFILE_TEXT;
 
 function chooseDefaultString(value, fallback) {
   if (typeof value !== 'string') return fallback;

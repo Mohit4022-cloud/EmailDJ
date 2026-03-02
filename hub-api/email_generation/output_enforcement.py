@@ -147,6 +147,7 @@ def long_mode_section_pool(
     allowed_facts: list[str] | None,
     offer_lock: str,
     company: str,
+    forbidden_terms: list[str] | None = None,
 ) -> list[str]:
     note_sentences = split_sentences(company_notes)
     fact_sentences = split_sentences(" ".join(allowed_facts or []))
@@ -160,7 +161,7 @@ def long_mode_section_pool(
             proof_line = f"Two proof points from your notes: {proof_slice[0]}; {proof_slice[1]}"
 
     mechanism_line = (
-        f"{offer_lock} uses a Search, Enrich, Act flow to detect disguised fakes and route actions without losing case context."
+        f"{offer_lock} helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context."
     )
     deliverable_line = (
         "In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier."
@@ -175,7 +176,32 @@ def long_mode_section_pool(
         deliverable_line,
         risk_line,
     ]
-    return [line for line in pool if compact(line)]
+    filtered_terms: list[str] = []
+    seen: set[str] = set()
+    offer_key = compact(offer_lock).lower()
+    for term in forbidden_terms or []:
+        cleaned = compact(term)
+        key = cleaned.lower()
+        if not key or key == offer_key or key in seen:
+            continue
+        seen.add(key)
+        filtered_terms.append(cleaned)
+
+    sanitized: list[str] = []
+    for line in pool:
+        cleaned_line = compact(line)
+        if not cleaned_line:
+            continue
+        for term in filtered_terms:
+            if " " in term:
+                cleaned_line = re.sub(re.escape(term), "", cleaned_line, flags=re.IGNORECASE)
+            else:
+                cleaned_line = re.sub(rf"\b{re.escape(term)}\b", "", cleaned_line, flags=re.IGNORECASE)
+        cleaned_line = re.sub(r"\s{2,}", " ", cleaned_line)
+        cleaned_line = re.sub(r"\s+([,.;!?])", r"\1", cleaned_line).strip(" ,;")
+        if cleaned_line:
+            sanitized.append(cleaned_line)
+    return sanitized
 
 
 def compose_body_without_padding_loops(

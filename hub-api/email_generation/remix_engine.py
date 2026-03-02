@@ -965,6 +965,7 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
         allowed_facts=session.get("allowed_facts") or [],
         offer_lock=offer_lock,
         company=company,
+        forbidden_terms=_offer_lock_forbidden_items(session),
     )
     if style_sliders["length_short_long"] >= 85:
         extra_sections = section_pool[:4]
@@ -1091,7 +1092,6 @@ async def _build_real_draft(
         "seller_company_name": (session.get("company_context") or {}).get("company_name"),
         "seller_company_url": (session.get("company_context") or {}).get("company_url"),
         "seller_company_notes": (session.get("company_context") or {}).get("company_notes"),
-        "other_products_services_mapping": (session.get("company_context") or {}).get("other_products"),
     }
 
     for attempt_index in range(max_attempts):

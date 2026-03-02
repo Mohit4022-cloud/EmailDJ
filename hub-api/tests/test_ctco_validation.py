@@ -178,6 +178,107 @@ def test_validate_ctco_output_forbidden_product_uses_word_boundaries():
     assert "forbidden_other_product_mentioned:Search" not in violations
 
 
+@pytest.mark.asyncio
+async def test_build_draft_long_mode_does_not_inject_forbidden_search_enrich(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload(
+        research_text=(
+            "Acme is tightening outbound quality controls and improving enterprise reply handling. "
+            "The SDR org is prioritizing credible messaging this quarter."
+        )
+    )
+    session["company_context"]["other_products"] = "Search, Enrich"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    style_profile = {"formality": 0.0, "orientation": 0.0, "length": 1.0, "assertiveness": 0.0}
+    result = await remix_engine.build_draft(session=session, style_profile=style_profile)
+    sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
+    violations = remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=sliders)
+
+    assert "forbidden_other_product_mentioned:Search" not in violations
+    assert "forbidden_other_product_mentioned:Enrich" not in violations
+
+
+@pytest.mark.asyncio
+async def test_build_draft_rewrites_forbidden_model_signal_in_real_mode(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = _session_payload(
+        research_text=(
+            "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+            "The SDR org is under pressure to improve response rates while keeping execution efficient."
+        )
+    )
+    session["company_context"]["other_products"] = "Search, Enrich"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+
+    async def contaminated_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Search and Enrich workflows are top of mind for your team this quarter. "
+                    "Remix Studio helps keep outbound messaging controlled without adding process overhead.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setattr(remix_engine, "_real_generate", contaminated_output)
+    style_profile = {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
+    sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
+
+    result = await remix_engine.build_draft(session=session, style_profile=style_profile)
+    violations = remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=sliders)
+
+    assert "forbidden_other_product_mentioned:Search" not in violations
+    assert "forbidden_other_product_mentioned:Enrich" not in violations
+    assert re.search(r"\bsearch\b", result.draft.lower()) is None
+    assert re.search(r"\benrich\b", result.draft.lower()) is None
+
+
+@pytest.mark.asyncio
+async def test_build_draft_real_prompt_does_not_include_other_products_mapping(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = _session_payload()
+    session["company_context"]["other_products"] = "Search, Enrich"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    captured_prompt: dict[str, object] = {}
+
+    async def capture_prompt(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        captured_prompt["value"] = prompt
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+                    "Remix Studio helps keep outbound messaging controlled without adding process overhead.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setattr(remix_engine, "_real_generate", capture_prompt)
+    await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
+
+    prompt_text = json.dumps(captured_prompt.get("value", ""))
+    assert "other_products_services_mapping" not in prompt_text
+    assert "Search, Enrich" not in prompt_text
+
+
 def test_validate_ctco_output_flags_non_first_name_greeting():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
