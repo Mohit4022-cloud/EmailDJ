@@ -247,6 +247,47 @@
         }
       }
     },
+    "/web/v1/preset-previews/batch": {
+      "post": {
+        "tags": [
+          "web-mvp"
+        ],
+        "summary": "Web Preset Previews Batch",
+        "operationId": "web_preset_previews_batch_web_v1_preset_previews_batch_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebPresetPreviewBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPresetPreviewBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/web/v1/stream/{request_id}": {
       "get": {
         "tags": [
@@ -1218,6 +1259,72 @@
         ],
         "title": "VaultPrefetchRequest"
       },
+      "WebCompanyContext": {
+        "properties": {
+          "company_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Name"
+          },
+          "company_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Url"
+          },
+          "current_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Product"
+          },
+          "other_products": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Other Products"
+          },
+          "company_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Notes"
+          }
+        },
+        "type": "object",
+        "title": "WebCompanyContext"
+      },
       "WebFeedbackRequest": {
         "properties": {
           "session_id": {
@@ -1283,16 +1390,439 @@
             "minLength": 20,
             "title": "Research Text"
           },
+          "offer_lock": {
+            "type": "string",
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Offer Lock"
+          },
+          "cta_offer_lock": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Offer Lock"
+          },
+          "cta_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "question",
+                  "time_ask",
+                  "value_asset",
+                  "pilot",
+                  "referral",
+                  "event_invite"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Type"
+          },
           "style_profile": {
             "$ref": "#/components/schemas/WebStyleProfile"
+          },
+          "company_context": {
+            "$ref": "#/components/schemas/WebCompanyContext"
           }
         },
         "type": "object",
         "required": [
           "prospect",
-          "research_text"
+          "research_text",
+          "offer_lock"
         ],
         "title": "WebGenerateRequest"
+      },
+      "WebPresetPreviewBatchRequest": {
+        "properties": {
+          "prospect": {
+            "$ref": "#/components/schemas/WebProspectInput"
+          },
+          "product_context": {
+            "$ref": "#/components/schemas/WebPreviewProductContext"
+          },
+          "raw_research": {
+            "$ref": "#/components/schemas/WebPreviewRawResearch"
+          },
+          "global_sliders": {
+            "$ref": "#/components/schemas/WebPreviewGlobalSliders"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/WebPreviewPresetInput"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Presets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prospect",
+          "product_context",
+          "raw_research",
+          "global_sliders",
+          "presets"
+        ],
+        "title": "WebPresetPreviewBatchRequest"
+      },
+      "WebPresetPreviewBatchResponse": {
+        "properties": {
+          "previews": {
+            "items": {
+              "$ref": "#/components/schemas/WebPreviewItem"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Previews"
+          },
+          "meta": {
+            "$ref": "#/components/schemas/WebPreviewBatchMeta"
+          },
+          "summary_pack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebSummaryPack"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "previews",
+          "meta"
+        ],
+        "title": "WebPresetPreviewBatchResponse"
+      },
+      "WebPreviewBatchMeta": {
+        "properties": {
+          "pipeline_version": {
+            "type": "string",
+            "title": "Pipeline Version"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "cache_hit": {
+            "type": "boolean",
+            "title": "Cache Hit"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Latency Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pipeline_version",
+          "provider",
+          "cache_hit",
+          "latency_ms"
+        ],
+        "title": "WebPreviewBatchMeta"
+      },
+      "WebPreviewEffectiveSliders": {
+        "properties": {
+          "formality": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Formality"
+          },
+          "brevity": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Brevity"
+          },
+          "directness": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Directness"
+          },
+          "personalization": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Personalization"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formality",
+          "brevity",
+          "directness",
+          "personalization"
+        ],
+        "title": "WebPreviewEffectiveSliders"
+      },
+      "WebPreviewGlobalSliders": {
+        "properties": {
+          "formality": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Formality"
+          },
+          "brevity": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Brevity"
+          },
+          "directness": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Directness"
+          },
+          "personalization": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Personalization"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formality",
+          "brevity",
+          "directness",
+          "personalization"
+        ],
+        "title": "WebPreviewGlobalSliders"
+      },
+      "WebPreviewItem": {
+        "properties": {
+          "preset_id": {
+            "type": "string",
+            "title": "Preset Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "effective_sliders": {
+            "$ref": "#/components/schemas/WebPreviewEffectiveSliders"
+          },
+          "vibeLabel": {
+            "type": "string",
+            "title": "Vibelabel"
+          },
+          "vibeTags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 2,
+            "title": "Vibetags"
+          },
+          "whyItWorks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Whyitworks"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preset_id",
+          "label",
+          "effective_sliders",
+          "vibeLabel",
+          "vibeTags",
+          "whyItWorks",
+          "subject",
+          "body"
+        ],
+        "title": "WebPreviewItem"
+      },
+      "WebPreviewPresetInput": {
+        "properties": {
+          "preset_id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Preset Id"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "slider_overrides": {
+            "$ref": "#/components/schemas/WebPreviewSliderOverrides"
+          }
+        },
+        "type": "object",
+        "required": [
+          "preset_id",
+          "label"
+        ],
+        "title": "WebPreviewPresetInput"
+      },
+      "WebPreviewProductContext": {
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Product Name"
+          },
+          "one_line_value": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "One Line Value"
+          },
+          "proof_points": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Proof Points"
+          },
+          "target_outcome": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "title": "Target Outcome"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product_name",
+          "one_line_value",
+          "target_outcome"
+        ],
+        "title": "WebPreviewProductContext"
+      },
+      "WebPreviewRawResearch": {
+        "properties": {
+          "deep_research_paste": {
+            "type": "string",
+            "maxLength": 30000,
+            "minLength": 1,
+            "title": "Deep Research Paste"
+          },
+          "company_notes": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Notes"
+          },
+          "extra_constraints": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extra Constraints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deep_research_paste"
+        ],
+        "title": "WebPreviewRawResearch"
+      },
+      "WebPreviewSliderOverrides": {
+        "properties": {
+          "formality": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Formality"
+          },
+          "brevity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brevity"
+          },
+          "directness": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Directness"
+          },
+          "personalization": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personalization"
+          }
+        },
+        "type": "object",
+        "title": "WebPreviewSliderOverrides"
       },
       "WebProspectInput": {
         "properties": {
@@ -1313,6 +1843,18 @@
             "maxLength": 160,
             "minLength": 1,
             "title": "Company"
+          },
+          "company_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Url"
           },
           "linkedin_url": {
             "anyOf": [
@@ -1403,6 +1945,54 @@
         },
         "type": "object",
         "title": "WebStyleProfile"
+      },
+      "WebSummaryPack": {
+        "properties": {
+          "facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Facts"
+          },
+          "hooks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Hooks"
+          },
+          "likely_priorities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 3,
+            "minItems": 3,
+            "title": "Likely Priorities"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 6,
+            "minItems": 6,
+            "title": "Keywords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "facts",
+          "hooks",
+          "likely_priorities",
+          "keywords"
+        ],
+        "title": "WebSummaryPack"
       },
       "WebhookEditRequest": {
         "properties": {

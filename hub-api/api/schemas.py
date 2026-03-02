@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -40,6 +40,7 @@ class WebProspectInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     title: str = Field(min_length=1, max_length=120)
     company: str = Field(min_length=1, max_length=160)
+    company_url: str | None = Field(default=None, max_length=400)
     linkedin_url: str | None = None
 
 
@@ -50,10 +51,35 @@ class WebStyleProfile(BaseModel):
     assertiveness: float = Field(default=0.0, ge=-1.0, le=1.0)
 
 
+class WebCompanyContext(BaseModel):
+    company_name: str | None = Field(default=None, max_length=160)
+    company_url: str | None = Field(default=None, max_length=400)
+    current_product: str | None = Field(
+        default=None,
+        max_length=240,
+        description="Informational only — not injected into generation prompt. Use offer_lock as the single pitch anchor.",
+    )
+    other_products: str | None = Field(default=None, max_length=8000)
+    company_notes: str | None = Field(default=None, max_length=8000)
+
+
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
+    prospect_first_name: str | None = Field(
+        default=None,
+        max_length=60,
+        description="First name used for greeting. Derived server-side from prospect.name if omitted.",
+    )
     research_text: str = Field(min_length=20, max_length=20000)
+    offer_lock: str = Field(
+        min_length=1,
+        max_length=240,
+        description="Single source of truth for what is pitched. All generation (real and mock) uses this exclusively.",
+    )
+    cta_offer_lock: str | None = Field(default=None, max_length=500)
+    cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+    company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 
 
 class WebGenerateAccepted(BaseModel):
@@ -77,6 +103,95 @@ class WebFeedbackRequest(BaseModel):
     draft_before: str = Field(min_length=1, max_length=40000)
     draft_after: str = Field(min_length=1, max_length=40000)
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+
+
+class WebPreviewProductContext(BaseModel):
+    product_name: str = Field(min_length=1, max_length=240)
+    one_line_value: str = Field(min_length=1, max_length=500)
+    proof_points: list[str] = Field(default_factory=list, max_length=8)
+    target_outcome: str = Field(min_length=1, max_length=160)
+
+
+class WebPreviewRawResearch(BaseModel):
+    deep_research_paste: str = Field(min_length=1, max_length=30000)
+    company_notes: str | None = Field(default=None, max_length=8000)
+    extra_constraints: str | None = Field(default=None, max_length=2000)
+
+
+class WebPreviewGlobalSliders(BaseModel):
+    formality: int = Field(ge=0, le=100)
+    brevity: int = Field(ge=0, le=100)
+    directness: int = Field(ge=0, le=100)
+    personalization: int = Field(ge=0, le=100)
+
+
+class WebPreviewSliderOverrides(BaseModel):
+    formality: int | None = Field(default=None, ge=0, le=100)
+    brevity: int | None = Field(default=None, ge=0, le=100)
+    directness: int | None = Field(default=None, ge=0, le=100)
+    personalization: int | None = Field(default=None, ge=0, le=100)
+
+
+class WebPreviewPresetInput(BaseModel):
+    preset_id: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=120)
+    slider_overrides: WebPreviewSliderOverrides = Field(default_factory=WebPreviewSliderOverrides)
+
+
+class WebPresetPreviewBatchRequest(BaseModel):
+    prospect: WebProspectInput
+    product_context: WebPreviewProductContext
+    raw_research: WebPreviewRawResearch
+    global_sliders: WebPreviewGlobalSliders
+    presets: list[WebPreviewPresetInput] = Field(min_length=1, max_length=20)
+    offer_lock: str = Field(
+        min_length=1,
+        max_length=240,
+        description="Single product/offering to pitch. Must match product_context.product_name.",
+    )
+    cta_lock: str = Field(
+        min_length=1,
+        max_length=500,
+        description="Exact CTA text used once at the end of every preview email body.",
+    )
+
+
+class WebSummaryPack(BaseModel):
+    facts: list[str] = Field(min_length=4, max_length=4)
+    hooks: list[str] = Field(min_length=3, max_length=3)
+    likely_priorities: list[str] = Field(min_length=3, max_length=3)
+    keywords: list[str] = Field(min_length=6, max_length=6)
+
+
+class WebPreviewEffectiveSliders(BaseModel):
+    formality: int = Field(ge=0, le=100)
+    brevity: int = Field(ge=0, le=100)
+    directness: int = Field(ge=0, le=100)
+    personalization: int = Field(ge=0, le=100)
+
+
+class WebPreviewItem(BaseModel):
+    preset_id: str
+    label: str
+    effective_sliders: WebPreviewEffectiveSliders
+    vibeLabel: str
+    vibeTags: list[str] = Field(min_length=2, max_length=4)
+    whyItWorks: list[str] = Field(min_length=3, max_length=3)
+    subject: str
+    body: str
+
+
+class WebPreviewBatchMeta(BaseModel):
+    pipeline_version: str
+    provider: str
+    cache_hit: bool
+    latency_ms: int = Field(ge=0)
+
+
+class WebPresetPreviewBatchResponse(BaseModel):
+    previews: list[WebPreviewItem] = Field(min_length=1)
+    meta: WebPreviewBatchMeta
+    summary_pack: WebSummaryPack | None = None
 
 
 class VaultIngestRequest(BaseModel):
@@ -127,3 +242,26 @@ class WebhookReplyRequest(BaseModel):
     contact_id: str | None = None
     reply_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     raw_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Compliance dashboard models (Batch 3 P3)
+# ---------------------------------------------------------------------------
+
+
+class ComplianceViolationBucket(BaseModel):
+    violation_type: str
+    total: int
+    remix: int
+    preview: int
+
+
+class ComplianceDashboardDay(BaseModel):
+    date: str
+    buckets: list[ComplianceViolationBucket]
+    total_violations: int
+
+
+class ComplianceDashboardResponse(BaseModel):
+    days: list[ComplianceDashboardDay]
+    generated_at: str

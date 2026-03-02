@@ -25,6 +25,10 @@ const SLIDERS = [
   },
 ];
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 export class SliderBoard {
   constructor(container, onChange) {
     this.container = container;
@@ -58,5 +62,20 @@ export class SliderBoard {
 
   getValues() {
     return { ...this.values };
+  }
+
+  setValues(nextValues, options = {}) {
+    const emit = Boolean(options.emit);
+    if (!nextValues || typeof nextValues !== 'object') return;
+
+    for (const slider of SLIDERS) {
+      const key = slider.key;
+      if (typeof nextValues[key] !== 'number' || Number.isNaN(nextValues[key])) continue;
+      this.values[key] = clamp(Math.round(nextValues[key]), 0, 100);
+      const input = this.container.querySelector(`input[data-slider="${key}"]`);
+      if (input) input.value = String(this.values[key]);
+    }
+
+    if (emit && this.onChange) this.onChange(this.getValues());
   }
 }

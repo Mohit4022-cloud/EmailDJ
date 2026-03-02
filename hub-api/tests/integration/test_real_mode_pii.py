@@ -18,7 +18,7 @@ async def test_real_mode_provider_prompt_is_redacted(monkeypatch):
 
     captured = {}
 
-    async def fake_openai(prompt, model_name):
+    async def fake_openai(prompt, model_name, timeout=30.0):
         captured['prompt'] = prompt
         return 'Subject: Real mode response\n\nHello there.'
 

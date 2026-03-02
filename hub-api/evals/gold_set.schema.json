@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EmailDJ Lock Compliance Gold Set",
+  "type": "array",
+  "minItems": 80,
+  "items": {
+    "type": "object",
+    "required": [
+      "id",
+      "tags",
+      "prospect",
+      "seller",
+      "offer_lock",
+      "cta_lock",
+      "cta_type",
+      "style_profile",
+      "research_text",
+      "other_products",
+      "expected"
+    ],
+    "properties": {
+      "id": {"type": "string", "minLength": 1},
+      "tags": {"type": "array", "items": {"type": "string"}},
+      "prospect": {
+        "type": "object",
+        "required": ["full_name", "title", "company"],
+        "properties": {
+          "full_name": {"type": "string"},
+          "title": {"type": "string"},
+          "company": {"type": "string"}
+        }
+      },
+      "seller": {
+        "type": "object",
+        "required": ["company_name", "company_url", "company_notes"],
+        "properties": {
+          "company_name": {"type": "string"},
+          "company_url": {"type": "string"},
+          "company_notes": {"type": "string"}
+        }
+      },
+      "offer_lock": {"type": "string", "minLength": 1},
+      "cta_lock": {"type": "string", "minLength": 1},
+      "cta_type": {
+        "type": ["string", "null"],
+        "enum": ["question", "time_ask", "value_asset", "pilot", "referral", "event_invite", null]
+      },
+      "style_profile": {
+        "type": "object",
+        "required": ["formality", "orientation", "length", "assertiveness"],
+        "properties": {
+          "formality": {"type": "number"},
+          "orientation": {"type": "number"},
+          "length": {"type": "number"},
+          "assertiveness": {"type": "number"}
+        }
+      },
+      "research_text": {"type": "string", "minLength": 20},
+      "other_products": {"type": "array", "items": {"type": "string"}},
+      "approved_proof_points": {"type": "array", "items": {"type": "string"}},
+      "expected": {
+        "type": "object",
+        "required": ["must_include", "must_not_include", "greeting_first_name"],
+        "properties": {
+          "must_include": {"type": "array", "items": {"type": "string"}},
+          "must_not_include": {"type": "array", "items": {"type": "string"}},
+          "greeting_first_name": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

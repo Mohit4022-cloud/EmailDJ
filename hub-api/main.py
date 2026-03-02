@@ -57,12 +57,22 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="EmailDJ Hub API", version="0.1.0", lifespan=lifespan)
 
 chrome_origin = os.environ.get("CHROME_EXTENSION_ORIGIN", "")
-allow_origins = ["http://localhost", "http://localhost:5173"]
+allow_origins = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
 if chrome_origin:
     allow_origins.append(chrome_origin)
 web_origin = os.environ.get("WEB_APP_ORIGIN", "http://localhost:5174")
 if web_origin:
-    allow_origins.append(web_origin)
+    for origin in web_origin.split(","):
+        candidate = origin.strip()
+        if candidate:
+            allow_origins.append(candidate)
 
 app.add_middleware(
     CORSMiddleware,

@@ -12,6 +12,7 @@ def test_openapi_contains_mvp_paths():
     assert '/generate/stream/{request_id}' in paths
     assert '/vault/ingest' in paths
     assert '/vault/context/{prospect_id}' in paths
+    assert '/web/v1/preset-previews/batch' in paths
 
 
 def test_quick_generate_schema_present():
@@ -23,6 +24,8 @@ def test_quick_generate_schema_present():
     assert 'WebGenerateAccepted' in schemas
     assert 'WebRemixRequest' in schemas
     assert 'WebRemixAccepted' in schemas
+    assert 'WebPresetPreviewBatchRequest' in schemas
+    assert 'WebPresetPreviewBatchResponse' in schemas
 
 
 def test_openapi_snapshot_matches_runtime_core_paths():
@@ -42,6 +45,7 @@ def test_openapi_snapshot_matches_runtime_core_paths():
         '/web/v1/remix',
         '/web/v1/stream/{request_id}',
         '/web/v1/feedback',
+        '/web/v1/preset-previews/batch',
         '/vault/ingest',
         '/vault/context/{prospect_id}',
         '/assignments/poll',
