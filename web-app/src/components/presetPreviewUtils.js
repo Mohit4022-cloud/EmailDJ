@@ -117,6 +117,121 @@ export function resolveEffectiveSliderState(globalSliderState, preset) {
   return next;
 }
 
+function parseDelimitedItems(value) {
+  if (!value) return [];
+  const seen = new Set();
+  const output = [];
+  for (const line of String(value).split('\n')) {
+    for (const part of line.split(/[,;|]/g)) {
+      const cleaned = compactWhitespace(part.replace(/^[-*]\s*/, ''));
+      if (!cleaned) continue;
+      const key = cleaned.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      output.push(cleaned);
+      if (output.length >= 8) return output;
+    }
+  }
+  return output;
+}
+
+function splitSentences(value) {
+  if (!value) return [];
+  return compactWhitespace(value)
+    .split(/(?<=[.!?])\s+/)
+    .map((item) => compactWhitespace(item))
+    .filter(Boolean);
+}
+
+function ensureResearchText(normalized) {
+  const research = normalizeLineBreaks(normalized?.research_text || '');
+  if (research.length >= 20) return research;
+  const company = normalized?.prospect?.company || 'the account';
+  const title = normalized?.prospect?.title || 'the target role';
+  return `${company} research is limited in this context. Keep messaging grounded for ${title} and focus on practical outbound outcomes.`;
+}
+
+function deriveOneLineValue(normalized) {
+  const notesSentence = splitSentences(normalized?.company_context?.company_notes || '')[0];
+  if (notesSentence) return notesSentence;
+  const product = normalized?.company_context?.current_product;
+  if (product) return `help outbound teams with ${product}`;
+  return 'help outbound teams improve reply quality with controlled personalization';
+}
+
+function deriveProofPoints(normalized) {
+  const productItems = parseDelimitedItems(normalized?.company_context?.other_products || '');
+  const noteSentences = splitSentences(normalized?.company_context?.company_notes || '').slice(1, 3);
+  return [...productItems, ...noteSentences].slice(0, 4);
+}
+
+export function mapGlobalSlidersToBatch(globalSliderState) {
+  const sliders = normalizeSliderState(globalSliderState);
+  const formality = clamp(100 - sliders.formality, 0, 100);
+  const brevity = clamp(100 - sliders.length, 0, 100);
+  const directness = clamp(100 - sliders.assertiveness, 0, 100);
+  const personalization = clamp(
+    Math.round(sliders.formality * 0.35 + sliders.length * 0.35 + directness * 0.3),
+    0,
+    100
+  );
+  return { formality, brevity, directness, personalization };
+}
+
+export function buildPresetBatchSliderOverrides(preset) {
+  const overrides = preset?.sliderOverrides || preset?.sliders || {};
+  const mapped = {};
+  if (Object.prototype.hasOwnProperty.call(overrides, 'formal')) {
+    mapped.formality = toSliderNumber(overrides.formal, 50);
+  }
+  if (Object.prototype.hasOwnProperty.call(overrides, 'long')) {
+    mapped.brevity = 100 - toSliderNumber(overrides.long, 50);
+  }
+  if (Object.prototype.hasOwnProperty.call(overrides, 'diplomatic')) {
+    mapped.directness = 100 - toSliderNumber(overrides.diplomatic, 50);
+  }
+  if (Object.prototype.hasOwnProperty.call(overrides, 'outcome')) {
+    mapped.personalization = toSliderNumber(overrides.outcome, 50);
+  }
+  return mapped;
+}
+
+export function buildPresetPreviewBatchPayload(context, presets) {
+  const normalized = normalizePreviewContext(context || {});
+  const productName = compactWhitespace(
+    normalized.company_context.current_product || normalized.company_context.company_name || 'Current offering'
+  );
+  const oneLineValue = deriveOneLineValue(normalized);
+  const proofPoints = deriveProofPoints(normalized);
+
+  return {
+    prospect: {
+      name: normalized.prospect.name || 'there',
+      title: normalized.prospect.title || 'Revenue Leader',
+      company: normalized.prospect.company || 'your target company',
+      company_url: normalized.company_context.company_url || null,
+      linkedin_url: normalized.prospect.linkedin_url || null,
+    },
+    product_context: {
+      product_name: productName,
+      one_line_value: oneLineValue,
+      proof_points: proofPoints,
+      target_outcome: '15-minute meeting',
+    },
+    raw_research: {
+      deep_research_paste: ensureResearchText(normalized),
+      company_notes: normalized.company_context.company_notes || null,
+      extra_constraints: null,
+    },
+    global_sliders: mapGlobalSlidersToBatch(normalized.global_slider_state),
+    presets: (Array.isArray(presets) ? presets : []).map((preset) => ({
+      preset_id: String(preset?.id ?? ''),
+      label: compactWhitespace(preset?.name || 'Preset'),
+      slider_overrides: buildPresetBatchSliderOverrides(preset),
+    })),
+  };
+}
+
 export function sliderRowsFromState(sliderState) {
   const summary = normalizeSliderState(sliderState);
   return [
@@ -301,4 +416,3 @@ export function sanitizePreviewEmail(parts, context) {
     body,
   };
 }
-

@@ -1,4 +1,12 @@
-import { consumeStream, generateDraft, generateDraftText, remixDraft, sendFeedback } from './api/client.js';
+import {
+  consumeStream,
+  generateDraft,
+  generateDraftText,
+  generatePresetPreviewsBatch,
+  presetPreviewBatchEnabled,
+  remixDraft,
+  sendFeedback,
+} from './api/client.js';
 import { EmailEditor } from './components/EmailEditor.js';
 import { SDRPresetLibrary, presetToSliderState } from './components/SDRPresetLibrary.js';
 import { SliderBoard } from './components/SliderBoard.js';
@@ -137,6 +145,7 @@ class WebApp {
       onSelectPreset: (preset) => this.applyPreset(preset),
       getPreviewContext: () => this.previewContextPayload(),
       generatePreviewDraft: (payload) => generateDraftText(payload),
+      generatePreviewBatch: presetPreviewBatchEnabled() ? (payload) => generatePresetPreviewsBatch(payload) : null,
     });
 
     this.seedBetaKey();

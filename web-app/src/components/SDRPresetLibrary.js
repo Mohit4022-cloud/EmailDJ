@@ -1,5 +1,6 @@
 import { styleToPayload } from '../style.js';
 import {
+  buildPresetPreviewBatchPayload,
   buildPreviewCacheKey,
   buildPreviewContextHash,
   buildVibeMetadata,
@@ -171,6 +172,8 @@ export class SDRPresetLibrary {
       typeof options.getPreviewContext === 'function' ? options.getPreviewContext : () => ({});
     this.generatePreviewDraft =
       typeof options.generatePreviewDraft === 'function' ? options.generatePreviewDraft : async () => '';
+    this.generatePreviewBatch =
+      typeof options.generatePreviewBatch === 'function' ? options.generatePreviewBatch : null;
     this.maxPreviewConcurrency = clamp(Number(options.maxPreviewConcurrency) || 3, 1, 4);
 
     this.previewPresetId = this.presets[0]?.id ?? null;
@@ -179,6 +182,7 @@ export class SDRPresetLibrary {
     this.previewCache = new Map();
     this.previewEntries = new Map();
     this.inflightPreviews = new Map();
+    this.inflightBatches = new Map();
 
     this.onKeydown = (event) => {
       if (event.key === 'Escape' && this.isOpen) this.close();
@@ -330,6 +334,14 @@ export class SDRPresetLibrary {
   }
 
   async generateMissingPreviews(presets, context, contextHash) {
+    if (this.generatePreviewBatch) {
+      const batchOk = await this.generateMissingPreviewsBatch(presets, context, contextHash);
+      if (batchOk) return;
+    }
+    await this.generateMissingPreviewsLegacy(presets, context, contextHash);
+  }
+
+  async generateMissingPreviewsLegacy(presets, context, contextHash) {
     const queue = [...presets];
     const workerCount = Math.min(this.maxPreviewConcurrency, queue.length);
 
@@ -342,6 +354,76 @@ export class SDRPresetLibrary {
     };
 
     await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  }
+
+  async generateMissingPreviewsBatch(presets, context, contextHash) {
+    if (!this.generatePreviewBatch) return false;
+    const batchKey = `${contextHash}:batch`;
+    let promise = this.inflightBatches.get(batchKey);
+
+    if (!promise) {
+      promise = this.generatePreviewBatch(buildPresetPreviewBatchPayload(context, presets));
+      this.inflightBatches.set(batchKey, promise);
+    }
+
+    try {
+      const response = await promise;
+      if (contextHash !== this.activeContextHash) return true;
+
+      const responsePreviews = Array.isArray(response?.previews) ? response.previews : [];
+      const byPresetId = new Map(
+        responsePreviews
+          .map((item) => [String(item?.preset_id || ''), item])
+          .filter((entry) => entry[0])
+      );
+
+      const unresolved = [];
+      for (const preset of presets) {
+        const source = byPresetId.get(String(preset.id));
+        const base = this.buildBasePreviewEntry(preset, context);
+        if (!source) {
+          unresolved.push(preset);
+          this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+          continue;
+        }
+
+        const sanitized = sanitizePreviewEmail(
+          {
+            subject: source.subject || '',
+            body: source.body || '',
+          },
+          context
+        );
+        const preview = {
+          ...base,
+          subject: sanitized.subject || previewFallbackSubject(context),
+          body: sanitized.body || '',
+          vibeLabel: String(source.vibeLabel || base.vibeLabel || ''),
+          vibeTags:
+            Array.isArray(source.vibeTags) && source.vibeTags.length > 0
+              ? source.vibeTags.map((tag) => String(tag)).slice(0, 4)
+              : base.vibeTags,
+          whyItWorks:
+            Array.isArray(source.whyItWorks) && source.whyItWorks.length > 0
+              ? source.whyItWorks.map((item) => String(item)).slice(0, 3)
+              : base.whyItWorks,
+        };
+        const key = buildPreviewCacheKey(contextHash, preset.id);
+        this.previewCache.set(key, preview);
+        this.previewEntries.set(String(preset.id), { ...preview, status: 'ready', errorMessage: '' });
+      }
+
+      this.renderPresetList();
+      this.renderPreview(this.getPreviewPreset());
+      if (unresolved.length > 0) {
+        await this.generateMissingPreviewsLegacy(unresolved, context, contextHash);
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      this.inflightBatches.delete(batchKey);
+    }
   }
 
   buildPreviewPayload(preset, context) {
@@ -474,7 +556,7 @@ export class SDRPresetLibrary {
     this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
     this.renderPresetList();
     this.renderPreview(preset);
-    void this.generatePreviewForPreset(preset, context, contextHash);
+    void this.generateMissingPreviews([preset], context, contextHash);
   }
 
   selectPreset(id) {

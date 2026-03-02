@@ -1,6 +1,8 @@
 const VITE_HUB_URL =
   typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_HUB_URL : undefined;
 const HUB_URL = (VITE_HUB_URL || 'http://localhost:8000').replace(/\/$/, '');
+const VITE_PRESET_PREVIEW_PIPELINE =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_PRESET_PREVIEW_PIPELINE : undefined;
 
 function parsePythonDictPayload(raw) {
   if (!raw || raw[0] !== '{' || raw[raw.length - 1] !== '}') return null;
@@ -125,4 +127,28 @@ export async function consumeStream(requestId, onEvent) {
     buffer = buffer.replace(/\r\n/g, '\n');
     drainBlocks();
   }
+}
+
+export function presetPreviewBatchEnabled() {
+  const raw = String(VITE_PRESET_PREVIEW_PIPELINE || 'on').trim().toLowerCase();
+  return raw !== 'off' && raw !== '0' && raw !== 'false';
+}
+
+export async function generatePresetPreviewsBatch(payload) {
+  const res = await fetch(`${HUB_URL}/web/v1/preset-previews/batch`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = body?.detail?.error || body?.detail?.message || body?.error || '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(`Preset preview batch failed (${res.status})${detail ? `: ${detail}` : ''}`);
+  }
+  return res.json();
 }

@@ -40,6 +40,7 @@ class WebProspectInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     title: str = Field(min_length=1, max_length=120)
     company: str = Field(min_length=1, max_length=160)
+    company_url: str | None = Field(default=None, max_length=400)
     linkedin_url: str | None = None
 
 
@@ -86,6 +87,85 @@ class WebFeedbackRequest(BaseModel):
     draft_before: str = Field(min_length=1, max_length=40000)
     draft_after: str = Field(min_length=1, max_length=40000)
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
+
+
+class WebPreviewProductContext(BaseModel):
+    product_name: str = Field(min_length=1, max_length=240)
+    one_line_value: str = Field(min_length=1, max_length=500)
+    proof_points: list[str] = Field(default_factory=list, max_length=8)
+    target_outcome: str = Field(min_length=1, max_length=160)
+
+
+class WebPreviewRawResearch(BaseModel):
+    deep_research_paste: str = Field(min_length=1, max_length=30000)
+    company_notes: str | None = Field(default=None, max_length=8000)
+    extra_constraints: str | None = Field(default=None, max_length=2000)
+
+
+class WebPreviewGlobalSliders(BaseModel):
+    formality: int = Field(ge=0, le=100)
+    brevity: int = Field(ge=0, le=100)
+    directness: int = Field(ge=0, le=100)
+    personalization: int = Field(ge=0, le=100)
+
+
+class WebPreviewSliderOverrides(BaseModel):
+    formality: int | None = Field(default=None, ge=0, le=100)
+    brevity: int | None = Field(default=None, ge=0, le=100)
+    directness: int | None = Field(default=None, ge=0, le=100)
+    personalization: int | None = Field(default=None, ge=0, le=100)
+
+
+class WebPreviewPresetInput(BaseModel):
+    preset_id: str = Field(min_length=1, max_length=80)
+    label: str = Field(min_length=1, max_length=120)
+    slider_overrides: WebPreviewSliderOverrides = Field(default_factory=WebPreviewSliderOverrides)
+
+
+class WebPresetPreviewBatchRequest(BaseModel):
+    prospect: WebProspectInput
+    product_context: WebPreviewProductContext
+    raw_research: WebPreviewRawResearch
+    global_sliders: WebPreviewGlobalSliders
+    presets: list[WebPreviewPresetInput] = Field(min_length=1, max_length=20)
+
+
+class WebSummaryPack(BaseModel):
+    facts: list[str] = Field(min_length=4, max_length=4)
+    hooks: list[str] = Field(min_length=3, max_length=3)
+    likely_priorities: list[str] = Field(min_length=3, max_length=3)
+    keywords: list[str] = Field(min_length=6, max_length=6)
+
+
+class WebPreviewEffectiveSliders(BaseModel):
+    formality: int = Field(ge=0, le=100)
+    brevity: int = Field(ge=0, le=100)
+    directness: int = Field(ge=0, le=100)
+    personalization: int = Field(ge=0, le=100)
+
+
+class WebPreviewItem(BaseModel):
+    preset_id: str
+    label: str
+    effective_sliders: WebPreviewEffectiveSliders
+    vibeLabel: str
+    vibeTags: list[str] = Field(min_length=2, max_length=4)
+    whyItWorks: list[str] = Field(min_length=3, max_length=3)
+    subject: str
+    body: str
+
+
+class WebPreviewBatchMeta(BaseModel):
+    pipeline_version: str
+    provider: str
+    cache_hit: bool
+    latency_ms: int = Field(ge=0)
+
+
+class WebPresetPreviewBatchResponse(BaseModel):
+    previews: list[WebPreviewItem] = Field(min_length=1)
+    meta: WebPreviewBatchMeta
+    summary_pack: WebSummaryPack | None = None
 
 
 class VaultIngestRequest(BaseModel):

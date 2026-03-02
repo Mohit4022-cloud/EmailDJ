@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -16,9 +17,12 @@ from api.schemas import (
     WebFeedbackRequest,
     WebGenerateAccepted,
     WebGenerateRequest,
+    WebPresetPreviewBatchRequest,
+    WebPresetPreviewBatchResponse,
     WebRemixAccepted,
     WebRemixRequest,
 )
+from email_generation.preset_preview_pipeline import make_response, run_preview_pipeline
 from email_generation.remix_engine import build_draft, create_session_payload, load_session, save_session
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
@@ -39,6 +43,10 @@ class RequestRecord:
 
 
 _REQUESTS: dict[str, RequestRecord] = {}
+
+
+def _preview_pipeline_enabled() -> bool:
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_PIPELINE", "off").strip().lower() == "on"
 
 
 def _cleanup_expired() -> None:
@@ -114,6 +122,42 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
         created_at=time.time(),
     )
     return WebRemixAccepted(request_id=request_id, stream_url=f"/web/v1/stream/{request_id}")
+
+
+@router.post(
+    "/preset-previews/batch",
+    response_model=WebPresetPreviewBatchResponse,
+    response_model_exclude_none=True,
+)
+async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: Request) -> WebPresetPreviewBatchResponse:
+    if not _preview_pipeline_enabled():
+        raise HTTPException(status_code=503, detail={"error": "preview_pipeline_disabled"})
+
+    await _emit_metric("web_preview_batch_started")
+    throttled = bool(getattr(request.state, "cost_throttled", False))
+
+    try:
+        result = await run_preview_pipeline(req=req, throttled=throttled)
+        if result.cache_hit:
+            await _emit_metric("web_preview_batch_summary_cache_hit")
+        await _emit_metric("web_preview_batch_completed")
+        logger.info(
+            "web_preview_batch_done",
+            extra={
+                "provider": result.provider,
+                "latency_ms": result.latency_ms,
+                "cache_hit": result.cache_hit,
+                "preview_count": len(result.previews),
+            },
+        )
+        return make_response(result)
+    except Exception as exc:
+        await _emit_metric("web_preview_batch_failed")
+        logger.exception("web_preview_batch_failed", extra={"error": str(exc)})
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "preview_pipeline_unavailable", "message": str(exc)},
+        ) from exc
 
 
 @router.get("/stream/{request_id}")
