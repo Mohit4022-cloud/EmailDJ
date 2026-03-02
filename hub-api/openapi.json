@@ -1390,6 +1390,43 @@
             "minLength": 20,
             "title": "Research Text"
           },
+          "offer_lock": {
+            "type": "string",
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Offer Lock"
+          },
+          "cta_offer_lock": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Offer Lock"
+          },
+          "cta_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "question",
+                  "time_ask",
+                  "value_asset",
+                  "pilot",
+                  "referral",
+                  "event_invite"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Type"
+          },
           "style_profile": {
             "$ref": "#/components/schemas/WebStyleProfile"
           },
@@ -1400,7 +1437,8 @@
         "type": "object",
         "required": [
           "prospect",
-          "research_text"
+          "research_text",
+          "offer_lock"
         ],
         "title": "WebGenerateRequest"
       },

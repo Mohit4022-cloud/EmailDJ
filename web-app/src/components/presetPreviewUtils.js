@@ -45,6 +45,8 @@ export function normalizePreviewContext(raw = {}) {
       company_name: normalizeText(company.company_name),
       company_url: normalizeText(company.company_url),
       current_product: normalizeText(company.current_product),
+      cta_offer_lock: normalizeText(company.cta_offer_lock),
+      cta_type: normalizeText(company.cta_type),
       other_products: normalizeLineBreaks(company.other_products),
       company_notes: normalizeLineBreaks(company.company_notes),
     },
@@ -62,6 +64,8 @@ export function previewContextIdentity(context) {
     deepResearchPaste: normalized.research_text,
     companyNotes: normalized.company_context.company_notes,
     currentProductOrService: normalized.company_context.current_product,
+    ctaOfferLock: normalized.company_context.cta_offer_lock,
+    ctaType: normalized.company_context.cta_type,
     otherProductsServices: normalized.company_context.other_products,
     globalSliders: normalized.global_slider_state,
   };

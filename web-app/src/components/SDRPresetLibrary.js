@@ -428,14 +428,20 @@ export class SDRPresetLibrary {
 
   buildPreviewPayload(preset, context) {
     const effectiveSliders = resolveEffectiveSliderState(context.global_slider_state, preset);
+    const offerLock = context.company_context.current_product || context.company_context.company_name || 'Current offering';
     return {
       prospect: buildSafeProspect(context),
       research_text: buildSafeResearchText(context, preset),
+      offer_lock: offerLock,
+      cta_offer_lock: context.company_context.cta_offer_lock || null,
+      cta_type: context.company_context.cta_type || null,
       style_profile: styleToPayload(effectiveSliders),
       company_context: {
         company_name: context.company_context.company_name || undefined,
         company_url: context.company_context.company_url || undefined,
         current_product: context.company_context.current_product || undefined,
+        cta_offer_lock: context.company_context.cta_offer_lock || undefined,
+        cta_type: context.company_context.cta_type || undefined,
         other_products: context.company_context.other_products || undefined,
         company_notes: context.company_context.company_notes || undefined,
       },

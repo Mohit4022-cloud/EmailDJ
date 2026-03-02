@@ -23,6 +23,9 @@ def _generate_payload(company_context=None):
         "research_text": (
             "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts."
         ),
+        "offer_lock": "Remix Studio",
+        "cta_offer_lock": "Open to a quick chat to see if this is relevant?",
+        "cta_type": "question",
         "style_profile": {
             "formality": 0.1,
             "orientation": -0.4,
@@ -78,6 +81,18 @@ def _preview_batch_payload():
     }
 
 
+def _stream_token_text(stream_text: str) -> str:
+    tokens: list[str] = []
+    for line in stream_text.splitlines():
+        if not line.startswith("data: "):
+            continue
+        payload = json.loads(line[6:])
+        token = payload.get("token")
+        if token:
+            tokens.append(token)
+    return "".join(tokens)
+
+
 @pytest.mark.asyncio
 async def test_web_generate_and_remix_stream_flow():
     httpx = pytest.importorskip("httpx")
@@ -104,7 +119,11 @@ async def test_web_generate_and_remix_stream_flow():
         assert stream.status_code == 200
         assert "event: start" in stream.text
         assert "event: done" in stream.text
-        assert "Acme" in stream.text
+        generated = _stream_token_text(stream.text)
+        assert "Acme" in generated
+        assert "Open to a quick chat to see if this is relevant?" in generated
+        assert "Subject:" in generated
+        assert "Body:" in generated
 
         remix = await client.post(
             "/web/v1/remix",
@@ -124,14 +143,16 @@ async def test_web_generate_and_remix_stream_flow():
         remix_stream = await client.get(f"/web/v1/stream/{remix.json()['request_id']}", headers=_headers())
         assert remix_stream.status_code == 200
         assert "event: done" in remix_stream.text
-        assert "Acme" in remix_stream.text
+        remixed = _stream_token_text(remix_stream.text)
+        assert "Acme" in remixed
+        assert "Open to a quick chat to see if this is relevant?" in remixed
 
         feedback = await client.post(
             "/web/v1/feedback",
             json={
                 "session_id": body["session_id"],
-                "draft_before": "Subject: A\n\nBody",
-                "draft_after": "Subject: B\n\nBody changed",
+                "draft_before": "Subject: A\nBody:\nBody",
+                "draft_after": "Subject: B\nBody:\nBody changed",
                 "style_profile": {
                     "formality": 0.0,
                     "orientation": 0.0,
@@ -146,7 +167,7 @@ async def test_web_generate_and_remix_stream_flow():
 
 
 @pytest.mark.asyncio
-async def test_web_generate_includes_company_context_mapping_in_mock_mode():
+async def test_web_generate_respects_offer_lock_and_blocks_adjacent_products_in_mock_mode():
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")
 
@@ -179,15 +200,63 @@ async def test_web_generate_includes_company_context_mapping_in_mock_mode():
         stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
         assert stream.status_code == 200
         assert "event: done" in stream.text
-        tokens: list[str] = []
-        for line in stream.text.splitlines():
-            if not line.startswith("data: "):
-                continue
-            payload = json.loads(line[6:])
-            token = payload.get("token")
-            if token:
-                tokens.append(token)
-        assert "Remix Studio" in "".join(tokens)
+        rendered = _stream_token_text(stream.text)
+        assert "Remix Studio" in rendered
+        assert "Prospect Enrichment" not in rendered
+        assert "Sequence QA" not in rendered
+
+
+@pytest.mark.asyncio
+async def test_web_generate_empty_cta_uses_canonical_fallback():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+
+    from main import app
+
+    payload = _generate_payload()
+    payload["cta_offer_lock"] = ""
+    payload["cta_type"] = None
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 200
+        body = start.json()
+
+        stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
+        assert stream.status_code == 200
+        rendered = _stream_token_text(stream.text)
+        assert "Open to a quick chat to see if this is relevant?" in rendered
+
+
+@pytest.mark.asyncio
+async def test_web_generate_missing_offer_lock_returns_422():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+
+    from main import app
+
+    payload = _generate_payload()
+    payload["offer_lock"] = ""
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 422
 
 
 @pytest.mark.asyncio

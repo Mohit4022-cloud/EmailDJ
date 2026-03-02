@@ -48,37 +48,53 @@ def get_sequence_email_prompt(angle: dict, cross_thread_context: str, email_numb
 
 
 def get_web_mvp_prompt(
+    seller: dict,
     prospect: dict,
-    factual_brief: str,
-    anchors: dict,
-    style_profile: dict,
-    company_context_brief: str,
-    product_focus: str | None,
+    deep_research: str,
+    offer_lock: str,
+    cta_offer_lock: str,
+    cta_type: str | None,
+    style_sliders: dict,
+    style_bands: dict,
     prior_draft: str | None = None,
+    correction_notes: str | None = None,
 ) -> list[dict[str, str]]:
     mode = "initial generation" if not prior_draft else "remix"
+    correction_block = f"\nVALIDATION FEEDBACK TO FIX:\n{correction_notes}\n" if correction_notes else ""
     return [
         {
             "role": "system",
             "content": (
-                "You write high-performing outbound SDR emails. "
-                "Preserve factual accuracy and never invent company facts."
+                "You write executive-grade cold outbound emails with strict compliance. "
+                "Follow lock constraints exactly and never invent facts."
             ),
         },
         {
             "role": "user",
             "content": (
-                f"Task mode: {mode}\n"
-                f"Prospect: {prospect}\n"
-                f"Factual brief (immutable): {factual_brief}\n"
-                f"CTA/intent anchors (preserve): {anchors}\n"
-                f"Sender company context (user-managed): {company_context_brief}\n"
-                f"Primary product/service to map: {product_focus or 'not specified'}\n"
-                f"Style controls (continuous -1 to 1): {style_profile}\n"
-                f"Prior draft for remix: {prior_draft or 'N/A'}\n"
-                "When a primary product/service is provided, explicitly map it to one or two concrete prospect signals. "
-                "You may mention one adjacent product only if it directly supports the same use-case.\n"
-                "Return only: Subject line, blank line, email body."
+                f"(C) CONTEXT\n"
+                f"SELLER: {seller}\n"
+                f"PROSPECT: {prospect}\n"
+                f"DEEP RESEARCH: {deep_research}\n\n"
+                f"OFFER_LOCK (ONLY THING YOU CAN PITCH): {offer_lock}\n"
+                f"CTA_LOCK (USE EXACT TEXT AS ONLY CTA): {cta_offer_lock}\n"
+                f"CTA_TYPE (if provided): {cta_type or 'not provided'}\n"
+                f"STYLE_SLIDERS_0_TO_100: {style_sliders}\n"
+                f"STYLE_BANDS: {style_bands}\n"
+                f"PRIOR_DRAFT_FOR_REMIX: {prior_draft or 'N/A'}\n"
+                f"TASK_MODE: {mode}{correction_block}\n"
+                "(CO) NON-NEGOTIABLE CONSTRAINTS\n"
+                "1) Pitch ONLY OFFER_LOCK explicitly. Never pitch other offerings.\n"
+                "2) Use CTA_LOCK text exactly as the only CTA. Do not add alternate asks.\n"
+                "3) Never mention internal workflow/tooling words: EmailDJ, remix, mapping, templates, sliders, prompts, LLMs, OpenAI, Gemini, codex, generated, automation tooling.\n"
+                "4) Strict grounding: use only facts present in DEEP RESEARCH and seller notes; no hallucinations.\n"
+                "5) If research is generic, use safe role-based personalization.\n"
+                "6) Match style bands exactly.\n\n"
+                "(O) OUTPUT FORMAT (EXACT)\n"
+                "Subject: <subject line>\n"
+                "Body:\n"
+                "<email body>\n\n"
+                "Return only Subject and Body."
             ),
         },
     ]

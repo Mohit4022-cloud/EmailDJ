@@ -18,6 +18,8 @@ const DEFAULT_COMPANY_CONTEXT = {
   company_name: 'Corsearch',
   company_url: 'https://corsearch.com',
   current_product: 'Trademark Search, Screening, and Brand Protection',
+  cta_offer_lock: '',
+  cta_type: '',
   other_products: 'Trademark Watching\nOnline Brand Protection\nDomain Monitoring',
   company_notes:
     'Corsearch helps legal and brand teams reduce trademark risk and protect brands across domains, marketplaces, and social platforms.',
@@ -90,6 +92,24 @@ class WebApp {
             <label>Other Products / Services (used for mapping)</label>
             <textarea id="sellerOtherProducts" class="compact" placeholder="Prospect Enrichment&#10;Sequence QA&#10;Persona Research"></textarea>
           </div>
+          <div class="row">
+            <div class="field">
+              <label>CTA / Offer Lock text</label>
+              <input id="ctaOfferLock" placeholder="Open to a quick chat to see if this is relevant?" />
+            </div>
+            <div class="field">
+              <label>CTA Type (optional)</label>
+              <select id="ctaType">
+                <option value="">Not set</option>
+                <option value="question">question</option>
+                <option value="time_ask">time_ask</option>
+                <option value="value_asset">value_asset</option>
+                <option value="pilot">pilot</option>
+                <option value="referral">referral</option>
+                <option value="event_invite">event_invite</option>
+              </select>
+            </div>
+          </div>
           <div class="field">
             <label>Company Notes (proof points, ICP, differentiation)</label>
             <textarea id="sellerCompanyNotes" class="compact" placeholder="What your product does best, who it helps, and why it wins."></textarea>
@@ -131,6 +151,8 @@ class WebApp {
     this.sellerCompanyUrlInput = this.root.querySelector('#sellerCompanyUrl');
     this.sellerCurrentProductInput = this.root.querySelector('#sellerCurrentProduct');
     this.sellerOtherProductsInput = this.root.querySelector('#sellerOtherProducts');
+    this.ctaOfferLockInput = this.root.querySelector('#ctaOfferLock');
+    this.ctaTypeSelect = this.root.querySelector('#ctaType');
     this.sellerCompanyNotesInput = this.root.querySelector('#sellerCompanyNotes');
     this.prospectNameInput = this.root.querySelector('#prospectName');
     this.prospectTitleInput = this.root.querySelector('#prospectTitle');
@@ -162,9 +184,12 @@ class WebApp {
       this.sellerCompanyUrlInput,
       this.sellerCurrentProductInput,
       this.sellerOtherProductsInput,
+      this.ctaOfferLockInput,
+      this.ctaTypeSelect,
       this.sellerCompanyNotesInput,
     ]) {
       input?.addEventListener('input', () => this.persistCompanyContext());
+      input?.addEventListener('change', () => this.persistCompanyContext());
     }
     for (const input of [
       this.prospectNameInput,
@@ -206,6 +231,8 @@ class WebApp {
       company_name: chooseDefaultString(saved.company_name, DEFAULT_COMPANY_CONTEXT.company_name),
       company_url: chooseDefaultString(saved.company_url, DEFAULT_COMPANY_CONTEXT.company_url),
       current_product: chooseDefaultString(saved.current_product, DEFAULT_COMPANY_CONTEXT.current_product),
+      cta_offer_lock: chooseDefaultString(saved.cta_offer_lock, DEFAULT_COMPANY_CONTEXT.cta_offer_lock),
+      cta_type: chooseDefaultString(saved.cta_type, DEFAULT_COMPANY_CONTEXT.cta_type),
       other_products: chooseDefaultString(saved.other_products, DEFAULT_COMPANY_CONTEXT.other_products),
       company_notes: chooseDefaultString(saved.company_notes, DEFAULT_COMPANY_CONTEXT.company_notes),
     };
@@ -213,6 +240,8 @@ class WebApp {
     this.sellerCompanyUrlInput.value = merged.company_url;
     this.sellerCurrentProductInput.value = merged.current_product;
     this.sellerOtherProductsInput.value = merged.other_products;
+    this.ctaOfferLockInput.value = merged.cta_offer_lock;
+    this.ctaTypeSelect.value = merged.cta_type;
     this.sellerCompanyNotesInput.value = merged.company_notes;
     this.storageSet('emaildj_company_context_v1', JSON.stringify(merged));
   }
@@ -250,6 +279,8 @@ class WebApp {
       company_name: this.sellerCompanyNameInput.value.trim(),
       company_url: this.sellerCompanyUrlInput.value.trim(),
       current_product: this.sellerCurrentProductInput.value.trim(),
+      cta_offer_lock: this.ctaOfferLockInput.value.trim(),
+      cta_type: this.ctaTypeSelect.value.trim(),
       other_products: this.sellerOtherProductsInput.value.trim(),
       company_notes: this.sellerCompanyNotesInput.value.trim(),
     };
@@ -285,6 +316,9 @@ class WebApp {
         linkedin_url: this.prospectLinkedinInput.value.trim() || null,
       },
       research_text: this.researchInput.value.trim(),
+      offer_lock: this.sellerCurrentProductInput.value.trim(),
+      cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
+      cta_type: this.ctaTypeSelect.value.trim() || null,
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: this.companyContextPayload(),
     };
@@ -307,6 +341,7 @@ class WebApp {
   validate(data) {
     if (!data.prospect.name || !data.prospect.title || !data.prospect.company) return 'Prospect name, title, and company are required.';
     if (!data.research_text || data.research_text.length < 20) return 'Paste at least 20 characters of research.';
+    if (!data.offer_lock) return 'Current Product / Service to Pitch is required.';
     return '';
   }
 
@@ -390,11 +425,23 @@ class WebApp {
   }
 
   async streamIntoEditor(requestId) {
+    let tokenCount = 0;
+    let streamError = '';
     await consumeStream(requestId, (msg) => {
       if (msg.event === 'token') {
-        this.editor.appendToken(msg.data?.token || '');
+        const token = msg.data?.token || '';
+        if (token) {
+          tokenCount += 1;
+          this.editor.appendToken(token);
+        }
+      } else if (msg.event === 'error') {
+        streamError = String(msg.data?.error || 'Draft generation failed during stream.');
       }
     });
+    if (streamError) throw new Error(streamError);
+    if (!tokenCount || !this.editor.getText().trim()) {
+      throw new Error('Draft stream completed without any visible content.');
+    }
   }
 
   async saveRemix() {

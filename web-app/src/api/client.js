@@ -1,6 +1,6 @@
 const VITE_HUB_URL =
   typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_HUB_URL : undefined;
-const HUB_URL = (VITE_HUB_URL || 'http://localhost:8000').replace(/\/$/, '');
+const HUB_URL = (VITE_HUB_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 const VITE_PRESET_PREVIEW_PIPELINE =
   typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_PRESET_PREVIEW_PIPELINE : undefined;
 
@@ -33,7 +33,18 @@ export function parseSseBlock(block) {
   }
   if (!data) return { event, data: null };
   try {
-    return { event, data: JSON.parse(data) };
+    const parsed = JSON.parse(data);
+    if (typeof parsed === 'string') {
+      const nested = parsed.trim();
+      if ((nested.startsWith('{') && nested.endsWith('}')) || (nested.startsWith('[') && nested.endsWith(']'))) {
+        try {
+          return { event, data: JSON.parse(nested) };
+        } catch {
+          return { event, data: parsed };
+        }
+      }
+    }
+    return { event, data: parsed };
   } catch {
     return { event, data: parsePythonDictPayload(data) || data };
   }

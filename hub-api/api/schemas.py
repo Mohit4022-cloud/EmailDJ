@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,9 @@ class WebCompanyContext(BaseModel):
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
     research_text: str = Field(min_length=20, max_length=20000)
+    offer_lock: str = Field(min_length=1, max_length=240)
+    cta_offer_lock: str | None = Field(default=None, max_length=500)
+    cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
     company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 

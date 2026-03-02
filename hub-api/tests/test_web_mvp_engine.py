@@ -23,21 +23,34 @@ def test_style_profile_is_clamped():
     }
 
 
-def test_style_directives_span_extremes():
-    from email_generation.remix_engine import style_directives
+def test_style_profile_to_ctco_sliders_maps_minus1_to_plus1():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders
 
-    low = style_directives({"formality": -1, "orientation": -1, "length": -1, "assertiveness": -1})
-    high = style_directives({"formality": 1, "orientation": 1, "length": 1, "assertiveness": 1})
+    sliders = style_profile_to_ctco_sliders(
+        {
+            "formality": -1.0,
+            "orientation": 0.0,
+            "length": 1.0,
+            "assertiveness": -0.5,
+        }
+    )
 
-    assert "conversational" in low["formality"]
-    assert "pain/problem" in low["orientation"]
-    assert "very short" in low["length"]
-    assert "diplomatic" in low["assertiveness"]
+    assert sliders == {
+        "tone_formal_casual": 0,
+        "framing_problem_outcome": 50,
+        "length_short_long": 100,
+        "stance_bold_diplomatic": 25,
+    }
 
-    assert "formal" in high["formality"]
-    assert "outcomes and upside" in high["orientation"]
-    assert "expanded" in high["length"]
-    assert "bold ask" in high["assertiveness"]
+
+def test_body_word_range_bins_match_ctco_contract():
+    from email_generation.remix_engine import body_word_range
+
+    assert body_word_range(0) == (45, 70)
+    assert body_word_range(21) == (70, 110)
+    assert body_word_range(41) == (110, 160)
+    assert body_word_range(61) == (160, 220)
+    assert body_word_range(81) == (220, 300)
 
 
 def test_style_profile_key_is_stable():
@@ -47,22 +60,22 @@ def test_style_profile_key_is_stable():
     assert key == "f:0.12|o:-0.99|l:0.10|a:0.00"
 
 
-def test_factual_brief_and_anchors_include_prospect_facts():
+def test_factual_brief_and_anchors_include_lock_fields():
     from email_generation.remix_engine import build_anchors, build_factual_brief
 
     prospect = {"name": "Alex", "title": "SDR Manager", "company": "Acme", "linkedin_url": "https://linkedin.com/in/alex"}
     brief = build_factual_brief(prospect, "Acme is hiring and modernizing outbound execution.")
-    anchors = build_anchors(prospect)
+    anchors = build_anchors(prospect=prospect, offer_lock="Remix Studio", cta_lock="Open to a quick chat to see if this is relevant?")
 
     assert "Alex" in brief
     assert "Acme" in brief
     assert "LinkedIn URL" in brief
-    assert "Acme" in anchors["intent"]
-    assert "15-minute walkthrough" in anchors["cta"]
+    assert anchors["offer_lock"] == "Remix Studio"
+    assert anchors["cta_lock"] == "Open to a quick chat to see if this is relevant?"
 
 
-def test_company_context_brief_and_mapping_anchor_include_focus_product():
-    from email_generation.remix_engine import build_anchors, build_company_context_brief
+def test_company_context_brief_includes_primary_offering_but_not_adjacent_list():
+    from email_generation.remix_engine import build_company_context_brief
 
     company_context = {
         "company_name": "EmailDJ",
@@ -71,11 +84,8 @@ def test_company_context_brief_and_mapping_anchor_include_focus_product():
         "other_products": "Prospect Enrichment, Sequence QA",
         "company_notes": "Built for SDR teams that need faster personalization with control.",
     }
-    prospect = {"name": "Alex", "title": "SDR Manager", "company": "Acme", "linkedin_url": None}
     brief = build_company_context_brief(company_context)
-    anchors = build_anchors(prospect, company_context=company_context)
 
     assert "EmailDJ" in brief
     assert "Remix Studio" in brief
-    assert "Prospect Enrichment" in brief
-    assert "Remix Studio" in anchors["service_mapping"]
+    assert "Prospect Enrichment" not in brief
