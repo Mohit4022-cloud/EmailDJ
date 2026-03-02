@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import AsyncGenerator
 
@@ -13,11 +14,22 @@ import httpx
 
 from context_vault.models import AccountContext
 from infra.alerting import emit_provider_failure_alert
-from email_generation.model_cascade import get_model
+from email_generation.model_cascade import _provider_max_retries, get_cascade_sequence
 from email_generation.prompt_templates import get_quick_generate_prompt
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
+
+_CASCADE_TTL = 3 * 24 * 60 * 60  # 3 days
+
+
+@dataclass
+class GenerateResult:
+    text: str
+    provider: str
+    model_name: str
+    cascade_reason: str  # "primary" | "throttled" | "fallback_after_{provider}_error"
+    attempt_count: int
 
 
 async def _mock_stream(text: str) -> AsyncGenerator[str, None]:
@@ -34,12 +46,12 @@ def _preferred_provider() -> str:
     return os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai"
 
 
-async def _openai_chat_completion(prompt: list[dict[str, str]], model_name: str) -> str:
+async def _openai_chat_completion(prompt: list[dict[str, str]], model_name: str, timeout: float = 30.0) -> str:
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         res = await client.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -50,7 +62,7 @@ async def _openai_chat_completion(prompt: list[dict[str, str]], model_name: str)
     return data["choices"][0]["message"]["content"]
 
 
-async def _anthropic_messages(prompt: list[dict[str, str]], model_name: str) -> str:
+async def _anthropic_messages(prompt: list[dict[str, str]], model_name: str, timeout: float = 35.0) -> str:
     key = os.environ.get("ANTHROPIC_API_KEY")
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY missing")
@@ -63,7 +75,7 @@ async def _anthropic_messages(prompt: list[dict[str, str]], model_name: str) -> 
         else:
             messages.append({"role": m.get("role", "user"), "content": m.get("content", "")})
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         res = await client.post(
             "https://api.anthropic.com/v1/messages",
             headers={
@@ -79,12 +91,12 @@ async def _anthropic_messages(prompt: list[dict[str, str]], model_name: str) -> 
     return "".join(part.get("text", "") for part in parts if isinstance(part, dict))
 
 
-async def _groq_chat_completion(prompt: list[dict[str, str]], model_name: str) -> str:
+async def _groq_chat_completion(prompt: list[dict[str, str]], model_name: str, timeout: float = 20.0) -> str:
     key = os.environ.get("GROQ_API_KEY")
     if not key:
         raise RuntimeError("GROQ_API_KEY missing")
 
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         res = await client.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -137,20 +149,74 @@ async def _record_provider_failure(provider: str, error: str) -> None:
             await redis.set(alert_last_key, str(count))
 
 
-async def _real_generate(prompt: list[dict[str, str]], throttled: bool = False) -> str:
-    preferred = _preferred_provider()
-    model = get_model(tier=2, task="quick_generate", throttled=throttled)
+async def _real_generate(
+    prompt: list[dict[str, str]],
+    task: str = "quick_generate",
+    throttled: bool = False,
+) -> GenerateResult:
+    """Cascade through providers in order, retrying per budget, returning on first success."""
+    sequence = get_cascade_sequence(task=task, throttled=throttled)
+    redis = get_redis()
+    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    attempt_count = 0
+    failed_providers: list[str] = []
 
-    logger.info(
-        "quick_generate_model_selected",
-        extra={"provider": model.provider, "model": model.model_name, "tier": model.tier, "preferred": preferred},
-    )
+    for idx, spec in enumerate(sequence):
+        if throttled:
+            cascade_reason = "throttled"
+        elif idx == 0:
+            cascade_reason = "primary"
+        else:
+            cascade_reason = f"fallback_after_{failed_providers[-1]}_error"
 
-    if preferred == "anthropic":
-        return await _anthropic_messages(prompt, "claude-3-5-haiku-latest")
-    if preferred == "groq":
-        return await _groq_chat_completion(prompt, "llama-3.3-70b-versatile")
-    return await _openai_chat_completion(prompt, "gpt-4.1-nano")
+        max_retries = _provider_max_retries(spec.provider)
+        for attempt in range(max_retries):
+            attempt_count += 1
+            attempt_key = f"cascade:provider_attempt:{spec.provider}:{day}"
+            await redis.incr(attempt_key)
+            await redis.expire(attempt_key, _CASCADE_TTL)
+
+            logger.info(
+                "quick_generate_model_selected",
+                extra={
+                    "provider": spec.provider,
+                    "model": spec.model_name,
+                    "tier": spec.tier,
+                    "attempt": attempt + 1,
+                    "cascade_reason": cascade_reason,
+                },
+            )
+
+            try:
+                if spec.provider == "anthropic":
+                    text = await _anthropic_messages(prompt, spec.model_name, timeout=spec.timeout_seconds)
+                elif spec.provider == "groq":
+                    text = await _groq_chat_completion(prompt, spec.model_name, timeout=spec.timeout_seconds)
+                else:
+                    text = await _openai_chat_completion(prompt, spec.model_name, timeout=spec.timeout_seconds)
+
+                success_key = f"cascade:provider_success:{spec.provider}:{day}"
+                await redis.incr(success_key)
+                await redis.expire(success_key, _CASCADE_TTL)
+
+                return GenerateResult(
+                    text=text,
+                    provider=spec.provider,
+                    model_name=spec.model_name,
+                    cascade_reason=cascade_reason,
+                    attempt_count=attempt_count,
+                )
+            except Exception as exc:
+                await _record_provider_failure(provider=spec.provider, error=str(exc))
+
+        # All retries for this provider exhausted — record fallback and move on
+        failed_providers.append(spec.provider)
+        if idx + 1 < len(sequence):
+            fallback_key = f"cascade:fallback_triggered:{spec.provider}:{day}"
+            await redis.incr(fallback_key)
+            await redis.expire(fallback_key, _CASCADE_TTL)
+
+    raise RuntimeError(f"all_cascade_providers_failed:{','.join(failed_providers)}")
 
 
 async def quick_generate(
@@ -187,12 +253,12 @@ async def quick_generate(
         return
 
     logger.info("quick_generate_mode", extra={"mode": "real"})
-    provider = _preferred_provider()
     try:
-        output = await _real_generate(prompt=prompt, throttled=throttled)
+        result = await _real_generate(prompt=prompt, throttled=throttled)
+        output = result.text
     except Exception as exc:
-        await _record_provider_failure(provider=provider, error=str(exc))
         output = f"Subject: Quick idea\n\nUnable to reach provider in real mode ({exc})."
+        result = None
 
     words = output.split(" ")
     first = True
@@ -202,4 +268,14 @@ async def quick_generate(
             first = False
         yield token + " "
 
-    logger.info("quick_generate_total", extra={"duration_ms": int((time.perf_counter() - start) * 1000), "mode": "real"})
+    logger.info(
+        "quick_generate_total",
+        extra={
+            "duration_ms": int((time.perf_counter() - start) * 1000),
+            "mode": "real",
+            "provider": result.provider if result else "none",
+            "model": result.model_name if result else "none",
+            "cascade_reason": result.cascade_reason if result else "all_failed",
+            "attempt_count": result.attempt_count if result else 0,
+        },
+    )

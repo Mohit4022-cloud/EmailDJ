@@ -54,15 +54,28 @@ class WebStyleProfile(BaseModel):
 class WebCompanyContext(BaseModel):
     company_name: str | None = Field(default=None, max_length=160)
     company_url: str | None = Field(default=None, max_length=400)
-    current_product: str | None = Field(default=None, max_length=240)
+    current_product: str | None = Field(
+        default=None,
+        max_length=240,
+        description="Informational only — not injected into generation prompt. Use offer_lock as the single pitch anchor.",
+    )
     other_products: str | None = Field(default=None, max_length=8000)
     company_notes: str | None = Field(default=None, max_length=8000)
 
 
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
+    prospect_first_name: str | None = Field(
+        default=None,
+        max_length=60,
+        description="First name used for greeting. Derived server-side from prospect.name if omitted.",
+    )
     research_text: str = Field(min_length=20, max_length=20000)
-    offer_lock: str = Field(min_length=1, max_length=240)
+    offer_lock: str = Field(
+        min_length=1,
+        max_length=240,
+        description="Single source of truth for what is pitched. All generation (real and mock) uses this exclusively.",
+    )
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
@@ -131,6 +144,16 @@ class WebPresetPreviewBatchRequest(BaseModel):
     raw_research: WebPreviewRawResearch
     global_sliders: WebPreviewGlobalSliders
     presets: list[WebPreviewPresetInput] = Field(min_length=1, max_length=20)
+    offer_lock: str = Field(
+        min_length=1,
+        max_length=240,
+        description="Single product/offering to pitch. Must match product_context.product_name.",
+    )
+    cta_lock: str = Field(
+        min_length=1,
+        max_length=500,
+        description="Exact CTA text used once at the end of every preview email body.",
+    )
 
 
 class WebSummaryPack(BaseModel):
@@ -219,3 +242,26 @@ class WebhookReplyRequest(BaseModel):
     contact_id: str | None = None
     reply_timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     raw_payload: dict[str, Any] = Field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
+# Compliance dashboard models (Batch 3 P3)
+# ---------------------------------------------------------------------------
+
+
+class ComplianceViolationBucket(BaseModel):
+    violation_type: str
+    total: int
+    remix: int
+    preview: int
+
+
+class ComplianceDashboardDay(BaseModel):
+    date: str
+    buckets: list[ComplianceViolationBucket]
+    total_violations: int
+
+
+class ComplianceDashboardResponse(BaseModel):
+    days: list[ComplianceDashboardDay]
+    generated_at: str

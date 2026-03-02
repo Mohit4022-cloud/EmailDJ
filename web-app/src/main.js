@@ -32,8 +32,8 @@ const DEFAULT_TARGET_CONTEXT = {
   linkedin_url: '',
 };
 
-const DEFAULT_RESEARCH_TEXT =
-  'Palantir is scaling enterprise AI initiatives through AIP and high-stakes government/commercial deployments. Outreach should stay executive-level, tie messaging quality to pipeline outcomes, and propose a low-friction pilot that shows measurable reply and conversion lift.';
+// Empty default — let the user paste their own research to avoid contaminating outputs
+const DEFAULT_RESEARCH_TEXT = '';
 
 function chooseDefaultString(value, fallback) {
   if (typeof value !== 'string') return fallback;
@@ -308,19 +308,32 @@ class WebApp {
   }
 
   payload() {
+    const fullName = this.prospectNameInput.value.trim();
+    // Derive first name client-side for greeting normalization
+    const firstName = fullName.split(/\s+/)[0] || null;
+
+    const offerLock = this.sellerCurrentProductInput.value.trim();
+    const companyCtx = this.companyContextPayload();
+
+    // Dedup: don't send current_product if it's the same string as offer_lock
+    if (companyCtx.current_product && companyCtx.current_product === offerLock) {
+      delete companyCtx.current_product;
+    }
+
     return {
       prospect: {
-        name: this.prospectNameInput.value.trim(),
+        name: fullName,
         title: this.prospectTitleInput.value.trim(),
         company: this.prospectCompanyInput.value.trim(),
         linkedin_url: this.prospectLinkedinInput.value.trim() || null,
       },
+      prospect_first_name: firstName,
       research_text: this.researchInput.value.trim(),
-      offer_lock: this.sellerCurrentProductInput.value.trim(),
+      offer_lock: offerLock,
       cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
       cta_type: this.ctaTypeSelect.value.trim() || null,
       style_profile: styleToPayload(this.sliderBoard.getValues()),
-      company_context: this.companyContextPayload(),
+      company_context: companyCtx,
     };
   }
 
@@ -427,6 +440,7 @@ class WebApp {
   async streamIntoEditor(requestId) {
     let tokenCount = 0;
     let streamError = '';
+    let doneData = null;
     await consumeStream(requestId, (msg) => {
       if (msg.event === 'token') {
         const token = msg.data?.token || '';
@@ -434,6 +448,8 @@ class WebApp {
           tokenCount += 1;
           this.editor.appendToken(token);
         }
+      } else if (msg.event === 'done') {
+        doneData = msg.data;
       } else if (msg.event === 'error') {
         streamError = String(msg.data?.error || 'Draft generation failed during stream.');
       }
@@ -441,6 +457,32 @@ class WebApp {
     if (streamError) throw new Error(streamError);
     if (!tokenCount || !this.editor.getText().trim()) {
       throw new Error('Draft stream completed without any visible content.');
+    }
+    if (doneData) this.showModeBadge(doneData);
+  }
+
+  showModeBadge(doneData) {
+    const mode = doneData?.mode;
+    const provider = doneData?.provider;
+    const model = doneData?.model;
+
+    let badgeEl = this.root.querySelector('#modeBadge');
+    if (!badgeEl) {
+      badgeEl = document.createElement('div');
+      badgeEl.id = 'modeBadge';
+      this.statusLine.insertAdjacentElement('afterend', badgeEl);
+    }
+
+    if (mode === 'mock') {
+      badgeEl.className = 'mode-badge mode-mock';
+      badgeEl.textContent = 'MOCK MODE — output is not AI-generated';
+    } else if (mode === 'real') {
+      badgeEl.className = 'mode-badge mode-real';
+      const label = provider && model ? `${provider} / ${model}` : provider || 'real';
+      badgeEl.textContent = `REAL — ${label}`;
+    } else {
+      badgeEl.className = 'mode-badge';
+      badgeEl.textContent = '';
     }
   }
 

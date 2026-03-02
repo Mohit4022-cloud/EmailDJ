@@ -42,6 +42,8 @@ def _request_payload(company_suffix: str = "Cache") -> WebPresetPreviewBatchRequ
                     "slider_overrides": {"formality": 55, "personalization": 80},
                 },
             ],
+            "offer_lock": "Remix Studio",
+            "cta_lock": "Open to a quick chat to see if this is relevant?",
         }
     )
 

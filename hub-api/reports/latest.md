@@ -1,0 +1,411 @@
+# Lock Compliance Scorecard
+
+- Generated at: `2026-03-02T04:32:06.332141Z`
+- Mode: `mock`
+- Selection: `full`
+- Tags: `(none)`
+
+## Summary
+
+| Metric | Value |
+|---|---:|
+| Total cases | 96 |
+| Passed | 96 |
+| Failed | 0 |
+| Pass rate | 100.00% |
+| Total violations | 0 |
+
+## Failure Counts
+
+| Violation code | Count |
+|---|---:|
+
+## Top Recurring Failures
+
+- None
+
+## Per-test Results
+
+### lc_001 - PASS
+- Duration: `1ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_first_last, cta_15_min_chat, offer_brand_protection`
+
+### lc_002 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_single, cta_send_deck, offer_remix_studio`
+
+### lc_003 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_dr_prefix, cta_10_min_call, offer_compliance_qa`
+
+### lc_004 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_multipart, cta_15_min_chat, offer_domain_reputation_shield`
+
+### lc_005 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_send_deck, offer_inbox_placement_audit`
+
+### lc_006 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_apostrophe, cta_10_min_call, offer_message_risk_scoring`
+
+### lc_007 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_first_last, cta_15_min_chat, offer_sequence_governance`
+
+### lc_008 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_single, cta_send_deck, offer_proof_of_concept_pilot`
+
+### lc_009 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_dr_prefix, cta_10_min_call, offer_brand_protection`
+
+### lc_010 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_multipart, cta_15_min_chat, offer_remix_studio`
+
+### lc_011 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_hyphen, cta_send_deck, offer_compliance_qa`
+
+### lc_012 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_apostrophe, cta_10_min_call, offer_domain_reputation_shield`
+
+### lc_013 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_first_last, cta_15_min_chat, offer_inbox_placement_audit`
+
+### lc_014 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_single, cta_send_deck, offer_message_risk_scoring`
+
+### lc_015 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_dr_prefix, cta_10_min_call, offer_sequence_governance`
+
+### lc_016 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_multipart, cta_15_min_chat, offer_proof_of_concept_pilot`
+
+### lc_017 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_hyphen, cta_send_deck, offer_brand_protection`
+
+### lc_018 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_apostrophe, cta_10_min_call, offer_remix_studio`
+
+### lc_019 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_first_last, cta_15_min_chat, offer_compliance_qa`
+
+### lc_020 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_single, cta_send_deck, offer_domain_reputation_shield`
+
+### lc_021 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_dr_prefix, cta_10_min_call, offer_inbox_placement_audit`
+
+### lc_022 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_multipart, cta_15_min_chat, offer_message_risk_scoring`
+
+### lc_023 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_hyphen, cta_send_deck, offer_sequence_governance`
+
+### lc_024 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_apostrophe, cta_10_min_call, offer_proof_of_concept_pilot`
+
+### lc_025 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_first_last, cta_15_min_chat, offer_brand_protection`
+
+### lc_026 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_single, cta_send_deck, offer_remix_studio`
+
+### lc_027 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_dr_prefix, cta_10_min_call, offer_compliance_qa`
+
+### lc_028 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_multipart, cta_15_min_chat, offer_domain_reputation_shield`
+
+### lc_029 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_hyphen, cta_send_deck, offer_inbox_placement_audit`
+
+### lc_030 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_apostrophe, cta_10_min_call, offer_message_risk_scoring`
+
+### lc_031 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_first_last, cta_15_min_chat, offer_sequence_governance`
+
+### lc_032 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_single, cta_send_deck, offer_proof_of_concept_pilot`
+
+### lc_033 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_dr_prefix, cta_10_min_call, offer_brand_protection`
+
+### lc_034 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_multipart, cta_15_min_chat, offer_remix_studio`
+
+### lc_035 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_send_deck, offer_compliance_qa`
+
+### lc_036 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_apostrophe, cta_10_min_call, offer_domain_reputation_shield`
+
+### lc_037 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_first_last, cta_15_min_chat, offer_inbox_placement_audit`
+
+### lc_038 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_single, cta_send_deck, offer_message_risk_scoring`
+
+### lc_039 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_dr_prefix, cta_10_min_call, offer_sequence_governance`
+
+### lc_040 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_multipart, cta_15_min_chat, offer_proof_of_concept_pilot`
+
+### lc_041 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_hyphen, cta_send_deck, offer_brand_protection`
+
+### lc_042 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_apostrophe, cta_10_min_call, offer_remix_studio`
+
+### lc_043 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_first_last, cta_15_min_chat, offer_compliance_qa`
+
+### lc_044 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_single, cta_send_deck, offer_domain_reputation_shield`
+
+### lc_045 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_dr_prefix, cta_10_min_call, offer_inbox_placement_audit`
+
+### lc_046 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_multipart, cta_15_min_chat, offer_message_risk_scoring`
+
+### lc_047 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_hyphen, cta_send_deck, offer_sequence_governance`
+
+### lc_048 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_apostrophe, cta_10_min_call, offer_proof_of_concept_pilot`
+
+### lc_049 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_first_last, cta_15_min_chat, offer_brand_protection`
+
+### lc_050 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_single, cta_send_deck, offer_remix_studio`
+
+### lc_051 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_dr_prefix, cta_10_min_call, offer_compliance_qa`
+
+### lc_052 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_multipart, cta_15_min_chat, offer_domain_reputation_shield`
+
+### lc_053 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_hyphen, cta_send_deck, offer_inbox_placement_audit`
+
+### lc_054 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_apostrophe, cta_10_min_call, offer_message_risk_scoring`
+
+### lc_055 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_first_last, cta_15_min_chat, offer_sequence_governance`
+
+### lc_056 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_single, cta_send_deck, offer_proof_of_concept_pilot`
+
+### lc_057 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_dr_prefix, cta_10_min_call, offer_brand_protection`
+
+### lc_058 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_multipart, cta_15_min_chat, offer_remix_studio`
+
+### lc_059 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_hyphen, cta_send_deck, offer_compliance_qa`
+
+### lc_060 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_apostrophe, cta_10_min_call, offer_domain_reputation_shield`
+
+### lc_061 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_first_last, cta_15_min_chat, offer_inbox_placement_audit`
+
+### lc_062 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_single, cta_send_deck, offer_message_risk_scoring`
+
+### lc_063 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_dr_prefix, cta_10_min_call, offer_sequence_governance`
+
+### lc_064 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_multipart, cta_15_min_chat, offer_proof_of_concept_pilot`
+
+### lc_065 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_send_deck, offer_brand_protection`
+
+### lc_066 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_apostrophe, cta_10_min_call, offer_remix_studio`
+
+### lc_067 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_first_last, cta_15_min_chat, offer_compliance_qa`
+
+### lc_068 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_single, cta_send_deck, offer_domain_reputation_shield`
+
+### lc_069 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_dr_prefix, cta_10_min_call, offer_inbox_placement_audit`
+
+### lc_070 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_multipart, cta_15_min_chat, offer_message_risk_scoring`
+
+### lc_071 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_hyphen, cta_send_deck, offer_sequence_governance`
+
+### lc_072 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_apostrophe, cta_10_min_call, offer_proof_of_concept_pilot`
+
+### lc_073 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_first_last, cta_15_min_chat, offer_brand_protection`
+
+### lc_074 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_single, cta_send_deck, offer_remix_studio`
+
+### lc_075 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_dr_prefix, cta_10_min_call, offer_compliance_qa`
+
+### lc_076 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_multipart, cta_15_min_chat, offer_domain_reputation_shield`
+
+### lc_077 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_hyphen, cta_send_deck, offer_inbox_placement_audit`
+
+### lc_078 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_apostrophe, cta_10_min_call, offer_message_risk_scoring`
+
+### lc_079 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_first_last, cta_15_min_chat, offer_sequence_governance`
+
+### lc_080 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_single, cta_send_deck, offer_proof_of_concept_pilot`
+
+### lc_081 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_dr_prefix, cta_10_min_call, offer_brand_protection`
+
+### lc_082 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_multipart, cta_15_min_chat, offer_remix_studio`
+
+### lc_083 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_hyphen, cta_send_deck, offer_compliance_qa`
+
+### lc_084 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_apostrophe, cta_10_min_call, offer_domain_reputation_shield`
+
+### lc_085 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_first_last, cta_15_min_chat, offer_inbox_placement_audit`
+
+### lc_086 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_single, cta_send_deck, offer_message_risk_scoring`
+
+### lc_087 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_dr_prefix, cta_10_min_call, offer_sequence_governance`
+
+### lc_088 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_multipart, cta_15_min_chat, offer_proof_of_concept_pilot`
+
+### lc_089 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_hyphen, cta_send_deck, offer_brand_protection`
+
+### lc_090 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_apostrophe, cta_10_min_call, offer_remix_studio`
+
+### lc_091 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_first_last, cta_15_min_chat, offer_compliance_qa`
+
+### lc_092 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_single, cta_send_deck, offer_domain_reputation_shield`
+
+### lc_093 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_dr_prefix, cta_10_min_call, offer_inbox_placement_audit`
+
+### lc_094 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_multipart, cta_15_min_chat, offer_message_risk_scoring`
+
+### lc_095 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_send_deck, offer_sequence_governance`
+
+### lc_096 - PASS
+- Duration: `0ms`
+- Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_apostrophe, cta_10_min_call, offer_proof_of_concept_pilot`

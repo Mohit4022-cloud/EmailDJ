@@ -1,0 +1,184 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from evals.models import EvalCase, EvalExpected, EvalResult, ScorecardSummary
+
+
+def load_cases(path: Path) -> list[EvalCase]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError("Gold set must be a list of test cases.")
+
+    ids: set[str] = set()
+    cases: list[EvalCase] = []
+    for item in raw:
+        case = _parse_case(item)
+        if case.id in ids:
+            raise ValueError(f"Duplicate case id: {case.id}")
+        ids.add(case.id)
+        cases.append(case)
+
+    if len(cases) < 80:
+        raise ValueError(f"Gold set must contain at least 80 cases, found {len(cases)}")
+
+    return cases
+
+
+def load_smoke_ids(path: Path) -> set[str]:
+    raw = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        raise ValueError("Smoke ids file must be a list.")
+    return {str(item).strip() for item in raw if str(item).strip()}
+
+
+def _parse_case(item: dict[str, Any]) -> EvalCase:
+    required_top = (
+        "id",
+        "tags",
+        "prospect",
+        "seller",
+        "offer_lock",
+        "cta_lock",
+        "cta_type",
+        "style_profile",
+        "research_text",
+        "other_products",
+        "expected",
+    )
+    for key in required_top:
+        if key not in item:
+            raise ValueError(f"Case missing required key '{key}': {item}")
+
+    expected_raw = item["expected"]
+    if not isinstance(expected_raw, dict):
+        raise ValueError(f"Case expected block invalid for {item.get('id')}")
+
+    expected = EvalExpected(
+        must_include=[str(x) for x in expected_raw.get("must_include", []) if str(x).strip()],
+        must_not_include=[str(x) for x in expected_raw.get("must_not_include", []) if str(x).strip()],
+        greeting_first_name=str(expected_raw.get("greeting_first_name", "")).strip(),
+    )
+
+    style = item["style_profile"]
+    if not isinstance(style, dict):
+        raise ValueError(f"style_profile must be object for {item.get('id')}")
+
+    return EvalCase(
+        id=str(item["id"]).strip(),
+        tags=[str(x).strip() for x in item.get("tags", []) if str(x).strip()],
+        prospect={k: str(v) for k, v in item.get("prospect", {}).items()},
+        seller={k: str(v) for k, v in item.get("seller", {}).items()},
+        offer_lock=str(item["offer_lock"]).strip(),
+        cta_lock=str(item["cta_lock"]).strip(),
+        cta_type=(str(item["cta_type"]).strip() or None) if item.get("cta_type") is not None else None,
+        style_profile={
+            "formality": float(style.get("formality", 0.0)),
+            "orientation": float(style.get("orientation", 0.0)),
+            "length": float(style.get("length", 0.0)),
+            "assertiveness": float(style.get("assertiveness", 0.0)),
+        },
+        research_text=str(item["research_text"]),
+        other_products=[str(x).strip() for x in item.get("other_products", []) if str(x).strip()],
+        expected=expected,
+        approved_proof_points=[str(x).strip() for x in item.get("approved_proof_points", []) if str(x).strip()],
+    )
+
+
+def write_reports(
+    report_dir: Path,
+    *,
+    mode: str,
+    selection_mode: str,
+    selected_tags: list[str],
+    summary: ScorecardSummary,
+    results: list[EvalResult],
+    top_failures: list[dict[str, Any]],
+) -> tuple[Path, Path]:
+    report_dir.mkdir(parents=True, exist_ok=True)
+    history_dir = report_dir / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+
+    now = datetime.now(timezone.utc)
+    ts = now.strftime("%Y%m%dT%H%M%SZ")
+
+    payload: dict[str, Any] = {
+        "generated_at": now.isoformat().replace("+00:00", "Z"),
+        "mode": mode,
+        "selection": {
+            "selection_mode": selection_mode,
+            "tags": selected_tags,
+        },
+        "summary": summary.to_dict(),
+        "top_recurring_failures": top_failures,
+        "results": [result.to_dict() for result in results],
+    }
+
+    latest_json = report_dir / "latest.json"
+    latest_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    (history_dir / f"{ts}.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+    latest_md = report_dir / "latest.md"
+    latest_md.write_text(_to_markdown(payload), encoding="utf-8")
+    (history_dir / f"{ts}.md").write_text(_to_markdown(payload), encoding="utf-8")
+
+    return latest_json, latest_md
+
+
+def _to_markdown(payload: dict[str, Any]) -> str:
+    summary = payload["summary"]
+    lines: list[str] = []
+    lines.append("# Lock Compliance Scorecard")
+    lines.append("")
+    lines.append(f"- Generated at: `{payload['generated_at']}`")
+    lines.append(f"- Mode: `{payload['mode']}`")
+    lines.append(f"- Selection: `{payload['selection']['selection_mode']}`")
+    tags = payload["selection"].get("tags") or []
+    lines.append(f"- Tags: `{', '.join(tags) if tags else '(none)'}`")
+    lines.append("")
+    lines.append("## Summary")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|---|---:|")
+    lines.append(f"| Total cases | {summary['total_cases']} |")
+    lines.append(f"| Passed | {summary['passed_cases']} |")
+    lines.append(f"| Failed | {summary['failed_cases']} |")
+    lines.append(f"| Pass rate | {summary['pass_rate']:.2%} |")
+    lines.append(f"| Total violations | {summary['violation_count']} |")
+    lines.append("")
+
+    lines.append("## Failure Counts")
+    lines.append("")
+    lines.append("| Violation code | Count |")
+    lines.append("|---|---:|")
+    for code, count in sorted(summary["failure_count_by_code"].items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"| {code} | {count} |")
+    lines.append("")
+
+    lines.append("## Top Recurring Failures")
+    lines.append("")
+    for row in payload.get("top_recurring_failures", []):
+        lines.append(f"- `{row['code']}` x{row['count']} (examples: {', '.join(row.get('cases', [])[:5])})")
+    if not payload.get("top_recurring_failures"):
+        lines.append("- None")
+    lines.append("")
+
+    lines.append("## Per-test Results")
+    lines.append("")
+    for result in payload["results"]:
+        state = "PASS" if result["passed"] else "FAIL"
+        lines.append(f"### {result['id']} - {state}")
+        lines.append(f"- Duration: `{result['duration_ms']}ms`")
+        lines.append(f"- Tags: `{', '.join(result.get('tags', []))}`")
+        if result.get("error"):
+            lines.append(f"- Error: `{result['error']}`")
+        if result.get("violations"):
+            for v in result["violations"]:
+                snippet = v.get("snippet") or ""
+                lines.append(f"- `{v['code']}`: {v['reason']}" + (f" | snippet: `{snippet}`" if snippet else ""))
+        lines.append("")
+
+    return "\n".join(lines).strip() + "\n"

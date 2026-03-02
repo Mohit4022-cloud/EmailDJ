@@ -544,6 +544,27 @@
         50% { opacity: 0.45; }
         100% { opacity: 1; }
       }
+      .mode-badge {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .mode-badge:empty { display: none; }
+      .mode-mock {
+        background: #fff3e0;
+        color: #8a4000;
+        border: 1px solid #ffb74d;
+        animation: pulse 1.6s infinite;
+      }
+      .mode-real {
+        background: #e8f5e9;
+        color: #1b5e20;
+        border: 1px solid #66bb6a;
+      }
     </style>
   </head>
   <body>

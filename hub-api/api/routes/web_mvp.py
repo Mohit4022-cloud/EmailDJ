@@ -8,12 +8,15 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from api.schemas import (
+    ComplianceDashboardResponse,
+    ComplianceDashboardDay,
+    ComplianceViolationBucket,
     WebFeedbackRequest,
     WebGenerateAccepted,
     WebGenerateRequest,
@@ -23,7 +26,13 @@ from api.schemas import (
     WebRemixRequest,
 )
 from email_generation.preset_preview_pipeline import make_response, run_preview_pipeline
-from email_generation.remix_engine import build_draft, create_session_payload, load_session, save_session
+from email_generation.remix_engine import (
+    build_draft,
+    create_session_payload,
+    load_session,
+    persist_violations,
+    save_session,
+)
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
 
@@ -161,6 +170,8 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
         result = await run_preview_pipeline(req=req, throttled=throttled)
         if result.cache_hit:
             await _emit_metric("web_preview_batch_summary_cache_hit")
+        if result.violations:
+            await persist_violations(result.violations, session_id=None, pipeline="preview")
         await _emit_metric("web_preview_batch_completed")
         logger.info(
             "web_preview_batch_done",
@@ -169,6 +180,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
                 "latency_ms": result.latency_ms,
                 "cache_hit": result.cache_hit,
                 "preview_count": len(result.previews),
+                "violation_count": len(result.violations),
             },
         )
         return make_response(result)
@@ -200,7 +212,12 @@ async def web_stream(request_id: str, request: Request):
 
     async def _bounded():
         async with _STREAM_SEM:
-            result = await build_draft(session=session, style_profile=rec.style_profile, throttled=throttled)
+            result = await build_draft(
+                session=session,
+                style_profile=rec.style_profile,
+                throttled=throttled,
+                session_id=rec.session_id,
+            )
             mode_info["mode"] = result.mode
             mode_info["provider"] = result.provider
             mode_info["model"] = result.model_name
@@ -221,6 +238,8 @@ async def web_stream(request_id: str, request: Request):
                     "generation_mode": result.mode,
                     "provider": result.provider,
                     "model": result.model_name,
+                    "cascade_reason": result.cascade_reason,
+                    "attempt_count": result.attempt_count,
                     "session_id": rec.session_id,
                     "request_id": request_id,
                     "latency_ms": session["metrics"]["last_latency_ms"],
@@ -250,3 +269,77 @@ async def web_feedback(req: WebFeedbackRequest):
     await redis.expire(key, 7 * 24 * 60 * 60)
     await _emit_metric("web_copy_clicked")
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Compliance dashboard (Batch 3 P3)
+# ---------------------------------------------------------------------------
+
+_DASHBOARD_CATEGORIES = [
+    "offer_lock_missing",
+    "offer_lock_body_verbatim_missing",
+    "cta_lock_not_used_exactly_once",
+    "cta_near_match_detected",
+    "additional_cta_detected",
+    "internal_leakage_term",
+    "unsubstantiated_claim",
+    "unsubstantiated_statistical_claim",
+    "unsubstantiated_performance_claim",
+    "cash_equivalent_cta_detected",
+    "banned_phrase",
+    "greeting_missing_or_invalid",
+    "greeting_first_name_mismatch",
+    "greeting_not_first_name_only",
+    "prospect_reference_missing",
+    "template_placeholders_present",
+    "invalid_output_format",
+    "forbidden_other_product_mentioned",
+    "length_out_of_range",
+]
+
+
+@router.get("/compliance/dashboard", response_model=ComplianceDashboardResponse)
+async def compliance_dashboard(
+    days: int = Query(default=1, ge=1, le=3, description="Number of days of history (1-3)"),
+) -> ComplianceDashboardResponse:
+    redis = get_redis()
+    now_utc = datetime.now(timezone.utc)
+    result_days: list[ComplianceDashboardDay] = []
+
+    for offset in range(days):
+        target_day = (now_utc - timedelta(days=offset)).strftime("%Y%m%d")
+        buckets: list[ComplianceViolationBucket] = []
+        day_total = 0
+
+        for category in _DASHBOARD_CATEGORIES:
+            global_key = f"web_mvp:compliance:violation:{category}:{target_day}"
+            remix_key = f"web_mvp:compliance:violation:remix:{category}:{target_day}"
+            preview_key = f"web_mvp:compliance:violation:preview:{category}:{target_day}"
+
+            total = int(await redis.get(global_key) or "0")
+            if total == 0:
+                continue
+            remix_count = int(await redis.get(remix_key) or "0")
+            preview_count = int(await redis.get(preview_key) or "0")
+            buckets.append(
+                ComplianceViolationBucket(
+                    violation_type=category,
+                    total=total,
+                    remix=remix_count,
+                    preview=preview_count,
+                )
+            )
+            day_total += total
+
+        result_days.append(
+            ComplianceDashboardDay(
+                date=target_day,
+                buckets=sorted(buckets, key=lambda b: b.total, reverse=True),
+                total_violations=day_total,
+            )
+        )
+
+    return ComplianceDashboardResponse(
+        days=result_days,
+        generated_at=now_utc.isoformat().replace("+00:00", "Z"),
+    )

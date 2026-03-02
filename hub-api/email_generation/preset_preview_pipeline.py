@@ -22,6 +22,15 @@ from api.schemas import (
     WebPreviewPresetInput,
     WebSummaryPack,
 )
+from email_generation.compliance_rules import (
+    _CASH_CTA_PATTERN,
+    _GUARANTEED_CLAIM_PATTERN,
+    _ABSOLUTE_REVENUE_PATTERN,
+    _STAT_CLAIM_PATTERN,
+    _NO_LEAKAGE_TERMS,
+    _collapse_ws,
+    _contains_term,
+)
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -36,24 +45,31 @@ Rules:
 - Do not use placeholder tokens like [Name] or {Company}.
 - Output MUST match the JSON schema provided (Structured Outputs / strict)."""
 
-_GENERATOR_SYSTEM_PROMPT = """You are EmailDJ’s Preview Batch Generator. Generate send-ready outbound emails with strict cost control.
-Optimization priorities: (1) lowest total tokens, (2) fastest generation, (3) high-quality, credible copy.
-Rules:
-- NEVER output placeholders like [Name], [Company], {variable}.
-- If a value is missing, use a clean fallback (“Hi there,”).
+_GENERATOR_SYSTEM_PROMPT = """You are EmailDJ’s Preview Batch Generator. Generate send-ready outbound emails with strict CTCO compliance and cost control.
+Optimization priorities: (1) CTCO compliance, (2) lowest total tokens, (3) high-quality credible copy.
+
+HARD COMPLIANCE RULES (violations trigger regeneration):
+- OFFER LOCK: Pitch ONLY the product named in offer_lock. Never mention other products or services.
+- CTA LOCK: End EVERY email body with the exact text from cta_lock, used exactly once as its own line. No alternate asks.
+- LEAKAGE BAN: Never output these terms: emaildj, remix, mapping, template, templates, slider, sliders, prompt, prompts, llm, llms, openai, gemini, codex, generated, automation tooling.
+- GROUNDING: Only assert specific facts from summary_pack.facts. Frame all else as soft hypothesis or general pattern.
+- NO CASH CTAs: Never offer gift cards, Amazon cards, prepaid cards, cash rewards, or "$X gift".
+- NO FAKE STATISTICS: Do not include percentage improvements, ROI claims, or "proven"/"guaranteed" performance claims unless the exact figure appears in summary_pack.facts.
+- NEVER output placeholders like [Name], [Company], {variable}. Use clean fallbacks ('Hi there,') if a value is missing.
 - Do not mention you are an AI.
-- Only assert specific company/prospect facts that appear in summary_pack.facts.
-- Everything else must be framed as a general pattern or a soft hypothesis (no fake certainty).
-- Output MUST match the JSON schema (Structured Outputs / strict).
-Hard limits:
+
+HARD FORMAT LIMITS:
 - subject: <= 8 words
-- body: 90–130 words
+- body: 90-130 words total (including cta_lock line)
 - whyItWorks: exactly 3 bullets, each <= 12 words
-- vibeTags: 2–4 tags, each <= 18 characters
-Style rules:
-- No “hope you’re well”
+- vibeTags: 2-4 tags, each <= 18 characters
+
+STYLE RULES:
+- No "hope you’re well"
 - No exclamation marks
-- 1 clear CTA line at the end"""
+- Body must end with cta_lock as its own line
+
+Output MUST match the JSON schema (Structured Outputs / strict)."""
 
 _EXTRACTOR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -128,6 +144,11 @@ class PipelineResult:
     cache_hit: bool
     provider: str
     latency_ms: int
+    violations: list[str] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        if self.violations is None:
+            self.violations = []
 
 
 def _compact(value: Any) -> str:
@@ -336,7 +357,7 @@ def _mock_body(
         f"The practical win is improving first-touch relevance without slowing execution across active sequences. "
         f"If useful, I can walk through how this maps to your current outbound motion in a concrete, low-lift way."
     )
-    cta = f"Open to a {req.product_context.target_outcome} next week?"
+    cta = req.cta_lock
     return _fit_body_range(main_text=main, cta_line=cta)
 
 
@@ -432,6 +453,8 @@ def _summary_cache_key(req: WebPresetPreviewBatchRequest) -> str:
         "prospect": req.prospect.model_dump(),
         "product_context": req.product_context.model_dump(),
         "raw_research": req.raw_research.model_dump(),
+        "offer_lock": req.offer_lock,
+        "cta_lock": req.cta_lock,
     }
     raw = json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -491,6 +514,8 @@ def _generator_messages(
         "summary_pack": summary_pack.model_dump(),
         "global_sliders": req.global_sliders.model_dump(),
         "presets": [item.model_dump() for item in req.presets],
+        "offer_lock": req.offer_lock,
+        "cta_lock": req.cta_lock,
     }
     extra = ""
     if repair_notes:
@@ -580,10 +605,18 @@ def _sanitize_summary_pack(raw: dict[str, Any], req: WebPresetPreviewBatchReques
     return pack
 
 
-def _violation_messages(previews: list[WebPreviewItem]) -> list[str]:
+def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBatchRequest) -> list[str]:
     violations: list[str] = []
     seen_subjects: set[str] = set()
+
+    offer_lock_lower = _collapse_ws(req.offer_lock).lower()
+    cta_lock = _collapse_ws(req.cta_lock)
+    research_lower = _collapse_ws(
+        " ".join([req.raw_research.deep_research_paste, req.raw_research.company_notes or ""])
+    ).lower()
+
     for item in previews:
+        # --- Format / length checks (existing) ---
         subject_words = len(_to_words(item.subject))
         if subject_words > 8:
             violations.append(f"{item.preset_id}: subject exceeds 8 words")
@@ -606,6 +639,51 @@ def _violation_messages(previews: list[WebPreviewItem]) -> list[str]:
             if len(tag) > 18:
                 violations.append(f"{item.preset_id}: vibeTag exceeds 18 characters")
                 break
+
+        # --- CTCO-aligned checks (Batch 3 P2) ---
+        body_lower = _collapse_ws(item.body).lower()
+        body_lines = [_collapse_ws(line) for line in item.body.splitlines() if line.strip()]
+
+        # Offer lock must appear in body
+        if offer_lock_lower and offer_lock_lower not in body_lower:
+            violations.append(f"{item.preset_id}: offer_lock_missing")
+
+        # CTA lock must appear exactly once as a standalone line
+        cta_matches = sum(1 for line in body_lines if line == cta_lock)
+        if cta_matches != 1:
+            violations.append(f"{item.preset_id}: cta_lock_not_used_exactly_once")
+
+        # Leakage terms
+        for term in _NO_LEAKAGE_TERMS:
+            if _contains_term(body_lower, term):
+                violations.append(f"{item.preset_id}: internal_leakage_term:{term}")
+                break
+
+        # Cash-equivalent CTA
+        if _CASH_CTA_PATTERN.search(body_lower):
+            violations.append(f"{item.preset_id}: cash_equivalent_cta_detected")
+
+        # Unsubstantiated guaranteed/proven claims
+        for match in _GUARANTEED_CLAIM_PATTERN.finditer(body_lower):
+            claim = _collapse_ws(match.group(0))
+            if claim and claim not in research_lower:
+                violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
+                break
+
+        # Unsubstantiated stat claims (%, Nx)
+        for match in _STAT_CLAIM_PATTERN.finditer(body_lower):
+            claim = _collapse_ws(match.group(0))
+            if claim and claim not in research_lower:
+                violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
+                break
+
+        # Unsubstantiated absolute revenue claims
+        for match in _ABSOLUTE_REVENUE_PATTERN.finditer(body_lower):
+            claim = _collapse_ws(match.group(0))
+            if claim and claim not in research_lower:
+                violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
+                break
+
     return violations
 
 
@@ -634,7 +712,7 @@ def _normalize_preview_items(
         effective = _effective_sliders(req, preset)
         fallback_subject = _mock_subject(req.prospect.company or "Account", preset, index)
         subject = _normalize_subject(_compact(source.get("subject")), fallback_subject, used_subjects)
-        cta = f"Open to a {req.product_context.target_outcome} next week?"
+        cta = req.cta_lock
         draft_body = _compact(source.get("body")) or _mock_body(req, summary_pack, preset, index)
         body = _fit_body_range(main_text=draft_body.replace("?", "."), cta_line=cta)
 
@@ -695,6 +773,8 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
             summary_pack = _mock_summary_pack(req)
         await _save_cached_summary(req, summary_pack)
 
+    all_violations: list[str] = []
+
     if _quick_mode() == "real":
         provider = "openai"
         raw = await _openai_structured_json(
@@ -705,7 +785,8 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
         )
         raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
         previews = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items if isinstance(raw_items, list) else [])
-        violations = _violation_messages(previews)
+        violations = _violation_messages(previews, req)
+        all_violations.extend(violations)
         if violations and not throttled:
             repaired_raw = await _openai_structured_json(
                 messages=_generator_messages(req, summary_pack, repair_notes=violations[:10]),
@@ -719,6 +800,8 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
                 summary_pack=summary_pack,
                 raw_items=repaired_items if isinstance(repaired_items, list) else [],
             )
+            final_violations = _violation_messages(previews, req)
+            all_violations.extend(final_violations)
     else:
         previews = _mock_previews(req, summary_pack)
 
@@ -729,6 +812,7 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
         cache_hit=cache_hit,
         provider=provider,
         latency_ms=latency_ms,
+        violations=all_violations,
     )
 
 

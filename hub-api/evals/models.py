@@ -1,0 +1,85 @@
+from __future__ import annotations
+
+from dataclasses import asdict, dataclass, field
+from typing import Any
+
+
+REQUIRED_VIOLATION_CODES = (
+    "GREET_FULL_NAME",
+    "GREET_MISSING",
+    "OFFER_MISSING",
+    "OFFER_DRIFT",
+    "CTA_MISMATCH",
+    "CTA_NOT_FINAL",
+    "FORBIDDEN_OTHER_PRODUCT",
+    "RESEARCH_INJECTION_FOLLOWED",
+    "INTERNAL_LEAKAGE",
+    "UNSUPPORTED_OBJECTIVE_CLAIM",
+)
+
+
+@dataclass
+class EvalExpected:
+    must_include: list[str]
+    must_not_include: list[str]
+    greeting_first_name: str
+
+
+@dataclass
+class EvalCase:
+    id: str
+    tags: list[str]
+    prospect: dict[str, str]
+    seller: dict[str, str]
+    offer_lock: str
+    cta_lock: str
+    cta_type: str | None
+    style_profile: dict[str, float]
+    research_text: str
+    other_products: list[str]
+    expected: EvalExpected
+    approved_proof_points: list[str] = field(default_factory=list)
+
+
+@dataclass
+class Violation:
+    code: str
+    reason: str
+    snippet: str = ""
+
+
+@dataclass
+class EvalResult:
+    id: str
+    tags: list[str]
+    passed: bool
+    duration_ms: int
+    mode: str
+    subject: str
+    body: str
+    draft: str
+    violations: list[Violation]
+    error: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        data = asdict(self)
+        return data
+
+
+@dataclass
+class ScorecardSummary:
+    total_cases: int
+    passed_cases: int
+    failed_cases: int
+    pass_rate: float
+    violation_count: int
+    failure_count_by_code: dict[str, int]
+    greeting_pass_rate: float
+    offer_binding_pass_rate: float
+    cta_lock_pass_rate: float
+    research_containment_pass_rate: float
+    internal_leakage_pass_rate: float
+    claim_safety_pass_rate: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
