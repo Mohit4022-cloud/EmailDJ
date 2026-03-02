@@ -1,6 +1,8 @@
 import { consumeStream, generateDraft, remixDraft, sendFeedback } from './api/client.js';
 import { EmailEditor } from './components/EmailEditor.js';
+import { SDRPresetLibrary, presetToSliderState } from './components/SDRPresetLibrary.js';
 import { SliderBoard } from './components/SliderBoard.js';
+import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
 import { debounce } from './utils.js';
 
@@ -76,6 +78,7 @@ class WebApp {
           <div class="actions">
             <button class="btn-primary" id="generateBtn">Generate</button>
             <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
+            <div id="presetLibraryMount"></div>
           </div>
           <div class="status" id="statusLine"></div>
         </section>
@@ -91,6 +94,7 @@ class WebApp {
     this.generateBtn = this.root.querySelector('#generateBtn');
     this.saveRemixBtn = this.root.querySelector('#saveRemixBtn');
     this.betaKeyInput = this.root.querySelector('#betaKey');
+    this.presetLibraryMount = this.root.querySelector('#presetLibraryMount');
     this.sellerCompanyNameInput = this.root.querySelector('#sellerCompanyName');
     this.sellerCompanyUrlInput = this.root.querySelector('#sellerCompanyUrl');
     this.sellerCurrentProductInput = this.root.querySelector('#sellerCurrentProduct');
@@ -99,6 +103,10 @@ class WebApp {
 
     this.editor = new EmailEditor(this.root.querySelector('#editorMount'));
     this.sliderBoard = new SliderBoard(this.root.querySelector('#sliderBoard'), () => this.onSlidersChanged());
+    this.presetLibrary = new SDRPresetLibrary(this.presetLibraryMount, {
+      presets: SDR_PRESETS,
+      onSelectPreset: (preset) => this.applyPreset(preset),
+    });
 
     this.seedBetaKey();
     this.seedCompanyContext();
@@ -119,6 +127,16 @@ class WebApp {
     }
 
     this.setStatus('Ready. Fill inputs and click Generate.');
+  }
+
+  applyPreset(preset) {
+    if (!preset) return;
+    this.sliderBoard.setValues(presetToSliderState(preset), { emit: true });
+    if (!this.sessionId) {
+      this.setStatus(`Preset selected: ${preset.name}. Click Generate to create a draft.`);
+      return;
+    }
+    this.setStatus(`Preset selected: ${preset.name}. Remixing...`, true);
   }
 
   seedBetaKey() {
