@@ -19,6 +19,27 @@ permissions:
   actions: read
 
 jobs:
+  doc-freshness:
+    name: Doc Freshness Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: Check doc freshness
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python hub-api/scripts/doc_freshness_check.py \
+              --base ${{ github.event.pull_request.base.sha }} \
+              --head ${{ github.sha }}
+          else
+            python hub-api/scripts/doc_freshness_check.py --head HEAD --warn-only
+          fi
+
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -34,6 +55,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Fetch PR base ref for doc freshness
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+
+      - name: Doc freshness gate (coverage + ADR)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 scripts/docops/check_doc_freshness.py --base "origin/${{ github.base_ref }}" --head HEAD
+          else
+            python3 scripts/docops/check_doc_freshness.py --head HEAD
+          fi
+
+      - name: Generated docs freshness gate
+        run: |
+          python3 scripts/docops/generate_docs.py --check --write-patch /tmp/docops-generated.patch
+
+      - name: Upload generated docs patch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docops-generated-patch
+          if-no-files-found: ignore
+          path: /tmp/docops-generated.patch
 
       - name: Install backend deps
         working-directory: hub-api

@@ -116,13 +116,22 @@ export async function consumeStream(requestId, onEvent) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let lastSequence = -1;
   const drainBlocks = () => {
     let idx;
     while ((idx = buffer.indexOf('\n\n')) !== -1) {
       const block = buffer.slice(0, idx);
       buffer = buffer.slice(idx + 2);
       if (!block.trim()) continue;
-      onEvent(parseSseBlock(block));
+      const parsed = parseSseBlock(block);
+      if (parsed.event === 'token') {
+        const seq = parsed.data?.sequence;
+        if (typeof seq === 'number') {
+          if (seq <= lastSequence) continue; // duplicate or out-of-order
+          lastSequence = seq;
+        }
+      }
+      onEvent(parsed);
     }
   };
 
@@ -132,7 +141,15 @@ export async function consumeStream(requestId, onEvent) {
       buffer += decoder.decode();
       buffer = buffer.replace(/\r\n/g, '\n');
       drainBlocks();
-      if (buffer.trim()) onEvent(parseSseBlock(buffer));
+      if (buffer.trim()) {
+        const parsed = parseSseBlock(buffer);
+        if (parsed.event === 'token') {
+          const seq = parsed.data?.sequence;
+          if (typeof seq !== 'number' || seq > lastSequence) onEvent(parsed);
+        } else {
+          onEvent(parsed);
+        }
+      }
       break;
     }
     buffer += decoder.decode(value, { stream: true });

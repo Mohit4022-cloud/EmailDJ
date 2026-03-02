@@ -1378,3 +1378,121 @@ Approval request contract now requires `approval_reason` and approver identity h
 No SSE event schema changes.
 
 ---
+
+## Entry 014 — 2026-03-02 | PROGRESS: End-to-End Email Generation Audit — All 10 Fixes Implemented
+
+**Date:** 2026-03-02
+**Type:** PROGRESS
+**Author:** AI-assisted (Claude Sonnet 4.6)
+**Previous Entry:** Entry 013 — 2026-03-01 | PROGRESS: TASK-003 VP Approval Gate Hardening + Audit Trail
+
+---
+
+### Original Plan Reference
+
+EmailDJ's founding vision (Entry 001) specifies a Hub API that enforces output quality via a validation-and-repair loop (CTCO compliance, PII defense, tone scoring) and a Chrome Extension Side Panel that presents clean, ready-to-send email drafts to the SDR. The email generation pipeline was scaffolded in Entry 001 but contained no production logic. This session is the first major quality hardening pass on that pipeline.
+
+---
+
+### Scope
+
+A full audit of the email generation pipeline identified 10 defects spanning output quality, UI state, prompt hygiene, and SSE reliability. All 10 fixes were implemented in this session across the Hub API (Python) and the Chrome Extension and Web App (JavaScript).
+
+---
+
+### Changes by File
+
+#### `hub-api/email_generation/compliance_rules.py`
+- Added `_META_COMMENTARY_PATTERN`: compiled regex that matches sentences where the LLM narrates its own output (e.g., "Here is a draft email", "I've written this to..."). Used as a compliance violation trigger.
+- Added `_GENERIC_CLOSER_PATTERNS`: list of compiled regexes matching boilerplate sign-off phrases (e.g., "Looking forward to connecting", "Feel free to reach out"). Used to strip padding before and after repair loops.
+
+#### `hub-api/email_generation/output_enforcement.py`
+- Added `remove_generic_closers()`: filters body sentences against `_GENERIC_CLOSER_PATTERNS` imported from compliance_rules. Called post-composition.
+- Capped `long_mode_section_pool` return to `sanitized[:2]` to prevent the section pool from contributing more than two blocks to a single email body.
+- Added post-composition deduplication in `compose_body_without_padding_loops`: calls `dedupe_sentence_list` and then `cap_repeated_ngrams(max_count=1)` to eliminate n-gram repetition that accumulates across section appends.
+- Added import of `_GENERIC_CLOSER_PATTERNS` from compliance_rules.
+
+#### `hub-api/email_generation/remix_engine.py`
+- Added `_sanitize_prior_draft()`: internal function that runs deduplication, removes generic closers, and strips meta-commentary sentences from the candidate prior draft before it is re-injected as `PRIOR_DRAFT_FOR_REPAIR`. Prevents repair loops from inheriting the worst artifacts of the previous attempt.
+- Wired `_sanitize_prior_draft()` into `_build_real_draft` at both points where `prior_draft = candidate` is assigned.
+- Added `_META_COMMENTARY_PATTERN` import from compliance_rules.
+- Added meta-commentary violation check in `validate_ctco_output`: any sentence matching the pattern fails validation and triggers a repair cycle with a targeted feedback message.
+- Added `offer_drift_keyword_overlap_low` check: after the existing `offer_lock_body_verbatim_missing` check, computes keyword overlap between the locked offer text and the generated body; fails if overlap is below threshold.
+- Updated `_validation_feedback` with repair instructions for both new violation types.
+- Imported `dedupe_sentences_text` and `remove_generic_closers` from output_enforcement.
+- Renamed `PRIOR_DRAFT_FOR_REMIX` to `PRIOR_DRAFT_FOR_REPAIR` throughout (aligns with prompt_templates.py rename).
+
+#### `hub-api/email_generation/prompt_templates.py`
+- Renamed research field label from `RESEARCH_CONTEXT` to `RESEARCH_CONTEXT (for background only — do not pitch)` to prevent the LLM from directly pitching research bullet points as email body claims.
+- Added dynamic long-mode anti-repetition instruction: when `style_bands` indicates a short-to-long word target of 110 words or more, an additional constraint is injected into the generation prompt explicitly prohibiting sentence-level or clause-level repetition.
+- Added constraint 10 in the system message: instructs the LLM never to produce meta-commentary sentences describing what the email does or how it was written.
+- Updated system message to explicitly forbid compliance self-reference (the LLM referencing its own rules or constraints in the output).
+- Renamed `PRIOR_DRAFT_FOR_REMIX` placeholder to `PRIOR_DRAFT_FOR_REPAIR`.
+
+#### `hub-api/main.py`
+- Added `APP_ENV` guard in `_validate_env()`: if `APP_ENV` is `staging` or `prod` and the generation mode is `mock`, logs a `WARNING` at startup. Prevents silent mock output leaking into live environments.
+
+#### `hub-api/email_generation/quick_generate.py`
+- Added `[MOCK DRAFT]` prefix to the subject line of all mock-mode email outputs, making mock responses visually distinguishable in any environment.
+
+#### `chrome-extension/src/side-panel/components/EmailEditor.js`
+- Added `clear()` method: resets editor content to empty and hides action buttons. Required by the retry flow.
+
+#### `chrome-extension/src/side-panel/hub-client.js`
+- Dispatch `emailRetry` CustomEvent before each retry attempt, allowing UI components to listen and reset state.
+- Added `lastSequence` tracking in `consumeStream`: SSE token events with a sequence number less than or equal to the last seen sequence are dropped, preventing duplicate or out-of-order token rendering during retries or reconnects.
+
+#### `chrome-extension/src/side-panel/components/QuickGenerate.js`
+- Added `emailRetry` event listener: calls `editor.clear()` and resets component state to `'generating'` on each retry, ensuring the editor does not display stale partial drafts from the previous attempt.
+
+#### `web-app/src/api/client.js`
+- Added `lastSequence` tracking in `consumeStream` (mirrors the hub-client.js fix): skips duplicate SSE token events and handles the final buffer drain at stream end.
+
+---
+
+### Fix Index
+
+| # | Name | Location(s) | Description |
+|---|------|-------------|-------------|
+| 1 | Sanitize prior_draft | remix_engine.py | Strip dedup + closers + meta-commentary from prior draft before repair re-injection |
+| 2 | Editor clear on retry | hub-client.js, QuickGenerate.js, EmailEditor.js | `emailRetry` event clears editor and resets UI state on each retry |
+| 3 | Meta-commentary rule | compliance_rules.py, remix_engine.py | Pattern + validator + repair instruction blocks LLM self-narration |
+| 4 | Section pool cap | output_enforcement.py | Cap long-mode section pool to 2 blocks; post-composition n-gram dedup |
+| 5 | APP_ENV mock guard | main.py, quick_generate.py | Startup warning if mock mode active in staging/prod; `[MOCK DRAFT]` prefix |
+| 6 | Research label | prompt_templates.py | Relabeled "for background only" to block direct research pitching |
+| 7 | Long-mode anti-repetition | prompt_templates.py | Dynamic constraint injected when word target >= 110 |
+| 8 | Semantic offer drift | remix_engine.py | Keyword overlap check fails validation if offer language drifts |
+| 9 | Generic closer patterns | compliance_rules.py, output_enforcement.py | Pattern list + removal function strip boilerplate sign-offs |
+| 10 | SSE sequence dedup | hub-client.js, web-app/client.js | `lastSequence` guard drops duplicate/out-of-order SSE token events |
+
+---
+
+### Alignment with Original Plan
+
+This session is fully aligned with the founding vision. Entry 001 defined the CTCO validation-and-repair loop, output quality enforcement, and the Side Panel UI as core components. These 10 fixes harden all three: the repair loop now sanitizes its own inputs (Fix 1, 3, 8), output enforcement is tighter (Fix 4, 9), prompt hygiene is improved (Fix 6, 7), the UI correctly reflects retry state (Fix 2), environment safety is improved (Fix 5), and SSE stream reliability is addressed (Fix 10). No architectural changes were made — this is a quality hardening pass within the existing design.
+
+---
+
+### What's Next
+
+- Run full integration suite to confirm all 10 fixes do not break existing CTCO compliance tests: `pytest -q hub-api/tests/`
+- Manual end-to-end test in the Chrome Extension: trigger a generation, force a retry, confirm editor clears correctly.
+- Consider adding a unit test for `_sanitize_prior_draft()` in `hub-api/tests/unit/`.
+- Consider adding a unit test for `remove_generic_closers()` in `hub-api/tests/unit/`.
+- Monitor offer drift threshold in staging — the `offer_drift_keyword_overlap_low` check threshold may need tuning based on observed failure rates.
+
+---
+
+### Tags
+
+email-generation, output-quality, compliance, ctco, remix-engine, prompt-engineering, sse, chrome-extension, hub-api, audit, hardening, deduplication, meta-commentary, offer-drift, retry-ui
+
+---
+
+### AI-Readable Summary
+
+Project: EmailDJ. Stack: Chrome Extension (MV3, Vite, vanilla JS) + Hub API (FastAPI, LangGraph, LangChain, Redis, Pinecone, Presidio). Phase: First quality hardening pass on the email generation pipeline following full scaffolding (Entry 001). Session: Implemented all 10 fixes from an internal audit of the end-to-end generation path. Key changes: (1) `_sanitize_prior_draft()` in remix_engine.py strips dedup/closers/meta-commentary before repair loop re-injection; (2) `emailRetry` CustomEvent wired through hub-client.js and handled in QuickGenerate.js with `editor.clear()` to reset UI on retry; (3) `_META_COMMENTARY_PATTERN` added to compliance_rules.py, validated in remix_engine.py, with repair instruction in `_validation_feedback`; (4) `long_mode_section_pool` capped at 2 sections; post-composition n-gram dedup via `cap_repeated_ngrams(max_count=1)`; (5) APP_ENV guard in main.py warns if mock mode active in staging/prod; `[MOCK DRAFT]` prefix in quick_generate.py; (6) research field relabeled in prompt_templates.py to prevent direct pitching; (7) dynamic long-mode anti-repetition instruction injected when word target >= 110; (8) `offer_drift_keyword_overlap_low` keyword overlap check added to validate_ctco_output; (9) `_GENERIC_CLOSER_PATTERNS` and `remove_generic_closers()` strip boilerplate sign-offs; (10) `lastSequence` guard in hub-client.js and web-app/client.js drops duplicate SSE tokens. No architecture changes. All fixes are additive within existing module boundaries. Next actions: run full test suite, manual retry flow verification, consider unit tests for new pure functions, tune offer drift threshold in staging.
+
+---
+
+---

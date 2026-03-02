@@ -107,6 +107,45 @@ _STAT_CLAIM_PATTERN = re.compile(
 )
 
 # ---------------------------------------------------------------------------
+# Meta-commentary patterns — sentences where the model describes the email's
+# own compliance or construction (should never appear in final output)
+# ---------------------------------------------------------------------------
+
+_META_COMMENTARY_PATTERN = re.compile(
+    r"\b(?:"
+    r"this\s+email|"
+    r"this\s+keeps|"
+    r"this\s+message|"
+    r"this\s+draft|"
+    r"this\s+outreach|"
+    r"as\s+requested|"
+    r"per\s+your\s+instructions?|"
+    r"following\s+all|"
+    r"in\s+compliance\s+with|"
+    r"i\s+followed|"
+    r"i've?\s+followed"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# ---------------------------------------------------------------------------
+# Generic closer patterns — boilerplate AI sign-off / closing phrases that
+# dilute credibility and should be stripped from output
+# ---------------------------------------------------------------------------
+
+_GENERIC_CLOSER_PATTERNS = [
+    re.compile(r"\bi\s+look\s+forward\s+to\b", re.IGNORECASE),
+    re.compile(r"\bi\s+hope\s+this\s+(?:message\s+)?finds\s+you\b", re.IGNORECASE),
+    re.compile(r"\bbest\s+regards\b", re.IGNORECASE),
+    re.compile(r"\bkind\s+regards\b", re.IGNORECASE),
+    re.compile(r"\bthis\s+keeps\s+messaging\b", re.IGNORECASE),
+    re.compile(r"\beasy\s+for\s+your\s+team\s+to\s+action\b", re.IGNORECASE),
+    re.compile(r"\brelevant[,\s]+credible\b", re.IGNORECASE),
+    re.compile(r"\bfeel\s+free\s+to\s+(?:reach\s+out|contact)\b", re.IGNORECASE),
+    re.compile(r"\bdon'?t\s+hesitate\s+to\s+(?:contact|reach)\b", re.IGNORECASE),
+]
+
+# ---------------------------------------------------------------------------
 # Shared helper functions
 # ---------------------------------------------------------------------------
 

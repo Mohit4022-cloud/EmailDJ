@@ -1,6 +1,6 @@
 # Lock Compliance Scorecard
 
-- Generated at: `2026-03-02T05:49:15.611800Z`
+- Generated at: `2026-03-02T15:41:38.681200Z`
 - Mode: `mock`
 - Selection: `smoke`
 - Tags: `(none)`
@@ -29,27 +29,30 @@
 | Metric | Value |
 |---|---:|
 | Enabled | True |
-| Model | `gpt-4.1-nano` |
+| Model | `gpt-4.1-mini` |
 | Mode | `mock` |
+| Schema version | `judge_output_v2` |
 | Evaluated cases | 5 |
 | Skipped (hard fail) | 0 |
 | Passed | 4 |
 | Failed | 1 |
 | Pass rate | 80.00% |
-| Mean overall | 4.48 |
-| Mean credibility | 4.00 |
+| Mean overall | 3.93 |
+| Mean credibility | 3.40 |
 | Threshold overall | 3.80 |
-| Threshold credibility | 5.00 |
-| Cache hits | 5 / 5 |
-| Cache hit rate | 100.00% |
-| Prompt contract hash | `f6ef78be73fa1a81` |
-| Calibration examples | 20 |
+| Threshold credibility | 4.00 |
+| Cache hits | 0 / 5 |
+| Cache hit rate | 0.00% |
+| Prompt contract hash | `db2b6d42ed326b68` |
+| Calibration examples | 60 |
 | Calibration pass/fail agreement | 1.0 |
-| Calibration rank correlation | 0.7906 |
+| Calibration rank correlation | 0.7746 |
 
 ## Top Recurring Quality Failures
 
+- `auto_fail_overclaim_present` x1
 - `auto_fail_guaranteed_outcome` x1
+- `clarity_violation_detected` x1
 
 ## Per-test Results
 
@@ -58,10 +61,10 @@
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_first_last, cta_15_min_chat, offer_brand_protection`
 - Judge status: `scored`
 - Judge pass/fail: `pass`
-- Judge overall: `4.68`
-- Judge flags: `(none)`
+- Judge overall: `4.05`
+- Judge flags: `clarity_violation_detected`
 - Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Judge rationale: Credibility scored 5/5 with emphasis on claim safety.
+- Judge rationale: Credibility scored 4/5 with emphasis on claim safety.
 - Judge rationale: CTA quality scored 5/5 based on final ask precision.
 
 ### lc_007 - PASS
@@ -69,10 +72,10 @@
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_first_last, cta_15_min_chat, offer_sequence_governance`
 - Judge status: `scored`
 - Judge pass/fail: `pass`
-- Judge overall: `4.68`
-- Judge flags: `(none)`
+- Judge overall: `4.05`
+- Judge flags: `clarity_violation_detected`
 - Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Judge rationale: Credibility scored 5/5 with emphasis on claim safety.
+- Judge rationale: Credibility scored 4/5 with emphasis on claim safety.
 - Judge rationale: CTA quality scored 5/5 based on final ask precision.
 
 ### lc_013 - PASS
@@ -80,10 +83,10 @@
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_first_last, cta_15_min_chat, offer_inbox_placement_audit`
 - Judge status: `scored`
 - Judge pass/fail: `pass`
-- Judge overall: `4.68`
-- Judge flags: `(none)`
+- Judge overall: `4.05`
+- Judge flags: `clarity_violation_detected`
 - Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Judge rationale: Credibility scored 5/5 with emphasis on claim safety.
+- Judge rationale: Credibility scored 4/5 with emphasis on claim safety.
 - Judge rationale: CTA quality scored 5/5 based on final ask precision.
 
 ### lc_019 - PASS
@@ -91,10 +94,10 @@
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_first_last, cta_15_min_chat, offer_compliance_qa`
 - Judge status: `scored`
 - Judge pass/fail: `pass`
-- Judge overall: `4.68`
-- Judge flags: `(none)`
+- Judge overall: `4.05`
+- Judge flags: `clarity_violation_detected`
 - Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Judge rationale: Credibility scored 5/5 with emphasis on claim safety.
+- Judge rationale: Credibility scored 4/5 with emphasis on claim safety.
 - Judge rationale: CTA quality scored 5/5 based on final ask precision.
 
 ### lc_025 - PASS
@@ -102,13 +105,13 @@
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_first_last, cta_15_min_chat, offer_brand_protection`
 - Judge status: `scored`
 - Judge pass/fail: `fail`
-- Judge overall: `3.68`
-- Judge flags: `auto_fail_guaranteed_outcome`
+- Judge overall: `3.45`
+- Judge flags: `auto_fail_overclaim_present, auto_fail_guaranteed_outcome, clarity_violation_detected`
 - Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Judge rationale: Credibility scored 0/5 with emphasis on claim safety.
+- Judge rationale: Credibility scored 1/5 with emphasis on claim safety.
 - Judge rationale: CTA quality scored 5/5 based on final ask precision.
 - Repair CREDIBILITY_OVERCLAIM: Rewrite claims with hedged language and remove unsupported numbers or guarantees.
 - Action: CREDIBILITY_OVERCLAIM: Rewrite claims with hedged language and remove unsupported numbers or guarantees.
+- Action: Quality flag `auto_fail_overclaim_present` triggered.
 - Action: Quality flag `auto_fail_guaranteed_outcome` triggered.
-- Action: Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.
-- Action: Judge rationale: Credibility scored 0/5 with emphasis on claim safety.
+- Action: Quality flag `clarity_violation_detected` triggered.

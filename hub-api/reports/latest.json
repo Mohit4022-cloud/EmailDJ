@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-02T05:49:15.611800Z",
+  "generated_at": "2026-03-02T15:41:38.681200Z",
   "mode": "mock",
   "selection": {
     "selection_mode": "smoke",
@@ -57,51 +57,66 @@
       },
       "judge": {
         "status": "scored",
-        "judge_model": "gpt-4.1-nano",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-mini",
         "judge_mode": "mock",
-        "prompt_contract_hash": "f6ef78be73fa1a81",
+        "prompt_contract_hash": "db2b6d42ed326b68",
         "content_hash": "48c26c875102ab6a",
-        "cache_hit": true,
+        "cache_hit": false,
         "samples": [
           {
             "scores": {
               "relevance_to_prospect": 4,
-              "clarity_and_structure": 5,
-              "credibility_no_overclaim": 5,
+              "clarity_and_structure": 2,
+              "credibility_no_overclaim": 4,
               "personalization_quality": 4,
               "cta_quality": 5,
               "tone_match": 5,
-              "conciseness_signal_density": 5,
+              "conciseness_signal_density": 4,
               "value_prop_specificity": 5
             },
-            "overall": 4.68,
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": true
+            },
+            "overall": 4.05,
             "pass_fail": "pass",
             "rationale_bullets": [
               "Relevance scored 4/5 based on prospect and offer alignment.",
-              "Credibility scored 5/5 with emphasis on claim safety.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
               "CTA quality scored 5/5 based on final ask precision."
             ],
-            "flags": []
+            "flags": [
+              "clarity_violation_detected"
+            ]
           }
         ],
         "scores": {
           "relevance_to_prospect": 4,
-          "clarity_and_structure": 5,
-          "credibility_no_overclaim": 5,
+          "clarity_and_structure": 2,
+          "credibility_no_overclaim": 4,
           "personalization_quality": 4,
           "cta_quality": 5,
           "tone_match": 5,
-          "conciseness_signal_density": 5,
+          "conciseness_signal_density": 4,
           "value_prop_specificity": 5
         },
-        "overall": 4.68,
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": true
+        },
+        "overall": 4.05,
         "pass_fail": "pass",
         "rationale_bullets": [
           "Relevance scored 4/5 based on prospect and offer alignment.",
-          "Credibility scored 5/5 with emphasis on claim safety.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
           "CTA quality scored 5/5 based on final ask precision."
         ],
-        "flags": [],
+        "flags": [
+          "clarity_violation_detected"
+        ],
         "sample_count": 1,
         "repair_actions": []
       },
@@ -144,51 +159,66 @@
       },
       "judge": {
         "status": "scored",
-        "judge_model": "gpt-4.1-nano",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-mini",
         "judge_mode": "mock",
-        "prompt_contract_hash": "f6ef78be73fa1a81",
+        "prompt_contract_hash": "db2b6d42ed326b68",
         "content_hash": "c4b75c7f72db6c65",
-        "cache_hit": true,
+        "cache_hit": false,
         "samples": [
           {
             "scores": {
               "relevance_to_prospect": 4,
-              "clarity_and_structure": 5,
-              "credibility_no_overclaim": 5,
+              "clarity_and_structure": 2,
+              "credibility_no_overclaim": 4,
               "personalization_quality": 4,
               "cta_quality": 5,
               "tone_match": 5,
-              "conciseness_signal_density": 5,
+              "conciseness_signal_density": 4,
               "value_prop_specificity": 5
             },
-            "overall": 4.68,
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": true
+            },
+            "overall": 4.05,
             "pass_fail": "pass",
             "rationale_bullets": [
               "Relevance scored 4/5 based on prospect and offer alignment.",
-              "Credibility scored 5/5 with emphasis on claim safety.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
               "CTA quality scored 5/5 based on final ask precision."
             ],
-            "flags": []
+            "flags": [
+              "clarity_violation_detected"
+            ]
           }
         ],
         "scores": {
           "relevance_to_prospect": 4,
-          "clarity_and_structure": 5,
-          "credibility_no_overclaim": 5,
+          "clarity_and_structure": 2,
+          "credibility_no_overclaim": 4,
           "personalization_quality": 4,
           "cta_quality": 5,
           "tone_match": 5,
-          "conciseness_signal_density": 5,
+          "conciseness_signal_density": 4,
           "value_prop_specificity": 5
         },
-        "overall": 4.68,
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": true
+        },
+        "overall": 4.05,
         "pass_fail": "pass",
         "rationale_bullets": [
           "Relevance scored 4/5 based on prospect and offer alignment.",
-          "Credibility scored 5/5 with emphasis on claim safety.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
           "CTA quality scored 5/5 based on final ask precision."
         ],
-        "flags": [],
+        "flags": [
+          "clarity_violation_detected"
+        ],
         "sample_count": 1,
         "repair_actions": []
       },
@@ -231,51 +261,66 @@
       },
       "judge": {
         "status": "scored",
-        "judge_model": "gpt-4.1-nano",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-mini",
         "judge_mode": "mock",
-        "prompt_contract_hash": "f6ef78be73fa1a81",
+        "prompt_contract_hash": "db2b6d42ed326b68",
         "content_hash": "55561aae161c7d71",
-        "cache_hit": true,
+        "cache_hit": false,
         "samples": [
           {
             "scores": {
               "relevance_to_prospect": 4,
-              "clarity_and_structure": 5,
-              "credibility_no_overclaim": 5,
+              "clarity_and_structure": 2,
+              "credibility_no_overclaim": 4,
               "personalization_quality": 4,
               "cta_quality": 5,
               "tone_match": 5,
-              "conciseness_signal_density": 5,
+              "conciseness_signal_density": 4,
               "value_prop_specificity": 5
             },
-            "overall": 4.68,
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": true
+            },
+            "overall": 4.05,
             "pass_fail": "pass",
             "rationale_bullets": [
               "Relevance scored 4/5 based on prospect and offer alignment.",
-              "Credibility scored 5/5 with emphasis on claim safety.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
               "CTA quality scored 5/5 based on final ask precision."
             ],
-            "flags": []
+            "flags": [
+              "clarity_violation_detected"
+            ]
           }
         ],
         "scores": {
           "relevance_to_prospect": 4,
-          "clarity_and_structure": 5,
-          "credibility_no_overclaim": 5,
+          "clarity_and_structure": 2,
+          "credibility_no_overclaim": 4,
           "personalization_quality": 4,
           "cta_quality": 5,
           "tone_match": 5,
-          "conciseness_signal_density": 5,
+          "conciseness_signal_density": 4,
           "value_prop_specificity": 5
         },
-        "overall": 4.68,
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": true
+        },
+        "overall": 4.05,
         "pass_fail": "pass",
         "rationale_bullets": [
           "Relevance scored 4/5 based on prospect and offer alignment.",
-          "Credibility scored 5/5 with emphasis on claim safety.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
           "CTA quality scored 5/5 based on final ask precision."
         ],
-        "flags": [],
+        "flags": [
+          "clarity_violation_detected"
+        ],
         "sample_count": 1,
         "repair_actions": []
       },
@@ -318,51 +363,66 @@
       },
       "judge": {
         "status": "scored",
-        "judge_model": "gpt-4.1-nano",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-mini",
         "judge_mode": "mock",
-        "prompt_contract_hash": "f6ef78be73fa1a81",
+        "prompt_contract_hash": "db2b6d42ed326b68",
         "content_hash": "ff88dda241425b71",
-        "cache_hit": true,
+        "cache_hit": false,
         "samples": [
           {
             "scores": {
               "relevance_to_prospect": 4,
-              "clarity_and_structure": 5,
-              "credibility_no_overclaim": 5,
+              "clarity_and_structure": 2,
+              "credibility_no_overclaim": 4,
               "personalization_quality": 4,
               "cta_quality": 5,
               "tone_match": 5,
-              "conciseness_signal_density": 5,
+              "conciseness_signal_density": 4,
               "value_prop_specificity": 5
             },
-            "overall": 4.68,
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": true
+            },
+            "overall": 4.05,
             "pass_fail": "pass",
             "rationale_bullets": [
               "Relevance scored 4/5 based on prospect and offer alignment.",
-              "Credibility scored 5/5 with emphasis on claim safety.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
               "CTA quality scored 5/5 based on final ask precision."
             ],
-            "flags": []
+            "flags": [
+              "clarity_violation_detected"
+            ]
           }
         ],
         "scores": {
           "relevance_to_prospect": 4,
-          "clarity_and_structure": 5,
-          "credibility_no_overclaim": 5,
+          "clarity_and_structure": 2,
+          "credibility_no_overclaim": 4,
           "personalization_quality": 4,
           "cta_quality": 5,
           "tone_match": 5,
-          "conciseness_signal_density": 5,
+          "conciseness_signal_density": 4,
           "value_prop_specificity": 5
         },
-        "overall": 4.68,
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": true
+        },
+        "overall": 4.05,
         "pass_fail": "pass",
         "rationale_bullets": [
           "Relevance scored 4/5 based on prospect and offer alignment.",
-          "Credibility scored 5/5 with emphasis on claim safety.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
           "CTA quality scored 5/5 based on final ask precision."
         ],
-        "flags": [],
+        "flags": [
+          "clarity_violation_detected"
+        ],
         "sample_count": 1,
         "repair_actions": []
       },
@@ -405,54 +465,69 @@
       },
       "judge": {
         "status": "scored",
-        "judge_model": "gpt-4.1-nano",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-mini",
         "judge_mode": "mock",
-        "prompt_contract_hash": "f6ef78be73fa1a81",
+        "prompt_contract_hash": "db2b6d42ed326b68",
         "content_hash": "36e9c5759b2d7357",
-        "cache_hit": true,
+        "cache_hit": false,
         "samples": [
           {
             "scores": {
               "relevance_to_prospect": 4,
-              "clarity_and_structure": 5,
-              "credibility_no_overclaim": 0,
+              "clarity_and_structure": 2,
+              "credibility_no_overclaim": 1,
               "personalization_quality": 4,
               "cta_quality": 5,
               "tone_match": 5,
-              "conciseness_signal_density": 5,
+              "conciseness_signal_density": 4,
               "value_prop_specificity": 5
             },
-            "overall": 3.68,
+            "binary_checks": {
+              "overclaim_present": true,
+              "filler_padding_present": false,
+              "clarity_violation_present": true
+            },
+            "overall": 3.45,
             "pass_fail": "fail",
             "rationale_bullets": [
               "Relevance scored 4/5 based on prospect and offer alignment.",
-              "Credibility scored 0/5 with emphasis on claim safety.",
+              "Credibility scored 1/5 with emphasis on claim safety.",
               "CTA quality scored 5/5 based on final ask precision."
             ],
             "flags": [
-              "auto_fail_guaranteed_outcome"
+              "auto_fail_overclaim_present",
+              "auto_fail_guaranteed_outcome",
+              "clarity_violation_detected"
             ]
           }
         ],
         "scores": {
           "relevance_to_prospect": 4,
-          "clarity_and_structure": 5,
-          "credibility_no_overclaim": 0,
+          "clarity_and_structure": 2,
+          "credibility_no_overclaim": 1,
           "personalization_quality": 4,
           "cta_quality": 5,
           "tone_match": 5,
-          "conciseness_signal_density": 5,
+          "conciseness_signal_density": 4,
           "value_prop_specificity": 5
         },
-        "overall": 3.68,
+        "binary_checks": {
+          "overclaim_present": true,
+          "filler_padding_present": false,
+          "clarity_violation_present": true
+        },
+        "overall": 3.45,
         "pass_fail": "fail",
         "rationale_bullets": [
           "Relevance scored 4/5 based on prospect and offer alignment.",
-          "Credibility scored 0/5 with emphasis on claim safety.",
+          "Credibility scored 1/5 with emphasis on claim safety.",
           "CTA quality scored 5/5 based on final ask precision."
         ],
         "flags": [
-          "auto_fail_guaranteed_outcome"
+          "auto_fail_overclaim_present",
+          "auto_fail_guaranteed_outcome",
+          "clarity_violation_detected"
         ],
         "sample_count": 1,
         "repair_actions": [
@@ -465,10 +540,11 @@
       },
       "actionable_feedback": [
         "CREDIBILITY_OVERCLAIM: Rewrite claims with hedged language and remove unsupported numbers or guarantees.",
+        "Quality flag `auto_fail_overclaim_present` triggered.",
         "Quality flag `auto_fail_guaranteed_outcome` triggered.",
+        "Quality flag `clarity_violation_detected` triggered.",
         "Judge rationale: Relevance scored 4/5 based on prospect and offer alignment.",
-        "Judge rationale: Credibility scored 0/5 with emphasis on claim safety.",
-        "Judge rationale: CTA quality scored 5/5 based on final ask precision."
+        "Judge rationale: Credibility scored 1/5 with emphasis on claim safety."
       ],
       "error": null
     }
@@ -476,31 +552,42 @@
   "judge": {
     "summary": {
       "enabled": true,
-      "model": "gpt-4.1-nano",
+      "model": "gpt-4.1-mini",
       "mode": "mock",
+      "schema_version": "judge_output_v2",
       "evaluated_cases": 5,
       "skipped_cases": 0,
       "passed_cases": 4,
       "failed_cases": 1,
       "pass_rate": 0.8,
-      "mean_overall": 4.48,
-      "mean_credibility": 4.0,
+      "mean_overall": 3.93,
+      "mean_credibility": 3.4,
       "failure_count_by_flag": {
-        "auto_fail_guaranteed_outcome": 1
+        "auto_fail_guaranteed_outcome": 1,
+        "auto_fail_overclaim_present": 1,
+        "clarity_violation_detected": 1
       },
-      "prompt_contract_hash": "f6ef78be73fa1a81",
+      "prompt_contract_hash": "db2b6d42ed326b68",
       "threshold_overall": 3.8,
-      "threshold_credibility": 5.0,
-      "cache_hits": 5,
+      "threshold_credibility": 4.0,
+      "cache_hits": 0,
       "cache_lookups": 5,
-      "cache_hit_rate": 1.0,
-      "calibration_examples": 20,
+      "cache_hit_rate": 0.0,
+      "calibration_examples": 60,
       "calibration_pass_fail_agreement": 1.0,
-      "calibration_score_rank_correlation": 0.7906
+      "calibration_score_rank_correlation": 0.7746
     },
     "top_recurring_quality_failures": [
       {
+        "flag": "auto_fail_overclaim_present",
+        "count": 1
+      },
+      {
         "flag": "auto_fail_guaranteed_outcome",
+        "count": 1
+      },
+      {
+        "flag": "clarity_violation_detected",
         "count": 1
       }
     ]

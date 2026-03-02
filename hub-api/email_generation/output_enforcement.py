@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
+from email_generation.compliance_rules import _GENERIC_CLOSER_PATTERNS
+
 
 _GENERIC_AI_OPENER_PATTERN = re.compile(
     r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
@@ -66,6 +68,13 @@ def dedupe_sentence_list(sentences: Iterable[str]) -> list[str]:
 
 def dedupe_sentences_text(text: str) -> str:
     return " ".join(dedupe_sentence_list(split_sentences(text))).strip()
+
+
+def remove_generic_closers(text: str) -> str:
+    """Remove sentences that match known generic AI closer/sign-off patterns."""
+    sentences = split_sentences(text)
+    kept = [s for s in sentences if not any(p.search(s) for p in _GENERIC_CLOSER_PATTERNS)]
+    return " ".join(kept).strip()
 
 
 def _sentence_ngrams(sentence: str, n: int) -> list[str]:
@@ -201,7 +210,8 @@ def long_mode_section_pool(
         cleaned_line = re.sub(r"\s+([,.;!?])", r"\1", cleaned_line).strip(" ,;")
         if cleaned_line:
             sanitized.append(cleaned_line)
-    return sanitized
+    # Cap to 2 extra sections to prevent repetition from thin notes
+    return sanitized[:2]
 
 
 def compose_body_without_padding_loops(
@@ -262,5 +272,10 @@ def compose_body_without_padding_loops(
     words = re.findall(r"\S+", main_text)
     if len(words) > max_main:
         main_text = " ".join(words[:max_main]).strip()
+
+    # Post-composition dedup: remove sentence-level duplicates and re-cap n-grams
+    post_sentences = dedupe_sentence_list(split_sentences(main_text))
+    post_sentences = cap_repeated_ngrams(post_sentences, max_count=1, min_n=3, max_n=5)
+    main_text = " ".join(post_sentences).strip()
 
     return f"{main_text}\n\n{cta}".strip() if cta else main_text.strip()

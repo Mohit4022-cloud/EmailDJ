@@ -72,6 +72,7 @@ async function consumeStream(requestId) {
   const reader = streamRes.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let lastSequence = -1;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -86,6 +87,11 @@ async function consumeStream(requestId) {
 
       const msg = parseSseBlock(block);
       if (msg.event === 'token') {
+        const seq = msg.data?.sequence;
+        if (typeof seq === 'number') {
+          if (seq <= lastSequence) continue; // duplicate or out-of-order
+          lastSequence = seq;
+        }
         const token = msg.data?.token ?? '';
         window.dispatchEvent(new CustomEvent('emailToken', { detail: token }));
       } else if (msg.event === 'done') {
@@ -101,6 +107,9 @@ export async function generateEmail(payload, sliderValue = 5) {
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
+      if (attempt > 1) {
+        window.dispatchEvent(new CustomEvent('emailRetry', { detail: attempt }));
+      }
       const { request_id } = await startGenerate(payload, sliderValue);
       await consumeStream(request_id);
       return;

@@ -237,7 +237,7 @@ async def quick_generate(
         account = payload.get("accountName") or payload.get("accountId") or "your team"
         style = "highly personalized" if slider_value >= 8 else "concise"
         dummy = (
-            f"Subject: Quick idea for {account}\n\n"
+            f"Subject: [MOCK DRAFT] Quick idea for {account}\n\n"
             f"Hi there, I noticed a few priorities in your account context. "
             f"Here is a {style} draft that focuses on one clear outcome and a low-friction CTA. "
             "If useful, I can share a tailored 2-minute walkthrough for your team this week."

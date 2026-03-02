@@ -43,6 +43,13 @@ export class EmailEditor {
     if (actionsEl) actionsEl.style.display = 'flex';
   }
 
+  clear() {
+    if (this.editorEl) this.editorEl.textContent = '';
+    const actionsEl = this.container.querySelector('#emailActions');
+    if (actionsEl) actionsEl.style.display = 'none';
+    this.originalDraft = '';
+  }
+
   onCopyClick() {
     if (!this.editorEl) return;
     navigator.clipboard.writeText(this.editorEl.innerText).catch(() => {});

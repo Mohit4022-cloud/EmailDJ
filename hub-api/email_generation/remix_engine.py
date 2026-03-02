@@ -24,6 +24,7 @@ from email_generation.compliance_rules import (
     _CTA_DURATION_PATTERN,
     _GUARANTEED_CLAIM_PATTERN,
     _ABSOLUTE_REVENUE_PATTERN,
+    _META_COMMENTARY_PATTERN,
     _NO_LEAKAGE_TERMS,
     _collapse_ws,
     _contains_term,
@@ -33,9 +34,11 @@ from email_generation.cta_templates import resolve_cta_lock
 from email_generation.generation_plan import GenerationPlan, apply_generation_plan, build_generation_plan
 from email_generation.output_enforcement import (
     compose_body_without_padding_loops,
+    dedupe_sentences_text,
     derive_first_name,
     enforce_first_name_greeting,
     long_mode_section_pool,
+    remove_generic_closers,
     sanitize_generic_ai_opener,
     split_sentences,
 )
@@ -697,6 +700,20 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
         body_lower = _collapse_ws(body).lower()
         if offer_lock.lower() not in body_lower:
             violations.append("offer_lock_body_verbatim_missing")
+            # Semantic drift: check keyword overlap between offer_lock and body
+            _STOPWORDS = {
+                "a", "an", "the", "and", "or", "of", "to", "in", "for", "with",
+                "by", "on", "at", "from", "as", "is", "was", "are", "be", "this",
+                "that", "it", "its", "our", "your", "we", "you", "i",
+            }
+            offer_keywords = [
+                w.lower() for w in re.findall(r"[A-Za-z0-9']+", offer_lock)
+                if w.lower() not in _STOPWORDS and len(w) > 2
+            ]
+            if len(offer_keywords) >= 2:
+                overlap = sum(1 for kw in offer_keywords if kw in body_lower)
+                if overlap / len(offer_keywords) < 0.4:
+                    violations.append("offer_drift_keyword_overlap_low")
 
     for phrase in _BANNED_PHRASES:
         if phrase in draft_lower:
@@ -716,6 +733,12 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
             continue
         if _contains_term(draft_lower, term):
             violations.append(f"internal_leakage_term:{term}")
+
+    # Meta-commentary: sentences that describe the email's own compliance/construction
+    for line in body_lines:
+        if _META_COMMENTARY_PATTERN.search(line):
+            violations.append(f"meta_commentary:{line[:80]}")
+            break
 
     research_lower = (session.get("research_text") or "").lower()
     if any(word in draft_lower for word in (" saw ", " read ", " noticed ")) and not any(
@@ -811,6 +834,17 @@ def _validation_feedback(violations: list[str]) -> str:
         notes.append(
             "Claims policy: keep claims qualitative unless the exact quantified claim is in approved proof text."
         )
+    if any(v.startswith("meta_commentary") for v in violations):
+        notes.append(
+            "Meta-commentary policy: remove any sentence that describes the email's compliance or "
+            "construction (e.g. 'This email follows...', 'This keeps messaging...'). "
+            "The body must be pure outbound copy — never reference the email itself."
+        )
+    if any(v.startswith("offer_drift") for v in violations):
+        notes.append(
+            "Offer drift policy: the email body must clearly and explicitly pitch the OFFER_LOCK. "
+            "Use the offer's actual name, not a paraphrase or category description."
+        )
     return " ".join(notes)
 
 
@@ -854,6 +888,24 @@ def _fit_body_range(
         min_words=min_total,
         max_words=max_total,
     )
+
+
+def _sanitize_prior_draft(text: str | None) -> str | None:
+    """Strip duplicate sentences and meta-commentary from prior_draft before repair re-injection.
+
+    This prevents the repair loop from amplifying filler phrases or constraint-language
+    sentences that were in the failed attempt.
+    """
+    if not text:
+        return None
+    # Remove exact-duplicate sentences
+    cleaned = dedupe_sentences_text(text)
+    # Remove generic closers
+    cleaned = remove_generic_closers(cleaned)
+    # Remove meta-commentary sentences (model describing the email's compliance)
+    kept = [s for s in split_sentences(cleaned) if not _META_COMMENTARY_PATTERN.search(s)]
+    result = " ".join(kept).strip()
+    return result or None
 
 
 def _remove_forbidden_product_terms(text: str, forbidden_items: list[str]) -> str:
@@ -1174,7 +1226,7 @@ async def _build_real_draft(
 
         last_violations = violations
         all_violations.extend(violations)
-        prior_draft = candidate
+        prior_draft = _sanitize_prior_draft(candidate)
         correction_notes = _validation_feedback(violations)
         logger.warning(
             "web_mvp_validation_failed",
@@ -1224,7 +1276,7 @@ async def _build_real_draft(
                 await persist_violations(repaired_violations, session_id=session_id, pipeline="remix")
                 candidate = repaired_candidate
                 last_violations = repaired_violations
-                prior_draft = candidate
+                prior_draft = _sanitize_prior_draft(candidate)
                 correction_notes = _validation_feedback(repaired_violations)
                 logger.warning(
                     "web_mvp_validation_deterministic_repair_incomplete",

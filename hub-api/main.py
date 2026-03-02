@@ -113,6 +113,15 @@ def _validate_env() -> None:
     if sample_rate < 0.0 or sample_rate > 1.0:
         raise RuntimeError("EMAILDJ_DEBUG_SUCCESS_SAMPLE_RATE must be between 0 and 1.")
 
+    app_env = os.environ.get("APP_ENV", "local").strip().lower() or "local"
+    if app_env in {"staging", "prod"} and mode == "mock":
+        logger.warning(
+            "EMAILDJ_MOCK_IN_PROD: Running in MOCK mode on '%s' environment — "
+            "all traffic will receive dummy [MOCK DRAFT] emails. "
+            "Set EMAILDJ_QUICK_GENERATE_MODE=real to use live models.",
+            app_env,
+        )
+
     if mode == "real":
         key_name = _PROVIDER_KEY_ENV[provider]
         if not os.environ.get(key_name):
