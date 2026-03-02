@@ -78,7 +78,7 @@
     "tone_target": "professional, balanced",
     "other_products": ["Pipeline Copilot"],
     "subject": "Quick idea",
-    "body": "Hi Alex, Brand Protection can help many teams improve outcomes broadly without much effort.\n\nOpen to a 15-min chat next week?",
+    "body": "Hi Alex, Brand Protection can offer broad value in many situations across many teams, many workflows, many business units, and many priorities, and this draft keeps describing broad alignment, broad consistency, broad coordination, broad enablement, broad modernization, broad transformation, broad governance, and broad process quality without adding a concrete role-specific pain point, a concrete business trigger, a concrete timing reason, a concrete workflow bottleneck, a concrete metric baseline, or a concrete operational detail that would explain why this outreach matters now for your organization, and the language continues to expand with generic filler that could apply to almost any company in almost any quarter with almost any team structure.\n\nThis second sentence intentionally continues the same low-signal pattern with more repetitive wording about broad outcomes, broad process value, broad execution consistency, broad collaboration improvements, broad strategic alignment, broad communication quality, and broad organizational efficiency while still avoiding specific context, specific evidence, specific account detail, or specific next-step rationale, so the email becomes verbose, unfocused, and interchangeable rather than precise, credible, and directly relevant to one clearly defined enterprise outbound scenario.\n\nOpen to a 15-min chat next week?",
     "expected_lock_pass": true,
     "expected_pass_fail": "fail",
     "required_flags": ["insufficient_personalization"]
@@ -94,7 +94,7 @@
     "tone_target": "professional, balanced",
     "other_products": ["AI Outbound Engine"],
     "subject": "General outreach thought",
-    "body": "Hi Maya, Sequence Governance helps everyone improve outcomes broadly and quickly with modern best practices.\n\nOpen to a 15-min chat next week?",
+    "body": "Hi Maya, Sequence Governance offers broad outcomes with modern best practices across many teams, many industries, and many contexts, and this sentence intentionally continues far longer than needed while repeating the same general ideas about broad outcomes, broad efficiency, broad alignment, and broad process consistency without introducing any concrete facts, account-specific signals, role-specific context, or actionable next-step rationale beyond generic wording that could apply to almost anyone. This next sentence is also intentionally long, repetitive, and unfocused, and it keeps cycling through broad claims about broad process value and broad consistency again and again so that the draft becomes verbose while still lacking concrete detail, concrete business context, or concrete evidence that would make this message genuinely relevant for a specific enterprise outbound situation.\n\nOpen to a 15-min chat next week?",
     "expected_lock_pass": true,
     "expected_pass_fail": "fail",
     "required_flags": ["insufficient_personalization"]

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 from dataclasses import dataclass
@@ -74,6 +76,7 @@ class JudgeClient:
     ) -> dict[str, Any]:
         context = build_allowed_context(case)
         contract_hash = prompt_contract_hash()
+        content_hash = _content_hash(context=context, subject=subject, body=body)
         cache_key = None
         if self.cache is not None:
             cache_key = self.cache.build_key(
@@ -82,6 +85,7 @@ class JudgeClient:
                 prompt_contract_hash=contract_hash,
                 candidate_id=candidate_id,
                 eval_mode=eval_mode,
+                extra=f"email:{content_hash}",
             )
             cached = self.cache.get(cache_key)
             if cached is not None:
@@ -115,6 +119,7 @@ class JudgeClient:
             "judge_model": self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
+            "content_hash": content_hash,
             "cache_hit": False,
             "samples": [redact_judge_artifact(sample) for sample in samples],
             **aggregated,
@@ -134,6 +139,7 @@ class JudgeClient:
         eval_mode: str,
     ) -> dict[str, Any]:
         contract_hash = prompt_contract_hash()
+        content_hash = _content_hash(context=context, subject=subject, body=body)
         cache_key = None
         if self.cache is not None:
             cache_key = self.cache.build_key(
@@ -142,7 +148,7 @@ class JudgeClient:
                 prompt_contract_hash=contract_hash,
                 candidate_id=candidate_id,
                 eval_mode=eval_mode,
-                extra="adhoc",
+                extra=f"adhoc:{content_hash}",
             )
             cached = self.cache.get(cache_key)
             if cached is not None:
@@ -176,6 +182,7 @@ class JudgeClient:
             "judge_model": self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
+            "content_hash": content_hash,
             "cache_hit": False,
             "samples": [redact_judge_artifact(sample) for sample in samples],
             **aggregated,
@@ -450,3 +457,13 @@ def _contains_pii(lower_text: str) -> bool:
     if re.search(r"\b(?:\+?\d{1,2}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b", lower_text):
         return True
     return False
+
+
+def _content_hash(*, context: dict[str, str], subject: str, body: str) -> str:
+    payload = {
+        "context": {k: str(v) for k, v in sorted(context.items())},
+        "subject": subject.strip(),
+        "body": body.strip(),
+    }
+    raw = json.dumps(payload, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
