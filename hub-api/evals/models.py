@@ -59,6 +59,9 @@ class EvalResult:
     body: str
     draft: str
     violations: list[Violation]
+    generation_meta: dict[str, Any] = field(default_factory=dict)
+    judge: dict[str, Any] = field(default_factory=dict)
+    actionable_feedback: list[str] = field(default_factory=list)
     error: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -80,6 +83,28 @@ class ScorecardSummary:
     research_containment_pass_rate: float
     internal_leakage_pass_rate: float
     claim_safety_pass_rate: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class JudgeSummary:
+    enabled: bool
+    model: str
+    mode: str
+    evaluated_cases: int
+    skipped_cases: int
+    passed_cases: int
+    failed_cases: int
+    pass_rate: float
+    mean_overall: float
+    mean_credibility: float
+    failure_count_by_flag: dict[str, int]
+    prompt_contract_hash: str
+    calibration_examples: int = 0
+    calibration_pass_fail_agreement: float | None = None
+    calibration_score_rank_correlation: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
