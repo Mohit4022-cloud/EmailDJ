@@ -69,7 +69,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--judge-sample-count", type=int, default=_env_int("EMAILDJ_JUDGE_SAMPLE_COUNT", 1))
     parser.add_argument("--judge-cache-dir", default=(os.environ.get("EMAILDJ_JUDGE_CACHE_DIR", "reports/judge/cache").strip() or "reports/judge/cache"))
     parser.add_argument("--judge-candidate-id", default=_default_candidate_id())
-    parser.add_argument("--judge-calibration", default="evals/judge/calibration_set.v1.json")
+    parser.add_argument("--judge-calibration", default="evals/judge/calibration_set.v2.json")
     parser.add_argument("--judge-skip-calibration", action="store_true")
     return parser.parse_args()
 

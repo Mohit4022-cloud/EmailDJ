@@ -3,6 +3,8 @@ from __future__ import annotations
 from evals.judge.actions import derive_repair_actions
 from evals.judge.client import JudgeClient, JudgeRuntime
 from evals.judge.reliability import calibration_metrics, deterministic_order_swap
+from evals.judge.scoring import normalize_scored_output
+from evals.judge.schemas import validate_judge_output
 from evals.models import EvalCase, EvalExpected
 
 
@@ -55,6 +57,11 @@ def test_mock_judge_scores_email() -> None:
         "tone_match",
         "conciseness_signal_density",
         "value_prop_specificity",
+    }
+    assert set(scored["binary_checks"].keys()) == {
+        "overclaim_present",
+        "filler_padding_present",
+        "clarity_violation_present",
     }
     assert scored["pass_fail"] in {"pass", "fail"}
 
@@ -132,3 +139,56 @@ def test_repair_actions_mapping() -> None:
     assert "CREDIBILITY_OVERCLAIM" in tags
     assert "CTA_WEAK" in tags
     assert "TONE_MISMATCH" in tags
+
+
+def test_binary_overclaim_forces_fail_even_with_high_scores() -> None:
+    normalized = normalize_scored_output(
+        {
+            "scores": {
+                "relevance_to_prospect": 5,
+                "clarity_and_structure": 5,
+                "credibility_no_overclaim": 5,
+                "personalization_quality": 5,
+                "cta_quality": 5,
+                "tone_match": 5,
+                "conciseness_signal_density": 5,
+                "value_prop_specificity": 5,
+            },
+            "binary_checks": {
+                "overclaim_present": True,
+                "filler_padding_present": False,
+                "clarity_violation_present": False,
+            },
+            "pass_fail": "pass",
+            "overall": 5,
+            "rationale_bullets": ["x", "y", "z"],
+            "flags": [],
+        }
+    )
+    assert normalized["pass_fail"] == "fail"
+    assert "auto_fail_overclaim_present" in normalized["flags"]
+
+
+def test_judge_schema_requires_binary_checks() -> None:
+    try:
+        validate_judge_output(
+            {
+                "scores": {
+                    "relevance_to_prospect": 4,
+                    "clarity_and_structure": 4,
+                    "credibility_no_overclaim": 4,
+                    "personalization_quality": 4,
+                    "cta_quality": 4,
+                    "tone_match": 4,
+                    "conciseness_signal_density": 4,
+                    "value_prop_specificity": 4,
+                },
+                "overall": 4,
+                "pass_fail": "pass",
+                "rationale_bullets": ["ok"],
+                "flags": [],
+            }
+        )
+        assert False, "validate_judge_output should reject missing binary_checks"
+    except ValueError as exc:
+        assert str(exc) == "judge_binary_checks_missing"

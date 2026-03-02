@@ -682,10 +682,10 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
             violations.append(f"banned_phrase:{phrase}")
 
     for forbidden in _offer_lock_forbidden_items(session):
-        key = forbidden.lower().strip()
+        key = _collapse_ws(forbidden.lower().strip())
         if not key:
             continue
-        if key in draft_lower:
+        if _contains_term(draft_lower, key):
             violations.append(f"forbidden_other_product_mentioned:{forbidden}")
 
     seller_name = ((session.get("company_context") or {}).get("company_name") or "").lower()
@@ -820,6 +820,85 @@ def _fit_body_range(main_text: str, cta_line: str, min_total: int, max_total: in
             idx += 1
 
     return f"{' '.join(main_words).strip()}\n\n{cta_line}".strip()
+
+
+def _remove_forbidden_product_terms(text: str, forbidden_items: list[str]) -> str:
+    cleaned = text or ""
+    for item in forbidden_items:
+        token = _collapse_ws(item).strip()
+        if not token:
+            continue
+        if " " in token:
+            cleaned = re.sub(re.escape(token), "", cleaned, flags=re.IGNORECASE)
+        else:
+            cleaned = re.sub(rf"\b{re.escape(token)}\b", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([,.;!?])", r"\1", cleaned)
+    return cleaned.strip()
+
+
+def _deterministic_compliance_repair(
+    candidate: str,
+    session: dict[str, Any],
+    style_sliders: dict[str, int],
+) -> str:
+    subject, body = _extract_subject_and_body(candidate)
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    expected_cta_norm = _collapse_ws(expected_cta).lower()
+    forbidden_items = _offer_lock_forbidden_items(session)
+    body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+
+    kept_lines: list[str] = []
+    for line in body_lines:
+        if line == expected_cta:
+            continue
+        line_norm = _collapse_ws(line).lower()
+        if not line_norm:
+            continue
+        ratio = SequenceMatcher(None, expected_cta_norm, line_norm).ratio()
+        if ratio >= 0.88 and (_is_additional_cta_line(line) or "?" in line):
+            continue
+        if _is_additional_cta_line(line):
+            continue
+        kept_lines.append(line)
+
+    main_text = _collapse_ws(" ".join(kept_lines))
+    main_text = _remove_forbidden_product_terms(main_text, forbidden_items)
+
+    expected_first_name = _expected_prospect_first_name(session)
+    if expected_first_name:
+        greeting_pattern = r"^(Hi|Hello)\s+[^,\n]+,"
+        replacement = f"Hi {expected_first_name},"
+        if re.match(greeting_pattern, main_text):
+            main_text = re.sub(greeting_pattern, replacement, main_text, count=1)
+        else:
+            main_text = f"{replacement} {main_text}".strip()
+
+    offer_lock = _collapse_ws(str(session.get("offer_lock") or "")).strip()
+    if offer_lock and offer_lock.lower() not in main_text.lower():
+        main_text = (
+            f"{main_text} {offer_lock} helps keep messaging specific and controlled for your team."
+        ).strip()
+
+    if not main_text:
+        fallback_name = expected_first_name or "there"
+        if offer_lock:
+            main_text = (
+                f"Hi {fallback_name}, {offer_lock} helps teams improve message relevance while keeping execution controlled."
+            )
+        else:
+            main_text = (
+                f"Hi {fallback_name}, this approach helps teams improve message relevance while keeping execution controlled."
+            )
+
+    subject = _remove_forbidden_product_terms(subject, forbidden_items)
+    if not subject:
+        company = (session.get("prospect") or {}).get("company") or "your team"
+        subject = f"{offer_lock or 'Outbound approach'} for {company}"
+
+    min_words, max_words = body_word_range(style_sliders["length_short_long"])
+    repaired_body = _fit_body_range(main_text=main_text, cta_line=expected_cta, min_total=min_words, max_total=max_words)
+    return _format_draft(subject=subject, body=repaired_body)
 
 
 def _mock_subject(prospect: dict[str, Any], offer_lock: str, style_sliders: dict[str, int]) -> str:
@@ -1062,6 +1141,55 @@ async def _build_real_draft(
             },
         )
         await persist_violations(violations, session_id=session_id, pipeline="remix")
+
+        if enforcement_level == "repair" and repair_enabled:
+            repaired_candidate = _deterministic_compliance_repair(
+                candidate,
+                session=session,
+                style_sliders=style_sliders,
+            )
+            if repaired_candidate != candidate:
+                repaired_violations = validate_ctco_output(
+                    repaired_candidate,
+                    session=session,
+                    style_sliders=style_sliders,
+                )
+                if not repaired_violations:
+                    logger.info(
+                        "web_mvp_validation_repaired_deterministically",
+                        extra={
+                            "session_id": session_id,
+                            "attempt": validator_attempt_count,
+                            "initial_violations": violations,
+                        },
+                    )
+                    return (
+                        repaired_candidate,
+                        gen_result,
+                        RealDraftStats(
+                            validator_attempt_count=validator_attempt_count,
+                            json_repair_count=json_repair_count,
+                            violation_retry_count=violation_retry_count + 1,
+                            violation_codes=_violation_codes(all_violations),
+                            violation_count=len(all_violations),
+                        ),
+                    )
+
+                all_violations.extend(repaired_violations)
+                await persist_violations(repaired_violations, session_id=session_id, pipeline="remix")
+                candidate = repaired_candidate
+                last_violations = repaired_violations
+                prior_draft = candidate
+                correction_notes = _validation_feedback(repaired_violations)
+                logger.warning(
+                    "web_mvp_validation_deterministic_repair_incomplete",
+                    extra={
+                        "session_id": session_id,
+                        "attempt": validator_attempt_count,
+                        "violations": repaired_violations,
+                        "enforcement_level": enforcement_level,
+                    },
+                )
 
         if enforcement_level == "warn":
             return (

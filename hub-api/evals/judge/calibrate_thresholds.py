@@ -15,13 +15,15 @@ from evals.judge.rubric import AUTO_FAIL_FLAGS, PASS_THRESHOLD_CREDIBILITY, PASS
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Calibrate judge pass/fail thresholds from labeled examples.")
-    parser.add_argument("--calibration", default="evals/judge/calibration_set.v1.json")
+    parser.add_argument("--calibration", default="evals/judge/calibration_set.v2.json")
     parser.add_argument("--out", default="reports/judge/calibration/latest.json")
+    parser.add_argument("--changelog", default="reports/judge/calibration/threshold_changelog.jsonl")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default=os.environ.get("EMAILDJ_JUDGE_MODE", "mock"))
     parser.add_argument("--judge-model", default=os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini"))
     parser.add_argument("--judge-sample-count", type=int, default=int(os.environ.get("EMAILDJ_JUDGE_SAMPLE_COUNT", "1")))
     parser.add_argument("--judge-cache-dir", default="reports/judge/cache")
     parser.add_argument("--candidate-id", default="calibration")
+    parser.add_argument("--target-criterion-agreement", type=float, default=0.65)
     return parser.parse_args()
 
 
@@ -76,10 +78,18 @@ def _criterion_label_agreement(expected_rows: list[dict[str, Any]], predicted_ro
             rid = str(row.get("id", "")).strip()
             if not rid or rid not in by_id:
                 continue
+            score = int((by_id[rid].get("scores") or {}).get(criterion, 0))
+            expected_scores = row.get("expected_scores")
+            if isinstance(expected_scores, dict) and isinstance(expected_scores.get(criterion), (int, float)):
+                expected_score = float(expected_scores[criterion])
+                compared += 1
+                if abs(score - expected_score) <= 1.0:
+                    match += 1
+                continue
+
             expected_pf = str(row.get("expected_pass_fail", "")).strip().lower()
             if expected_pf not in {"pass", "fail"}:
                 continue
-            score = int((by_id[rid].get("scores") or {}).get(criterion, 0))
             criterion_predicts_pass = score >= 4
             compared += 1
             if (criterion_predicts_pass and expected_pf == "pass") or (not criterion_predicts_pass and expected_pf == "fail"):
@@ -106,7 +116,7 @@ def _sweep_thresholds(expected_rows: list[dict[str, Any]], predicted_rows: list[
     target_pass_rate = _expected_pass_rate(expected_rows)
     best: dict[str, Any] | None = None
     for overall_i in range(30, 46):
-        for cred_i in range(30, 51):
+        for cred_i in range(35, 51):
             overall_threshold = round(overall_i / 10.0, 1)
             credibility_threshold = round(cred_i / 10.0, 1)
             modified = []
@@ -145,6 +155,33 @@ def _sweep_thresholds(expected_rows: list[dict[str, Any]], predicted_rows: list[
         "credibility_threshold": PASS_THRESHOLD_CREDIBILITY,
         "accuracy": 0.0,
     }
+
+
+def _threshold_snapshot(path: Path) -> dict[str, Any] | None:
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    rec = data.get("recommended_thresholds")
+    if not isinstance(rec, dict):
+        return None
+    try:
+        return {
+            "overall": float(rec.get("overall")),
+            "credibility": float(rec.get("credibility")),
+        }
+    except Exception:
+        return None
+
+
+def _append_changelog(path: Path, row: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=True) + "\n")
 
 
 def main() -> int:
@@ -208,11 +245,27 @@ def main() -> int:
         adjusted_rows.append(candidate)
     tuned_metrics = calibration_metrics(expected=expected_rows, predicted=adjusted_rows)
     criterion_agreement = _criterion_label_agreement(expected_rows=expected_rows, predicted_rows=predicted_rows)
+    previous = _threshold_snapshot(Path(args.out))
+    weakest = sorted(
+        [{"criterion": key, "agreement": value} for key, value in criterion_agreement.items()],
+        key=lambda item: item["agreement"],
+    )[:3]
+    weakest_target_pass = all(float(item["agreement"]) >= float(args.target_criterion_agreement) for item in weakest)
+    targeted_criteria = (
+        "clarity_and_structure",
+        "credibility_no_overclaim",
+        "conciseness_signal_density",
+    )
+    targeted_criteria_meet_target = all(
+        float(criterion_agreement.get(criterion, 0.0)) >= float(args.target_criterion_agreement)
+        for criterion in targeted_criteria
+    )
 
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "judge_mode": args.judge_mode,
         "judge_model": args.judge_model,
+        "dataset": args.calibration,
         "examples": len(expected_rows),
         "current_thresholds": {
             "overall": PASS_THRESHOLD_OVERALL,
@@ -226,15 +279,52 @@ def main() -> int:
         "current_metrics": base_metrics,
         "tuned_metrics": tuned_metrics,
         "criterion_label_agreement": criterion_agreement,
-        "weakest_criteria": sorted(
-            [{"criterion": key, "agreement": value} for key, value in criterion_agreement.items()],
-            key=lambda item: item["agreement"],
-        )[:3],
+        "criterion_agreement_target": float(args.target_criterion_agreement),
+        "weakest_criteria_meet_target": weakest_target_pass,
+        "targeted_criteria": list(targeted_criteria),
+        "targeted_criteria_meet_target": targeted_criteria_meet_target,
+        "weakest_criteria": weakest,
+        "stability": {
+            "previous_recommended_thresholds": previous,
+            "delta_overall": (
+                round(best["overall_threshold"] - float(previous["overall"]), 3)
+                if previous is not None
+                else None
+            ),
+            "delta_credibility": (
+                round(best["credibility_threshold"] - float(previous["credibility"]), 3)
+                if previous is not None
+                else None
+            ),
+        },
     }
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    _append_changelog(
+        Path(args.changelog),
+        {
+            "generated_at": result["generated_at"],
+            "dataset": args.calibration,
+            "examples": len(expected_rows),
+            "judge_mode": args.judge_mode,
+            "judge_model": args.judge_model,
+            "recommended_thresholds": result["recommended_thresholds"],
+            "previous_recommended_thresholds": previous,
+            "delta_overall": result["stability"]["delta_overall"],
+            "delta_credibility": result["stability"]["delta_credibility"],
+            "current_pass_fail_agreement": base_metrics.get("pass_fail_agreement"),
+            "tuned_pass_fail_agreement": tuned_metrics.get("pass_fail_agreement"),
+            "score_rank_correlation": base_metrics.get("score_rank_correlation"),
+            "weakest_criteria": result["weakest_criteria"],
+            "criterion_agreement_target": result["criterion_agreement_target"],
+            "weakest_criteria_meet_target": result["weakest_criteria_meet_target"],
+            "targeted_criteria_meet_target": result["targeted_criteria_meet_target"],
+        },
+    )
+
     print("Judge Calibration")
     print(f"- Examples: {len(expected_rows)}")
     print(
@@ -246,6 +336,15 @@ def main() -> int:
     print(f"- Current pass/fail agreement: {base_metrics.get('pass_fail_agreement', 0):.2%}")
     print(f"- Tuned pass/fail agreement: {tuned_metrics.get('pass_fail_agreement', 0):.2%}")
     print(f"- Score rank correlation: {base_metrics.get('score_rank_correlation')}")
+    if weakest:
+        print("- Weakest criterion agreements:")
+        for item in weakest:
+            print(f"  - {item['criterion']}: {item['agreement']:.2%}")
+        print(f"- Weakest criteria meet target {args.target_criterion_agreement:.2f}: {weakest_target_pass}")
+    print(
+        f"- Targeted criteria (clarity/credibility/conciseness) meet target {args.target_criterion_agreement:.2f}: "
+        f"{targeted_criteria_meet_target}"
+    )
     print(f"- Report: {out_path}")
     return 0
 

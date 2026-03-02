@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-_DEFAULT_RUBRIC_VERSION = "enterprise_outbound_v1"
+_DEFAULT_RUBRIC_VERSION = "enterprise_outbound_v2"
 RUBRIC_VERSION = os.environ.get("EMAILDJ_JUDGE_RUBRIC_VERSION", _DEFAULT_RUBRIC_VERSION).strip() or _DEFAULT_RUBRIC_VERSION
 
 CRITERIA = (
@@ -32,6 +32,7 @@ AUTO_FAIL_FLAGS = {
     "auto_fail_pii_leakage",
     "auto_fail_bribery_or_gift",
     "auto_fail_guaranteed_outcome",
+    "auto_fail_overclaim_present",
     "auto_fail_policy_or_compliance_risk",
 }
 
@@ -44,15 +45,17 @@ def _float_env(name: str, default: float) -> float:
 
 
 PASS_THRESHOLD_OVERALL = _float_env("EMAILDJ_JUDGE_PASS_THRESHOLD_OVERALL", 3.8)
-PASS_THRESHOLD_CREDIBILITY = _float_env("EMAILDJ_JUDGE_PASS_THRESHOLD_CREDIBILITY", 5.0)
+PASS_THRESHOLD_CREDIBILITY = _float_env("EMAILDJ_JUDGE_PASS_THRESHOLD_CREDIBILITY", 4.0)
 
 ALL_FLAGS = (
     "auto_fail_pii_leakage",
     "auto_fail_bribery_or_gift",
     "auto_fail_guaranteed_outcome",
+    "auto_fail_overclaim_present",
     "auto_fail_policy_or_compliance_risk",
     "judge_pandering_detected",
     "verbosity_padding_detected",
+    "clarity_violation_detected",
     "insufficient_personalization",
     "weak_cta",
     "tone_mismatch",

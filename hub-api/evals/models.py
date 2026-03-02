@@ -93,6 +93,7 @@ class JudgeSummary:
     enabled: bool
     model: str
     mode: str
+    schema_version: str
     evaluated_cases: int
     skipped_cases: int
     passed_cases: int

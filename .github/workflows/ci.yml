@@ -46,13 +46,70 @@ jobs:
           source .venv/bin/activate
           ./scripts/checks.sh
 
-      - name: Optional judge smoke (mock)
-        if: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE == '1' }}
+      - name: Judge smoke + sentinel sanity (mock)
         working-directory: hub-api
         run: |
           source .venv/bin/activate
-          ./scripts/eval:judge:smoke
+          ./scripts/eval:judge:smoke --report-dir reports/judge/ci_candidate
           ./scripts/eval:judge:sanity
+
+      - name: Pairwise regression gate on prompt-contract diffs
+        if: ${{ github.event_name == 'pull_request' }}
+        working-directory: hub-api
+        run: |
+          set -euo pipefail
+          source .venv/bin/activate
+
+          BASE_REF="${{ github.base_ref }}"
+          git fetch origin "${BASE_REF}" --depth=1
+          CHANGED="$(git diff --name-only "origin/${BASE_REF}"...HEAD)"
+          echo "Changed files:"
+          echo "${CHANGED}"
+
+          if ! echo "${CHANGED}" | grep -Eq "^hub-api/evals/judge/(prompts|rubric)\\.py$"; then
+            echo "No prompt-contract file changes; skipping pairwise regression gate."
+            exit 0
+          fi
+
+          BASE_WORKTREE="$(mktemp -d)"
+          git worktree add --detach "${BASE_WORKTREE}" "origin/${BASE_REF}"
+          cleanup() {
+            git worktree remove --force "${BASE_WORKTREE}" || true
+          }
+          trap cleanup EXIT
+
+          PYTHON_BIN="$(pwd)/.venv/bin/python"
+          export REDIS_FORCE_INMEMORY=1
+          export CHROME_EXTENSION_ORIGIN=chrome-extension://dev
+
+          PYTHONPATH="${BASE_WORKTREE}/hub-api" "${PYTHON_BIN}" "${BASE_WORKTREE}/hub-api/evals/runner.py" \
+            --dataset "${BASE_WORKTREE}/hub-api/evals/gold_set.full.json" \
+            --smoke "${BASE_WORKTREE}/hub-api/evals/gold_set.smoke_ids.json" \
+            --report-dir "${BASE_WORKTREE}/hub-api/reports/judge/ci_baseline" \
+            --mode smoke \
+            --max-cases 5 \
+            --judge \
+            --judge-mode mock \
+            --judge-model gpt-4.1-nano \
+            --judge-sample-count 1 \
+            --judge-candidate-id baseline \
+            --judge-skip-calibration
+
+          BASE_REPORT="${BASE_WORKTREE}/hub-api/reports/judge/ci_baseline/latest.json"
+          CANDIDATE_REPORT="$(pwd)/reports/judge/ci_candidate/latest.json"
+          PAIRWISE_DIR="$(pwd)/reports/judge/ci_pairwise"
+
+          ./scripts/eval:judge:pairwise \
+            --a-report "${BASE_REPORT}" \
+            --b-report "${CANDIDATE_REPORT}" \
+            --report-dir "${PAIRWISE_DIR}" \
+            --label-a baseline \
+            --label-b candidate
+
+          ./scripts/eval:judge:regression-gate \
+            --baseline-report "${BASE_REPORT}" \
+            --candidate-report "${CANDIDATE_REPORT}" \
+            --pairwise-report "${PAIRWISE_DIR}/pairwise_latest.json"
 
   real-mode-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -109,3 +166,19 @@ jobs:
         run: |
           source .venv/bin/activate
           ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini
+
+      - name: Calibrate judge thresholds (real mode)
+        working-directory: hub-api
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EMAILDJ_JUDGE_MODE: real
+          EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:judge:calibrate --judge-mode real --judge-model gpt-4.1-mini --judge-sample-count 3
+
+      - name: Build judge trend report
+        working-directory: hub-api
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:judge:trend --mode full

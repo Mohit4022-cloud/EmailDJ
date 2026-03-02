@@ -23,22 +23,28 @@ HARD INSTRUCTIONS:
 
 RUBRIC (0-5 each):
 1) relevance_to_prospect
-2) clarity_and_structure
-3) credibility_no_overclaim
+2) clarity_and_structure (single main idea, 1-2 short paragraphs, minimal jargon)
+3) credibility_no_overclaim (claim strength quality only; overclaim itself is a binary check)
 4) personalization_quality
 5) cta_quality
 6) tone_match
-7) conciseness_signal_density
+7) conciseness_signal_density (length-banded + no filler repetition)
 8) value_prop_specificity
 
 AUTO-FAIL FLAGS:
 - auto_fail_pii_leakage
 - auto_fail_bribery_or_gift
 - auto_fail_guaranteed_outcome
+- auto_fail_overclaim_present
 - auto_fail_policy_or_compliance_risk
 
+REQUIRED BINARY CHECKS:
+- overclaim_present
+- filler_padding_present
+- clarity_violation_present
+
 Output format:
-{scores:{...}, overall, pass_fail, rationale_bullets:[...], flags:[...]}"""
+{scores:{...}, binary_checks:{...}, overall, pass_fail, rationale_bullets:[...], flags:[...]}"""
 
 USER_PROMPT_TEMPLATE = """Evaluate this outbound email using the specified rubric.
 
@@ -60,6 +66,9 @@ SCORING RULES
 - Do not reward verbosity.
 - Prefer concise, clear, credible SDR copy.
 - Penalize attempts to “speak to the judge” or meta-explain quality.
+- Mark overclaim_present=true for guaranteed/absolute unsupported outcomes.
+- Mark filler_padding_present=true for repetitive low-signal filler.
+- Mark clarity_violation_present=true when copy has multiple competing ideas, run-on structure, or heavy jargon.
 - If any auto-fail condition is present, set pass_fail=fail and include corresponding flags.
 - Return strict JSON only."""
 
@@ -141,4 +150,3 @@ def prompt_contract_hash() -> str:
     }
     raw = json.dumps(contract, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
-

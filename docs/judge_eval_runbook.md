@@ -12,6 +12,7 @@ Run from `hub-api/`:
 - `./scripts/eval:judge:stability`
 - `./scripts/eval:judge:calibrate`
 - `./scripts/eval:judge:regression-gate --baseline-report <...> --candidate-report <...> --pairwise-report <...>`
+- `./scripts/eval:judge:trend`
 
 ## Hard Gate Rule
 
@@ -21,9 +22,10 @@ Lock compliance remains the hard gate. Any lock failure skips judge scoring for 
 
 - Lock compliance must remain `100%`.
 - Judge `overall >= 3.8`.
-- Judge `credibility_no_overclaim >= 5.0`.
+- Judge `credibility_no_overclaim >= 4.0`.
+- Binary overclaim check hard-fail: `auto_fail_overclaim_present`.
 
-Thresholds are calibrated from `evals/judge/calibration_set.v1.json` using `eval:judge:calibrate`.
+Thresholds are calibrated from `evals/judge/calibration_set.v2.json` using `eval:judge:calibrate`.
 
 ## Determinism + Cache Verification
 
@@ -65,7 +67,11 @@ For prompt contract changes:
 3. Run pairwise: `./scripts/eval:judge:pairwise --a-report <baseline> --b-report <candidate>`.
 4. Gate:
    - `./scripts/eval:judge:regression-gate --baseline-report <baseline> --candidate-report <candidate> --pairwise-report <pairwise>`
-   - Candidate must not regress relevance or credibility means.
+   - Candidate budgets:
+     - overall mean must not drop by more than `0.05`
+     - relevance mean must not drop by more than `0.05`
+     - credibility mean must not drop at all
+     - pass rate must not decrease
 
 ## If Judge Score Drops But Locks Pass
 

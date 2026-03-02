@@ -4,6 +4,7 @@ from collections import Counter
 from typing import Any
 
 from evals.judge.rubric import PASS_THRESHOLD_CREDIBILITY, PASS_THRESHOLD_OVERALL
+from evals.judge.schemas import JUDGE_SCHEMA_VERSION
 from evals.models import EvalResult, JudgeSummary
 
 
@@ -49,6 +50,12 @@ def compute_judge_summary(
         enabled=True,
         model=model,
         mode=mode,
+        schema_version=(
+            str((evaluated[0].judge or {}).get("schema_version", "")).strip()
+            if evaluated
+            else JUDGE_SCHEMA_VERSION
+        )
+        or JUDGE_SCHEMA_VERSION,
         evaluated_cases=evaluated_count,
         skipped_cases=len(skipped),
         passed_cases=passed_count,

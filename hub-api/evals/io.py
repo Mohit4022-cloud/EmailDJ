@@ -183,6 +183,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"| Enabled | {judge_summary.get('enabled', False)} |")
         lines.append(f"| Model | `{judge_summary.get('model', 'unknown')}` |")
         lines.append(f"| Mode | `{judge_summary.get('mode', 'unknown')}` |")
+        lines.append(f"| Schema version | `{judge_summary.get('schema_version', 'unknown')}` |")
         lines.append(f"| Evaluated cases | {judge_summary.get('evaluated_cases', 0)} |")
         lines.append(f"| Skipped (hard fail) | {judge_summary.get('skipped_cases', 0)} |")
         lines.append(f"| Passed | {judge_summary.get('passed_cases', 0)} |")

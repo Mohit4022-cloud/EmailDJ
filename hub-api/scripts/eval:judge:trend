@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$ROOT:${PYTHONPATH:-}"
+PYTHON_BIN="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${PYTHON_BIN_FALLBACK:-python3}"
+fi
+
+"$PYTHON_BIN" "$ROOT/evals/judge/trend_report.py" "$@"

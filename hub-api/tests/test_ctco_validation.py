@@ -152,6 +152,24 @@ def test_validate_ctco_output_blocks_banned_phrases():
     assert "banned_phrase:pipeline outcomes" in violations
 
 
+def test_validate_ctco_output_forbidden_product_uses_word_boundaries():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    session["company_context"]["other_products"] = "Search, Sequence QA"
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and your SDR team is refining research workflows. "
+        "Remix Studio helps keep messaging controlled without adding process overhead.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "forbidden_other_product_mentioned:Search" not in violations
+
+
 def test_validate_ctco_output_flags_non_first_name_greeting():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
@@ -250,6 +268,53 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
     assert "Open to a quick chat to see if this is relevant?" in result.draft
     assert "Subject:" in result.draft
     assert "Body:" in result.draft
+
+
+@pytest.mark.asyncio
+async def test_build_draft_deterministic_repair_fixes_cta_forbidden_and_length(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["company_context"]["other_products"] = "Search, Sequence QA"
+    calls = {"count": 0}
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def noisy_real_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        text = json.dumps(
+            {
+                "subject": "Search angle for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and the SDR org is balancing quality with speed. "
+                    "Remix Studio helps keep outbound messaging controlled.\n\n"
+                    "Open to a quick call to see if this is relevant?\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+
+    style_profile = {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
+    style_sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", noisy_real_output)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile=style_profile,
+    )
+
+    violations = remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=style_sliders)
+    assert violations == []
+    assert calls["count"] == 1
+    assert result.violation_retry_count >= 1
+    assert result.repaired is True
 
 
 @pytest.mark.asyncio

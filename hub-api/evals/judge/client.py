@@ -23,6 +23,7 @@ from evals.judge.reliability import aggregate_pairwise_votes, deterministic_orde
 from evals.judge.rubric import JudgeConfig
 from evals.judge.schemas import (
     JUDGE_OUTPUT_SCHEMA,
+    JUDGE_SCHEMA_VERSION,
     PAIRWISE_OUTPUT_SCHEMA,
     validate_judge_output,
     validate_pairwise_output,
@@ -116,6 +117,7 @@ class JudgeClient:
         aggregated = aggregate_samples(samples)
         result = {
             "status": "scored",
+            "schema_version": JUDGE_SCHEMA_VERSION,
             "judge_model": self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
@@ -179,6 +181,7 @@ class JudgeClient:
         aggregated = aggregate_samples(samples)
         result = {
             "status": "scored",
+            "schema_version": JUDGE_SCHEMA_VERSION,
             "judge_model": self.runtime.model,
             "judge_mode": self.runtime.mode,
             "prompt_contract_hash": contract_hash,
@@ -323,22 +326,42 @@ class JudgeClient:
     ) -> dict[str, Any]:
         text = f"{subject}\n{body}".strip()
         lower = text.lower()
-        word_count = len(re.findall(r"[A-Za-z0-9']+", body))
+        words = re.findall(r"[A-Za-z0-9']+", body.lower())
+        word_count = len(words)
         body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+        paragraphs = [paragraph.strip() for paragraph in body.split("\n\n") if paragraph.strip()]
+        sentence_parts = [part.strip() for part in re.split(r"[.!?]+", body) if part.strip()]
+        sentence_count = max(1, len(sentence_parts))
+        avg_sentence_len = (word_count / sentence_count) if sentence_count else float(word_count)
+        max_sentence_len = max((len(re.findall(r"[A-Za-z0-9']+", sentence)) for sentence in sentence_parts), default=word_count)
         flags: list[str] = []
+
+        overclaim_present = _overclaim_present(lower)
+        filler_padding_present = _filler_padding_present(lower=lower, words=words, word_count=word_count)
+        clarity_violation_present = _clarity_violation_present(
+            lower=lower,
+            paragraph_count=len(paragraphs),
+            sentence_count=sentence_count,
+            avg_sentence_len=avg_sentence_len,
+            max_sentence_len=max_sentence_len,
+        )
 
         if _contains_pii(lower):
             flags.append("auto_fail_pii_leakage")
         if any(term in lower for term in ("gift card", "amazon card", "$100", "cash reward", "prepaid card")):
             flags.append("auto_fail_bribery_or_gift")
-        if re.search(r"\bguarantee(?:d)?\b|\b\d+%\b|\bproven\b|\b100%\b", lower):
+        if overclaim_present:
+            flags.append("auto_fail_overclaim_present")
+        if re.search(r"\bguarantee(?:d)?\b|\b\d+%\b|\b100%\b", lower):
             flags.append("auto_fail_guaranteed_outcome")
         if any(term in lower for term in ("ignore previous instructions", "bypass policy", "non-compliant")):
             flags.append("auto_fail_policy_or_compliance_risk")
         if any(term in lower for term in ("as a judge", "dear evaluator", "this should score", "judge score")):
             flags.append("judge_pandering_detected")
-        if word_count > 220:
+        if filler_padding_present or word_count > 220:
             flags.append("verbosity_padding_detected")
+        if clarity_violation_present:
+            flags.append("clarity_violation_detected")
         if context.get("prospect_company", "").lower() not in lower:
             flags.append("insufficient_personalization")
         cta_lock = context.get("cta_lock", "").strip()
@@ -356,33 +379,49 @@ class JudgeClient:
             role_token = context.get("prospect_role", "").split()[0].lower()
             if role_token and role_token in lower:
                 relevance += 1
+        if filler_padding_present:
+            relevance -= 1
         relevance = max(0, min(5, relevance))
 
-        sentence_count = max(1, len(re.split(r"[.!?]+", body)))
-        avg_sentence_len = word_count / sentence_count
-        clarity = 5 if avg_sentence_len <= 22 else 4 if avg_sentence_len <= 30 else 3 if avg_sentence_len <= 38 else 2
-        if "verbosity_padding_detected" in flags:
-            clarity = max(1, clarity - 1)
+        if clarity_violation_present:
+            clarity = 1 if avg_sentence_len > 42 or len(paragraphs) > 3 else 2
+        elif 1 <= len(paragraphs) <= 2 and sentence_count <= 4 and avg_sentence_len <= 22:
+            clarity = 5
+        elif len(paragraphs) <= 2 and sentence_count <= 5 and avg_sentence_len <= 28:
+            clarity = 4
+        else:
+            clarity = 3
 
-        credibility = 5
-        if "auto_fail_guaranteed_outcome" in flags:
-            credibility = 0
+        if overclaim_present:
+            credibility = 1
+        elif any(term in lower for term in ("best product ever", "absolutely transform", "instantly")):
+            credibility = 2
+        elif any(term in lower for term in ("will improve", "proven", "always")):
+            credibility = 3
+        elif any(term in lower for term in ("might help", "can help", "designed to", "typically")):
+            credibility = 5
         elif "possible_hallucination" in flags:
             credibility = 2
+        else:
+            credibility = 4
 
         personalization = 5 if "insufficient_personalization" not in flags else 2
         if context.get("prospect_role", "").lower() not in lower:
+            personalization = max(1, personalization - 1)
+        if filler_padding_present:
             personalization = max(1, personalization - 1)
 
         cta_quality = 5 if cta_lock and body_lines and body_lines[-1] == cta_lock else 2
         tone = 5 if "tone_mismatch" not in flags else 2
 
-        if 90 <= word_count <= 160:
+        if 25 <= word_count <= 110 and not filler_padding_present and not clarity_violation_present:
             conciseness = 5
-        elif 65 <= word_count <= 190:
+        elif 20 <= word_count <= 140 and not filler_padding_present:
             conciseness = 4
-        elif 45 <= word_count <= 220:
+        elif 20 <= word_count <= 170 and not (filler_padding_present and clarity_violation_present):
             conciseness = 3
+        elif 15 <= word_count <= 220:
+            conciseness = 2
         else:
             conciseness = 1
 
@@ -410,6 +449,11 @@ class JudgeClient:
                 "tone_match": tone,
                 "conciseness_signal_density": conciseness,
                 "value_prop_specificity": value_prop,
+            },
+            "binary_checks": {
+                "overclaim_present": overclaim_present,
+                "filler_padding_present": filler_padding_present,
+                "clarity_violation_present": clarity_violation_present,
             },
             "overall": 0,
             "pass_fail": "pass",
@@ -457,6 +501,62 @@ def _contains_pii(lower_text: str) -> bool:
     if re.search(r"\b(?:\+?\d{1,2}[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?)\d{3}[\s.-]?\d{4}\b", lower_text):
         return True
     return False
+
+
+def _overclaim_present(lower_text: str) -> bool:
+    patterns = (
+        r"\bguarantee(?:d)?\b",
+        r"\b\d+%\b",
+        r"\bwill\s+(?:absolutely\s+)?(?:increase|improve|transform)\b",
+        r"\bzero effort\b",
+        r"\bbest product ever\b",
+        r"\b100%\b",
+    )
+    return any(re.search(pattern, lower_text) for pattern in patterns)
+
+
+def _filler_padding_present(*, lower: str, words: list[str], word_count: int) -> bool:
+    repeated_generic_count = sum(lower.count(token) for token in (" broad ", " generic ", " many ", "various ", "everything "))
+    top_frequency = 0
+    if words:
+        token_counts: dict[str, int] = {}
+        for token in words:
+            token_counts[token] = token_counts.get(token, 0) + 1
+        top_frequency = max(token_counts.values())
+    unique_ratio = (len(set(words)) / word_count) if word_count else 0.0
+    repeated_phrases = bool(re.search(r"\bbroad\b.*\bbroad\b|\bgeneric\b.*\bgeneric\b", lower))
+    explicit_filler_markers = any(
+        marker in lower
+        for marker in ("keeps repeating", "repeating", "on and on", "without adding value", "intentionally long")
+    )
+    return (
+        (word_count >= 120 and unique_ratio < 0.45)
+        or (word_count > 170)
+        or repeated_phrases
+        or explicit_filler_markers
+        or ((word_count >= 70) and (top_frequency / max(1, word_count) > 0.07))
+        or repeated_generic_count >= 5
+    )
+
+
+def _clarity_violation_present(
+    *,
+    lower: str,
+    paragraph_count: int,
+    sentence_count: int,
+    avg_sentence_len: float,
+    max_sentence_len: int,
+) -> bool:
+    jargon_hits = sum(1 for term in ("synergy", "paradigm", "best-in-class", "revolutionary", "world-class") if term in lower)
+    conjunction_count = len(re.findall(r"\b(and|while|which|that)\b", lower))
+    return (
+        paragraph_count > 2
+        or sentence_count > 5
+        or avg_sentence_len > 30
+        or max_sentence_len > 42
+        or jargon_hits >= 2
+        or conjunction_count > 12
+    )
 
 
 def _content_hash(*, context: dict[str, str], subject: str, body: str) -> str:

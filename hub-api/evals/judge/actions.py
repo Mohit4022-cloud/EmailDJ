@@ -25,7 +25,7 @@ def derive_repair_actions(judge_result: dict[str, Any]) -> list[dict[str, str]]:
                 "reason": "Relevance/personalization is weak for the target prospect context.",
             }
         )
-    if credibility <= 3 or "auto_fail_guaranteed_outcome" in flags:
+    if credibility <= 3 or "auto_fail_guaranteed_outcome" in flags or "auto_fail_overclaim_present" in flags:
         actions.append(
             {
                 "tag": "CREDIBILITY_OVERCLAIM",
@@ -79,4 +79,3 @@ def _dedupe_actions(actions: list[dict[str, str]]) -> list[dict[str, str]]:
         seen.add(tag)
         output.append(action)
     return output
-

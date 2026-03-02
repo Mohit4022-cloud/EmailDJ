@@ -6,15 +6,27 @@ from typing import Any
 
 from evals.judge.rubric import ALL_FLAGS, CRITERIA
 
+JUDGE_SCHEMA_VERSION = "judge_output_v2"
+
 JUDGE_OUTPUT_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["scores", "overall", "pass_fail", "rationale_bullets", "flags"],
+    "required": ["scores", "binary_checks", "overall", "pass_fail", "rationale_bullets", "flags"],
     "properties": {
         "scores": {
             "type": "object",
             "additionalProperties": False,
             "required": list(CRITERIA),
+        },
+        "binary_checks": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["overclaim_present", "filler_padding_present", "clarity_violation_present"],
+            "properties": {
+                "overclaim_present": {"type": "boolean"},
+                "filler_padding_present": {"type": "boolean"},
+                "clarity_violation_present": {"type": "boolean"},
+            },
         },
         "overall": {"type": "number", "minimum": 0, "maximum": 5},
         "pass_fail": {"type": "string", "enum": ["pass", "fail"]},
@@ -73,6 +85,16 @@ def validate_judge_output(raw: dict[str, Any] | str) -> dict[str, Any]:
             raise ValueError(f"judge_score_out_of_range:{criterion}")
         normalized_scores[criterion] = ivalue
 
+    binary_checks = payload.get("binary_checks")
+    if not isinstance(binary_checks, dict):
+        raise ValueError("judge_binary_checks_missing")
+    normalized_binary_checks: dict[str, bool] = {}
+    for key in ("overclaim_present", "filler_padding_present", "clarity_violation_present"):
+        value = binary_checks.get(key)
+        if not isinstance(value, bool):
+            raise ValueError(f"judge_binary_check_invalid:{key}")
+        normalized_binary_checks[key] = value
+
     overall = payload.get("overall")
     if not isinstance(overall, (int, float)):
         raise ValueError("judge_overall_missing")
@@ -104,6 +126,7 @@ def validate_judge_output(raw: dict[str, Any] | str) -> dict[str, Any]:
 
     return {
         "scores": normalized_scores,
+        "binary_checks": normalized_binary_checks,
         "overall": round(overall_f, 4),
         "pass_fail": pass_fail,
         "rationale_bullets": normalized_rationale[:6],
@@ -140,4 +163,3 @@ def validate_pairwise_output(raw: dict[str, Any] | str) -> dict[str, Any]:
         "rationale_bullets": rationale[:6],
         "flags": flags,
     }
-
