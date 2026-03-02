@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import re
 import sys
 
 import pytest
@@ -35,6 +36,13 @@ def _session_payload(research_text: str | None = None):
             "company_notes": "We help teams improve reply quality with controlled personalization.",
         },
     )
+
+
+def _extract_body_text(draft: str) -> str:
+    marker = "\nBody:\n"
+    if marker not in draft:
+        return ""
+    return draft.split(marker, 1)[1].strip()
 
 
 def test_validate_ctco_output_flags_internal_leakage():
@@ -265,7 +273,7 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
     )
 
     assert calls["count"] == 2
-    assert "Open to a quick chat to see if this is relevant?" in result.draft
+    assert "Worth a look / Not a priority?" in result.draft
     assert "Subject:" in result.draft
     assert "Body:" in result.draft
 
@@ -313,8 +321,8 @@ async def test_build_draft_deterministic_repair_fixes_cta_forbidden_and_length(m
     violations = remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=style_sliders)
     assert violations == []
     assert calls["count"] == 1
-    assert result.violation_retry_count >= 1
-    assert result.repaired is True
+    assert result.violation_retry_count == 0
+    assert result.repaired is False
 
 
 @pytest.mark.asyncio
@@ -378,8 +386,8 @@ async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
     assert "Subject:" in result.draft
     assert result.enforcement_level == "warn"
     assert result.repair_loop_enabled is False
-    assert "unsubstantiated_statistical_claim" in result.violation_codes
-    assert result.violation_count >= 1
+    assert "unsubstantiated_statistical_claim" not in result.violation_codes
+    assert result.violation_count == 0
 
 
 @pytest.mark.asyncio
@@ -412,9 +420,133 @@ async def test_build_draft_block_mode_fails_without_repair_retry(monkeypatch):
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", claim_heavy_output)
 
-    with pytest.raises(ValueError, match="ctco_validation_failed"):
-        await remix_engine.build_draft(
-            session=session,
-            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
-        )
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
     assert calls["count"] == 1
+    assert "proven" not in result.draft.lower()
+
+
+@pytest.mark.asyncio
+async def test_build_draft_enforces_first_name_greeting_in_mock_mode(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.2, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+    body = _extract_body_text(result.draft)
+    first_line = next((line.strip() for line in body.splitlines() if line.strip()), "")
+    assert first_line.startswith("Hi Alex,") or first_line.startswith("Hello Alex,")
+
+
+@pytest.mark.asyncio
+async def test_build_draft_slider_length_bands_are_deterministic(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    short = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -1.0, "assertiveness": 0.0},
+    )
+    long = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 1.0, "assertiveness": 0.0},
+    )
+    short_words = len(re.findall(r"[A-Za-z0-9']+", _extract_body_text(short.draft)))
+    long_words = len(re.findall(r"[A-Za-z0-9']+", _extract_body_text(long.draft)))
+
+    assert 55 <= short_words <= 75
+    assert 110 <= long_words <= 160
+    assert long_words > short_words
+
+
+@pytest.mark.asyncio
+async def test_build_draft_problem_vs_outcome_slider_changes_opener(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    problem_led = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": -1.0, "length": 0.0, "assertiveness": 0.0},
+    )
+    outcome_led = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 1.0, "length": 0.0, "assertiveness": 0.0},
+    )
+
+    problem_body = _extract_body_text(problem_led.draft).lower()
+    outcome_body = _extract_body_text(outcome_led.draft).lower()
+    assert "remix studio helps" in outcome_body
+    assert problem_body != outcome_body
+
+
+@pytest.mark.asyncio
+async def test_build_draft_preset_strategy_changes_structure_and_cta(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    straight_session = _session_payload()
+    straight_session["preset_id"] = "straight_shooter"
+    straight = await remix_engine.build_draft(
+        session=straight_session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+
+    giver_session = _session_payload()
+    giver_session["preset_id"] = "giver"
+    giver = await remix_engine.build_draft(
+        session=giver_session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+
+    assert straight_session["generation_plan"]["hook_type"] != giver_session["generation_plan"]["hook_type"]
+    assert "Open to a" in straight.draft
+    assert "send 3 examples" in giver.draft
+
+
+@pytest.mark.asyncio
+async def test_build_draft_rewrites_unverified_numeric_claims(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def fake_real_generate(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and your team is balancing quality with speed. "
+                    "Remix Studio guarantees 99.9% accuracy rate and coverage across 400 marketplaces.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+    draft_lower = result.draft.lower()
+    assert "99.9%" not in draft_lower
+    assert "accuracy rate" not in draft_lower
+    assert "400 marketplaces" not in draft_lower
+    assert "worth a look / not a priority?" in draft_lower

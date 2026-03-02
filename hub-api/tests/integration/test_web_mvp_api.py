@@ -106,6 +106,13 @@ def _stream_done_payload(stream_text: str) -> dict:
     return {}
 
 
+def _assert_upgraded_cta(text: str) -> None:
+    lower = text.lower()
+    assert "worth a look / not a priority?" in lower
+    assert ("15-min" in lower) or ("20-min" in lower)
+    assert ("teardown" in lower) or ("workflow" in lower) or ("examples" in lower)
+
+
 @pytest.mark.asyncio
 async def test_web_generate_and_remix_stream_flow():
     httpx = pytest.importorskip("httpx")
@@ -134,7 +141,7 @@ async def test_web_generate_and_remix_stream_flow():
         assert "event: done" in stream.text
         generated = _stream_token_text(stream.text)
         assert "Acme" in generated
-        assert "Open to a quick chat to see if this is relevant?" in generated
+        _assert_upgraded_cta(generated)
         assert "Subject:" in generated
         assert "Body:" in generated
         done = _stream_done_payload(stream.text)
@@ -166,7 +173,7 @@ async def test_web_generate_and_remix_stream_flow():
         assert "event: done" in remix_stream.text
         remixed = _stream_token_text(remix_stream.text)
         assert "Acme" in remixed
-        assert "Open to a quick chat to see if this is relevant?" in remixed
+        _assert_upgraded_cta(remixed)
         remix_done = _stream_done_payload(remix_stream.text)
         assert remix_done["request_id"] == remix.json()["request_id"]
         assert remix_done["session_id"] == body["session_id"]
@@ -256,7 +263,7 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
         generated = _stream_token_text(stream.text)
         assert "Subject:" in generated
         assert "Body:" in generated
-        assert "Open to a quick chat to see if this is relevant?" in generated
+        _assert_upgraded_cta(generated)
         assert "pipeline outcomes" not in generated.lower()
 
     assert calls["count"] == 2
@@ -362,7 +369,7 @@ async def test_web_generate_empty_cta_uses_canonical_fallback():
         stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
         assert stream.status_code == 200
         rendered = _stream_token_text(stream.text)
-        assert "Open to a quick chat to see if this is relevant?" in rendered
+        _assert_upgraded_cta(rendered)
 
 
 @pytest.mark.asyncio

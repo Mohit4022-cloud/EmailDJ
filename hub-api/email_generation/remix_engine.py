@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any
 
+from email_generation.claim_verifier import find_unverified_claims, merge_claim_sources
 from email_generation.compliance_rules import (
     _CASH_CTA_PATTERN,
     _CTA_ASK_CUES,
@@ -23,6 +24,9 @@ from email_generation.compliance_rules import (
     _contains_term,
     _word_count,
 )
+from email_generation.cta_templates import resolve_cta_lock
+from email_generation.generation_plan import GenerationPlan, apply_generation_plan, build_generation_plan
+from email_generation.preset_strategies import normalize_preset_id
 from email_generation.prompt_templates import get_web_mvp_prompt
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
 from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
@@ -43,10 +47,19 @@ MAX_VALIDATION_ATTEMPTS = 3
 DEFAULT_FALLBACK_CTA = "Open to a quick chat to see if this is relevant?"
 
 _BANNED_PHRASES = (
+    "ai services",
+    "ai consulting",
+    "we build ai",
+    "ai transformation services",
     "pipeline outcomes",
     "reply lift",
     "conversion lift",
     "measurable results",
+)
+
+_GENERIC_AI_OPENER_PATTERN = re.compile(
+    r"^as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+ai\s+initiatives[, ]",
+    re.IGNORECASE,
 )
 
 _INSTRUCTIONAL_RESEARCH_PHRASES = (
@@ -160,6 +173,25 @@ def _normalize_lock_text(value: Any, max_length: int) -> str | None:
 
 def _normalize_cta_lock(value: Any) -> str:
     return _normalize_lock_text(value, max_length=500) or DEFAULT_FALLBACK_CTA
+
+
+def _resolve_effective_cta_lock(
+    *,
+    raw_lock: Any,
+    cta_type: str | None,
+    offer_lock: str,
+    style_sliders: dict[str, int] | None = None,
+    company_context: dict[str, Any] | None = None,
+) -> str:
+    sliders = style_sliders or {"stance_bold_diplomatic": 50}
+    directness = max(0, min(100, 100 - int(sliders.get("stance_bold_diplomatic", 50))))
+    risk_surface = _normalize_lock_text((company_context or {}).get("current_product"), max_length=240) or offer_lock
+    return resolve_cta_lock(
+        existing_lock=_normalize_lock_text(raw_lock, max_length=500),
+        cta_type=cta_type,
+        risk_surface=risk_surface,
+        directness=directness,
+    )
 
 
 def _catalog_items(raw: str | None) -> list[str]:
@@ -343,15 +375,11 @@ def ctco_style_bands(style_sliders: dict[str, int]) -> dict[str, str]:
 
 
 def body_word_range(length_short_long: int) -> tuple[int, int]:
-    if length_short_long <= 20:
-        return 45, 70
-    if length_short_long <= 40:
-        return 70, 110
-    if length_short_long <= 60:
-        return 110, 160
-    if length_short_long <= 80:
-        return 160, 220
-    return 220, 300
+    if length_short_long <= 33:
+        return 55, 75
+    if length_short_long <= 66:
+        return 75, 110
+    return 110, 160
 
 
 def build_factual_brief(prospect: dict[str, Any], research_text: str) -> str:
@@ -702,30 +730,23 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
     ):
         violations.append("ungrounded_seen_read_noticed_claim")
 
-    research_claim_source = _collapse_ws((session.get("research_text_raw") or session.get("research_text") or "").lower())
-    statistical_claim_violation = False
-    for pattern in _STAT_CLAIM_PATTERNS:
-        for match in pattern.finditer(draft_lower):
-            claim = _collapse_ws(match.group(0))
-            if claim and claim not in research_claim_source:
-                statistical_claim_violation = True
-                break
-        if statistical_claim_violation:
-            break
-    if statistical_claim_violation:
-        violations.append("unsubstantiated_statistical_claim")
+    research_claim_source = merge_claim_sources(
+        [
+            session.get("research_text_raw"),
+            session.get("research_text"),
+            (session.get("company_context") or {}).get("company_notes"),
+            " ".join(session.get("allowed_facts") or []),
+        ]
+    )
+    if _GENERIC_AI_OPENER_PATTERN.search(first_body_line or "") and "scales its ai initiatives" not in research_claim_source:
+        violations.append("banned_generic_ai_opener")
 
-    performance_claim_violation = False
-    for pattern in _PERFORMANCE_CLAIM_PATTERNS:
-        for match in pattern.finditer(draft_lower):
-            claim = _collapse_ws(match.group(0))
-            if claim and claim not in research_claim_source:
-                performance_claim_violation = True
-                break
-        if performance_claim_violation:
-            break
-    if performance_claim_violation:
-        violations.append("unsubstantiated_performance_claim")
+    unverified_claims = find_unverified_claims(draft, research_claim_source)
+    for claim in unverified_claims:
+        if re.search(r"\d|%|rate|marketplace|accuracy|compliance|x", claim, re.IGNORECASE):
+            violations.append("unsubstantiated_statistical_claim")
+        else:
+            violations.append(f"unsubstantiated_claim:{claim[:60]}")
 
     # Cash-equivalent CTA: gift cards, prepaid cards, cash rewards (Batch 3 P4)
     if _CASH_CTA_PATTERN.search(draft_lower):
@@ -843,62 +864,22 @@ def _deterministic_compliance_repair(
     style_sliders: dict[str, int],
 ) -> str:
     subject, body = _extract_subject_and_body(candidate)
-    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
-    expected_cta_norm = _collapse_ws(expected_cta).lower()
-    forbidden_items = _offer_lock_forbidden_items(session)
-    body_lines = [line.strip() for line in body.splitlines() if line.strip()]
-
-    kept_lines: list[str] = []
-    for line in body_lines:
-        if line == expected_cta:
-            continue
-        line_norm = _collapse_ws(line).lower()
-        if not line_norm:
-            continue
-        ratio = SequenceMatcher(None, expected_cta_norm, line_norm).ratio()
-        if ratio >= 0.88 and (_is_additional_cta_line(line) or "?" in line):
-            continue
-        if _is_additional_cta_line(line):
-            continue
-        kept_lines.append(line)
-
-    main_text = _collapse_ws(" ".join(kept_lines))
-    main_text = _remove_forbidden_product_terms(main_text, forbidden_items)
-
-    expected_first_name = _expected_prospect_first_name(session)
-    if expected_first_name:
-        greeting_pattern = r"^(Hi|Hello)\s+[^,\n]+,"
-        replacement = f"Hi {expected_first_name},"
-        if re.match(greeting_pattern, main_text):
-            main_text = re.sub(greeting_pattern, replacement, main_text, count=1)
-        else:
-            main_text = f"{replacement} {main_text}".strip()
-
-    offer_lock = _collapse_ws(str(session.get("offer_lock") or "")).strip()
-    if offer_lock and offer_lock.lower() not in main_text.lower():
-        main_text = (
-            f"{main_text} {offer_lock} helps keep messaging specific and controlled for your team."
-        ).strip()
-
-    if not main_text:
-        fallback_name = expected_first_name or "there"
-        if offer_lock:
-            main_text = (
-                f"Hi {fallback_name}, {offer_lock} helps teams improve message relevance while keeping execution controlled."
-            )
-        else:
-            main_text = (
-                f"Hi {fallback_name}, this approach helps teams improve message relevance while keeping execution controlled."
-            )
-
-    subject = _remove_forbidden_product_terms(subject, forbidden_items)
-    if not subject:
-        company = (session.get("prospect") or {}).get("company") or "your team"
-        subject = f"{offer_lock or 'Outbound approach'} for {company}"
-
-    min_words, max_words = body_word_range(style_sliders["length_short_long"])
-    repaired_body = _fit_body_range(main_text=main_text, cta_line=expected_cta, min_total=min_words, max_total=max_words)
-    return _format_draft(subject=subject, body=repaired_body)
+    plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
+        session=session,
+        style_sliders=style_sliders,
+        preset_id=session.get("preset_id"),
+        cta_type=session.get("cta_type"),
+    )
+    repaired_subject, repaired_body = apply_generation_plan(
+        subject=subject,
+        body=body,
+        session=session,
+        style_sliders=style_sliders,
+        plan=plan,
+    )
+    if repaired_body.splitlines():
+        session["cta_lock_effective"] = _collapse_ws(repaired_body.splitlines()[-1].strip())
+    return _format_draft(subject=repaired_subject, body=repaired_body)
 
 
 def _mock_subject(prospect: dict[str, Any], offer_lock: str, style_sliders: dict[str, int]) -> str:
@@ -1052,6 +1033,13 @@ async def _build_real_draft(
     violation_retry_count = 0
     validator_attempt_count = 0
     max_attempts = MAX_VALIDATION_ATTEMPTS if enforcement_level == "repair" and repair_enabled and not throttled else 1
+    plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
+        session=session,
+        style_sliders=style_sliders,
+        preset_id=session.get("preset_id"),
+        cta_type=session.get("cta_type"),
+    )
+    session["generation_plan"] = plan.to_dict()
 
     seller_context = {
         "seller_company_name": (session.get("company_context") or {}).get("company_name"),
@@ -1072,6 +1060,7 @@ async def _build_real_draft(
             cta_type=session.get("cta_type"),
             style_sliders=style_sliders,
             style_bands=style_bands,
+            generation_plan=plan.to_dict(),
             prior_draft=prior_draft,
             correction_notes=correction_notes,
             prospect_first_name=session.get("prospect_first_name"),
@@ -1112,6 +1101,16 @@ async def _build_real_draft(
                 continue
             raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}") from exc
 
+        subject, body = apply_generation_plan(
+            subject=subject,
+            body=body,
+            session=session,
+            style_sliders=style_sliders,
+            plan=plan,
+        )
+        session["cta_lock_effective"] = _collapse_ws(body.splitlines()[-1].strip()) if body.splitlines() else session.get(
+            "cta_lock_effective", DEFAULT_FALLBACK_CTA
+        )
         candidate = _format_draft(subject=subject, body=body)
         violations = validate_ctco_output(candidate, session=session, style_sliders=style_sliders)
         if not violations:
@@ -1220,12 +1219,28 @@ async def build_draft(
     session_id: str | None = None,
 ) -> DraftResult:
     normalized = normalize_style_profile(style_profile)
-    style_key = style_profile_key(normalized)
+    style_sliders = style_profile_to_ctco_sliders(normalized)
+    preset_id = normalize_preset_id(session.get("preset_id"))
+    session["preset_id"] = preset_id
+    plan = build_generation_plan(
+        session=session,
+        style_sliders=style_sliders,
+        preset_id=preset_id,
+        cta_type=session.get("cta_type"),
+    )
+    session["generation_plan"] = plan.to_dict()
+    session["cta_lock_effective"] = _resolve_effective_cta_lock(
+        raw_lock=session.get("cta_offer_lock"),
+        cta_type=plan.cta_type,
+        offer_lock=session.get("offer_lock") or "",
+        style_sliders=style_sliders,
+        company_context=session.get("company_context"),
+    )
+    style_key = f"p:{preset_id}|{style_profile_key(normalized)}"
     style_cache = session.get("style_cache", {})
     mode = _mode()
     enforcement_level = strict_lock_enforcement_level()
     repair_enabled = repair_loop_enabled()
-    style_sliders = style_profile_to_ctco_sliders(normalized)
     style_bands = ctco_style_bands(style_sliders)
     validator_attempt_count = 0
     json_repair_count = 0
@@ -1267,6 +1282,15 @@ async def build_draft(
     if mode != "real":
         subject = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
         body = _mock_body(session=session, style_sliders=style_sliders)
+        subject, body = apply_generation_plan(
+            subject=subject,
+            body=body,
+            session=session,
+            style_sliders=style_sliders,
+            plan=plan,
+        )
+        if body.splitlines():
+            session["cta_lock_effective"] = _collapse_ws(body.splitlines()[-1].strip())
         draft = _format_draft(subject=subject, body=body)
         result_provider = "mock"
         result_model = "mock"
@@ -1337,11 +1361,12 @@ def create_session_payload(
     cta_type: str | None = None,
     company_context: dict[str, Any] | None = None,
     prospect_first_name: str | None = None,
+    preset_id: str | None = None,
 ) -> dict[str, Any]:
     normalized_style = normalize_style_profile(initial_style)
+    initial_sliders = style_profile_to_ctco_sliders(normalized_style)
     normalized_company = normalize_company_context(company_context)
     effective_offer_lock = _normalize_lock_text(offer_lock, max_length=240) or normalized_company.get("current_product") or ""
-    effective_cta_lock = _normalize_cta_lock(cta_offer_lock)
     research_text_raw = (research_text or "").strip()
     research_text_sanitized = _strip_instructional_phrases(research_text_raw)
     if not research_text_sanitized:
@@ -1353,10 +1378,30 @@ def create_session_payload(
         prospect_first_name = _derive_first_name((prospect.get("name") or "").strip())
     else:
         prospect_first_name = _derive_first_name(prospect_first_name)
+    normalized_preset_id = normalize_preset_id(preset_id)
+    seed_session = {
+        "prospect": prospect,
+        "prospect_first_name": prospect_first_name,
+        "company_context": normalized_company,
+        "allowed_facts": allowed_facts,
+        "offer_lock": effective_offer_lock,
+        "research_text_raw": research_text_raw,
+        "research_text": research_text_sanitized,
+        "preset_id": normalized_preset_id,
+        "cta_type": cta_type,
+    }
+    initial_plan = build_generation_plan(
+        session=seed_session,
+        style_sliders=initial_sliders,
+        preset_id=normalized_preset_id,
+        cta_type=cta_type,
+    )
+    effective_cta_lock = _normalize_cta_lock(cta_offer_lock)
 
     return {
         "prospect": prospect,
         "prospect_first_name": prospect_first_name,
+        "preset_id": normalized_preset_id,
         "company_context": normalized_company,
         "company_context_brief": build_company_context_brief(normalized_company),
         "research_text_raw": research_text_raw,
@@ -1368,6 +1413,7 @@ def create_session_payload(
         "cta_offer_lock": _normalize_lock_text(cta_offer_lock, max_length=500),
         "cta_lock_effective": effective_cta_lock,
         "cta_type": cta_type,
+        "generation_plan": initial_plan.to_dict(),
         "anchors": build_anchors(
             prospect=prospect,
             offer_lock=effective_offer_lock,

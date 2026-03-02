@@ -78,6 +78,11 @@ class WebGenerateRequest(BaseModel):
     )
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
+    preset_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Optional strategy preset id (e.g., straight_shooter, headliner).",
+    )
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
     company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 
@@ -90,6 +95,11 @@ class WebGenerateAccepted(BaseModel):
 
 class WebRemixRequest(BaseModel):
     session_id: str = Field(min_length=1)
+    preset_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Optional strategy preset id override for this remix request.",
+    )
     style_profile: WebStyleProfile
 
 

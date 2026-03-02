@@ -46,6 +46,7 @@ class WebApp {
     this.isGenerating = false;
     this.lastDraft = '';
     this.lastStyleKey = '';
+    this.selectedPresetId = String(SDR_PRESETS?.[0]?.strategy_id || SDR_PRESETS?.[0]?.id || 'straight_shooter');
     this.remixDebounced = debounce(() => this.triggerRemix(), 250);
     this.render();
   }
@@ -204,6 +205,7 @@ class WebApp {
 
   applyPreset(preset) {
     if (!preset) return;
+    this.selectedPresetId = String(preset.strategy_id || preset.id || 'straight_shooter');
     this.sliderBoard.setValues(presetToSliderState(preset), { emit: true });
     if (!this.sessionId) {
       this.setStatus(`Preset selected: ${preset.name}. Click Generate to create a draft.`);
@@ -330,6 +332,7 @@ class WebApp {
       offer_lock: offerLock,
       cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
       cta_type: this.ctaTypeSelect.value.trim() || null,
+      preset_id: this.selectedPresetId,
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: companyCtx,
     };
@@ -418,7 +421,11 @@ class WebApp {
 
     const start = performance.now();
     try {
-      const accepted = await remixDraft({ session_id: this.sessionId, style_profile: style });
+      const accepted = await remixDraft({
+        session_id: this.sessionId,
+        preset_id: this.selectedPresetId,
+        style_profile: style,
+      });
       await this.streamIntoEditor(accepted.request_id);
       const elapsed = Math.round(performance.now() - start);
       this.editor.markComplete(elapsed);

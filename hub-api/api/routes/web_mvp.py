@@ -154,6 +154,7 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         cta_type=req.cta_type,
         company_context=req.company_context.model_dump(exclude_none=True),
         prospect_first_name=req.prospect_first_name,
+        preset_id=req.preset_id,
     )
     await save_session(session_id, session)
 
@@ -173,6 +174,9 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
     session = await load_session(req.session_id)
     if session is None:
         raise HTTPException(status_code=404, detail={"error": "session_not_found", "session_id": req.session_id})
+    if req.preset_id:
+        session["preset_id"] = req.preset_id
+        await save_session(req.session_id, session)
 
     await _emit_metric("web_remix_started")
     request_id = str(uuid4())

@@ -22,6 +22,7 @@ from api.schemas import (
     WebPreviewPresetInput,
     WebSummaryPack,
 )
+from email_generation.claim_verifier import find_unverified_claims, merge_claim_sources
 from email_generation.compliance_rules import (
     _CASH_CTA_PATTERN,
     _GUARANTEED_CLAIM_PATTERN,
@@ -37,6 +38,16 @@ from infra.redis_client import get_redis
 logger = logging.getLogger(__name__)
 
 PIPELINE_VERSION = "extractor-generator-v1"
+_BANNED_POSITIONING_PHRASES = (
+    "ai services",
+    "ai consulting",
+    "we build ai",
+    "ai transformation services",
+)
+_GENERIC_AI_OPENER_PATTERN = re.compile(
+    r"^as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+ai\s+initiatives[, ]",
+    re.IGNORECASE,
+)
 
 _EXTRACTOR_SYSTEM_PROMPT = """You are EmailDJ’s Research Extractor. Your job is to compress raw research into a small, high-signal summary_pack for downstream email generation.
 Optimization priorities: (1) lowest tokens, (2) factual accuracy, (3) usefulness for outbound emails.
@@ -283,6 +294,26 @@ def _fit_body_range(main_text: str, cta_line: str) -> str:
         main_words = main_words[:max_main]
 
     return f"{' '.join(main_words).strip()}\n\n{cta_line}".strip()
+
+
+def _ensure_preview_greeting(main_text: str, first_name: str) -> str:
+    text = _compact(main_text)
+    if not text:
+        return text
+    expected = first_name if first_name and first_name.lower() != "there" else "there"
+    replacement = f"Hi {expected},"
+    if re.match(r"^(Hi|Hello)\s+[^,\n]+,", text):
+        return re.sub(r"^(Hi|Hello)\s+[^,\n]+,", replacement, text, count=1)
+    return f"{replacement} {text}".strip()
+
+
+def _remove_banned_positioning(text: str) -> str:
+    output = text
+    for phrase in _BANNED_POSITIONING_PHRASES:
+        output = re.sub(re.escape(phrase), "", output, flags=re.IGNORECASE)
+    output = re.sub(r"\s{2,}", " ", output)
+    output = re.sub(r"\s+([,.;!?])", r"\1", output)
+    return output.strip()
 
 
 def _normalize_subject(subject: str, fallback: str, used: set[str]) -> str:
@@ -644,18 +675,19 @@ def _sanitize_summary_pack(raw: dict[str, Any], req: WebPresetPreviewBatchReques
 def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBatchRequest) -> list[str]:
     violations: list[str] = []
     seen_subjects: set[str] = set()
+    expected_first_name = _first_name(req.prospect.name or "")
 
     offer_lock_lower = _collapse_ws(req.offer_lock).lower()
     cta_lock = _collapse_ws(req.cta_lock)
-    approved_claim_source = _collapse_ws(
-        " ".join(
-            [
-                req.raw_research.deep_research_paste,
-                req.raw_research.company_notes or "",
-                " ".join(req.product_context.proof_points),
-            ]
-        )
-    ).lower()
+    approved_claim_source = merge_claim_sources(
+        [
+            req.raw_research.deep_research_paste,
+            req.raw_research.company_notes or "",
+            " ".join(req.product_context.proof_points),
+            req.offer_lock,
+            req.product_context.product_name,
+        ]
+    )
     allowed_leakage_text = _collapse_ws(
         " ".join([req.offer_lock, req.product_context.product_name, req.prospect.company, req.prospect.name])
     ).lower()
@@ -688,6 +720,18 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
         # --- CTCO-aligned checks (Batch 3 P2) ---
         body_lower = _collapse_ws(item.body).lower()
         body_lines = [_collapse_ws(line) for line in item.body.splitlines() if line.strip()]
+        first_line = body_lines[0] if body_lines else ""
+
+        if expected_first_name and expected_first_name.lower() != "there":
+            greeting_match = re.match(r"^(Hi|Hello)\s+([^,\n]+),", first_line)
+            if greeting_match is None:
+                violations.append(f"{item.preset_id}: greeting_missing_or_invalid")
+            else:
+                greeted_name = _collapse_ws(greeting_match.group(2))
+                if greeted_name.lower() != expected_first_name.lower():
+                    violations.append(f"{item.preset_id}: greeting_first_name_mismatch")
+                if " " in greeted_name:
+                    violations.append(f"{item.preset_id}: greeting_not_first_name_only")
 
         # Offer lock must appear in body
         if offer_lock_lower and offer_lock_lower not in body_lower:
@@ -706,9 +750,22 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
                 violations.append(f"{item.preset_id}: internal_leakage_term:{term}")
                 break
 
+        for phrase in _BANNED_POSITIONING_PHRASES:
+            if phrase in body_lower:
+                violations.append(f"{item.preset_id}: banned_phrase:{phrase}")
+
+        if _GENERIC_AI_OPENER_PATTERN.search(first_line) and "scales its ai initiatives" not in approved_claim_source:
+            violations.append(f"{item.preset_id}: banned_generic_ai_opener")
+
         # Cash-equivalent CTA
         if _CASH_CTA_PATTERN.search(body_lower):
             violations.append(f"{item.preset_id}: cash_equivalent_cta_detected")
+
+        for claim in find_unverified_claims(item.body, approved_claim_source):
+            if re.search(r"\d|%|rate|marketplace|accuracy|compliance|x", claim, re.IGNORECASE):
+                violations.append(f"{item.preset_id}: unsubstantiated_statistical_claim")
+            else:
+                violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
 
         # Unsubstantiated guaranteed/proven claims
         for match in _GUARANTEED_CLAIM_PATTERN.finditer(body_lower):
@@ -761,7 +818,9 @@ def _normalize_preview_items(
         subject = _normalize_subject(_compact(source.get("subject")), fallback_subject, used_subjects)
         cta = req.cta_lock
         draft_body = _compact(source.get("body")) or _mock_body(req, summary_pack, preset, index)
-        body = _fit_body_range(main_text=draft_body.replace("?", "."), cta_line=cta)
+        draft_body = _remove_banned_positioning(draft_body)
+        draft_body = _ensure_preview_greeting(draft_body.replace("?", "."), _first_name(req.prospect.name or ""))
+        body = _fit_body_range(main_text=draft_body, cta_line=cta)
 
         preview = WebPreviewItem(
             preset_id=str(preset.preset_id),

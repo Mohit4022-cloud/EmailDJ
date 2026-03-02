@@ -7,18 +7,18 @@ import { SDR_PRESETS } from '../src/data/sdrPresets.js';
 test('presetToSliderState maps preset semantics onto slider board axes', () => {
   const first = presetToSliderState(SDR_PRESETS[0]);
   assert.deepEqual(first, {
-    formality: 40,
-    orientation: 50,
+    formality: 45,
+    orientation: 45,
     length: 40,
-    assertiveness: 40,
+    assertiveness: 35,
   });
 
   const third = presetToSliderState(SDR_PRESETS[2]);
   assert.deepEqual(third, {
-    formality: 80,
-    orientation: 40,
-    length: 30,
-    assertiveness: 100,
+    formality: 60,
+    orientation: 65,
+    length: 45,
+    assertiveness: 75,
   });
 });
 
