@@ -22,7 +22,12 @@ from api.schemas import (
     WebPreviewPresetInput,
     WebSummaryPack,
 )
-from email_generation.claim_verifier import find_unverified_claims, merge_claim_sources
+from email_generation.claim_verifier import (
+    extract_allowed_numeric_claims,
+    find_unverified_claims,
+    merge_claim_sources,
+    rewrite_unverified_claims,
+)
 from email_generation.compliance_rules import (
     _CASH_CTA_PATTERN,
     _GUARANTEED_CLAIM_PATTERN,
@@ -32,6 +37,16 @@ from email_generation.compliance_rules import (
     _collapse_ws,
     _contains_term,
 )
+from email_generation.cta_templates import resolve_cta_lock
+from email_generation.output_enforcement import (
+    compose_body_without_padding_loops,
+    derive_first_name,
+    enforce_first_name_greeting,
+    long_mode_section_pool,
+    sanitize_generic_ai_opener,
+    split_sentences,
+)
+from email_generation.preset_strategies import get_preset_strategy
 from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
@@ -45,7 +60,7 @@ _BANNED_POSITIONING_PHRASES = (
     "ai transformation services",
 )
 _GENERIC_AI_OPENER_PATTERN = re.compile(
-    r"^as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+ai\s+initiatives[, ]",
+    r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
     re.IGNORECASE,
 )
 
@@ -62,7 +77,7 @@ Optimization priorities: (1) CTCO compliance, (2) lowest total tokens, (3) high-
 
 HARD COMPLIANCE RULES (violations trigger regeneration):
 - OFFER LOCK: Pitch ONLY the product named in offer_lock. Never mention other products or services.
-- CTA LOCK: End EVERY email body with the exact text from cta_lock, used exactly once as its own line. No alternate asks.
+- CTA PRECEDENCE (apply per preset): (1) if cta_lock_text is non-empty, use it exactly; (2) else if cta_type is provided, use that CTA template; (3) else use preset default CTA type.
 - LEAKAGE BAN: Never output these terms: emaildj, remix, mapping, template, templates, slider, sliders, prompt, prompts, llm, llms, openai, gemini, codex, generated, automation tooling.
 - GROUNDING: Only assert specific facts from summary_pack.facts. Frame all else as soft hypothesis or general pattern.
 - NO CASH CTAs: Never offer gift cards, Amazon cards, prepaid cards, cash rewards, or "$X gift".
@@ -79,7 +94,7 @@ HARD FORMAT LIMITS:
 STYLE RULES:
 - No "hope you’re well"
 - No exclamation marks
-- Body must end with cta_lock as its own line
+- Body must end with the resolved CTA line as its own line
 
 Output MUST match the JSON schema (Structured Outputs / strict)."""
 
@@ -181,15 +196,6 @@ def _compact(value: Any) -> str:
     return " ".join(str(value or "").strip().split())
 
 
-def _first_name(full_name: str) -> str:
-    tokens = [token.strip(",.!?:;") for token in _compact(full_name).split() if token.strip(",.!?:;")]
-    if not tokens:
-        return "there"
-    if tokens[0].lower().rstrip(".") in {"mr", "mrs", "ms", "dr", "prof"} and len(tokens) > 1:
-        return tokens[1]
-    return tokens[0]
-
-
 def _violation_codes(violations: list[str]) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
@@ -250,6 +256,23 @@ def _effective_sliders(req: WebPresetPreviewBatchRequest, preset: WebPreviewPres
     return WebPreviewEffectiveSliders(**base)
 
 
+def _resolve_preview_cta(
+    req: WebPresetPreviewBatchRequest,
+    preset: WebPreviewPresetInput,
+    effective: WebPreviewEffectiveSliders,
+) -> str:
+    strategy = get_preset_strategy(preset.preset_id)
+    cta_type = (req.cta_type or strategy.cta_type or "").strip() or None
+    lock_text = _compact(req.cta_lock_text or req.cta_lock or "")
+    risk_surface = _compact(req.offer_lock) or _compact(req.product_context.product_name) or "your highest-risk surface"
+    return resolve_cta_lock(
+        existing_lock=lock_text,
+        cta_type=cta_type,
+        risk_surface=risk_surface,
+        directness=_clamp_slider(effective.directness),
+    )
+
+
 def _first_sentence(value: str) -> str:
     text = _compact(value)
     if not text:
@@ -279,21 +302,24 @@ def _trim_words(value: str, max_words: int) -> str:
     return " ".join(words[:max_words])
 
 
-def _fit_body_range(main_text: str, cta_line: str) -> str:
-    filler = "This keeps messaging specific, credible, and easy for reps to use at scale."
-    min_total = 90
-    max_total = 130
-    cta_words = len(_to_words(cta_line))
-    main_words = _to_words(main_text)
-    min_main = max(40, min_total - cta_words)
-    max_main = max(80, max_total - cta_words)
+def _fit_body_range(main_text: str, cta_line: str, *, extra_sections: list[str] | None = None) -> str:
+    return compose_body_without_padding_loops(
+        base_sentences=split_sentences(main_text),
+        extra_sections=extra_sections or [],
+        cta_line=cta_line,
+        min_words=90,
+        max_words=130,
+    )
 
-    while len(main_words) < min_main:
-        main_words.extend(_to_words(filler))
-    if len(main_words) > max_main:
-        main_words = main_words[:max_main]
 
-    return f"{' '.join(main_words).strip()}\n\n{cta_line}".strip()
+def _extra_sections_for_brevity(section_pool: list[str], brevity: int) -> list[str]:
+    if brevity <= 20:
+        return section_pool[:4]
+    if brevity <= 40:
+        return section_pool[:3]
+    if brevity <= 70:
+        return section_pool[:2]
+    return section_pool[:1]
 
 
 def _ensure_preview_greeting(main_text: str, first_name: str) -> str:
@@ -301,10 +327,7 @@ def _ensure_preview_greeting(main_text: str, first_name: str) -> str:
     if not text:
         return text
     expected = first_name if first_name and first_name.lower() != "there" else "there"
-    replacement = f"Hi {expected},"
-    if re.match(r"^(Hi|Hello)\s+[^,\n]+,", text):
-        return re.sub(r"^(Hi|Hello)\s+[^,\n]+,", replacement, text, count=1)
-    return f"{replacement} {text}".strip()
+    return enforce_first_name_greeting(text, expected)
 
 
 def _remove_banned_positioning(text: str) -> str:
@@ -400,11 +423,12 @@ def _mock_body(
     preset: WebPreviewPresetInput,
     index: int,
 ) -> str:
+    effective = _effective_sliders(req, preset)
     hook = summary_pack.hooks[index % len(summary_pack.hooks)]
     fact = summary_pack.facts[index % len(summary_pack.facts)]
     likely = summary_pack.likely_priorities[index % len(summary_pack.likely_priorities)]
     likely_clean = re.sub(r"^\(likely\)\s*", "", likely, flags=re.IGNORECASE)
-    prospect_name = _first_name(req.prospect.name or "")
+    prospect_name = derive_first_name(req.prospect_first_name or req.prospect.name or "")
     proof_points = [item for item in req.product_context.proof_points if _compact(item)]
     if proof_points:
         proof_line = f"From our side, teams usually start with {proof_points[0]}"
@@ -416,16 +440,30 @@ def _mock_body(
             "From our side, this is usually implemented with a lightweight rollout so reps keep control while quality stays consistent."
         )
     main = (
-        f"Hi {prospect_name}, {hook}. "
+        f"{hook}. "
         f"One fact that stood out: {fact}. "
         f"{req.product_context.product_name} is built to {req.product_context.one_line_value}. "
         f"{proof_line} "
         f"My read is that your team may be prioritizing {likely_clean}. "
-        f"The practical win is improving first-touch relevance without slowing execution across active sequences. "
-        f"If useful, I can walk through how this maps to your current outbound motion in a concrete, low-lift way."
+        "The practical win is reducing counterfeit exposure while improving enforcement throughput."
     )
-    cta = req.cta_lock
-    return _fit_body_range(main_text=main, cta_line=cta)
+    main = sanitize_generic_ai_opener(
+        main,
+        research_text=req.raw_research.deep_research_paste,
+        hook_strategy=req.hook_strategy,
+        company=req.prospect.company,
+        risk_surface=req.offer_lock,
+    )
+    main = _ensure_preview_greeting(main, prospect_name)
+    cta = _resolve_preview_cta(req, preset, effective)
+    section_pool = long_mode_section_pool(
+        company_notes=req.raw_research.company_notes,
+        allowed_facts=summary_pack.facts,
+        offer_lock=req.offer_lock,
+        company=req.prospect.company,
+    )
+    extras = _extra_sections_for_brevity(section_pool, effective.brevity)
+    return _fit_body_range(main_text=main, cta_line=cta, extra_sections=extras)
 
 
 def _extract_sentences(*parts: str) -> list[str]:
@@ -518,10 +556,14 @@ def _mock_summary_pack(req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
 def _summary_cache_key(req: WebPresetPreviewBatchRequest) -> str:
     identity = {
         "prospect": req.prospect.model_dump(),
+        "prospect_first_name": req.prospect_first_name,
         "product_context": req.product_context.model_dump(),
         "raw_research": req.raw_research.model_dump(),
         "offer_lock": req.offer_lock,
         "cta_lock": req.cta_lock,
+        "cta_lock_text": req.cta_lock_text,
+        "cta_type": req.cta_type,
+        "hook_strategy": req.hook_strategy,
     }
     raw = json.dumps(identity, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -582,7 +624,9 @@ def _generator_messages(
         "global_sliders": req.global_sliders.model_dump(),
         "presets": [item.model_dump() for item in req.presets],
         "offer_lock": req.offer_lock,
-        "cta_lock": req.cta_lock,
+        "cta_lock_text": req.cta_lock_text or req.cta_lock or "",
+        "cta_type": req.cta_type,
+        "hook_strategy": req.hook_strategy,
     }
     extra = ""
     if repair_notes:
@@ -598,6 +642,7 @@ def _generator_messages(
         "TASK:\n"
         "Generate previews for ALL presets in one response.\n"
         "For each preset compute effective_sliders with preset overrides applied.\n"
+        "For each preset resolve CTA using precedence: lock text -> cta_type -> preset default.\n"
         "Write a unique email where opener references one hook or softened likely priority.\n"
         "Only state specific facts from summary_pack.facts.\n"
         "Include 1-2 proof points when available; otherwise use a soft credibility line.\n"
@@ -675,10 +720,10 @@ def _sanitize_summary_pack(raw: dict[str, Any], req: WebPresetPreviewBatchReques
 def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBatchRequest) -> list[str]:
     violations: list[str] = []
     seen_subjects: set[str] = set()
-    expected_first_name = _first_name(req.prospect.name or "")
+    expected_first_name = derive_first_name(req.prospect_first_name or req.prospect.name or "")
+    preset_by_id = {str(preset.preset_id): preset for preset in req.presets}
 
     offer_lock_lower = _collapse_ws(req.offer_lock).lower()
-    cta_lock = _collapse_ws(req.cta_lock)
     approved_claim_source = merge_claim_sources(
         [
             req.raw_research.deep_research_paste,
@@ -688,9 +733,18 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
             req.product_context.product_name,
         ]
     )
+    allowed_numeric_claims = extract_allowed_numeric_claims(req.raw_research.company_notes)
     allowed_leakage_text = _collapse_ws(
         " ".join([req.offer_lock, req.product_context.product_name, req.prospect.company, req.prospect.name])
     ).lower()
+    research_has_ai_phrase = (
+        re.search(
+            r"scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives",
+            req.raw_research.deep_research_paste,
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
 
     for item in previews:
         # --- Format / length checks (existing) ---
@@ -738,7 +792,11 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
             violations.append(f"{item.preset_id}: offer_lock_missing")
 
         # CTA lock must appear exactly once as a standalone line
-        cta_matches = sum(1 for line in body_lines if line == cta_lock)
+        preset = preset_by_id.get(str(item.preset_id))
+        expected_cta = _collapse_ws(req.cta_lock_text or req.cta_lock or "")
+        if preset is not None:
+            expected_cta = _collapse_ws(_resolve_preview_cta(req, preset, item.effective_sliders))
+        cta_matches = sum(1 for line in body_lines if line == expected_cta)
         if cta_matches != 1:
             violations.append(f"{item.preset_id}: cta_lock_not_used_exactly_once")
 
@@ -754,18 +812,31 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
             if phrase in body_lower:
                 violations.append(f"{item.preset_id}: banned_phrase:{phrase}")
 
-        if _GENERIC_AI_OPENER_PATTERN.search(first_line) and "scales its ai initiatives" not in approved_claim_source:
+        if _GENERIC_AI_OPENER_PATTERN.search(first_line) and not (
+            research_has_ai_phrase and (req.hook_strategy or "").strip().lower() == "research_anchored"
+        ):
             violations.append(f"{item.preset_id}: banned_generic_ai_opener")
 
         # Cash-equivalent CTA
         if _CASH_CTA_PATTERN.search(body_lower):
             violations.append(f"{item.preset_id}: cash_equivalent_cta_detected")
 
-        for claim in find_unverified_claims(item.body, approved_claim_source):
-            if re.search(r"\d|%|rate|marketplace|accuracy|compliance|x", claim, re.IGNORECASE):
-                violations.append(f"{item.preset_id}: unsubstantiated_statistical_claim")
-            else:
-                violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
+        claim_surfaces = {
+            "subject": item.subject,
+            "body": item.body,
+            "why_it_works": " ".join(item.whyItWorks),
+            "vibe": " ".join([item.vibeLabel, *item.vibeTags]),
+        }
+        for surface, surface_text in claim_surfaces.items():
+            for claim in find_unverified_claims(
+                surface_text,
+                approved_claim_source,
+                allowed_numeric_claims=allowed_numeric_claims,
+            ):
+                if re.search(r"\d|%|rate|marketplace|accuracy|compliance|x", claim, re.IGNORECASE):
+                    violations.append(f"{item.preset_id}: unsubstantiated_statistical_claim:{surface}")
+                else:
+                    violations.append(f"{item.preset_id}: unsubstantiated_claim:{surface}:{claim[:60]}")
 
         # Unsubstantiated guaranteed/proven claims
         for match in _GUARANTEED_CLAIM_PATTERN.finditer(body_lower):
@@ -811,24 +882,80 @@ def _normalize_preview_items(
 
     used_subjects: set[str] = set()
     previews: list[WebPreviewItem] = []
+    claim_source = merge_claim_sources(
+        [
+            req.raw_research.deep_research_paste,
+            req.raw_research.company_notes or "",
+            " ".join(req.product_context.proof_points),
+            " ".join(summary_pack.facts),
+            req.offer_lock,
+        ]
+    )
+    allowed_numeric_claims = extract_allowed_numeric_claims(req.raw_research.company_notes)
+    preview_first_name = derive_first_name(req.prospect_first_name or req.prospect.name or "")
     for index, preset in enumerate(req.presets):
         source = by_id.get(str(preset.preset_id)) or by_label.get(preset.label.lower()) or {}
         effective = _effective_sliders(req, preset)
         fallback_subject = _mock_subject(req.prospect.company or "Account", preset, index)
         subject = _normalize_subject(_compact(source.get("subject")), fallback_subject, used_subjects)
-        cta = req.cta_lock
+        subject = rewrite_unverified_claims(
+            subject,
+            claim_source,
+            allowed_numeric_claims=allowed_numeric_claims,
+        )
+        cta = _resolve_preview_cta(req, preset, effective)
         draft_body = _compact(source.get("body")) or _mock_body(req, summary_pack, preset, index)
         draft_body = _remove_banned_positioning(draft_body)
-        draft_body = _ensure_preview_greeting(draft_body.replace("?", "."), _first_name(req.prospect.name or ""))
-        body = _fit_body_range(main_text=draft_body, cta_line=cta)
+        draft_body = sanitize_generic_ai_opener(
+            draft_body,
+            research_text=req.raw_research.deep_research_paste,
+            hook_strategy=req.hook_strategy,
+            company=req.prospect.company,
+            risk_surface=req.offer_lock,
+        )
+        draft_body = _ensure_preview_greeting(draft_body, preview_first_name)
+        draft_body = rewrite_unverified_claims(
+            draft_body,
+            claim_source,
+            allowed_numeric_claims=allowed_numeric_claims,
+        )
+        section_pool = long_mode_section_pool(
+            company_notes=req.raw_research.company_notes,
+            allowed_facts=summary_pack.facts,
+            offer_lock=req.offer_lock,
+            company=req.prospect.company,
+        )
+        extras = _extra_sections_for_brevity(section_pool, effective.brevity)
+        extras = [
+            rewrite_unverified_claims(
+                section,
+                claim_source,
+                allowed_numeric_claims=allowed_numeric_claims,
+            )
+            for section in extras
+        ]
+        body = _fit_body_range(main_text=draft_body, cta_line=cta, extra_sections=extras)
+        vibe_label = rewrite_unverified_claims(
+            _compact(source.get("vibeLabel")) or preset.label,
+            claim_source,
+            allowed_numeric_claims=allowed_numeric_claims,
+        )
+        vibe_tags = [
+            rewrite_unverified_claims(tag, claim_source, allowed_numeric_claims=allowed_numeric_claims)
+            for tag in _normalize_tags(source.get("vibeTags"), effective)
+        ]
+        why_items = [
+            rewrite_unverified_claims(item, claim_source, allowed_numeric_claims=allowed_numeric_claims)
+            for item in _normalize_why(source.get("whyItWorks"))
+        ]
 
         preview = WebPreviewItem(
             preset_id=str(preset.preset_id),
             label=preset.label,
             effective_sliders=effective,
-            vibeLabel=_compact(source.get("vibeLabel")) or preset.label,
-            vibeTags=_normalize_tags(source.get("vibeTags"), effective),
-            whyItWorks=_normalize_why(source.get("whyItWorks")),
+            vibeLabel=vibe_label,
+            vibeTags=vibe_tags,
+            whyItWorks=why_items,
             subject=subject,
             body=body,
         )
@@ -837,24 +964,7 @@ def _normalize_preview_items(
 
 
 def _mock_previews(req: WebPresetPreviewBatchRequest, summary_pack: WebSummaryPack) -> list[WebPreviewItem]:
-    previews: list[WebPreviewItem] = []
-    used_subjects: set[str] = set()
-    for index, preset in enumerate(req.presets):
-        effective = _effective_sliders(req, preset)
-        subject = _normalize_subject(_mock_subject(req.prospect.company or "Account", preset, index), "Quick outbound idea", used_subjects)
-        previews.append(
-            WebPreviewItem(
-                preset_id=str(preset.preset_id),
-                label=preset.label,
-                effective_sliders=effective,
-                vibeLabel=preset.label,
-                vibeTags=_normalize_tags([], effective),
-                whyItWorks=_normalize_why([]),
-                subject=subject,
-                body=_mock_body(req, summary_pack, preset, index),
-            )
-        )
-    return previews
+    return _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=[])
 
 
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:

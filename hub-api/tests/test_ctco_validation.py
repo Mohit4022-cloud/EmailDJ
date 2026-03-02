@@ -213,7 +213,7 @@ def test_validate_ctco_output_flags_unsubstantiated_statistical_claim():
     assert "unsubstantiated_statistical_claim" in violations
 
 
-def test_validate_ctco_output_allows_statistical_claim_when_research_supports_it():
+def test_validate_ctco_output_blocks_statistical_claim_even_if_only_research_supports_it():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
     session = _session_payload(
@@ -232,7 +232,53 @@ def test_validate_ctco_output_allows_statistical_claim_when_research_supports_it
     )
 
     violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
-    assert "unsubstantiated_statistical_claim" not in violations
+    assert "unsubstantiated_statistical_claim" in violations
+
+
+def test_validate_ctco_output_blocks_generic_ai_opener_without_research_anchoring():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload(
+        research_text=(
+            "Palantir is modernizing outbound enforcement workflows while improving coverage consistency. "
+            "The team is focused on practical delivery in Q2."
+        )
+    )
+    session["generation_plan"]["hook_strategy"] = "domain_hook"
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, As Palantir scales its enterprise AI initiatives, your team is likely balancing output quality and speed. "
+        "Remix Studio helps keep outbound controls specific and enforceable.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "banned_generic_ai_opener" in violations
+
+
+def test_validate_ctco_output_allows_generic_ai_opener_with_research_anchored_strategy():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload(
+        research_text=(
+            "As Palantir scales its enterprise AI initiatives, the team is tightening enforcement workflows and operator throughput. "
+            "The SDR org is prioritizing credible outreach execution."
+        )
+    )
+    session["generation_plan"]["hook_strategy"] = "research_anchored"
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, As Palantir scales its enterprise AI initiatives, your team is likely balancing output quality and speed. "
+        "Remix Studio helps keep outbound controls specific and enforceable.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "banned_generic_ai_opener" not in violations
 
 
 @pytest.mark.asyncio
@@ -273,7 +319,7 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
     )
 
     assert calls["count"] == 2
-    assert "Worth a look / Not a priority?" in result.draft
+    assert "Open to a quick chat to see if this is relevant?" in result.draft
     assert "Subject:" in result.draft
     assert "Body:" in result.draft
 
@@ -468,6 +514,97 @@ async def test_build_draft_slider_length_bands_are_deterministic(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_build_draft_long_mode_has_no_repeated_sentences(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload(
+        research_text=(
+            "Acme is scaling counterfeit enforcement and needs faster first-week action handoffs. "
+            "The team is balancing quality, trust, and throughput."
+        )
+    )
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 1.0, "assertiveness": 0.0},
+    )
+    body = _extract_body_text(result.draft)
+    content = "\n".join(body.splitlines()[:-1]).strip()
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", content) if s.strip()]
+    normalized = [re.sub(r"[^a-z0-9 ]", "", s.lower()).strip() for s in sentences]
+    counts = {key: normalized.count(key) for key in set(normalized)}
+
+    assert counts
+    assert max(counts.values()) <= 1
+    assert body.lower().count("this keeps messaging relevant, credible, and easy for your team to action.") <= 1
+
+
+@pytest.mark.asyncio
+async def test_build_draft_formality_and_assertiveness_sliders_change_output(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["cta_offer_lock"] = ""
+    session["cta_type"] = "question"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    formal = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": -1.0, "orientation": 0.0, "length": 0.0, "assertiveness": -1.0},
+    )
+    casual = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 1.0, "orientation": 0.0, "length": 0.0, "assertiveness": 1.0},
+    )
+
+    formal_first_line = next((line.strip() for line in _extract_body_text(formal.draft).splitlines() if line.strip()), "")
+    casual_first_line = next((line.strip() for line in _extract_body_text(casual.draft).splitlines() if line.strip()), "")
+    formal_cta = _extract_body_text(formal.draft).splitlines()[-1].strip()
+    casual_cta = _extract_body_text(casual.draft).splitlines()[-1].strip()
+
+    assert formal_first_line.startswith("Hello Alex,")
+    assert casual_first_line.startswith("Hi Alex,")
+    assert formal_cta.startswith("Open to ")
+    assert casual_cta.startswith("If useful, open to ")
+
+
+@pytest.mark.asyncio
+async def test_build_draft_cta_lock_overrides_cta_type(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["cta_offer_lock"] = "Open to a 17-min call for a first-week counterfeit sweep + teardown? Worth a look / Not a priority?"
+    session["cta_type"] = "event_invite"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+    assert _extract_body_text(result.draft).splitlines()[-1].strip() == session["cta_offer_lock"]
+
+
+@pytest.mark.asyncio
+async def test_build_draft_uses_cta_type_when_lock_is_blank(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["cta_offer_lock"] = ""
+    session["cta_type"] = "event_invite"
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    )
+    cta_line = _extract_body_text(result.draft).splitlines()[-1].strip()
+    assert "Open to a" in cta_line
+    assert "Worth a look / Not a priority?" in cta_line
+    assert "quick chat to see if this is relevant" not in cta_line
+
+
+@pytest.mark.asyncio
 async def test_build_draft_problem_vs_outcome_slider_changes_opener(monkeypatch):
     import email_generation.remix_engine as remix_engine
 
@@ -497,6 +634,8 @@ async def test_build_draft_preset_strategy_changes_structure_and_cta(monkeypatch
 
     straight_session = _session_payload()
     straight_session["preset_id"] = "straight_shooter"
+    straight_session["cta_offer_lock"] = ""
+    straight_session["cta_type"] = None
     straight = await remix_engine.build_draft(
         session=straight_session,
         style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
@@ -504,6 +643,8 @@ async def test_build_draft_preset_strategy_changes_structure_and_cta(monkeypatch
 
     giver_session = _session_payload()
     giver_session["preset_id"] = "giver"
+    giver_session["cta_offer_lock"] = ""
+    giver_session["cta_type"] = None
     giver = await remix_engine.build_draft(
         session=giver_session,
         style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
@@ -521,6 +662,8 @@ async def test_build_draft_rewrites_unverified_numeric_claims(monkeypatch):
     import email_generation.remix_engine as remix_engine
 
     session = _session_payload()
+    session["cta_offer_lock"] = ""
+    session["cta_type"] = None
     monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
     monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")

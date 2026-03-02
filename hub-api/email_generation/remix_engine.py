@@ -11,7 +11,12 @@ from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from typing import Any
 
-from email_generation.claim_verifier import find_unverified_claims, merge_claim_sources
+from email_generation.claim_verifier import (
+    extract_allowed_numeric_claims,
+    find_unverified_claims,
+    merge_claim_sources,
+    rewrite_unverified_claims,
+)
 from email_generation.compliance_rules import (
     _CASH_CTA_PATTERN,
     _CTA_ASK_CUES,
@@ -26,6 +31,14 @@ from email_generation.compliance_rules import (
 )
 from email_generation.cta_templates import resolve_cta_lock
 from email_generation.generation_plan import GenerationPlan, apply_generation_plan, build_generation_plan
+from email_generation.output_enforcement import (
+    compose_body_without_padding_loops,
+    derive_first_name,
+    enforce_first_name_greeting,
+    long_mode_section_pool,
+    sanitize_generic_ai_opener,
+    split_sentences,
+)
 from email_generation.preset_strategies import normalize_preset_id
 from email_generation.prompt_templates import get_web_mvp_prompt
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
@@ -58,7 +71,7 @@ _BANNED_PHRASES = (
 )
 
 _GENERIC_AI_OPENER_PATTERN = re.compile(
-    r"^as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+ai\s+initiatives[, ]",
+    r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
     re.IGNORECASE,
 )
 
@@ -124,16 +137,6 @@ _PERFORMANCE_CLAIM_PATTERNS = (
     re.compile(r"\bscientifically proven\b"),
 )
 
-_HONORIFIC_PREFIXES = {
-    "mr",
-    "mrs",
-    "ms",
-    "dr",
-    "prof",
-    "sir",
-    "madam",
-}
-
 _CLAIM_VIOLATION_PREFIXES = (
     "unsubstantiated_statistical_claim",
     "unsubstantiated_performance_claim",
@@ -172,7 +175,7 @@ def _normalize_lock_text(value: Any, max_length: int) -> str | None:
 
 
 def _normalize_cta_lock(value: Any) -> str:
-    return _normalize_lock_text(value, max_length=500) or DEFAULT_FALLBACK_CTA
+    return _normalize_lock_text(value, max_length=500) or ""
 
 
 def _resolve_effective_cta_lock(
@@ -212,16 +215,6 @@ def _catalog_items(raw: str | None) -> list[str]:
             if len(items) >= 8:
                 return items
     return items
-
-
-def _derive_first_name(raw_name: str | None) -> str:
-    normalized = _collapse_ws(str(raw_name or "").strip())
-    if not normalized:
-        return ""
-    tokens = [token.strip(",.!?:;") for token in normalized.split() if token.strip(",.!?:;")]
-    while tokens and tokens[0].lower().rstrip(".") in _HONORIFIC_PREFIXES:
-        tokens.pop(0)
-    return tokens[0] if tokens else ""
 
 
 def _unique_ordered(values: list[str]) -> list[str]:
@@ -631,11 +624,11 @@ def _offer_lock_forbidden_items(session: dict[str, Any]) -> list[str]:
 
 
 def _expected_prospect_first_name(session: dict[str, Any]) -> str:
-    first_name = _derive_first_name(str(session.get("prospect_first_name") or "").strip())
+    first_name = derive_first_name(str(session.get("prospect_first_name") or "").strip())
     if first_name:
         return first_name
     raw_name = str((session.get("prospect") or {}).get("name") or "").strip()
-    return _derive_first_name(raw_name)
+    return derive_first_name(raw_name)
 
 
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
@@ -738,10 +731,26 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
             " ".join(session.get("allowed_facts") or []),
         ]
     )
-    if _GENERIC_AI_OPENER_PATTERN.search(first_body_line or "") and "scales its ai initiatives" not in research_claim_source:
+    allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
+    hook_strategy = _collapse_ws(str((session.get("generation_plan") or {}).get("hook_strategy") or "")).lower()
+    research_has_ai_phrase = (
+        re.search(
+            r"scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives",
+            session.get("research_text_raw") or "",
+            flags=re.IGNORECASE,
+        )
+        is not None
+    )
+    if _GENERIC_AI_OPENER_PATTERN.search(first_body_line or "") and not (
+        research_has_ai_phrase and hook_strategy == "research_anchored"
+    ):
         violations.append("banned_generic_ai_opener")
 
-    unverified_claims = find_unverified_claims(draft, research_claim_source)
+    unverified_claims = find_unverified_claims(
+        draft,
+        research_claim_source,
+        allowed_numeric_claims=allowed_numeric_claims,
+    )
     for claim in unverified_claims:
         if re.search(r"\d|%|rate|marketplace|accuracy|compliance|x", claim, re.IGNORECASE):
             violations.append("unsubstantiated_statistical_claim")
@@ -772,10 +781,15 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
         violations.append(f"length_out_of_range:{words}_expected_{min_words}_{max_words}")
 
     prospect = session.get("prospect") or {}
+    expected_first_name = _expected_prospect_first_name(session).lower()
+    company_full = _collapse_ws(str(prospect.get("company") or "")).lower()
+    company_primary = company_full.split(" ")[0] if company_full else ""
     identity_markers = [
         _collapse_ws(str(prospect.get("name") or "")).lower(),
         _collapse_ws(str(prospect.get("title") or "")).lower(),
-        _collapse_ws(str(prospect.get("company") or "")).lower(),
+        company_full,
+        expected_first_name,
+        company_primary if len(company_primary) >= 3 else "",
     ]
     if not any(marker and marker in draft_lower for marker in identity_markers):
         violations.append("prospect_reference_missing")
@@ -825,22 +839,21 @@ def _extract_research_hooks(research_text: str, max_items: int = 2) -> list[str]
     return hooks
 
 
-def _fit_body_range(main_text: str, cta_line: str, min_total: int, max_total: int) -> str:
-    main_words = main_text.split()
-    cta_words = _word_count(cta_line)
-    min_main = max(25, min_total - cta_words)
-    max_main = max(min_main, max_total - cta_words)
-
-    if len(main_words) > max_main:
-        main_words = main_words[:max_main]
-    elif len(main_words) < min_main:
-        pad_words = "This keeps messaging relevant, credible, and easy for your team to action.".split()
-        idx = 0
-        while len(main_words) < min_main:
-            main_words.append(pad_words[idx % len(pad_words)])
-            idx += 1
-
-    return f"{' '.join(main_words).strip()}\n\n{cta_line}".strip()
+def _fit_body_range(
+    main_text: str,
+    cta_line: str,
+    min_total: int,
+    max_total: int,
+    *,
+    extra_sections: list[str] | None = None,
+) -> str:
+    return compose_body_without_padding_loops(
+        base_sentences=split_sentences(main_text),
+        extra_sections=extra_sections or [],
+        cta_line=cta_line,
+        min_words=min_total,
+        max_words=max_total,
+    )
 
 
 def _remove_forbidden_product_terms(text: str, forbidden_items: list[str]) -> str:
@@ -893,12 +906,7 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
     prospect = session["prospect"]
     offer_lock = session["offer_lock"]
     cta = session["cta_lock_effective"]
-
-    # Use derived first name; fall back to splitting full name; then "there"
-    first_name = session.get("prospect_first_name") or ""
-    if not first_name:
-        raw_name = (prospect.get("name") or "").strip()
-        first_name = raw_name.split()[0] if raw_name else "there"
+    first_name = derive_first_name(session.get("prospect_first_name") or prospect.get("name")) or "there"
 
     title = prospect.get("title") or "your role"
     company = prospect.get("company") or "your company"
@@ -908,7 +916,6 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
     framing = style_sliders["framing_problem_outcome"]
     stance = style_sliders["stance_bold_diplomatic"]
 
-    greeting = f"Hello {first_name}," if formal <= 20 else f"Hi {first_name},"
     if framing <= 40:
         lead = f"{company} is navigating priorities that make it hard to engage target accounts with the right message at the right time."
     else:
@@ -931,10 +938,49 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
         if stance >= 61
         else "It is generally lightweight and fits within existing processes."
     )
+    main = " ".join([lead, hook_line, value_line, support_line, close_line]).strip()
+    main = sanitize_generic_ai_opener(
+        main,
+        research_text=session.get("research_text_raw") or session.get("research_text"),
+        hook_strategy=(session.get("generation_plan") or {}).get("hook_strategy"),
+        company=company,
+        risk_surface=offer_lock,
+    )
+    main = enforce_first_name_greeting(main, first_name)
 
-    main = f"{greeting} {lead} {hook_line} {value_line} {support_line} {close_line}"
+    claim_source = merge_claim_sources(
+        [
+            session.get("research_text_raw"),
+            session.get("research_text"),
+            (session.get("company_context") or {}).get("company_notes"),
+            " ".join(session.get("allowed_facts") or []),
+        ]
+    )
+    allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
+    main = rewrite_unverified_claims(main, claim_source, allowed_numeric_claims=allowed_numeric_claims)
+
     min_words, max_words = body_word_range(style_sliders["length_short_long"])
-    return _fit_body_range(main_text=main, cta_line=cta, min_total=min_words, max_total=max_words)
+    section_pool = long_mode_section_pool(
+        company_notes=(session.get("company_context") or {}).get("company_notes"),
+        allowed_facts=session.get("allowed_facts") or [],
+        offer_lock=offer_lock,
+        company=company,
+    )
+    if style_sliders["length_short_long"] >= 85:
+        extra_sections = section_pool[:4]
+    elif style_sliders["length_short_long"] >= 67:
+        extra_sections = section_pool[:3]
+    elif style_sliders["length_short_long"] >= 50:
+        extra_sections = section_pool[:1]
+    else:
+        extra_sections = []
+    return _fit_body_range(
+        main_text=main,
+        cta_line=cta,
+        min_total=min_words,
+        max_total=max_words,
+        extra_sections=extra_sections,
+    )
 
 
 @dataclass
@@ -1375,9 +1421,9 @@ def create_session_payload(
 
     # Derive first name server-side if not provided by client.
     if not prospect_first_name:
-        prospect_first_name = _derive_first_name((prospect.get("name") or "").strip())
+        prospect_first_name = derive_first_name((prospect.get("name") or "").strip())
     else:
-        prospect_first_name = _derive_first_name(prospect_first_name)
+        prospect_first_name = derive_first_name(prospect_first_name)
     normalized_preset_id = normalize_preset_id(preset_id)
     seed_session = {
         "prospect": prospect,

@@ -20,7 +20,16 @@ function compactWhitespace(value) {
   return normalizeText(value).replace(/\s+/g, ' ');
 }
 
-const DEFAULT_PREVIEW_CTA_LOCK = 'Open to a quick chat to see if this is relevant?';
+function deriveFirstName(rawName) {
+  const parts = normalizeText(rawName)
+    .split(/\s+/)
+    .map((part) => part.replace(/^[,.:;!?-]+|[,.:;!?-]+$/g, ''))
+    .filter(Boolean);
+  while (parts.length && ['mr', 'mrs', 'ms', 'dr', 'prof', 'sir', 'madam'].includes(parts[0].toLowerCase().replace(/\.$/, ''))) {
+    parts.shift();
+  }
+  return parts[0] || '';
+}
 
 export function normalizeSliderState(raw = {}) {
   return {
@@ -34,20 +43,28 @@ export function normalizeSliderState(raw = {}) {
 export function normalizePreviewContext(raw = {}) {
   const prospect = raw.prospect || {};
   const company = raw.company_context || {};
+  const prospectName = normalizeText(prospect.name);
+  const prospectFirstName = normalizeText(raw.prospect_first_name) || deriveFirstName(prospectName);
+  const currentProduct = normalizeText(company.current_product);
+  const offerLock = normalizeText(raw.offer_lock || currentProduct);
+  const ctaLockText = normalizeText(company.cta_offer_lock || company.cta_lock_text);
 
   return {
     prospect: {
-      name: normalizeText(prospect.name),
+      name: prospectName,
+      first_name: prospectFirstName,
       title: normalizeText(prospect.title),
       company: normalizeText(prospect.company),
       linkedin_url: normalizeText(prospect.linkedin_url),
     },
     research_text: normalizeLineBreaks(raw.research_text),
+    offer_lock: offerLock,
     company_context: {
       company_name: normalizeText(company.company_name),
       company_url: normalizeText(company.company_url),
-      current_product: normalizeText(company.current_product),
-      cta_offer_lock: normalizeText(company.cta_offer_lock),
+      current_product: currentProduct,
+      cta_offer_lock: ctaLockText,
+      cta_lock_text: ctaLockText,
       cta_type: normalizeText(company.cta_type),
       other_products: normalizeLineBreaks(company.other_products),
       company_notes: normalizeLineBreaks(company.company_notes),
@@ -60,13 +77,16 @@ export function previewContextIdentity(context) {
   const normalized = normalizePreviewContext(context);
   return {
     prospectName: normalized.prospect.name,
+    prospectFirstName: normalized.prospect.first_name,
     title: normalized.prospect.title,
     company: normalized.prospect.company,
+    linkedinUrl: normalized.prospect.linkedin_url,
     companyUrl: normalized.company_context.company_url,
     deepResearchPaste: normalized.research_text,
     companyNotes: normalized.company_context.company_notes,
+    offerLock: normalized.offer_lock,
     currentProductOrService: normalized.company_context.current_product,
-    ctaOfferLock: normalized.company_context.cta_offer_lock,
+    ctaLockText: normalized.company_context.cta_lock_text,
     ctaType: normalized.company_context.cta_type,
     otherProductsServices: normalized.company_context.other_products,
     globalSliders: normalized.global_slider_state,
@@ -207,7 +227,9 @@ export function buildPresetPreviewBatchPayload(context, presets) {
   const productName = compactWhitespace(
     normalized.company_context.current_product || normalized.company_context.company_name || 'Current offering'
   );
-  const ctaLock = compactWhitespace(normalized.company_context.cta_offer_lock || DEFAULT_PREVIEW_CTA_LOCK);
+  const offerLock = compactWhitespace(normalized.offer_lock || productName);
+  const ctaLock = compactWhitespace(normalized.company_context.cta_lock_text || normalized.company_context.cta_offer_lock);
+  const ctaType = compactWhitespace(normalized.company_context.cta_type);
   const oneLineValue = deriveOneLineValue(normalized);
   const proofPoints = deriveProofPoints(normalized);
 
@@ -219,6 +241,7 @@ export function buildPresetPreviewBatchPayload(context, presets) {
       company_url: normalized.company_context.company_url || null,
       linkedin_url: normalized.prospect.linkedin_url || null,
     },
+    prospect_first_name: normalized.prospect.first_name || null,
     product_context: {
       product_name: productName,
       one_line_value: oneLineValue,
@@ -236,8 +259,10 @@ export function buildPresetPreviewBatchPayload(context, presets) {
       label: compactWhitespace(preset?.name || 'Preset'),
       slider_overrides: buildPresetBatchSliderOverrides(preset),
     })),
-    offer_lock: productName,
-    cta_lock: ctaLock,
+    offer_lock: offerLock,
+    cta_lock: ctaLock || null,
+    cta_lock_text: ctaLock || null,
+    cta_type: ctaType || null,
   };
 }
 

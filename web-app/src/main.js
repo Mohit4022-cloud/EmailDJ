@@ -339,14 +339,19 @@ class WebApp {
   }
 
   previewContextPayload() {
+    const fullName = this.prospectNameInput.value.trim();
+    const firstName = fullName.split(/\s+/)[0] || null;
+    const offerLock = this.sellerCurrentProductInput.value.trim();
     return {
       prospect: {
-        name: this.prospectNameInput.value.trim(),
+        name: fullName,
         title: this.prospectTitleInput.value.trim(),
         company: this.prospectCompanyInput.value.trim(),
         linkedin_url: this.prospectLinkedinInput.value.trim(),
       },
+      prospect_first_name: firstName,
       research_text: this.researchInput.value.trim(),
+      offer_lock: offerLock,
       company_context: this.companyContextPayload(),
       global_slider_state: this.sliderBoard.getValues(),
     };

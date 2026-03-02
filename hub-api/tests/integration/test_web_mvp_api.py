@@ -24,7 +24,7 @@ def _generate_payload(company_context=None):
             "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts."
         ),
         "offer_lock": "Remix Studio",
-        "cta_offer_lock": "Open to a quick chat to see if this is relevant?",
+        "cta_offer_lock": "",
         "cta_type": "question",
         "style_profile": {
             "formality": 0.1,

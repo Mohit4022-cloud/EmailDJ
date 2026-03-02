@@ -120,9 +120,16 @@ function buildEmailErrorHtml(presetId, message) {
   `;
 }
 
+function normalizeBodyText(value) {
+  return String(value || '')
+    .replaceAll('\r\n', '\n')
+    .replaceAll('\\r\\n', '\n')
+    .replaceAll('\\n', '\n');
+}
+
 function buildReadyEmailHtml(preview) {
   const subject = escapeHtml(preview?.subject || '');
-  const body = escapeHtml(preview?.body || '').replaceAll('\n', '<br>');
+  const body = escapeHtml(normalizeBodyText(preview?.body || '')).replaceAll('\n', '<br>');
   return `
     <div class="preset-email-card">
       <div class="preset-email-label">Subject</div>
@@ -150,12 +157,18 @@ export class SDRPresetLibrary {
     this.previewCache = new Map();
     this.previewEntries = new Map();
     this.inflightBatches = new Map();
+    this.previewFetchDebounceMs =
+      Number.isFinite(Number(options.previewFetchDebounceMs)) && Number(options.previewFetchDebounceMs) >= 0
+        ? Number(options.previewFetchDebounceMs)
+        : 120;
+    this.previewFetchTimer = null;
+    this.previewFetchToken = 0;
 
     this.onKeydown = (event) => {
       if (event.key === 'Escape' && this.isOpen) this.close();
     };
 
-    this.render();
+    if (options.autoRender !== false) this.render();
   }
 
   render() {
@@ -219,7 +232,12 @@ export class SDRPresetLibrary {
   }
 
   open() {
-    if (!this.backdrop || this.isOpen) return;
+    if (this.isOpen) return;
+    if (!this.backdrop) {
+      this.isOpen = true;
+      this.refreshPreviews();
+      return;
+    }
     this.isOpen = true;
     this.backdrop.hidden = false;
     this.triggerBtn?.setAttribute('aria-expanded', 'true');
@@ -234,7 +252,11 @@ export class SDRPresetLibrary {
   }
 
   close() {
-    if (!this.backdrop || !this.isOpen) return;
+    if (!this.isOpen) return;
+    if (!this.backdrop) {
+      this.isOpen = false;
+      return;
+    }
     this.isOpen = false;
     this.backdrop.hidden = true;
     this.triggerBtn?.setAttribute('aria-expanded', 'false');
@@ -296,8 +318,27 @@ export class SDRPresetLibrary {
     this.renderPresetList();
     this.renderPreview(this.getPreviewPreset());
     if (missing.length > 0) {
-      void this.generateMissingPreviews(missing, context, contextHash);
+      this.scheduleMissingPreviews(missing, context, contextHash);
     }
+  }
+
+  scheduleMissingPreviews(presets, context, contextHash) {
+    if (!Array.isArray(presets) || presets.length === 0) return;
+    const token = ++this.previewFetchToken;
+    if (this.previewFetchTimer) {
+      clearTimeout(this.previewFetchTimer);
+      this.previewFetchTimer = null;
+    }
+    const run = () => {
+      this.previewFetchTimer = null;
+      if (token !== this.previewFetchToken) return;
+      void this.generateMissingPreviews(presets, context, contextHash);
+    };
+    if (this.previewFetchDebounceMs <= 0) {
+      run();
+      return;
+    }
+    this.previewFetchTimer = setTimeout(run, this.previewFetchDebounceMs);
   }
 
   async generateMissingPreviews(presets, context, contextHash) {
@@ -402,6 +443,20 @@ export class SDRPresetLibrary {
     this.previewPresetId = preset.id;
     this.renderPresetList();
     this.renderPreview(preset);
+
+    if (!this.isOpen) return;
+    const context = this.normalizeContext();
+    const contextHash = buildPreviewContextHash(context);
+    this.activeContextHash = contextHash;
+    const key = buildPreviewCacheKey(contextHash, preset.id);
+    const entry = this.getPreviewEntry(preset.id);
+    if (this.previewCache.has(key) || entry?.status === 'ready' || entry?.status === 'loading') return;
+    if (this.previewFetchTimer || this.inflightBatches.has(`${contextHash}:batch`)) return;
+    const base = this.buildBasePreviewEntry(preset, context);
+    this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+    this.renderPresetList();
+    this.renderPreview(preset);
+    this.scheduleMissingPreviews([preset], context, contextHash);
   }
 
   renderPresetList() {
@@ -463,7 +518,7 @@ export class SDRPresetLibrary {
     this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
     this.renderPresetList();
     this.renderPreview(preset);
-    void this.generateMissingPreviews([preset], context, contextHash);
+    this.scheduleMissingPreviews([preset], context, contextHash);
   }
 
   selectPreset(id) {
@@ -474,6 +529,10 @@ export class SDRPresetLibrary {
   }
 
   destroy() {
+    if (this.previewFetchTimer) {
+      clearTimeout(this.previewFetchTimer);
+      this.previewFetchTimer = null;
+    }
     window.removeEventListener('keydown', this.onKeydown);
     if (this.modalHost?.parentNode) this.modalHost.parentNode.removeChild(this.modalHost);
   }

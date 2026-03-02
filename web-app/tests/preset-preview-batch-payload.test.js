@@ -55,6 +55,7 @@ test('buildPresetPreviewBatchPayload composes extractor+generator input contract
       company_url: 'https://emaildj.ai',
       current_product: 'Remix Studio',
       cta_offer_lock: 'Open to a quick chat to see if this is relevant?',
+      cta_type: 'event_invite',
       other_products: 'Prospect Enrichment\nSequence QA',
       company_notes: 'We help SDR teams improve reply quality with controllable personalization.',
     },
@@ -80,6 +81,9 @@ test('buildPresetPreviewBatchPayload composes extractor+generator input contract
   assert.equal(payload.product_context.target_outcome, '15-minute meeting');
   assert.equal(payload.offer_lock, 'Remix Studio');
   assert.equal(payload.cta_lock, 'Open to a quick chat to see if this is relevant?');
+  assert.equal(payload.cta_lock_text, 'Open to a quick chat to see if this is relevant?');
+  assert.equal(payload.cta_type, 'event_invite');
+  assert.equal(payload.prospect_first_name, 'Alex');
   assert.equal(payload.raw_research.deep_research_paste, context.research_text);
   assert.equal(payload.presets.length, 1);
   assert.equal(payload.presets[0].preset_id, '4');
@@ -91,7 +95,7 @@ test('buildPresetPreviewBatchPayload composes extractor+generator input contract
   });
 });
 
-test('buildPresetPreviewBatchPayload falls back to default CTA lock when not provided', () => {
+test('buildPresetPreviewBatchPayload leaves CTA lock empty when no lock override is provided', () => {
   const context = normalizePreviewContext({
     prospect: {
       name: 'Alex Doe',
@@ -112,5 +116,6 @@ test('buildPresetPreviewBatchPayload falls back to default CTA lock when not pro
   });
 
   const payload = buildPresetPreviewBatchPayload(context, [{ id: 1, name: 'Default' }]);
-  assert.equal(payload.cta_lock, 'Open to a quick chat to see if this is relevant?');
+  assert.equal(payload.cta_lock, null);
+  assert.equal(payload.cta_lock_text, null);
 });

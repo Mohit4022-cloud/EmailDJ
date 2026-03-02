@@ -150,6 +150,11 @@ class WebPreviewPresetInput(BaseModel):
 
 class WebPresetPreviewBatchRequest(BaseModel):
     prospect: WebProspectInput
+    prospect_first_name: str | None = Field(
+        default=None,
+        max_length=60,
+        description="Optional first name override used for greeting normalization in previews.",
+    )
     product_context: WebPreviewProductContext
     raw_research: WebPreviewRawResearch
     global_sliders: WebPreviewGlobalSliders
@@ -159,11 +164,18 @@ class WebPresetPreviewBatchRequest(BaseModel):
         max_length=240,
         description="Single product/offering to pitch. Must match product_context.product_name.",
     )
-    cta_lock: str = Field(
-        min_length=1,
+    cta_lock: str | None = Field(
+        default=None,
         max_length=500,
-        description="Exact CTA text used once at the end of every preview email body.",
+        description="Legacy CTA lock field. If set, it is treated as CTA lock override text.",
     )
+    cta_lock_text: str | None = Field(
+        default=None,
+        max_length=500,
+        description="CTA lock override text. If non-empty, this exact text is used as CTA.",
+    )
+    cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
+    hook_strategy: Literal["research_anchored", "risk_framed", "domain_hook", "outcome_hook"] | None = None
 
 
 class WebSummaryPack(BaseModel):

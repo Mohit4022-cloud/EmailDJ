@@ -72,7 +72,7 @@ def resolve_cta_lock(
     directness: int,
 ) -> str:
     lock = _compact(existing_lock)
-    if has_specific_cta_shape(lock):
+    if lock:
         return lock
     minutes = 20 if directness >= 66 else 15
     return render_cta(
@@ -81,4 +81,3 @@ def resolve_cta_lock(
         directness=directness,
         minutes=minutes,
     )
-
