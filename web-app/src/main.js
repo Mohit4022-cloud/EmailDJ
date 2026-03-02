@@ -6,6 +6,30 @@ import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
 import { debounce } from './utils.js';
 
+const DEFAULT_COMPANY_CONTEXT = {
+  company_name: 'Corsearch',
+  company_url: 'https://corsearch.com',
+  current_product: 'Trademark Search, Screening, and Brand Protection',
+  other_products: 'Trademark Watching\nOnline Brand Protection\nDomain Monitoring',
+  company_notes:
+    'Corsearch helps legal and brand teams reduce trademark risk and protect brands across domains, marketplaces, and social platforms.',
+};
+
+const DEFAULT_TARGET_CONTEXT = {
+  name: 'Alex Karp',
+  title: 'CEO',
+  company: 'Palantir',
+  linkedin_url: '',
+};
+
+const DEFAULT_RESEARCH_TEXT =
+  'Palantir is scaling enterprise AI initiatives through AIP and high-stakes government/commercial deployments. Outreach should stay executive-level, tie messaging quality to pipeline outcomes, and propose a low-friction pilot that shows measurable reply and conversion lift.';
+
+function chooseDefaultString(value, fallback) {
+  if (typeof value !== 'string') return fallback;
+  return value.trim() ? value : fallback;
+}
+
 class WebApp {
   constructor(root) {
     this.root = root;
@@ -100,6 +124,11 @@ class WebApp {
     this.sellerCurrentProductInput = this.root.querySelector('#sellerCurrentProduct');
     this.sellerOtherProductsInput = this.root.querySelector('#sellerOtherProducts');
     this.sellerCompanyNotesInput = this.root.querySelector('#sellerCompanyNotes');
+    this.prospectNameInput = this.root.querySelector('#prospectName');
+    this.prospectTitleInput = this.root.querySelector('#prospectTitle');
+    this.prospectCompanyInput = this.root.querySelector('#prospectCompany');
+    this.prospectLinkedinInput = this.root.querySelector('#prospectLinkedin');
+    this.researchInput = this.root.querySelector('#researchText');
 
     this.editor = new EmailEditor(this.root.querySelector('#editorMount'));
     this.sliderBoard = new SliderBoard(this.root.querySelector('#sliderBoard'), () => this.onSlidersChanged());
@@ -110,6 +139,7 @@ class WebApp {
 
     this.seedBetaKey();
     this.seedCompanyContext();
+    this.seedTargetDefaults();
 
     this.generateBtn.addEventListener('click', () => this.generate());
     this.saveRemixBtn.addEventListener('click', () => this.saveRemix());
@@ -124,6 +154,15 @@ class WebApp {
       this.sellerCompanyNotesInput,
     ]) {
       input?.addEventListener('input', () => this.persistCompanyContext());
+    }
+    for (const input of [
+      this.prospectNameInput,
+      this.prospectTitleInput,
+      this.prospectCompanyInput,
+      this.prospectLinkedinInput,
+      this.researchInput,
+    ]) {
+      input?.addEventListener('input', () => this.persistTargetDefaults());
     }
 
     this.setStatus('Ready. Fill inputs and click Generate.');
@@ -152,11 +191,47 @@ class WebApp {
     } catch {
       saved = {};
     }
-    this.sellerCompanyNameInput.value = saved.company_name || '';
-    this.sellerCompanyUrlInput.value = saved.company_url || '';
-    this.sellerCurrentProductInput.value = saved.current_product || '';
-    this.sellerOtherProductsInput.value = saved.other_products || '';
-    this.sellerCompanyNotesInput.value = saved.company_notes || '';
+    const merged = {
+      company_name: chooseDefaultString(saved.company_name, DEFAULT_COMPANY_CONTEXT.company_name),
+      company_url: chooseDefaultString(saved.company_url, DEFAULT_COMPANY_CONTEXT.company_url),
+      current_product: chooseDefaultString(saved.current_product, DEFAULT_COMPANY_CONTEXT.current_product),
+      other_products: chooseDefaultString(saved.other_products, DEFAULT_COMPANY_CONTEXT.other_products),
+      company_notes: chooseDefaultString(saved.company_notes, DEFAULT_COMPANY_CONTEXT.company_notes),
+    };
+    this.sellerCompanyNameInput.value = merged.company_name;
+    this.sellerCompanyUrlInput.value = merged.company_url;
+    this.sellerCurrentProductInput.value = merged.current_product;
+    this.sellerOtherProductsInput.value = merged.other_products;
+    this.sellerCompanyNotesInput.value = merged.company_notes;
+    this.storageSet('emaildj_company_context_v1', JSON.stringify(merged));
+  }
+
+  seedTargetDefaults() {
+    let saved = {};
+    try {
+      saved = JSON.parse(this.storageGet('emaildj_target_defaults_v1') || '{}') || {};
+    } catch {
+      saved = {};
+    }
+    const merged = {
+      name: chooseDefaultString(saved.name, DEFAULT_TARGET_CONTEXT.name),
+      title: chooseDefaultString(saved.title, DEFAULT_TARGET_CONTEXT.title),
+      company: chooseDefaultString(saved.company, DEFAULT_TARGET_CONTEXT.company),
+      linkedin_url: chooseDefaultString(saved.linkedin_url, DEFAULT_TARGET_CONTEXT.linkedin_url),
+    };
+    const savedResearch = chooseDefaultString(
+      this.storageGet('emaildj_research_default_v1') || '',
+      DEFAULT_RESEARCH_TEXT
+    );
+
+    this.prospectNameInput.value = merged.name;
+    this.prospectTitleInput.value = merged.title;
+    this.prospectCompanyInput.value = merged.company;
+    this.prospectLinkedinInput.value = merged.linkedin_url;
+    this.researchInput.value = savedResearch;
+
+    this.storageSet('emaildj_target_defaults_v1', JSON.stringify(merged));
+    this.storageSet('emaildj_research_default_v1', savedResearch);
   }
 
   companyContextPayload() {
@@ -178,15 +253,27 @@ class WebApp {
     return this.storageSet('emaildj_company_context_v1', JSON.stringify(this.companyContextPayload()));
   }
 
+  persistTargetDefaults() {
+    const target = {
+      name: this.prospectNameInput.value.trim(),
+      title: this.prospectTitleInput.value.trim(),
+      company: this.prospectCompanyInput.value.trim(),
+      linkedin_url: this.prospectLinkedinInput.value.trim(),
+    };
+    const targetSaved = this.storageSet('emaildj_target_defaults_v1', JSON.stringify(target));
+    const researchSaved = this.storageSet('emaildj_research_default_v1', this.researchInput.value.trim());
+    return targetSaved && researchSaved;
+  }
+
   payload() {
     return {
       prospect: {
-        name: this.root.querySelector('#prospectName').value.trim(),
-        title: this.root.querySelector('#prospectTitle').value.trim(),
-        company: this.root.querySelector('#prospectCompany').value.trim(),
-        linkedin_url: this.root.querySelector('#prospectLinkedin').value.trim() || null,
+        name: this.prospectNameInput.value.trim(),
+        title: this.prospectTitleInput.value.trim(),
+        company: this.prospectCompanyInput.value.trim(),
+        linkedin_url: this.prospectLinkedinInput.value.trim() || null,
       },
-      research_text: this.root.querySelector('#researchText').value.trim(),
+      research_text: this.researchInput.value.trim(),
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: this.companyContextPayload(),
     };
