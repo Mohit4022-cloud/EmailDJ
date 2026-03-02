@@ -4,6 +4,9 @@ on:
   pull_request:
   push:
     branches: [main, master]
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
 
 jobs:
   checks:
@@ -42,3 +45,66 @@ jobs:
         run: |
           source .venv/bin/activate
           ./scripts/checks.sh
+
+      - name: Optional judge smoke (mock)
+        if: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE == '1' }}
+        working-directory: hub-api
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:judge:smoke
+
+  real-mode-nightly:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install backend deps
+        working-directory: hub-api
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Install extension deps
+        working-directory: chrome-extension
+        run: npm install
+
+      - name: Run checks with credentialed real smoke
+        working-directory: hub-api
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EMAILDJ_REAL_PROVIDER: openai
+        run: |
+          source .venv/bin/activate
+          EMAILDJ_RUN_REAL_MODE_SMOKE=1 ./scripts/checks.sh
+
+      - name: Run adversarial suite in real mode
+        working-directory: hub-api
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EMAILDJ_REAL_PROVIDER: openai
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:adversarial --real
+
+      - name: Run full judge eval (real mode)
+        working-directory: hub-api
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          EMAILDJ_JUDGE_MODE: real
+          EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
+        run: |
+          source .venv/bin/activate
+          ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini
