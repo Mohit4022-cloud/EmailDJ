@@ -20,6 +20,8 @@ function compactWhitespace(value) {
   return normalizeText(value).replace(/\s+/g, ' ');
 }
 
+const DEFAULT_PREVIEW_CTA_LOCK = 'Open to a quick chat to see if this is relevant?';
+
 export function normalizeSliderState(raw = {}) {
   return {
     formality: toSliderNumber(raw.formality, 50),
@@ -205,6 +207,7 @@ export function buildPresetPreviewBatchPayload(context, presets) {
   const productName = compactWhitespace(
     normalized.company_context.current_product || normalized.company_context.company_name || 'Current offering'
   );
+  const ctaLock = compactWhitespace(normalized.company_context.cta_offer_lock || DEFAULT_PREVIEW_CTA_LOCK);
   const oneLineValue = deriveOneLineValue(normalized);
   const proofPoints = deriveProofPoints(normalized);
 
@@ -233,6 +236,8 @@ export function buildPresetPreviewBatchPayload(context, presets) {
       label: compactWhitespace(preset?.name || 'Preset'),
       slider_overrides: buildPresetBatchSliderOverrides(preset),
     })),
+    offer_lock: productName,
+    cta_lock: ctaLock,
   };
 }
 

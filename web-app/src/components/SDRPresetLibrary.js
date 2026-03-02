@@ -305,7 +305,12 @@ export class SDRPresetLibrary {
       this.markPreviewBatchUnavailable(presets, context, 'Preview batch pipeline is disabled.');
       return;
     }
-    const result = await this.generateMissingPreviewsBatch(presets, context, contextHash);
+    let result;
+    try {
+      result = await this.generateMissingPreviewsBatch(presets, context, contextHash);
+    } catch (error) {
+      result = { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
+    }
     if (!result.ok) {
       this.markPreviewBatchUnavailable(presets, context, result.error || 'Preview batch generation failed.');
     }

@@ -3,6 +3,7 @@ const VITE_HUB_URL =
 const HUB_URL = (VITE_HUB_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 const VITE_PRESET_PREVIEW_PIPELINE =
   typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_PRESET_PREVIEW_PIPELINE : undefined;
+const PRESET_PREVIEW_BATCH_TIMEOUT_MS = 45000;
 
 function parsePythonDictPayload(raw) {
   if (!raw || raw[0] !== '{' || raw[raw.length - 1] !== '}') return null;
@@ -145,12 +146,26 @@ export function presetPreviewBatchEnabled() {
   return raw !== 'off' && raw !== '0' && raw !== 'false';
 }
 
-export async function generatePresetPreviewsBatch(payload) {
-  const res = await fetch(`${HUB_URL}/web/v1/preset-previews/batch`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify(payload),
-  });
+export async function generatePresetPreviewsBatch(payload, options = {}) {
+  const timeoutMs = Number(options?.timeoutMs) > 0 ? Number(options.timeoutMs) : PRESET_PREVIEW_BATCH_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(`${HUB_URL}/web/v1/preset-previews/batch`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Preset preview batch timed out (${timeoutMs}ms)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     let detail = '';
     try {
