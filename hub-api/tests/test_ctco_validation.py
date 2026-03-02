@@ -68,6 +68,24 @@ def test_validate_ctco_output_allows_non_ask_mentions_of_pilot():
     assert "additional_cta_detected" not in violations
 
 
+def test_validate_ctco_output_flags_non_first_name_greeting():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme's outbound outcomes\n"
+        "Body:\n"
+        "Hi Alex Doe, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio helps your SDR team keep messaging relevant while preserving control over tone and accuracy.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "greeting_first_name_mismatch" in violations
+    assert "greeting_not_first_name_only" in violations
+
+
 @pytest.mark.asyncio
 async def test_build_draft_retries_after_validation_failure_then_succeeds(monkeypatch):
     import email_generation.remix_engine as remix_engine

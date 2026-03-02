@@ -3,14 +3,24 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from email_generation.prompt_templates import get_web_mvp_prompt
-from email_generation.quick_generate import _mode, _real_generate
+from email_generation.quick_generate import _mode, _preferred_provider, _real_generate
 from infra.redis_client import get_redis
+
+logger = logging.getLogger(__name__)
+
+# Model names keyed by provider (mirrors quick_generate._real_generate hardcoded values)
+_PROVIDER_MODELS: dict[str, str] = {
+    "openai": "gpt-4.1-nano",
+    "anthropic": "claude-3-5-haiku-latest",
+    "groq": "llama-3.3-70b-versatile",
+}
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
@@ -417,6 +427,15 @@ def _offer_lock_forbidden_items(session: dict[str, Any]) -> list[str]:
     return forbidden
 
 
+def _expected_prospect_first_name(session: dict[str, Any]) -> str:
+    first_name = _collapse_ws(str(session.get("prospect_first_name") or "").strip())
+    if not first_name:
+        raw_name = _collapse_ws(str((session.get("prospect") or {}).get("name") or "").strip())
+        first_name = raw_name.split()[0] if raw_name else ""
+    first_name = first_name.split()[0] if first_name else ""
+    return first_name.strip(",.!?:;")
+
+
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
     violations: list[str] = []
 
@@ -431,6 +450,19 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
 
     if "{{" in draft or "}}" in draft:
         violations.append("template_placeholders_present")
+
+    expected_first_name = _expected_prospect_first_name(session)
+    first_body_line = next((line.strip() for line in body.splitlines() if line.strip()), "")
+    if expected_first_name:
+        greeting_match = re.match(r"^(Hi|Hello)\s+([^,\n]+),", first_body_line)
+        if greeting_match is None:
+            violations.append("greeting_missing_or_invalid")
+        else:
+            greeted_name = _collapse_ws(greeting_match.group(2))
+            if greeted_name.lower() != expected_first_name.lower():
+                violations.append("greeting_first_name_mismatch")
+            if " " in greeted_name:
+                violations.append("greeting_not_first_name_only")
 
     expected_cta = _collapse_ws(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA)
     body_lines = [line.strip() for line in body.splitlines() if line.strip()]
@@ -543,8 +575,8 @@ def _fit_body_range(main_text: str, cta_line: str, min_total: int, max_total: in
 def _mock_subject(prospect: dict[str, Any], offer_lock: str, style_sliders: dict[str, int]) -> str:
     company = prospect.get("company") or "your team"
     if style_sliders["framing_problem_outcome"] <= 40:
-        return f"Reducing generic outbound risk at {company}"
-    return f"{offer_lock} for {company}'s outbound outcomes"
+        return f"Quick thought on {offer_lock} for {company}"
+    return f"{offer_lock} — relevant for {company}?"
 
 
 def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
@@ -552,7 +584,12 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
     offer_lock = session["offer_lock"]
     cta = session["cta_lock_effective"]
 
-    name = prospect.get("name") or "there"
+    # Use derived first name; fall back to splitting full name; then "there"
+    first_name = session.get("prospect_first_name") or ""
+    if not first_name:
+        raw_name = (prospect.get("name") or "").strip()
+        first_name = raw_name.split()[0] if raw_name else "there"
+
     title = prospect.get("title") or "your role"
     company = prospect.get("company") or "your company"
     hooks = _extract_research_hooks(session.get("research_text") or "")
@@ -561,26 +598,28 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
     framing = style_sliders["framing_problem_outcome"]
     stance = style_sliders["stance_bold_diplomatic"]
 
-    greeting = f"Hello {name}," if formal <= 20 else f"Hi {name},"
+    greeting = f"Hello {first_name}," if formal <= 20 else f"Hi {first_name},"
     if framing <= 40:
-        lead = f"{company} teams often lose replies when outbound messages are generic or poorly timed."
+        lead = f"{company} is navigating priorities that make it hard to engage target accounts with the right message at the right time."
     else:
-        lead = f"{company} teams can improve qualified replies when outbound messages are tailored to current priorities."
+        lead = f"{company} teams focused on message relevance tend to see stronger engagement from priority accounts."
 
     hook_line = (
-        f"From your current initiatives, {hooks[0]}." if hooks else f"As {title}, you likely need better reply quality without adding process overhead."
+        f"Based on recent activity, {hooks[0]}."
+        if hooks
+        else f"As {title}, you're likely balancing reach efficiency with message quality."
     )
-    value_line = f"{offer_lock} helps reps send context-specific outreach with consistent quality controls."
+    value_line = f"{offer_lock} is built to help your team do exactly this: more precise engagement without adding process overhead."
     support_line = (
         f"{hooks[1]}."
         if len(hooks) > 1
-        else "This typically improves message relevance while keeping execution practical for the team."
+        else "Most teams find it integrates into existing workflows without major changes."
     )
 
     close_line = (
-        "If this aligns, I can share how teams usually apply it in production workflows."
+        "Teams that have applied this report faster adoption and more targeted messaging."
         if stance >= 61
-        else "This can be applied quickly with minimal workflow disruption."
+        else "It is generally lightweight and fits within existing processes."
     )
 
     main = f"{greeting} {lead} {hook_line} {value_line} {support_line} {close_line}"
@@ -593,6 +632,9 @@ class DraftResult:
     draft: str
     style_key: str
     style_profile: dict[str, float]
+    mode: str = field(default="mock")
+    provider: str = field(default="mock")
+    model_name: str = field(default="mock")
 
 
 async def save_session(session_id: str, session: dict[str, Any]) -> None:
@@ -648,6 +690,7 @@ async def _build_real_draft(
             style_bands=style_bands,
             prior_draft=prior_draft,
             correction_notes=correction_notes,
+            prospect_first_name=session.get("prospect_first_name"),
         )
         candidate = canonicalize_draft(await _real_generate(prompt=prompt, throttled=throttled))
         violations = validate_ctco_output(candidate, session=session, style_sliders=style_sliders)
@@ -669,17 +712,29 @@ async def build_draft(
     normalized = normalize_style_profile(style_profile)
     style_key = style_profile_key(normalized)
     style_cache = session.get("style_cache", {})
+    mode = _mode()
     if style_key in style_cache:
-        return DraftResult(draft=style_cache[style_key], style_key=style_key, style_profile=normalized)
+        # Return cached draft with current mode metadata
+        _provider = _preferred_provider() if mode == "real" else "mock"
+        _model = _PROVIDER_MODELS.get(_provider, _provider) if mode == "real" else "mock"
+        return DraftResult(
+            draft=style_cache[style_key],
+            style_key=style_key,
+            style_profile=normalized,
+            mode=mode,
+            provider=_provider,
+            model_name=_model,
+        )
 
     style_sliders = style_profile_to_ctco_sliders(normalized)
     style_bands = ctco_style_bands(style_sliders)
-    mode = _mode()
 
     if mode != "real":
         subject = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
         body = _mock_body(session=session, style_sliders=style_sliders)
         draft = _format_draft(subject=subject, body=body)
+        result_provider = "mock"
+        result_model = "mock"
     else:
         draft = await _build_real_draft(
             session=session,
@@ -687,6 +742,8 @@ async def build_draft(
             style_bands=style_bands,
             throttled=throttled,
         )
+        result_provider = _preferred_provider()
+        result_model = _PROVIDER_MODELS.get(result_provider, result_provider)
 
     violations = validate_ctco_output(draft, session=session, style_sliders=style_sliders)
     if violations:
@@ -702,7 +759,14 @@ async def build_draft(
     session["style_history"] = (session.get("style_history", []) + [normalized])[-20:]
     session["last_draft"] = draft
 
-    return DraftResult(draft=draft, style_key=style_key, style_profile=normalized)
+    return DraftResult(
+        draft=draft,
+        style_key=style_key,
+        style_profile=normalized,
+        mode=mode,
+        provider=result_provider,
+        model_name=result_model,
+    )
 
 
 def create_session_payload(
@@ -713,14 +777,21 @@ def create_session_payload(
     cta_offer_lock: str | None = None,
     cta_type: str | None = None,
     company_context: dict[str, Any] | None = None,
+    prospect_first_name: str | None = None,
 ) -> dict[str, Any]:
     normalized_style = normalize_style_profile(initial_style)
     normalized_company = normalize_company_context(company_context)
     effective_offer_lock = _normalize_lock_text(offer_lock, max_length=240) or normalized_company.get("current_product") or ""
     effective_cta_lock = _normalize_cta_lock(cta_offer_lock)
 
+    # Derive first name server-side if not provided by client
+    if not prospect_first_name:
+        raw_name = (prospect.get("name") or "").strip()
+        prospect_first_name = raw_name.split()[0] if raw_name else ""
+
     return {
         "prospect": prospect,
+        "prospect_first_name": prospect_first_name,
         "company_context": normalized_company,
         "company_context_brief": build_company_context_brief(normalized_company),
         "research_text": research_text,

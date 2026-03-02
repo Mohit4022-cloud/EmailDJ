@@ -207,6 +207,39 @@ async def test_web_generate_respects_offer_lock_and_blocks_adjacent_products_in_
 
 
 @pytest.mark.asyncio
+async def test_web_generate_rejects_current_product_offer_lock_mismatch():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+
+    from main import app
+
+    payload = _generate_payload(
+        {
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Prospect Enrichment",
+            "other_products": "Prospect Enrichment, Sequence QA",
+        }
+    )
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 422
+        detail = start.json()["detail"]
+        assert detail["error"] == "offer_lock_current_product_mismatch"
+        assert detail["offer_lock"] == payload["offer_lock"]
+        assert detail["current_product"] == payload["company_context"]["current_product"]
+
+
+@pytest.mark.asyncio
 async def test_web_generate_empty_cta_uses_canonical_fallback():
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")

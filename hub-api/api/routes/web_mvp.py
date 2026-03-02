@@ -87,6 +87,23 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
     _cleanup_expired()
     await _emit_metric("web_generate_started")
 
+    # Enforce single source of truth: if provided, current_product must match offer_lock.
+    current_product = req.company_context.current_product
+    if current_product and req.offer_lock and current_product.strip().lower() != req.offer_lock.strip().lower():
+        logger.warning(
+            "offer_lock_current_product_mismatch",
+            extra={"offer_lock": req.offer_lock, "current_product": current_product},
+        )
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "offer_lock_current_product_mismatch",
+                "message": "company_context.current_product must match offer_lock when provided.",
+                "offer_lock": req.offer_lock,
+                "current_product": current_product,
+            },
+        )
+
     session_id = str(uuid4())
     session = create_session_payload(
         prospect=req.prospect.model_dump(),
@@ -96,6 +113,7 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         cta_offer_lock=req.cta_offer_lock,
         cta_type=req.cta_type,
         company_context=req.company_context.model_dump(exclude_none=True),
+        prospect_first_name=req.prospect_first_name,
     )
     await save_session(session_id, session)
 
@@ -177,9 +195,15 @@ async def web_stream(request_id: str, request: Request):
     throttled = bool(getattr(request.state, "cost_throttled", False))
     start = time.perf_counter()
 
+    # Mutable dict populated inside _bounded(); read by stream_response done event
+    mode_info: dict[str, str] = {}
+
     async def _bounded():
         async with _STREAM_SEM:
             result = await build_draft(session=session, style_profile=rec.style_profile, throttled=throttled)
+            mode_info["mode"] = result.mode
+            mode_info["provider"] = result.provider
+            mode_info["model"] = result.model_name
             async for token in _token_stream(result.draft):
                 yield token
             if rec.mode == "generate":
@@ -194,13 +218,16 @@ async def web_stream(request_id: str, request: Request):
                 "web_mvp_stream_done",
                 extra={
                     "mode": rec.mode,
+                    "generation_mode": result.mode,
+                    "provider": result.provider,
+                    "model": result.model_name,
                     "session_id": rec.session_id,
                     "request_id": request_id,
                     "latency_ms": session["metrics"]["last_latency_ms"],
                 },
             )
 
-    return await stream_response(request_id=request_id, generator=_bounded())
+    return await stream_response(request_id=request_id, generator=_bounded(), done_extra=mode_info)
 
 
 @router.post("/feedback")
