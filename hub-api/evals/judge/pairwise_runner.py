@@ -142,6 +142,7 @@ def main() -> int:
                 "id": case_id,
                 "winner": final_winner,
                 "confidence": pair.get("confidence", 0.0),
+                "order_swapped": bool(pair.get("order_swapped", False)),
                 "flags": pair.get("flags", []),
                 "rationale_bullets": pair.get("rationale_bullets", []),
             }
@@ -190,4 +191,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

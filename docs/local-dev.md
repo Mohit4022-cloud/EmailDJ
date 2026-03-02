@@ -35,7 +35,7 @@
    - Pass criteria: pytest suite passes (warnings are tracked separately).
 4. Full quality gate:
    - Command: `cd /Users/mohit/EmailDJ/hub-api && source .venv/bin/activate && ./scripts/checks.sh`
-   - Pass criteria: all seven steps pass (`python compile`, `pytest`, `openapi`, extension syntax/build, mock smoke, real-mode smoke).
+   - Pass criteria: all required steps pass (`python compile`, `pytest`, `openapi`, extension syntax/build, mock smoke, lock eval smoke, parity gate, adversarial suite, fail-fast real-mode validation). Credentialed real-mode smoke runs only when `EMAILDJ_RUN_REAL_MODE_SMOKE=1`.
 
 ## Quick smoke test
 1. Open Salesforce record page.

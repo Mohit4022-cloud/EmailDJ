@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -33,6 +34,7 @@ from email_generation.remix_engine import (
     persist_violations,
     save_session,
 )
+from email_generation.runtime_policies import debug_success_sample_rate
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
 
@@ -89,6 +91,35 @@ def _token_stream(text: str):
             yield token + " "
 
     return _gen()
+
+
+def _violation_codes(violations: list[str]) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for entry in violations:
+        code = str(entry).split(":", 1)[0].strip()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        output.append(code)
+    return output
+
+
+def _should_emit_success_debug_bundle() -> bool:
+    sample_rate = debug_success_sample_rate()
+    if sample_rate <= 0.0:
+        return False
+    if sample_rate >= 1.0:
+        return True
+    return random.random() < sample_rate
+
+
+def _log_debug_bundle(event: str, payload: dict[str, object], *, failure: bool) -> None:
+    if failure:
+        logger.warning(event, extra=payload)
+        return
+    if _should_emit_success_debug_bundle():
+        logger.info(event, extra=payload)
 
 
 @router.post("/generate", response_model=WebGenerateAccepted)
@@ -157,7 +188,6 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
 @router.post(
     "/preset-previews/batch",
     response_model=WebPresetPreviewBatchResponse,
-    response_model_exclude_none=True,
 )
 async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: Request) -> WebPresetPreviewBatchResponse:
     if not _preview_pipeline_enabled():
@@ -165,6 +195,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
 
     await _emit_metric("web_preview_batch_started")
     throttled = bool(getattr(request.state, "cost_throttled", False))
+    preview_request_id = str(uuid4())
 
     try:
         result = await run_preview_pipeline(req=req, throttled=throttled)
@@ -176,17 +207,59 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
         logger.info(
             "web_preview_batch_done",
             extra={
+                "generation_mode": result.mode,
                 "provider": result.provider,
+                "model": result.model_name,
                 "latency_ms": result.latency_ms,
                 "cache_hit": result.cache_hit,
                 "preview_count": len(result.previews),
                 "violation_count": len(result.violations),
+                "violation_codes": result.violation_codes,
+                "initial_violation_count": result.initial_violation_count,
+                "final_violation_count": result.final_violation_count,
+                "repair_attempt_count": result.repair_attempt_count,
+                "validator_attempt_count": result.validator_attempt_count,
+                "provider_attempt_count": result.provider_attempt_count,
+                "repaired": result.repaired,
+                "enforcement_level": result.enforcement_level,
+                "repair_loop_enabled": result.repair_loop_enabled,
+                "request_id": preview_request_id,
             },
         )
-        return make_response(result)
+        _log_debug_bundle(
+            "web_preview_batch_debug_bundle",
+            {
+                "request_id": preview_request_id,
+                "session_id": None,
+                "mode": "preview",
+                "generation_mode": result.mode,
+                "provider": result.provider,
+                "model": result.model_name,
+                "violation_codes": result.violation_codes,
+                "violation_count": result.violation_count,
+                "provider_attempt_count": result.provider_attempt_count,
+                "validator_attempt_count": result.validator_attempt_count,
+                "repair_attempt_count": result.repair_attempt_count,
+                "repaired": result.repaired,
+                "enforcement_level": result.enforcement_level,
+                "repair_loop_enabled": result.repair_loop_enabled,
+            },
+            failure=result.violation_count > 0,
+        )
+        return make_response(result, request_id=preview_request_id, session_id=None)
     except Exception as exc:
         await _emit_metric("web_preview_batch_failed")
-        logger.exception("web_preview_batch_failed", extra={"error": str(exc)})
+        logger.exception("web_preview_batch_failed", extra={"error": str(exc), "request_id": preview_request_id})
+        _log_debug_bundle(
+            "web_preview_batch_debug_bundle",
+            {
+                "request_id": preview_request_id,
+                "session_id": None,
+                "mode": "preview",
+                "error": str(exc),
+            },
+            failure=True,
+        )
         raise HTTPException(
             status_code=503,
             detail={"error": "preview_pipeline_unavailable", "message": str(exc)},
@@ -208,43 +281,94 @@ async def web_stream(request_id: str, request: Request):
     start = time.perf_counter()
 
     # Mutable dict populated inside _bounded(); read by stream_response done event
-    mode_info: dict[str, str] = {}
+    mode_info: dict[str, object] = {"request_id": request_id, "session_id": rec.session_id}
 
     async def _bounded():
         async with _STREAM_SEM:
-            result = await build_draft(
-                session=session,
-                style_profile=rec.style_profile,
-                throttled=throttled,
-                session_id=rec.session_id,
-            )
-            mode_info["mode"] = result.mode
-            mode_info["provider"] = result.provider
-            mode_info["model"] = result.model_name
-            async for token in _token_stream(result.draft):
-                yield token
-            if rec.mode == "generate":
-                session["metrics"]["generate_count"] = int(session["metrics"].get("generate_count", 0)) + 1
-                await _emit_metric("web_generate_completed")
-            else:
-                session["metrics"]["remix_count"] = int(session["metrics"].get("remix_count", 0)) + 1
-                await _emit_metric("web_remix_completed")
-            session["metrics"]["last_latency_ms"] = int((time.perf_counter() - start) * 1000)
-            await save_session(rec.session_id, session)
-            logger.info(
-                "web_mvp_stream_done",
-                extra={
-                    "mode": rec.mode,
-                    "generation_mode": result.mode,
-                    "provider": result.provider,
-                    "model": result.model_name,
-                    "cascade_reason": result.cascade_reason,
-                    "attempt_count": result.attempt_count,
-                    "session_id": rec.session_id,
-                    "request_id": request_id,
-                    "latency_ms": session["metrics"]["last_latency_ms"],
-                },
-            )
+            try:
+                result = await build_draft(
+                    session=session,
+                    style_profile=rec.style_profile,
+                    throttled=throttled,
+                    session_id=rec.session_id,
+                )
+                mode_info["mode"] = result.mode
+                mode_info["provider"] = result.provider
+                mode_info["model"] = result.model_name
+                mode_info["cascade_reason"] = result.cascade_reason
+                mode_info["provider_attempt_count"] = result.attempt_count
+                mode_info["validator_attempt_count"] = result.validator_attempt_count
+                mode_info["json_repair_count"] = result.json_repair_count
+                mode_info["violation_retry_count"] = result.violation_retry_count
+                mode_info["repaired"] = result.repaired
+                mode_info["violation_codes"] = result.violation_codes
+                mode_info["violation_count"] = result.violation_count
+                mode_info["enforcement_level"] = result.enforcement_level
+                mode_info["repair_loop_enabled"] = result.repair_loop_enabled
+                async for token in _token_stream(result.draft):
+                    yield token
+                if rec.mode == "generate":
+                    session["metrics"]["generate_count"] = int(session["metrics"].get("generate_count", 0)) + 1
+                    await _emit_metric("web_generate_completed")
+                else:
+                    session["metrics"]["remix_count"] = int(session["metrics"].get("remix_count", 0)) + 1
+                    await _emit_metric("web_remix_completed")
+                session["metrics"]["last_latency_ms"] = int((time.perf_counter() - start) * 1000)
+                await save_session(rec.session_id, session)
+                logger.info(
+                    "web_mvp_stream_done",
+                    extra={
+                        "mode": rec.mode,
+                        "generation_mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model_name,
+                        "cascade_reason": result.cascade_reason,
+                        "provider_attempt_count": result.attempt_count,
+                        "validator_attempt_count": result.validator_attempt_count,
+                        "json_repair_count": result.json_repair_count,
+                        "violation_retry_count": result.violation_retry_count,
+                        "repaired": result.repaired,
+                        "violation_codes": result.violation_codes,
+                        "violation_count": result.violation_count,
+                        "enforcement_level": result.enforcement_level,
+                        "repair_loop_enabled": result.repair_loop_enabled,
+                        "session_id": rec.session_id,
+                        "request_id": request_id,
+                        "latency_ms": session["metrics"]["last_latency_ms"],
+                    },
+                )
+                _log_debug_bundle(
+                    "web_mvp_stream_debug_bundle",
+                    {
+                        "request_id": request_id,
+                        "session_id": rec.session_id,
+                        "mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model_name,
+                        "violation_codes": result.violation_codes,
+                        "violation_count": result.violation_count,
+                        "provider_attempt_count": result.attempt_count,
+                        "validator_attempt_count": result.validator_attempt_count,
+                        "json_repair_count": result.json_repair_count,
+                        "violation_retry_count": result.violation_retry_count,
+                        "repaired": result.repaired,
+                        "enforcement_level": result.enforcement_level,
+                        "repair_loop_enabled": result.repair_loop_enabled,
+                    },
+                    failure=result.violation_count > 0,
+                )
+            except Exception as exc:
+                _log_debug_bundle(
+                    "web_mvp_stream_debug_bundle",
+                    {
+                        "request_id": request_id,
+                        "session_id": rec.session_id,
+                        "mode": rec.mode,
+                        "error": str(exc),
+                    },
+                    failure=True,
+                )
+                raise
 
     return await stream_response(request_id=request_id, generator=_bounded(), done_extra=mode_info)
 

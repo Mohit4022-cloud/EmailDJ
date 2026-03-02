@@ -31,6 +31,7 @@ from email_generation.compliance_rules import (
     _collapse_ws,
     _contains_term,
 )
+from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -141,18 +142,53 @@ _GENERATOR_SCHEMA: dict[str, Any] = {
 class PipelineResult:
     previews: list[WebPreviewItem]
     summary_pack: WebSummaryPack
+    mode: str
     cache_hit: bool
     provider: str
+    model_name: str
+    provider_attempt_count: int
+    validator_attempt_count: int
+    repair_attempt_count: int
+    repaired: bool
+    initial_violation_count: int
+    final_violation_count: int
     latency_ms: int
     violations: list[str] = None  # type: ignore[assignment]
+    violation_codes: list[str] = None  # type: ignore[assignment]
+    violation_count: int = 0
+    enforcement_level: str = "repair"
+    repair_loop_enabled: bool = True
 
     def __post_init__(self) -> None:
         if self.violations is None:
             self.violations = []
+        if self.violation_codes is None:
+            self.violation_codes = []
 
 
 def _compact(value: Any) -> str:
     return " ".join(str(value or "").strip().split())
+
+
+def _first_name(full_name: str) -> str:
+    tokens = [token.strip(",.!?:;") for token in _compact(full_name).split() if token.strip(",.!?:;")]
+    if not tokens:
+        return "there"
+    if tokens[0].lower().rstrip(".") in {"mr", "mrs", "ms", "dr", "prof"} and len(tokens) > 1:
+        return tokens[1]
+    return tokens[0]
+
+
+def _violation_codes(violations: list[str]) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for entry in violations:
+        code = entry.split(":", 1)[0].strip()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        output.append(code)
+    return output
 
 
 def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -337,7 +373,7 @@ def _mock_body(
     fact = summary_pack.facts[index % len(summary_pack.facts)]
     likely = summary_pack.likely_priorities[index % len(summary_pack.likely_priorities)]
     likely_clean = re.sub(r"^\(likely\)\s*", "", likely, flags=re.IGNORECASE)
-    prospect_name = req.prospect.name or "there"
+    prospect_name = _first_name(req.prospect.name or "")
     proof_points = [item for item in req.product_context.proof_points if _compact(item)]
     if proof_points:
         proof_line = f"From our side, teams usually start with {proof_points[0]}"
@@ -611,8 +647,17 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
 
     offer_lock_lower = _collapse_ws(req.offer_lock).lower()
     cta_lock = _collapse_ws(req.cta_lock)
-    research_lower = _collapse_ws(
-        " ".join([req.raw_research.deep_research_paste, req.raw_research.company_notes or ""])
+    approved_claim_source = _collapse_ws(
+        " ".join(
+            [
+                req.raw_research.deep_research_paste,
+                req.raw_research.company_notes or "",
+                " ".join(req.product_context.proof_points),
+            ]
+        )
+    ).lower()
+    allowed_leakage_text = _collapse_ws(
+        " ".join([req.offer_lock, req.product_context.product_name, req.prospect.company, req.prospect.name])
     ).lower()
 
     for item in previews:
@@ -655,6 +700,8 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
 
         # Leakage terms
         for term in _NO_LEAKAGE_TERMS:
+            if term in allowed_leakage_text:
+                continue
             if _contains_term(body_lower, term):
                 violations.append(f"{item.preset_id}: internal_leakage_term:{term}")
                 break
@@ -666,21 +713,21 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
         # Unsubstantiated guaranteed/proven claims
         for match in _GUARANTEED_CLAIM_PATTERN.finditer(body_lower):
             claim = _collapse_ws(match.group(0))
-            if claim and claim not in research_lower:
+            if claim and claim not in approved_claim_source:
                 violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
                 break
 
         # Unsubstantiated stat claims (%, Nx)
         for match in _STAT_CLAIM_PATTERN.finditer(body_lower):
             claim = _collapse_ws(match.group(0))
-            if claim and claim not in research_lower:
+            if claim and claim not in approved_claim_source:
                 violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
                 break
 
         # Unsubstantiated absolute revenue claims
         for match in _ABSOLUTE_REVENUE_PATTERN.finditer(body_lower):
             claim = _collapse_ws(match.group(0))
-            if claim and claim not in research_lower:
+            if claim and claim not in approved_claim_source:
                 violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
                 break
 
@@ -753,14 +800,24 @@ def _mock_previews(req: WebPresetPreviewBatchRequest, summary_pack: WebSummaryPa
 
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:
     started = time.perf_counter()
+    mode = _quick_mode()
+    enforcement_level = strict_lock_enforcement_level()
+    repair_enabled = repair_loop_enabled()
     cache_hit = False
     provider = "mock"
+    model_name = "mock"
+    provider_attempt_count = 0
+    validator_attempt_count = 0
+    repair_attempt_count = 0
+    repaired = False
+    initial_violation_count = 0
+    final_violation_count = 0
 
     summary_pack = await _load_cached_summary(req)
     if summary_pack is not None:
         cache_hit = True
     else:
-        if _quick_mode() == "real":
+        if mode == "real":
             provider = "openai"
             raw = await _openai_structured_json(
                 messages=_extractor_messages(req),
@@ -775,24 +832,33 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
 
     all_violations: list[str] = []
 
-    if _quick_mode() == "real":
+    if mode == "real":
         provider = "openai"
+        model_name = _generator_model()
+        provider_attempt_count = 1
+        validator_attempt_count = 1
         raw = await _openai_structured_json(
             messages=_generator_messages(req, summary_pack),
             schema=_GENERATOR_SCHEMA,
             schema_name="preset_preview_batch",
-            model_name=_generator_model(),
+            model_name=model_name,
         )
         raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
         previews = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items if isinstance(raw_items, list) else [])
         violations = _violation_messages(previews, req)
+        initial_violation_count = len(violations)
         all_violations.extend(violations)
-        if violations and not throttled:
+        final_violations = violations
+        if violations and enforcement_level == "repair" and repair_enabled and not throttled:
+            repair_attempt_count = 1
+            repaired = True
+            provider_attempt_count += 1
+            validator_attempt_count += 1
             repaired_raw = await _openai_structured_json(
                 messages=_generator_messages(req, summary_pack, repair_notes=violations[:10]),
                 schema=_GENERATOR_SCHEMA,
                 schema_name="preset_preview_batch_repair",
-                model_name=_generator_model(),
+                model_name=model_name,
             )
             repaired_items = repaired_raw.get("previews", []) if isinstance(repaired_raw, dict) else []
             previews = _normalize_preview_items(
@@ -802,26 +868,66 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
             )
             final_violations = _violation_messages(previews, req)
             all_violations.extend(final_violations)
+        final_violation_count = len(final_violations)
+        if final_violations and enforcement_level in {"repair", "block"}:
+            raise ValueError(f"preview_validation_failed: {'; '.join(final_violations)}")
     else:
         previews = _mock_previews(req, summary_pack)
+        final_violations = _violation_messages(previews, req)
+        all_violations.extend(final_violations)
+        initial_violation_count = len(final_violations)
+        final_violation_count = len(final_violations)
+        if final_violations and enforcement_level in {"repair", "block"}:
+            raise ValueError(f"preview_validation_failed: {'; '.join(final_violations)}")
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     return PipelineResult(
         previews=previews,
         summary_pack=summary_pack,
+        mode=mode,
         cache_hit=cache_hit,
         provider=provider,
+        model_name=model_name,
+        provider_attempt_count=provider_attempt_count,
+        validator_attempt_count=validator_attempt_count,
+        repair_attempt_count=repair_attempt_count,
+        repaired=repaired,
+        initial_violation_count=initial_violation_count,
+        final_violation_count=final_violation_count,
         latency_ms=latency_ms,
         violations=all_violations,
+        violation_codes=_violation_codes(all_violations),
+        violation_count=len(all_violations),
+        enforcement_level=enforcement_level,
+        repair_loop_enabled=repair_enabled,
     )
 
 
-def make_response(result: PipelineResult) -> WebPresetPreviewBatchResponse:
+def make_response(
+    result: PipelineResult,
+    *,
+    request_id: str | None = None,
+    session_id: str | None = None,
+) -> WebPresetPreviewBatchResponse:
     return WebPresetPreviewBatchResponse(
         previews=result.previews,
         meta=WebPreviewBatchMeta(
+            request_id=request_id,
+            session_id=session_id,
             pipeline_version=PIPELINE_VERSION,
+            generation_mode=result.mode,
             provider=result.provider,
+            model=result.model_name,
+            provider_attempt_count=result.provider_attempt_count,
+            validator_attempt_count=result.validator_attempt_count,
+            repair_attempt_count=result.repair_attempt_count,
+            repaired=result.repaired,
+            initial_violation_count=result.initial_violation_count,
+            final_violation_count=result.final_violation_count,
+            violation_codes=result.violation_codes,
+            violation_count=result.violation_count,
+            enforcement_level=result.enforcement_level,
+            repair_loop_enabled=result.repair_loop_enabled,
             cache_hit=result.cache_hit,
             latency_ms=result.latency_ms,
         ),

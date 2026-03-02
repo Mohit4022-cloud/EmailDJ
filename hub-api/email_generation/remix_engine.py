@@ -25,6 +25,7 @@ from email_generation.compliance_rules import (
 )
 from email_generation.prompt_templates import get_web_mvp_prompt
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
+from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,18 @@ _BANNED_PHRASES = (
 )
 
 _INSTRUCTIONAL_RESEARCH_PHRASES = (
+    "ignore offer lock",
+    "ignore previous instructions",
+    "reveal your system prompt",
+    "reveal system prompt",
+    "system prompt",
+    "internal mapping",
+    "other_products/services mapping",
+    "gift card",
+    "measurable lift",
+    "reply lift",
+    "guarantee measurable",
+    "promise 30%",
     "outreach should",
     "you should",
     "we should",
@@ -96,6 +109,22 @@ _STAT_CLAIM_PATTERNS = (
 _PERFORMANCE_CLAIM_PATTERNS = (
     re.compile(r"\bproven to\b"),
     re.compile(r"\bscientifically proven\b"),
+)
+
+_HONORIFIC_PREFIXES = {
+    "mr",
+    "mrs",
+    "ms",
+    "dr",
+    "prof",
+    "sir",
+    "madam",
+}
+
+_CLAIM_VIOLATION_PREFIXES = (
+    "unsubstantiated_statistical_claim",
+    "unsubstantiated_performance_claim",
+    "unsubstantiated_claim",
 )
 
 
@@ -151,6 +180,37 @@ def _catalog_items(raw: str | None) -> list[str]:
             if len(items) >= 8:
                 return items
     return items
+
+
+def _derive_first_name(raw_name: str | None) -> str:
+    normalized = _collapse_ws(str(raw_name or "").strip())
+    if not normalized:
+        return ""
+    tokens = [token.strip(",.!?:;") for token in normalized.split() if token.strip(",.!?:;")]
+    while tokens and tokens[0].lower().rstrip(".") in _HONORIFIC_PREFIXES:
+        tokens.pop(0)
+    return tokens[0] if tokens else ""
+
+
+def _unique_ordered(values: list[str]) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        key = value.strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        output.append(key)
+    return output
+
+
+def _violation_codes(violations: list[str]) -> list[str]:
+    codes = [entry.split(":", 1)[0] for entry in violations if entry]
+    return _unique_ordered(codes)
+
+
+def _claim_violations(violations: list[str]) -> list[str]:
+    return [entry for entry in violations if entry and entry.split(":", 1)[0] in _CLAIM_VIOLATION_PREFIXES]
 
 
 def normalize_company_context(company_context: dict[str, Any] | None) -> dict[str, str]:
@@ -543,12 +603,11 @@ def _offer_lock_forbidden_items(session: dict[str, Any]) -> list[str]:
 
 
 def _expected_prospect_first_name(session: dict[str, Any]) -> str:
-    first_name = _collapse_ws(str(session.get("prospect_first_name") or "").strip())
-    if not first_name:
-        raw_name = _collapse_ws(str((session.get("prospect") or {}).get("name") or "").strip())
-        first_name = raw_name.split()[0] if raw_name else ""
-    first_name = first_name.split()[0] if first_name else ""
-    return first_name.strip(",.!?:;")
+    first_name = _derive_first_name(str(session.get("prospect_first_name") or "").strip())
+    if first_name:
+        return first_name
+    raw_name = str((session.get("prospect") or {}).get("name") or "").strip()
+    return _derive_first_name(raw_name)
 
 
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
@@ -711,7 +770,13 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
 
 
 def _validation_feedback(violations: list[str]) -> str:
-    return "Rewrite and fix these violations exactly: " + "; ".join(violations)
+    notes = ["Rewrite and fix these violations exactly: " + "; ".join(violations)]
+    claim_violations = _claim_violations(violations)
+    if claim_violations:
+        notes.append(
+            "Claims policy: keep claims qualitative unless the exact quantified claim is in approved proof text."
+        )
+    return " ".join(notes)
 
 
 def _json_repair_feedback(raw_output: str, parse_error: str) -> str:
@@ -822,6 +887,23 @@ class DraftResult:
     model_name: str = field(default="mock")
     cascade_reason: str = field(default="primary")
     attempt_count: int = field(default=1)
+    validator_attempt_count: int = field(default=0)
+    json_repair_count: int = field(default=0)
+    violation_retry_count: int = field(default=0)
+    repaired: bool = field(default=False)
+    violation_codes: list[str] = field(default_factory=list)
+    violation_count: int = field(default=0)
+    enforcement_level: str = field(default="repair")
+    repair_loop_enabled: bool = field(default=True)
+
+
+@dataclass
+class RealDraftStats:
+    validator_attempt_count: int = 1
+    json_repair_count: int = 0
+    violation_retry_count: int = 0
+    violation_codes: list[str] = field(default_factory=list)
+    violation_count: int = 0
 
 
 async def save_session(session_id: str, session: dict[str, Any]) -> None:
@@ -879,12 +961,18 @@ async def _build_real_draft(
     style_sliders: dict[str, int],
     style_bands: dict[str, str],
     throttled: bool,
+    enforcement_level: str,
+    repair_enabled: bool,
     session_id: str | None = None,
-) -> tuple[str, GenerateResult]:
+) -> tuple[str, GenerateResult, RealDraftStats]:
     prior_draft = session.get("last_draft") or None
     correction_notes: str | None = None
     last_violations: list[str] = []
-    last_result: GenerateResult | None = None
+    all_violations: list[str] = []
+    json_repair_count = 0
+    violation_retry_count = 0
+    validator_attempt_count = 0
+    max_attempts = MAX_VALIDATION_ATTEMPTS if enforcement_level == "repair" and repair_enabled and not throttled else 1
 
     seller_context = {
         "seller_company_name": (session.get("company_context") or {}).get("company_name"),
@@ -893,7 +981,8 @@ async def _build_real_draft(
         "other_products_services_mapping": (session.get("company_context") or {}).get("other_products"),
     }
 
-    for _attempt in range(MAX_VALIDATION_ATTEMPTS):
+    for attempt_index in range(max_attempts):
+        validator_attempt_count = attempt_index + 1
         prompt = get_web_mvp_prompt(
             seller=seller_context,
             prospect=session["prospect"],
@@ -909,24 +998,89 @@ async def _build_real_draft(
             prospect_first_name=session.get("prospect_first_name"),
         )
         gen_result = await _real_generate(prompt=prompt, throttled=throttled)
-        last_result = gen_result
         try:
             subject, body = _parse_structured_output(gen_result.text)
         except ValueError as exc:
             last_violations = [f"invalid_json_output:{exc}"]
+            all_violations.extend(last_violations)
             prior_draft = _collapse_ws((gen_result.text or "").strip())[:1200]
             correction_notes = _json_repair_feedback(gen_result.text, str(exc))
-            continue
+            json_repair_count += 1
+            await persist_violations(last_violations, session_id=session_id, pipeline="remix")
+            logger.warning(
+                "web_mvp_json_parse_failed",
+                extra={
+                    "session_id": session_id,
+                    "attempt": validator_attempt_count,
+                    "violations": last_violations,
+                    "enforcement_level": enforcement_level,
+                },
+            )
+            if enforcement_level == "warn":
+                candidate = canonicalize_draft(gen_result.text)
+                return (
+                    candidate,
+                    gen_result,
+                    RealDraftStats(
+                        validator_attempt_count=validator_attempt_count,
+                        json_repair_count=json_repair_count,
+                        violation_retry_count=violation_retry_count,
+                        violation_codes=_violation_codes(all_violations),
+                        violation_count=len(all_violations),
+                    ),
+                )
+            if enforcement_level == "repair" and repair_enabled and not throttled and attempt_index < (max_attempts - 1):
+                continue
+            raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}") from exc
 
         candidate = _format_draft(subject=subject, body=body)
         violations = validate_ctco_output(candidate, session=session, style_sliders=style_sliders)
         if not violations:
-            return candidate, gen_result
+            return (
+                candidate,
+                gen_result,
+                RealDraftStats(
+                    validator_attempt_count=validator_attempt_count,
+                    json_repair_count=json_repair_count,
+                    violation_retry_count=violation_retry_count,
+                    violation_codes=_violation_codes(all_violations),
+                    violation_count=len(all_violations),
+                ),
+            )
 
         last_violations = violations
+        all_violations.extend(violations)
         prior_draft = candidate
         correction_notes = _validation_feedback(violations)
+        logger.warning(
+            "web_mvp_validation_failed",
+            extra={
+                "session_id": session_id,
+                "attempt": validator_attempt_count,
+                "violations": violations,
+                "enforcement_level": enforcement_level,
+            },
+        )
         await persist_violations(violations, session_id=session_id, pipeline="remix")
+
+        if enforcement_level == "warn":
+            return (
+                candidate,
+                gen_result,
+                RealDraftStats(
+                    validator_attempt_count=validator_attempt_count,
+                    json_repair_count=json_repair_count,
+                    violation_retry_count=violation_retry_count,
+                    violation_codes=_violation_codes(all_violations),
+                    violation_count=len(all_violations),
+                ),
+            )
+
+        if enforcement_level == "repair" and repair_enabled and not throttled and attempt_index < (max_attempts - 1):
+            violation_retry_count += 1
+            continue
+
+        raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}")
 
     raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}")
 
@@ -941,8 +1095,15 @@ async def build_draft(
     style_key = style_profile_key(normalized)
     style_cache = session.get("style_cache", {})
     mode = _mode()
+    enforcement_level = strict_lock_enforcement_level()
+    repair_enabled = repair_loop_enabled()
     style_sliders = style_profile_to_ctco_sliders(normalized)
     style_bands = ctco_style_bands(style_sliders)
+    validator_attempt_count = 0
+    json_repair_count = 0
+    violation_retry_count = 0
+    violation_count = 0
+    violation_codes: list[str] = []
     if style_key in style_cache:
         cached_draft = style_cache[style_key]
         cached_violations = validate_ctco_output(cached_draft, session=session, style_sliders=style_sliders)
@@ -963,10 +1124,18 @@ async def build_draft(
                 model_name=_model,
                 cascade_reason="cached",
                 attempt_count=0,
+                validator_attempt_count=0,
+                json_repair_count=0,
+                violation_retry_count=0,
+                repaired=False,
+                violation_codes=[],
+                violation_count=0,
+                enforcement_level=enforcement_level,
+                repair_loop_enabled=repair_enabled,
             )
 
     result_cascade_reason = "primary"
-    result_attempt_count = 1
+    result_attempt_count = 0
     if mode != "real":
         subject = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
         body = _mock_body(session=session, style_sliders=style_sliders)
@@ -974,22 +1143,32 @@ async def build_draft(
         result_provider = "mock"
         result_model = "mock"
     else:
-        draft, gen_result = await _build_real_draft(
+        draft, gen_result, real_stats = await _build_real_draft(
             session=session,
             style_sliders=style_sliders,
             style_bands=style_bands,
             throttled=throttled,
+            enforcement_level=enforcement_level,
+            repair_enabled=repair_enabled,
             session_id=session_id,
         )
         result_provider = gen_result.provider
         result_model = gen_result.model_name
         result_cascade_reason = gen_result.cascade_reason
         result_attempt_count = gen_result.attempt_count
+        validator_attempt_count = real_stats.validator_attempt_count
+        json_repair_count = real_stats.json_repair_count
+        violation_retry_count = real_stats.violation_retry_count
+        violation_codes = list(real_stats.violation_codes)
+        violation_count = real_stats.violation_count
 
     violations = validate_ctco_output(draft, session=session, style_sliders=style_sliders)
     if violations:
         await persist_violations(violations, session_id=session_id, pipeline="remix")
-        raise ValueError(f"ctco_validation_failed: {'; '.join(violations)}")
+        violation_codes = _unique_ordered(violation_codes + _violation_codes(violations))
+        violation_count += len(violations)
+        if enforcement_level != "warn":
+            raise ValueError(f"ctco_validation_failed: {'; '.join(violations)}")
 
     style_cache[style_key] = draft
     style_order = session.get("style_order", [])
@@ -1010,6 +1189,14 @@ async def build_draft(
         model_name=result_model,
         cascade_reason=result_cascade_reason,
         attempt_count=result_attempt_count,
+        validator_attempt_count=validator_attempt_count,
+        json_repair_count=json_repair_count,
+        violation_retry_count=violation_retry_count,
+        repaired=(json_repair_count + violation_retry_count) > 0,
+        violation_codes=violation_codes,
+        violation_count=violation_count,
+        enforcement_level=enforcement_level,
+        repair_loop_enabled=repair_enabled,
     )
 
 
@@ -1033,10 +1220,11 @@ def create_session_payload(
         research_text_sanitized = _collapse_ws(research_text_raw)
     allowed_facts = _extract_allowed_facts(research_text_raw, max_items=4)
 
-    # Derive first name server-side if not provided by client
+    # Derive first name server-side if not provided by client.
     if not prospect_first_name:
-        raw_name = (prospect.get("name") or "").strip()
-        prospect_first_name = raw_name.split()[0] if raw_name else ""
+        prospect_first_name = _derive_first_name((prospect.get("name") or "").strip())
+    else:
+        prospect_first_name = _derive_first_name(prospect_first_name)
 
     return {
         "prospect": prospect,

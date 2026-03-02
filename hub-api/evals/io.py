@@ -190,6 +190,10 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"| Pass rate | {judge_summary.get('pass_rate', 0):.2%} |")
         lines.append(f"| Mean overall | {judge_summary.get('mean_overall', 0):.2f} |")
         lines.append(f"| Mean credibility | {judge_summary.get('mean_credibility', 0):.2f} |")
+        lines.append(f"| Threshold overall | {judge_summary.get('threshold_overall', 0):.2f} |")
+        lines.append(f"| Threshold credibility | {judge_summary.get('threshold_credibility', 0):.2f} |")
+        lines.append(f"| Cache hits | {judge_summary.get('cache_hits', 0)} / {judge_summary.get('cache_lookups', 0)} |")
+        lines.append(f"| Cache hit rate | {judge_summary.get('cache_hit_rate', 0):.2%} |")
         lines.append(f"| Prompt contract hash | `{judge_summary.get('prompt_contract_hash', '')}` |")
         if judge_summary.get("calibration_examples", 0):
             lines.append(f"| Calibration examples | {judge_summary.get('calibration_examples', 0)} |")
@@ -231,6 +235,12 @@ def _to_markdown(payload: dict[str, Any]) -> str:
                 lines.append(f"- Judge flags: `{', '.join(flags) if flags else '(none)'}`")
                 for bullet in (judge_result.get("rationale_bullets") or [])[:3]:
                     lines.append(f"- Judge rationale: {bullet}")
+                for action in (judge_result.get("repair_actions") or [])[:3]:
+                    if isinstance(action, dict):
+                        tag = action.get("tag", "")
+                        step = action.get("action", "")
+                        if tag and step:
+                            lines.append(f"- Repair {tag}: {step}")
             elif judge_result.get("status") == "error":
                 lines.append(f"- Judge error: `{judge_result.get('error', 'unknown')}`")
         feedback = result.get("actionable_feedback") or []

@@ -1,4 +1,3 @@
-import { styleToPayload } from '../style.js';
 import {
   buildPresetPreviewBatchPayload,
   buildPreviewCacheKey,
@@ -7,9 +6,7 @@ import {
   buildWhyItWorksBullets,
   normalizePreviewContext,
   normalizeSliderState,
-  parseGeneratedDraft,
   resolveEffectiveSliderState,
-  sanitizePreviewEmail,
   sliderRowsFromState,
 } from './presetPreviewUtils.js';
 
@@ -42,32 +39,6 @@ function statusLabel(status) {
 function previewFallbackSubject(context) {
   const company = context?.prospect?.company || context?.company_context?.company_name || 'your team';
   return `Quick idea for ${company}`;
-}
-
-function buildSafeProspect(context) {
-  return {
-    name: context.prospect.name || 'there',
-    title: context.prospect.title || 'Revenue Leader',
-    company: context.prospect.company || 'your company',
-    linkedin_url: context.prospect.linkedin_url || null,
-  };
-}
-
-function buildSafeResearchText(context, preset) {
-  const research = context.research_text;
-  const presetGuidance = [
-    `Preset style: ${preset.name}.`,
-    `Vibe guidance: ${preset.vibe || 'Use a clear SDR style tailored to this preset.'}`,
-    `Keep the output specific, factual, and non-generic.`,
-  ].join(' ');
-
-  const combined = [research, presetGuidance].filter(Boolean).join('\n\n').trim();
-  if (combined.length >= 20) return combined;
-  return [
-    'No deep research was provided. Use the prospect and company context only.',
-    presetGuidance,
-    'Return a realistic SDR subject and body with no placeholders.',
-  ].join(' ');
 }
 
 export function presetToSliderState(preset) {
@@ -170,18 +141,14 @@ export class SDRPresetLibrary {
       typeof options.onSelectPreset === 'function' ? options.onSelectPreset : () => {};
     this.getPreviewContext =
       typeof options.getPreviewContext === 'function' ? options.getPreviewContext : () => ({});
-    this.generatePreviewDraft =
-      typeof options.generatePreviewDraft === 'function' ? options.generatePreviewDraft : async () => '';
     this.generatePreviewBatch =
       typeof options.generatePreviewBatch === 'function' ? options.generatePreviewBatch : null;
-    this.maxPreviewConcurrency = clamp(Number(options.maxPreviewConcurrency) || 3, 1, 4);
 
     this.previewPresetId = this.presets[0]?.id ?? null;
     this.isOpen = false;
     this.activeContextHash = '';
     this.previewCache = new Map();
     this.previewEntries = new Map();
-    this.inflightPreviews = new Map();
     this.inflightBatches = new Map();
 
     this.onKeydown = (event) => {
@@ -334,30 +301,31 @@ export class SDRPresetLibrary {
   }
 
   async generateMissingPreviews(presets, context, contextHash) {
-    if (this.generatePreviewBatch) {
-      const batchOk = await this.generateMissingPreviewsBatch(presets, context, contextHash);
-      if (batchOk) return;
+    if (!this.generatePreviewBatch) {
+      this.markPreviewBatchUnavailable(presets, context, 'Preview batch pipeline is disabled.');
+      return;
     }
-    await this.generateMissingPreviewsLegacy(presets, context, contextHash);
+    const result = await this.generateMissingPreviewsBatch(presets, context, contextHash);
+    if (!result.ok) {
+      this.markPreviewBatchUnavailable(presets, context, result.error || 'Preview batch generation failed.');
+    }
   }
 
-  async generateMissingPreviewsLegacy(presets, context, contextHash) {
-    const queue = [...presets];
-    const workerCount = Math.min(this.maxPreviewConcurrency, queue.length);
-
-    const worker = async () => {
-      while (queue.length > 0) {
-        const nextPreset = queue.shift();
-        if (!nextPreset) return;
-        await this.generatePreviewForPreset(nextPreset, context, contextHash);
-      }
-    };
-
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  markPreviewBatchUnavailable(presets, context, message) {
+    for (const preset of presets) {
+      const existing = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
+      this.previewEntries.set(String(preset.id), {
+        ...existing,
+        status: 'error',
+        errorMessage: String(message || 'Preview batch pipeline unavailable.'),
+      });
+    }
+    this.renderPresetList();
+    this.renderPreview(this.getPreviewPreset());
   }
 
   async generateMissingPreviewsBatch(presets, context, contextHash) {
-    if (!this.generatePreviewBatch) return false;
+    if (!this.generatePreviewBatch) return { ok: false, error: 'Preview batch pipeline is disabled.' };
     const batchKey = `${contextHash}:batch`;
     let promise = this.inflightBatches.get(batchKey);
 
@@ -368,7 +336,7 @@ export class SDRPresetLibrary {
 
     try {
       const response = await promise;
-      if (contextHash !== this.activeContextHash) return true;
+      if (contextHash !== this.activeContextHash) return { ok: true };
 
       const responsePreviews = Array.isArray(response?.previews) ? response.previews : [];
       const byPresetId = new Map(
@@ -382,22 +350,19 @@ export class SDRPresetLibrary {
         const source = byPresetId.get(String(preset.id));
         const base = this.buildBasePreviewEntry(preset, context);
         if (!source) {
-          unresolved.push(preset);
-          this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+          unresolved.push(preset.name);
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: 'Preset missing in batch response.',
+          });
           continue;
         }
 
-        const sanitized = sanitizePreviewEmail(
-          {
-            subject: source.subject || '',
-            body: source.body || '',
-          },
-          context
-        );
         const preview = {
           ...base,
-          subject: sanitized.subject || previewFallbackSubject(context),
-          body: sanitized.body || '',
+          subject: String(source.subject || '').trim() || previewFallbackSubject(context),
+          body: String(source.body || '').trim(),
           vibeLabel: String(source.vibeLabel || base.vibeLabel || ''),
           vibeTags:
             Array.isArray(source.vibeTags) && source.vibeTags.length > 0
@@ -416,82 +381,13 @@ export class SDRPresetLibrary {
       this.renderPresetList();
       this.renderPreview(this.getPreviewPreset());
       if (unresolved.length > 0) {
-        await this.generateMissingPreviewsLegacy(unresolved, context, contextHash);
+        return { ok: false, error: `Missing batch previews for ${unresolved.join(', ')}.` };
       }
-      return true;
-    } catch {
-      return false;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
     } finally {
       this.inflightBatches.delete(batchKey);
-    }
-  }
-
-  buildPreviewPayload(preset, context) {
-    const effectiveSliders = resolveEffectiveSliderState(context.global_slider_state, preset);
-    const offerLock = context.company_context.current_product || context.company_context.company_name || 'Current offering';
-    return {
-      prospect: buildSafeProspect(context),
-      research_text: buildSafeResearchText(context, preset),
-      offer_lock: offerLock,
-      cta_offer_lock: context.company_context.cta_offer_lock || null,
-      cta_type: context.company_context.cta_type || null,
-      style_profile: styleToPayload(effectiveSliders),
-      company_context: {
-        company_name: context.company_context.company_name || undefined,
-        company_url: context.company_context.company_url || undefined,
-        current_product: context.company_context.current_product || undefined,
-        cta_offer_lock: context.company_context.cta_offer_lock || undefined,
-        cta_type: context.company_context.cta_type || undefined,
-        other_products: context.company_context.other_products || undefined,
-        company_notes: context.company_context.company_notes || undefined,
-      },
-    };
-  }
-
-  async generatePreviewForPreset(preset, context, contextHash) {
-    const key = buildPreviewCacheKey(contextHash, preset.id);
-    let promise = this.inflightPreviews.get(key);
-
-    if (!promise) {
-      promise = (async () => {
-        const payload = this.buildPreviewPayload(preset, context);
-        const draft = await this.generatePreviewDraft(payload);
-        const parsed = parseGeneratedDraft(draft, context.prospect.company);
-        const sanitized = sanitizePreviewEmail(parsed, context);
-        const preview = {
-          ...this.buildBasePreviewEntry(preset, context),
-          subject: sanitized.subject || previewFallbackSubject(context),
-          body: sanitized.body || '',
-        };
-        this.previewCache.set(key, preview);
-        return preview;
-      })();
-      this.inflightPreviews.set(key, promise);
-    }
-
-    try {
-      const preview = await promise;
-      if (contextHash !== this.activeContextHash) return;
-      this.previewEntries.set(String(preset.id), {
-        ...this.buildBasePreviewEntry(preset, context),
-        ...preview,
-        status: 'ready',
-        errorMessage: '',
-      });
-      this.renderPresetList();
-      if (this.previewPresetId === preset.id) this.renderPreview(preset);
-    } catch (error) {
-      if (contextHash !== this.activeContextHash) return;
-      const existing = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
-      this.previewEntries.set(String(preset.id), {
-        ...existing,
-        status: 'error',
-        errorMessage: String(error?.message || error || 'Generation failed'),
-      });
-      this.renderPresetList();
-      if (this.previewPresetId === preset.id) this.renderPreview(preset);
-    } finally {
-      this.inflightPreviews.delete(key);
     }
   }
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from evals.judge.rubric import PASS_THRESHOLD_CREDIBILITY, PASS_THRESHOLD_OVERALL
 from evals.models import EvalResult, JudgeSummary
 
 
@@ -30,6 +31,13 @@ def compute_judge_summary(
         for flag in result.judge.get("flags", []):
             flag_counts[str(flag)] += 1
 
+    cache_lookups = 0
+    cache_hits = 0
+    for result in evaluated:
+        cache_lookups += 1
+        if bool(result.judge.get("cache_hit", False)):
+            cache_hits += 1
+
     evaluated_count = len(evaluated)
     passed_count = len(passed)
     failed_count = len(failed)
@@ -50,6 +58,11 @@ def compute_judge_summary(
         mean_credibility=round(mean_credibility, 4),
         failure_count_by_flag={k: int(v) for k, v in sorted(flag_counts.items(), key=lambda item: (-item[1], item[0]))},
         prompt_contract_hash=prompt_contract_hash,
+        threshold_overall=PASS_THRESHOLD_OVERALL,
+        threshold_credibility=PASS_THRESHOLD_CREDIBILITY,
+        cache_hits=cache_hits,
+        cache_lookups=cache_lookups,
+        cache_hit_rate=round((cache_hits / cache_lookups), 4) if cache_lookups else 0.0,
         calibration_examples=int((calibration or {}).get("examples", 0)),
         calibration_pass_fail_agreement=(calibration or {}).get("pass_fail_agreement"),
         calibration_score_rank_correlation=(calibration or {}).get("score_rank_correlation"),
@@ -67,9 +80,14 @@ def actionable_feedback(result: EvalResult) -> list[str]:
     for violation in result.violations:
         feedback.append(f"Lock violation `{violation.code}`: {violation.reason}")
     if result.judge.get("status") == "scored" and result.judge.get("pass_fail") == "fail":
+        for action in result.judge.get("repair_actions", []):
+            if isinstance(action, dict):
+                tag = str(action.get("tag", "")).strip()
+                step = str(action.get("action", "")).strip()
+                if tag and step:
+                    feedback.append(f"{tag}: {step}")
         for flag in result.judge.get("flags", []):
             feedback.append(f"Quality flag `{flag}` triggered.")
         for bullet in result.judge.get("rationale_bullets", [])[:3]:
             feedback.append(f"Judge rationale: {bullet}")
     return feedback[:6]
-

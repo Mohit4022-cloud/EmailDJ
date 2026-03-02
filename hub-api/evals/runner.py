@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
+import re
+import shutil
 import sys
 import time
 from collections import Counter
@@ -10,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from evals.checks import evaluate_case
+from evals.judge.actions import derive_repair_actions
 from evals.judge.cache import JudgeCache
 from evals.judge.client import JudgeClient, JudgeRuntime
 from evals.judge.prompts import prompt_contract_hash
@@ -27,6 +31,20 @@ def _env_int(name: str, default: int) -> int:
         return int(raw)
     except ValueError:
         return default
+
+
+def _default_candidate_id() -> str:
+    value = os.environ.get("EMAILDJ_JUDGE_CANDIDATE_ID", "").strip()
+    if value:
+        return value
+    value = os.environ.get("GITHUB_SHA", "").strip()
+    if value:
+        return value[:12]
+    return "default"
+
+
+def _safe_path_component(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", (value or "").strip()) or "default"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -49,8 +67,8 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--judge-model", default=(os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini"))
     parser.add_argument("--judge-sample-count", type=int, default=_env_int("EMAILDJ_JUDGE_SAMPLE_COUNT", 1))
-    parser.add_argument("--judge-cache-dir", default="reports/judge/cache")
-    parser.add_argument("--judge-candidate-id", default="default")
+    parser.add_argument("--judge-cache-dir", default=(os.environ.get("EMAILDJ_JUDGE_CACHE_DIR", "reports/judge/cache").strip() or "reports/judge/cache"))
+    parser.add_argument("--judge-candidate-id", default=_default_candidate_id())
     parser.add_argument("--judge-calibration", default="evals/judge/calibration_set.v1.json")
     parser.add_argument("--judge-skip-calibration", action="store_true")
     return parser.parse_args()
@@ -261,6 +279,7 @@ async def _amain() -> int:
                     "scores": {},
                     "flags": ["auto_fail_policy_or_compliance_risk"],
                     "rationale_bullets": ["Skipped quality judge because hard lock compliance failed."],
+                    "repair_actions": [],
                 }
                 result.actionable_feedback = actionable_feedback(result)
                 continue
@@ -275,6 +294,7 @@ async def _amain() -> int:
                     "scores": {},
                     "flags": ["auto_fail_policy_or_compliance_risk"],
                     "rationale_bullets": ["Judge failed: missing case context."],
+                    "repair_actions": [],
                 }
                 result.actionable_feedback = actionable_feedback(result)
                 continue
@@ -296,7 +316,9 @@ async def _amain() -> int:
                     "scores": {},
                     "flags": ["auto_fail_policy_or_compliance_risk"],
                     "rationale_bullets": ["Judge execution failed."],
+                    "repair_actions": [],
                 }
+            result.judge["repair_actions"] = derive_repair_actions(result.judge)
             result.actionable_feedback = actionable_feedback(result)
 
         calibration = None
@@ -347,7 +369,7 @@ async def _amain() -> int:
         )
     else:
         for result in results:
-            result.judge = {"status": "disabled"}
+            result.judge = {"status": "disabled", "repair_actions": []}
             result.actionable_feedback = actionable_feedback(result)
 
     summary, top_failures = _compute_summary(results)
@@ -362,6 +384,24 @@ async def _amain() -> int:
         judge_summary=judge_summary,
         top_quality_failures=top_quality_failures,
     )
+
+    if args.judge and judge_summary is not None:
+        artifact_root = Path(args.report_dir) / "judge" / "artifacts" / _safe_path_component(args.judge_candidate_id)
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        artifact_json = artifact_root / f"{args.mode}.json"
+        artifact_md = artifact_root / f"{args.mode}.md"
+        shutil.copyfile(latest_json, artifact_json)
+        shutil.copyfile(latest_md, artifact_md)
+        meta = {
+            "generated_at": time.time(),
+            "source_report_json": str(latest_json),
+            "source_report_md": str(latest_md),
+            "candidate_id": args.judge_candidate_id,
+            "judge_model": judge_summary.model,
+            "judge_mode": judge_summary.mode,
+            "prompt_contract_hash": judge_summary.prompt_contract_hash,
+        }
+        (artifact_root / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     print("Lock Compliance Scorecard")
     print(f"- Cases: {summary.total_cases}")

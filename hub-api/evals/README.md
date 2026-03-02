@@ -13,6 +13,10 @@ Run from `hub-api/`:
 - `./scripts/eval:judge:smoke` (5-case quality judge smoke)
 - `./scripts/eval:judge:full` (96-case quality judge run + calibration)
 - `./scripts/eval:judge:pairwise --a-report reports/baseline.json --b-report reports/latest.json`
+- `./scripts/eval:judge:sanity` (10 sentinel judge drift/gaming checks)
+- `./scripts/eval:judge:stability` (determinism + cache correctness verification)
+- `./scripts/eval:judge:calibrate` (threshold sweep on calibration labels)
+- `./scripts/eval:judge:regression-gate --baseline-report <...> --candidate-report <...>`
 
 ## Output artifacts
 
@@ -22,6 +26,7 @@ Every run writes:
 - `reports/latest.md`
 - Timestamped copies under `reports/history/`
 - Judge cache/artifacts under `reports/judge/`
+  - Commit-scoped artifacts: `reports/judge/artifacts/<candidate_id>/`
 
 ## Dataset
 
@@ -30,6 +35,7 @@ Every run writes:
 - Parity IDs: `evals/parity_ids.json` (12 mixed cases)
 - Adversarial pack: `evals/gold_set.adversarial.json` (18 cases)
 - Judge calibration set: `evals/judge/calibration_set.v1.json` (20 labeled examples)
+- Judge sentinel suite: `evals/judge/sentinel_cases.v1.json` (10 drift checks)
 - Schema: `evals/gold_set.schema.json`
 
 ## Violation codes

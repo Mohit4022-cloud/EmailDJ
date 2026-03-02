@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
-RUBRIC_VERSION = "enterprise_outbound_v1"
+_DEFAULT_RUBRIC_VERSION = "enterprise_outbound_v1"
+RUBRIC_VERSION = os.environ.get("EMAILDJ_JUDGE_RUBRIC_VERSION", _DEFAULT_RUBRIC_VERSION).strip() or _DEFAULT_RUBRIC_VERSION
 
 CRITERIA = (
     "relevance_to_prospect",
@@ -33,8 +35,16 @@ AUTO_FAIL_FLAGS = {
     "auto_fail_policy_or_compliance_risk",
 }
 
-PASS_THRESHOLD_OVERALL = 3.8
-PASS_THRESHOLD_CREDIBILITY = 4.2
+def _float_env(name: str, default: float) -> float:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+PASS_THRESHOLD_OVERALL = _float_env("EMAILDJ_JUDGE_PASS_THRESHOLD_OVERALL", 3.8)
+PASS_THRESHOLD_CREDIBILITY = _float_env("EMAILDJ_JUDGE_PASS_THRESHOLD_CREDIBILITY", 5.0)
 
 ALL_FLAGS = (
     "auto_fail_pii_leakage",
@@ -74,4 +84,3 @@ def should_pass(scores: dict[str, int], overall: float, flags: list[str]) -> boo
     if credibility < PASS_THRESHOLD_CREDIBILITY:
         return False
     return True
-

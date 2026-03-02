@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 import sys
 
 import pytest
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
+os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 
 
 def _session_payload(research_text: str | None = None):
@@ -77,6 +79,26 @@ def test_create_session_payload_extracts_allowed_facts_and_strips_instructions()
     assert any("launched" in fact.lower() for fact in session["allowed_facts"])
     assert "outreach should" not in session["research_text_sanitized"].lower()
     assert "propose a pilot" not in session["research_text_sanitized"].lower()
+
+
+def test_create_session_payload_derives_first_name_from_honorific():
+    from email_generation.remix_engine import create_session_payload
+
+    session = create_session_payload(
+        prospect={
+            "name": "Dr. Maya Chen",
+            "title": "Revenue Operations Lead",
+            "company": "Bluebird Systems",
+            "linkedin_url": "https://linkedin.com/in/maya-chen",
+        },
+        research_text="Bluebird Systems launched a QA initiative for outbound consistency this quarter.",
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Compliance QA",
+        cta_offer_lock="Open to a 10-min call next week?",
+        cta_type="question",
+    )
+
+    assert session["prospect_first_name"] == "Maya"
 
 
 def test_validate_ctco_output_flags_near_match_cta():
@@ -252,3 +274,82 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
             style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0},
         )
     assert calls["count"] == remix_engine.MAX_VALIDATION_ATTEMPTS
+
+
+@pytest.mark.asyncio
+async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def claim_heavy_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and the SDR team is balancing scale with message quality. "
+                    "Remix Studio helps keep messaging controlled, and teams often report a 25% improvement in response quality after rollout. "
+                    "This keeps output aligned with your process while maintaining execution speed in enterprise sequences.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "0")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", claim_heavy_output)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
+
+    assert "Subject:" in result.draft
+    assert result.enforcement_level == "warn"
+    assert result.repair_loop_enabled is False
+    assert "unsubstantiated_statistical_claim" in result.violation_codes
+    assert result.violation_count >= 1
+
+
+@pytest.mark.asyncio
+async def test_build_draft_block_mode_fails_without_repair_retry(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def claim_heavy_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and the SDR team is balancing scale with message quality. "
+                    "Remix Studio is proven to deliver measurable lift in reply quality without adding process overhead.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", claim_heavy_output)
+
+    with pytest.raises(ValueError, match="ctco_validation_failed"):
+        await remix_engine.build_draft(
+            session=session,
+            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+        )
+    assert calls["count"] == 1

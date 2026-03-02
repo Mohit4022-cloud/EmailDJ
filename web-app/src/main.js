@@ -1,7 +1,6 @@
 import {
   consumeStream,
   generateDraft,
-  generateDraftText,
   generatePresetPreviewsBatch,
   presetPreviewBatchEnabled,
   remixDraft,
@@ -166,7 +165,6 @@ class WebApp {
       presets: SDR_PRESETS,
       onSelectPreset: (preset) => this.applyPreset(preset),
       getPreviewContext: () => this.previewContextPayload(),
-      generatePreviewDraft: (payload) => generateDraftText(payload),
       generatePreviewBatch: presetPreviewBatchEnabled() ? (payload) => generatePresetPreviewsBatch(payload) : null,
     });
 
@@ -479,7 +477,9 @@ class WebApp {
     } else if (mode === 'real') {
       badgeEl.className = 'mode-badge mode-real';
       const label = provider && model ? `${provider} / ${model}` : provider || 'real';
-      badgeEl.textContent = `REAL — ${label}`;
+      const repairCount = Number(doneData?.json_repair_count || 0) + Number(doneData?.violation_retry_count || 0);
+      const repairedNote = doneData?.repaired ? ` · compliance repaired (${repairCount || 1}x)` : '';
+      badgeEl.textContent = `REAL — ${label}${repairedNote}`;
     } else {
       badgeEl.className = 'mode-badge';
       badgeEl.textContent = '';

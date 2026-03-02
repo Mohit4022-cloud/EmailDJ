@@ -45,10 +45,12 @@ echo "[9/11] adversarial eval suite (mock)"
 "$ROOT/scripts/eval:adversarial"
 
 if [ "${EMAILDJ_RUN_JUDGE_SMOKE:-0}" = "1" ]; then
-  echo "[10/12] judge smoke (5-case)"
+  echo "[10/13] judge smoke (5-case)"
   "$ROOT/scripts/eval:judge:smoke"
-  STEP_REAL_FAILFAST="[11/12]"
-  STEP_REAL_SMOKE="[12/12]"
+  echo "[11/13] judge sanity sentinel suite"
+  "$ROOT/scripts/eval:judge:sanity"
+  STEP_REAL_FAILFAST="[12/13]"
+  STEP_REAL_SMOKE="[13/13]"
 else
   STEP_REAL_FAILFAST="[10/11]"
   STEP_REAL_SMOKE="[11/11]"

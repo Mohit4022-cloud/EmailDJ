@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from evals.judge.actions import derive_repair_actions
 from evals.judge.client import JudgeClient, JudgeRuntime
 from evals.judge.reliability import calibration_metrics, deterministic_order_swap
 from evals.models import EvalCase, EvalExpected
@@ -86,9 +87,12 @@ def test_mock_pairwise_returns_winner_or_tie() -> None:
 
 
 def test_deterministic_order_swap_is_stable() -> None:
-    first = deterministic_order_swap("lc_001")
-    second = deterministic_order_swap("lc_001")
+    first = deterministic_order_swap("lc_001", seed="fixed")
+    second = deterministic_order_swap("lc_001", seed="fixed")
     assert first == second
+    third = deterministic_order_swap("lc_001", seed="different")
+    # Seed changes should produce deterministic but potentially different order plans.
+    assert isinstance(third, bool)
 
 
 def test_calibration_metrics() -> None:
@@ -105,3 +109,26 @@ def test_calibration_metrics() -> None:
     assert metrics["pass_fail_agreement"] == 1.0
     assert metrics["score_rank_correlation"] is not None
 
+
+def test_repair_actions_mapping() -> None:
+    actions = derive_repair_actions(
+        {
+            "status": "scored",
+            "scores": {
+                "relevance_to_prospect": 2,
+                "clarity_and_structure": 3,
+                "credibility_no_overclaim": 2,
+                "personalization_quality": 2,
+                "cta_quality": 2,
+                "tone_match": 2,
+                "conciseness_signal_density": 3,
+                "value_prop_specificity": 2,
+            },
+            "flags": ["auto_fail_guaranteed_outcome", "weak_cta", "tone_mismatch"],
+        }
+    )
+    tags = {item["tag"] for item in actions}
+    assert "HOOK_TOO_GENERIC" in tags
+    assert "CREDIBILITY_OVERCLAIM" in tags
+    assert "CTA_WEAK" in tags
+    assert "TONE_MISMATCH" in tags

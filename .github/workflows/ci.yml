@@ -52,6 +52,7 @@ jobs:
         run: |
           source .venv/bin/activate
           ./scripts/eval:judge:smoke
+          ./scripts/eval:judge:sanity
 
   real-mode-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

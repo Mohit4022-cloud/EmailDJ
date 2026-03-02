@@ -102,6 +102,11 @@ class JudgeSummary:
     mean_credibility: float
     failure_count_by_flag: dict[str, int]
     prompt_contract_hash: str
+    threshold_overall: float = 0.0
+    threshold_credibility: float = 0.0
+    cache_hits: int = 0
+    cache_lookups: int = 0
+    cache_hit_rate: float = 0.0
     calibration_examples: int = 0
     calibration_pass_fail_agreement: float | None = None
     calibration_score_rank_correlation: float | None = None

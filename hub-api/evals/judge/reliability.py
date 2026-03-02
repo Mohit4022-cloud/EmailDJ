@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from typing import Any
 
 
-def deterministic_order_swap(case_id: str, salt: str = "judge_pairwise_v1") -> bool:
-    token = f"{case_id}:{salt}"
+def deterministic_order_swap(case_id: str, salt: str = "judge_pairwise_v1", seed: str | None = None) -> bool:
+    effective_seed = seed or (os.environ.get("EMAILDJ_JUDGE_PAIRWISE_SEED", "fixed-seed").strip() or "fixed-seed")
+    token = f"{case_id}:{salt}:{effective_seed}"
     digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
     return int(digest[:2], 16) % 2 == 1
 
@@ -125,4 +127,3 @@ def load_calibration_set(path: str) -> list[dict[str, Any]]:
     if not isinstance(data, list):
         raise ValueError("Calibration set must be a list.")
     return [dict(item) for item in data if isinstance(item, dict)]
-

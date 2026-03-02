@@ -95,6 +95,17 @@ def _stream_token_text(stream_text: str) -> str:
     return "".join(tokens)
 
 
+def _stream_done_payload(stream_text: str) -> dict:
+    event_name = ""
+    for line in stream_text.splitlines():
+        if line.startswith("event: "):
+            event_name = line[7:].strip()
+            continue
+        if line.startswith("data: ") and event_name == "done":
+            return json.loads(line[6:])
+    return {}
+
+
 @pytest.mark.asyncio
 async def test_web_generate_and_remix_stream_flow():
     httpx = pytest.importorskip("httpx")
@@ -126,6 +137,14 @@ async def test_web_generate_and_remix_stream_flow():
         assert "Open to a quick chat to see if this is relevant?" in generated
         assert "Subject:" in generated
         assert "Body:" in generated
+        done = _stream_done_payload(stream.text)
+        assert done["request_id"] == body["request_id"]
+        assert done["session_id"] == body["session_id"]
+        assert done["mode"] in {"mock", "real"}
+        assert isinstance(done["violation_codes"], list)
+        assert isinstance(done["violation_count"], int)
+        assert done["enforcement_level"] in {"warn", "repair", "block"}
+        assert isinstance(done["repair_loop_enabled"], bool)
 
         remix = await client.post(
             "/web/v1/remix",
@@ -148,6 +167,9 @@ async def test_web_generate_and_remix_stream_flow():
         remixed = _stream_token_text(remix_stream.text)
         assert "Acme" in remixed
         assert "Open to a quick chat to see if this is relevant?" in remixed
+        remix_done = _stream_done_payload(remix_stream.text)
+        assert remix_done["request_id"] == remix.json()["request_id"]
+        assert remix_done["session_id"] == body["session_id"]
 
         feedback = await client.post(
             "/web/v1/feedback",
@@ -465,6 +487,12 @@ async def test_web_preview_batch_endpoint_mock_contract():
         assert len(data["previews"]) == 2
         assert "meta" in data
         assert data["meta"]["provider"] == "mock"
+        assert isinstance(data["meta"]["request_id"], str)
+        assert data["meta"]["session_id"] is None
+        assert isinstance(data["meta"]["violation_codes"], list)
+        assert isinstance(data["meta"]["violation_count"], int)
+        assert data["meta"]["enforcement_level"] in {"warn", "repair", "block"}
+        assert isinstance(data["meta"]["repair_loop_enabled"], bool)
 
         subjects = {item["subject"] for item in data["previews"]}
         assert len(subjects) == len(data["previews"])

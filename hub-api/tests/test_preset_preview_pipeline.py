@@ -2,6 +2,8 @@ import os
 
 import pytest
 
+os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
+
 from api.schemas import WebPresetPreviewBatchRequest
 from email_generation.preset_preview_pipeline import make_response, run_preview_pipeline
 
@@ -62,6 +64,10 @@ async def test_mock_preview_pipeline_returns_valid_shapes_and_cache_hits():
     assert first.cache_hit is False
     assert second.cache_hit is True
     assert len(first.previews) == len(req.presets)
+    assert first.enforcement_level in {"warn", "repair", "block"}
+    assert isinstance(first.repair_loop_enabled, bool)
+    assert isinstance(first.violation_codes, list)
+    assert isinstance(first.violation_count, int)
 
     subjects = {preview.subject for preview in first.previews}
     assert len(subjects) == len(first.previews)
@@ -80,8 +86,11 @@ async def test_make_response_hides_or_shows_summary_pack_by_flag():
     result = await run_preview_pipeline(req)
 
     os.environ["EMAILDJ_PREVIEW_INCLUDE_SUMMARY_PACK"] = "0"
-    hidden = make_response(result)
+    hidden = make_response(result, request_id="preview-req-1", session_id=None)
     assert hidden.summary_pack is None
+    assert hidden.meta.request_id == "preview-req-1"
+    assert hidden.meta.session_id is None
+    assert hidden.meta.enforcement_level in {"warn", "repair", "block"}
 
     os.environ["EMAILDJ_PREVIEW_INCLUDE_SUMMARY_PACK"] = "1"
     shown = make_response(result)

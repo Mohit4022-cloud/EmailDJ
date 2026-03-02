@@ -182,8 +182,22 @@ class WebPreviewItem(BaseModel):
 
 
 class WebPreviewBatchMeta(BaseModel):
+    request_id: str | None = None
+    session_id: str | None = None
     pipeline_version: str
+    generation_mode: str | None = None
     provider: str
+    model: str | None = None
+    provider_attempt_count: int | None = Field(default=None, ge=0)
+    validator_attempt_count: int | None = Field(default=None, ge=0)
+    repair_attempt_count: int = Field(default=0, ge=0)
+    repaired: bool = False
+    initial_violation_count: int = Field(default=0, ge=0)
+    final_violation_count: int = Field(default=0, ge=0)
+    violation_codes: list[str] = Field(default_factory=list)
+    violation_count: int = Field(default=0, ge=0)
+    enforcement_level: Literal["warn", "repair", "block"] = "repair"
+    repair_loop_enabled: bool = True
     cache_hit: bool
     latency_ms: int = Field(ge=0)
 
