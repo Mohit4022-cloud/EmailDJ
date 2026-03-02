@@ -181,6 +181,8 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
     os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
     os.environ["EMAILDJ_REAL_PROVIDER"] = "openai"
     os.environ["OPENAI_API_KEY"] = "test-key"
+    os.environ["EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL"] = "repair"
+    os.environ["EMAILDJ_REPAIR_LOOP_ENABLED"] = "1"
 
     from main import app
     import email_generation.remix_engine as remix_engine
