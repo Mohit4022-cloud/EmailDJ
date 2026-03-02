@@ -78,6 +78,8 @@ def _preview_batch_payload():
                 "slider_overrides": {"formality": 55, "personalization": 80},
             },
         ],
+        "offer_lock": "Remix Studio",
+        "cta_lock": "Open to a quick chat to see if this is relevant?",
     }
 
 
@@ -164,6 +166,75 @@ async def test_web_generate_and_remix_stream_flow():
         )
         assert feedback.status_code == 200
         assert feedback.json() == {"ok": True}
+
+
+@pytest.mark.asyncio
+async def test_web_generate_real_mode_json_repair_and_research_containment(monkeypatch):
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+    os.environ["EMAILDJ_REAL_PROVIDER"] = "openai"
+
+    from main import app
+    import email_generation.remix_engine as remix_engine
+
+    from email_generation.quick_generate import GenerateResult
+
+    calls = {"count": 0}
+
+    async def fake_real_generate(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        if calls["count"] == 1:
+            text = "Subject: invalid format\nBody: invalid"
+        else:
+            text = json.dumps(
+                {
+                    "subject": "Remix Studio for Acme",
+                    "body": (
+                        "Hi Alex, Acme recently launched outbound AI initiatives in enterprise accounts and your SDR team "
+                        "is under pressure to improve response quality without adding process overhead. "
+                        "Remix Studio helps keep messaging specific and controlled while fitting your existing workflow. "
+                        "It gives reps clearer guardrails so output quality stays consistent across high-volume outreach "
+                        "without introducing extra tooling complexity for managers.\n\n"
+                        "Open to a quick chat to see if this is relevant?"
+                    ),
+                }
+            )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+
+    monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
+
+    payload = _generate_payload()
+    payload["research_text"] = (
+        "Acme launched a new enterprise outreach initiative in January. "
+        "Outreach should propose a pilot that shows measurable results."
+    )
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 200
+        body = start.json()
+        session = await remix_engine.load_session(body["session_id"])
+        assert session is not None
+        assert "outreach should" not in session["research_text_sanitized"].lower()
+        assert session["allowed_facts"]
+
+        stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
+        assert stream.status_code == 200
+        generated = _stream_token_text(stream.text)
+        assert "Subject:" in generated
+        assert "Body:" in generated
+        assert "Open to a quick chat to see if this is relevant?" in generated
+        assert "pipeline outcomes" not in generated.lower()
+
+    assert calls["count"] == 2
 
 
 @pytest.mark.asyncio

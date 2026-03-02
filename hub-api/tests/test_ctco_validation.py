@@ -6,7 +6,7 @@ import pytest
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 
-def _session_payload():
+def _session_payload(research_text: str | None = None):
     from email_generation.remix_engine import create_session_payload
 
     return create_session_payload(
@@ -16,7 +16,8 @@ def _session_payload():
             "company": "Acme",
             "linkedin_url": "https://linkedin.com/in/alex-doe",
         },
-        research_text=(
+        research_text=research_text
+        or (
             "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
             "The SDR org is under pressure to improve response rates while keeping execution efficient."
         ),
@@ -51,7 +52,34 @@ def test_validate_ctco_output_flags_internal_leakage():
     assert any(v.startswith("internal_leakage_term:") for v in violations)
 
 
-def test_validate_ctco_output_allows_non_ask_mentions_of_pilot():
+def test_create_session_payload_extracts_allowed_facts_and_strips_instructions():
+    from email_generation.remix_engine import create_session_payload
+
+    session = create_session_payload(
+        prospect={
+            "name": "Alex Doe",
+            "title": "SDR Manager",
+            "company": "Acme",
+            "linkedin_url": "https://linkedin.com/in/alex-doe",
+        },
+        research_text=(
+            "Acme launched a new enterprise outbound initiative in January 2026. "
+            "Outreach should propose a pilot that shows measurable results. "
+            "The SDR team is hiring 12 reps this quarter."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Remix Studio",
+        cta_offer_lock="Open to a quick chat to see if this is relevant?",
+        cta_type="question",
+    )
+
+    assert session["allowed_facts"]
+    assert any("launched" in fact.lower() for fact in session["allowed_facts"])
+    assert "outreach should" not in session["research_text_sanitized"].lower()
+    assert "propose a pilot" not in session["research_text_sanitized"].lower()
+
+
+def test_validate_ctco_output_flags_near_match_cta():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
     session = _session_payload()
@@ -59,13 +87,47 @@ def test_validate_ctco_output_allows_non_ask_mentions_of_pilot():
     draft = (
         "Subject: Remix Studio for Acme's outbound outcomes\n"
         "Body:\n"
-        "Hi Alex, Acme recently launched outbound AI initiatives and proposed a low-friction pilot to improve reply quality in enterprise accounts. "
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
         "Remix Studio helps your SDR team keep messaging relevant while preserving control over tone and accuracy.\n\n"
+        "Open to a quick call to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "cta_near_match_detected" in violations
+
+
+def test_validate_ctco_output_flags_offer_lock_missing_in_body():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Your SDR team is balancing personalization quality with workflow consistency this quarter.\n\n"
         "Open to a quick chat to see if this is relevant?"
     )
 
     violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
-    assert "additional_cta_detected" not in violations
+    assert "offer_lock_body_verbatim_missing" in violations
+
+
+def test_validate_ctco_output_blocks_banned_phrases():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio helps teams improve pipeline outcomes without adding process overhead.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "banned_phrase:pipeline outcomes" in violations
 
 
 def test_validate_ctco_output_flags_non_first_name_greeting():
@@ -86,31 +148,73 @@ def test_validate_ctco_output_flags_non_first_name_greeting():
     assert "greeting_not_first_name_only" in violations
 
 
+def test_validate_ctco_output_flags_unsubstantiated_statistical_claim():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio delivered 25% improvement in response quality for similar teams while preserving control.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "unsubstantiated_statistical_claim" in violations
+
+
+def test_validate_ctco_output_allows_statistical_claim_when_research_supports_it():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload(
+        research_text=(
+            "Acme recently launched outbound AI initiatives and reported a 25% improvement in response quality across enterprise accounts. "
+            "The SDR team is under pressure to keep execution efficient."
+        )
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio supports your SDR team with controlled personalization and sustained 25% improvement in response quality.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "unsubstantiated_statistical_claim" not in violations
+
+
 @pytest.mark.asyncio
 async def test_build_draft_retries_after_validation_failure_then_succeeds(monkeypatch):
+    import json
+
     import email_generation.remix_engine as remix_engine
 
     session = _session_payload()
     calls = {"count": 0}
 
-    async def fake_real_generate(prompt, throttled=False):  # noqa: ARG001
+    from email_generation.quick_generate import GenerateResult
+
+    async def fake_real_generate(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
         calls["count"] += 1
         if calls["count"] == 1:
-            return (
-                "Subject: quick note\n"
-                "Body:\n"
-                "Hi Alex, this is relevant to Acme.\n\n"
-                "Open to a 15-minute walkthrough next week?"
+            text = "Subject: invalid\nBody: invalid"
+        else:
+            text = json.dumps(
+                {
+                    "subject": "Remix Studio for Acme",
+                    "body": (
+                        "Hi Alex, Acme recently launched outbound AI initiatives in enterprise accounts and your SDR team "
+                        "is under pressure to improve response quality without adding process overhead. "
+                        "Remix Studio helps keep messaging specific and controlled while fitting your existing workflow.\n\n"
+                        "Open to a quick chat to see if this is relevant?"
+                    ),
+                }
             )
-        return (
-            "Subject: Remix Studio for Acme's outbound outcomes\n"
-            "Body:\n"
-            "Hi Alex, Acme can improve qualified replies by making outbound messaging more specific to active priorities. "
-            "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
-            "Remix Studio helps reps produce context-specific messaging with consistent quality controls. "
-            "This supports your SDR Manager goals without adding process drag.\n\n"
-            "Open to a quick chat to see if this is relevant?"
-        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
@@ -131,20 +235,20 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
     import email_generation.remix_engine as remix_engine
 
     session = _session_payload()
+    calls = {"count": 0}
 
-    async def always_invalid(prompt, throttled=False):  # noqa: ARG001
-        return (
-            "Subject: quick note\n"
-            "Body:\n"
-            "Hi Alex, this should be relevant.\n\n"
-            "Open to a 15-minute walkthrough next week?"
-        )
+    from email_generation.quick_generate import GenerateResult
+
+    async def always_invalid(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        return GenerateResult(text="not valid json", provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", always_invalid)
 
-    with pytest.raises(ValueError, match="ctco_validation_failed"):
+    with pytest.raises(ValueError, match="invalid_json_output"):
         await remix_engine.build_draft(
             session=session,
             style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0},
         )
+    assert calls["count"] == remix_engine.MAX_VALIDATION_ATTEMPTS
