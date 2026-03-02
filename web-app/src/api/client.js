@@ -63,6 +63,16 @@ export async function generateDraft(payload) {
   return res.json();
 }
 
+export async function generateDraftText(payload) {
+  const accepted = await generateDraft(payload);
+  let draft = '';
+  await consumeStream(accepted.request_id, (event) => {
+    if (event.event !== 'token') return;
+    draft += event.data?.token || '';
+  });
+  return draft.trim();
+}
+
 export async function remixDraft(payload) {
   const res = await fetch(`${HUB_URL}/web/v1/remix`, {
     method: 'POST',

@@ -1,3 +1,17 @@
+import { styleToPayload } from '../style.js';
+import {
+  buildPreviewCacheKey,
+  buildPreviewContextHash,
+  buildVibeMetadata,
+  buildWhyItWorksBullets,
+  normalizePreviewContext,
+  normalizeSliderState,
+  parseGeneratedDraft,
+  resolveEffectiveSliderState,
+  sanitizePreviewEmail,
+  sliderRowsFromState,
+} from './presetPreviewUtils.js';
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -17,46 +31,42 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function sliderRows(preset) {
-  const sliders = preset?.sliders || {};
-  const formal = toNumber(sliders.formal);
-  const outcome = toNumber(sliders.outcome);
-  const long = toNumber(sliders.long);
-  const diplomatic = toNumber(sliders.diplomatic);
+function statusLabel(status) {
+  if (status === 'loading') return 'Generating...';
+  if (status === 'ready') return 'Ready';
+  if (status === 'error') return 'Failed';
+  return '';
+}
+
+function previewFallbackSubject(context) {
+  const company = context?.prospect?.company || context?.company_context?.company_name || 'your team';
+  return `Quick idea for ${company}`;
+}
+
+function buildSafeProspect(context) {
+  return {
+    name: context.prospect.name || 'there',
+    title: context.prospect.title || 'Revenue Leader',
+    company: context.prospect.company || 'your company',
+    linkedin_url: context.prospect.linkedin_url || null,
+  };
+}
+
+function buildSafeResearchText(context, preset) {
+  const research = context.research_text;
+  const presetGuidance = [
+    `Preset style: ${preset.name}.`,
+    `Vibe guidance: ${preset.vibe || 'Use a clear SDR style tailored to this preset.'}`,
+    `Keep the output specific, factual, and non-generic.`,
+  ].join(' ');
+
+  const combined = [research, presetGuidance].filter(Boolean).join('\n\n').trim();
+  if (combined.length >= 20) return combined;
   return [
-    {
-      key: 'formal',
-      label: 'Formal <-> Casual',
-      left: 'Formal',
-      right: 'Casual',
-      leftValue: formal,
-      rightValue: 100 - formal,
-    },
-    {
-      key: 'outcome',
-      label: 'Problem <-> Outcome',
-      left: 'Problem',
-      right: 'Outcome',
-      leftValue: 100 - outcome,
-      rightValue: outcome,
-    },
-    {
-      key: 'long',
-      label: 'Short <-> Long',
-      left: 'Short',
-      right: 'Long',
-      leftValue: 100 - long,
-      rightValue: long,
-    },
-    {
-      key: 'diplomatic',
-      label: 'Bold <-> Diplomatic',
-      left: 'Bold',
-      right: 'Diplomatic',
-      leftValue: 100 - diplomatic,
-      rightValue: diplomatic,
-    },
-  ];
+    'No deep research was provided. Use the prospect and company context only.',
+    presetGuidance,
+    'Return a realistic SDR subject and body with no placeholders.',
+  ].join(' ');
 }
 
 export function presetToSliderState(preset) {
@@ -70,14 +80,105 @@ export function presetToSliderState(preset) {
   };
 }
 
+export function buildPresetMetaHtml(preview) {
+  const rows = sliderRowsFromState(preview?.sliderSummary || normalizeSliderState({}));
+  const tags = Array.isArray(preview?.vibeTags) ? preview.vibeTags.slice(0, 4) : [];
+  const whyItems = Array.isArray(preview?.whyItWorks) ? preview.whyItWorks.slice(0, 3) : [];
+
+  return `
+    <article class="preset-card">
+      <h3>The Vibe</h3>
+      <p>${escapeHtml(preview?.vibeLabel || '')}</p>
+      ${tags.length ? `<div class="preset-vibe-tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+    </article>
+    <article class="preset-card">
+      <h3>Why it works</h3>
+      <ul class="preset-why-list">
+        ${whyItems.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}
+      </ul>
+    </article>
+    <article class="preset-card preset-sliders-card">
+      <h3>Slider Settings</h3>
+      <div class="preset-slider-rows">
+        ${rows
+          .map(
+            (row) => `
+            <div class="preset-slider-row">
+              <div class="preset-slider-head">
+                <span>${escapeHtml(row.label)}</span>
+                <span>${escapeHtml(row.right)} ${row.rightValue}%</span>
+              </div>
+              <div class="preset-progress-track">
+                <div class="preset-progress-fill" style="width:${row.rightValue}%"></div>
+              </div>
+              <div class="preset-slider-foot">
+                <span>${escapeHtml(row.left)} ${row.leftValue}%</span>
+                <span>${escapeHtml(row.right)} ${row.rightValue}%</span>
+              </div>
+            </div>
+          `
+          )
+          .join('')}
+      </div>
+    </article>
+  `;
+}
+
+function buildEmailSkeletonHtml() {
+  return `
+    <div class="preset-email-card">
+      <div class="preset-email-label">Subject</div>
+      <div class="preset-email-skeleton-line w-70"></div>
+      <div class="preset-email-divider"></div>
+      <div class="preset-email-skeleton-line w-95"></div>
+      <div class="preset-email-skeleton-line w-88"></div>
+      <div class="preset-email-skeleton-line w-92"></div>
+      <div class="preset-email-skeleton-line w-70"></div>
+    </div>
+  `;
+}
+
+function buildEmailErrorHtml(presetId, message) {
+  return `
+    <div class="preset-email-card preset-email-error">
+      <div class="preset-email-error-title">Preview unavailable</div>
+      <div class="preset-email-error-message">${escapeHtml(message || 'Generation failed for this preset.')}</div>
+      <button type="button" class="btn-secondary preset-retry-btn" data-retry-preset-id="${escapeHtml(presetId)}">Retry</button>
+    </div>
+  `;
+}
+
+function buildReadyEmailHtml(preview) {
+  const subject = escapeHtml(preview?.subject || '');
+  const body = escapeHtml(preview?.body || '').replaceAll('\n', '<br>');
+  return `
+    <div class="preset-email-card">
+      <div class="preset-email-label">Subject</div>
+      <div class="preset-email-subject">${subject}</div>
+      <div class="preset-email-divider"></div>
+      <div class="preset-email-body">${body}</div>
+    </div>
+  `;
+}
+
 export class SDRPresetLibrary {
   constructor(container, options = {}) {
     this.container = container;
     this.presets = Array.isArray(options.presets) ? options.presets : [];
     this.onSelectPreset =
       typeof options.onSelectPreset === 'function' ? options.onSelectPreset : () => {};
+    this.getPreviewContext =
+      typeof options.getPreviewContext === 'function' ? options.getPreviewContext : () => ({});
+    this.generatePreviewDraft =
+      typeof options.generatePreviewDraft === 'function' ? options.generatePreviewDraft : async () => '';
+    this.maxPreviewConcurrency = clamp(Number(options.maxPreviewConcurrency) || 3, 1, 4);
+
     this.previewPresetId = this.presets[0]?.id ?? null;
     this.isOpen = false;
+    this.activeContextHash = '';
+    this.previewCache = new Map();
+    this.previewEntries = new Map();
+    this.inflightPreviews = new Map();
 
     this.onKeydown = (event) => {
       if (event.key === 'Escape' && this.isOpen) this.close();
@@ -96,12 +197,16 @@ export class SDRPresetLibrary {
         </span>
         <span>Browse Presets</span>
       </button>
+    `;
+
+    this.modalHost = document.createElement('div');
+    this.modalHost.innerHTML = `
       <div id="presetBackdrop" class="preset-modal-backdrop" hidden>
         <div class="preset-modal" role="dialog" aria-modal="true" aria-labelledby="presetLibraryTitle">
           <div class="preset-modal-head">
             <div>
               <h2 id="presetLibraryTitle">SDR Preset Library</h2>
-              <p>Hover to preview. Click to apply.</p>
+              <p>Live AI preview for every preset using your current context.</p>
             </div>
             <button type="button" id="closePresetModalBtn" class="preset-close-btn" aria-label="Close preset library">
               <span aria-hidden="true">&times;</span>
@@ -111,22 +216,25 @@ export class SDRPresetLibrary {
             <aside class="preset-left-pane">
               <div id="presetList" class="preset-list"></div>
             </aside>
-            <section id="presetRightPane" class="preset-right-pane">
-              <div id="presetMetaBlock" class="preset-meta-block"></div>
+            <section class="preset-center-pane">
               <div id="presetEmailBlock" class="preset-email-block"></div>
             </section>
+            <aside id="presetRightPane" class="preset-right-pane">
+              <div id="presetMetaBlock" class="preset-meta-block"></div>
+            </aside>
           </div>
         </div>
       </div>
     `;
+    document.body.appendChild(this.modalHost);
 
     this.triggerBtn = this.container.querySelector('#browsePresetsBtn');
-    this.backdrop = this.container.querySelector('#presetBackdrop');
-    this.closeBtn = this.container.querySelector('#closePresetModalBtn');
-    this.listEl = this.container.querySelector('#presetList');
-    this.metaBlock = this.container.querySelector('#presetMetaBlock');
-    this.emailBlock = this.container.querySelector('#presetEmailBlock');
-    this.rightPane = this.container.querySelector('#presetRightPane');
+    this.backdrop = this.modalHost.querySelector('#presetBackdrop');
+    this.closeBtn = this.modalHost.querySelector('#closePresetModalBtn');
+    this.listEl = this.modalHost.querySelector('#presetList');
+    this.metaBlock = this.modalHost.querySelector('#presetMetaBlock');
+    this.emailBlock = this.modalHost.querySelector('#presetEmailBlock');
+    this.rightPane = this.modalHost.querySelector('#presetRightPane');
 
     this.triggerBtn?.addEventListener('click', () => this.open());
     this.closeBtn?.addEventListener('click', () => this.close());
@@ -145,6 +253,8 @@ export class SDRPresetLibrary {
     this.backdrop.hidden = false;
     this.triggerBtn?.setAttribute('aria-expanded', 'true');
     document.body.classList.add('preset-modal-open');
+    this.refreshPreviews();
+
     const activeId = this.previewPresetId ?? this.presets[0]?.id;
     if (activeId != null) {
       const button = this.listEl?.querySelector(`[data-preset-id="${activeId}"]`);
@@ -161,12 +271,140 @@ export class SDRPresetLibrary {
     this.triggerBtn?.focus();
   }
 
+  normalizeContext() {
+    return normalizePreviewContext(this.getPreviewContext() || {});
+  }
+
   getPresetById(id) {
     return this.presets.find((preset) => String(preset.id) === String(id)) || null;
   }
 
   getPreviewPreset() {
     return this.getPresetById(this.previewPresetId) || this.presets[0] || null;
+  }
+
+  getPreviewEntry(presetId) {
+    return this.previewEntries.get(String(presetId)) || null;
+  }
+
+  buildBasePreviewEntry(preset, context) {
+    const sliderSummary = resolveEffectiveSliderState(context.global_slider_state, preset);
+    const vibe = buildVibeMetadata(preset, sliderSummary);
+    return {
+      status: 'idle',
+      subject: '',
+      body: '',
+      whyItWorks: buildWhyItWorksBullets(preset),
+      vibeLabel: vibe.label,
+      vibeTags: vibe.tags,
+      sliderSummary,
+      errorMessage: '',
+    };
+  }
+
+  refreshPreviews() {
+    const context = this.normalizeContext();
+    const contextHash = buildPreviewContextHash(context);
+    this.activeContextHash = contextHash;
+
+    const missing = [];
+    for (const preset of this.presets) {
+      const presetId = String(preset.id);
+      const key = buildPreviewCacheKey(contextHash, preset.id);
+      const cached = this.previewCache.get(key);
+      const base = this.buildBasePreviewEntry(preset, context);
+
+      if (cached) {
+        this.previewEntries.set(presetId, { ...base, ...cached, status: 'ready', errorMessage: '' });
+        continue;
+      }
+      this.previewEntries.set(presetId, { ...base, status: 'loading' });
+      missing.push(preset);
+    }
+
+    this.renderPresetList();
+    this.renderPreview(this.getPreviewPreset());
+    if (missing.length > 0) {
+      void this.generateMissingPreviews(missing, context, contextHash);
+    }
+  }
+
+  async generateMissingPreviews(presets, context, contextHash) {
+    const queue = [...presets];
+    const workerCount = Math.min(this.maxPreviewConcurrency, queue.length);
+
+    const worker = async () => {
+      while (queue.length > 0) {
+        const nextPreset = queue.shift();
+        if (!nextPreset) return;
+        await this.generatePreviewForPreset(nextPreset, context, contextHash);
+      }
+    };
+
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  }
+
+  buildPreviewPayload(preset, context) {
+    const effectiveSliders = resolveEffectiveSliderState(context.global_slider_state, preset);
+    return {
+      prospect: buildSafeProspect(context),
+      research_text: buildSafeResearchText(context, preset),
+      style_profile: styleToPayload(effectiveSliders),
+      company_context: {
+        company_name: context.company_context.company_name || undefined,
+        company_url: context.company_context.company_url || undefined,
+        current_product: context.company_context.current_product || undefined,
+        other_products: context.company_context.other_products || undefined,
+        company_notes: context.company_context.company_notes || undefined,
+      },
+    };
+  }
+
+  async generatePreviewForPreset(preset, context, contextHash) {
+    const key = buildPreviewCacheKey(contextHash, preset.id);
+    let promise = this.inflightPreviews.get(key);
+
+    if (!promise) {
+      promise = (async () => {
+        const payload = this.buildPreviewPayload(preset, context);
+        const draft = await this.generatePreviewDraft(payload);
+        const parsed = parseGeneratedDraft(draft, context.prospect.company);
+        const sanitized = sanitizePreviewEmail(parsed, context);
+        const preview = {
+          ...this.buildBasePreviewEntry(preset, context),
+          subject: sanitized.subject || previewFallbackSubject(context),
+          body: sanitized.body || '',
+        };
+        this.previewCache.set(key, preview);
+        return preview;
+      })();
+      this.inflightPreviews.set(key, promise);
+    }
+
+    try {
+      const preview = await promise;
+      if (contextHash !== this.activeContextHash) return;
+      this.previewEntries.set(String(preset.id), {
+        ...this.buildBasePreviewEntry(preset, context),
+        ...preview,
+        status: 'ready',
+        errorMessage: '',
+      });
+      this.renderPresetList();
+      if (this.previewPresetId === preset.id) this.renderPreview(preset);
+    } catch (error) {
+      if (contextHash !== this.activeContextHash) return;
+      const existing = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
+      this.previewEntries.set(String(preset.id), {
+        ...existing,
+        status: 'error',
+        errorMessage: String(error?.message || error || 'Generation failed'),
+      });
+      this.renderPresetList();
+      if (this.previewPresetId === preset.id) this.renderPreview(preset);
+    } finally {
+      this.inflightPreviews.delete(key);
+    }
   }
 
   setPreviewPreset(id) {
@@ -181,11 +419,14 @@ export class SDRPresetLibrary {
     if (!this.listEl) return;
     this.listEl.innerHTML = this.presets
       .map((preset) => {
-        const isActive = preset.id === this.previewPresetId;
+        const isActive = String(preset.id) === String(this.previewPresetId);
+        const entry = this.getPreviewEntry(preset.id);
+        const status = entry?.status || 'idle';
         return `
           <button type="button" class="preset-item ${isActive ? 'is-active' : ''}" data-preset-id="${preset.id}">
             <span class="preset-item-title">${escapeHtml(preset.name)}</span>
             <span class="preset-item-subtitle">${escapeHtml(preset.frequency)}</span>
+            <span class="preset-item-status is-${status}">${escapeHtml(statusLabel(status))}</span>
           </button>
         `;
       })
@@ -201,63 +442,39 @@ export class SDRPresetLibrary {
 
   renderPreview(preset) {
     if (!preset || !this.metaBlock || !this.emailBlock) return;
-    const rows = sliderRows(preset);
     this.rightPane?.classList.remove('preview-refresh');
     void this.rightPane?.offsetHeight;
     this.rightPane?.classList.add('preview-refresh');
 
-    this.metaBlock.innerHTML = `
-      <div class="preset-meta-grid">
-        <article class="preset-card">
-          <h3>EQ Vibe</h3>
-          <p>${escapeHtml(preset.eqVibe)}</p>
-        </article>
-        <article class="preset-card">
-          <h3>The Vibe</h3>
-          <p>${escapeHtml(preset.vibe)}</p>
-        </article>
-      </div>
-      <article class="preset-card preset-sliders-card">
-        <h3>Slider Settings</h3>
-        <div class="preset-slider-rows">
-          ${rows
-            .map(
-              (row) => `
-              <div class="preset-slider-row">
-                <div class="preset-slider-head">
-                  <span>${escapeHtml(row.label)}</span>
-                  <span>${escapeHtml(row.right)} ${row.rightValue}%</span>
-                </div>
-                <div class="preset-progress-track">
-                  <div class="preset-progress-fill" style="width:${row.rightValue}%"></div>
-                </div>
-                <div class="preset-slider-foot">
-                  <span>${escapeHtml(row.left)} ${row.leftValue}%</span>
-                  <span>${escapeHtml(row.right)} ${row.rightValue}%</span>
-                </div>
-              </div>
-            `
-            )
-            .join('')}
-        </div>
-      </article>
-      <article class="preset-card">
-        <h3>Why it works</h3>
-        <p>${escapeHtml(preset.whyItWorks)}</p>
-      </article>
-    `;
+    const context = this.normalizeContext();
+    const entry = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
+    this.metaBlock.innerHTML = buildPresetMetaHtml(entry);
 
-    const subject = escapeHtml(preset.sampleEmail?.subject || '');
-    const body = escapeHtml(preset.sampleEmail?.body || '').replaceAll('\n', '<br>');
+    let emailHtml = buildEmailSkeletonHtml();
+    if (entry.status === 'ready') {
+      emailHtml = buildReadyEmailHtml(entry);
+    } else if (entry.status === 'error') {
+      emailHtml = buildEmailErrorHtml(preset.id, entry.errorMessage);
+    }
     this.emailBlock.innerHTML = `
       <h3>Email Preview</h3>
-      <div class="preset-email-card">
-        <div class="preset-email-label">Subject</div>
-        <div class="preset-email-subject">${subject}</div>
-        <div class="preset-email-divider"></div>
-        <div class="preset-email-body">${body}</div>
-      </div>
+      ${emailHtml}
     `;
+    this.emailBlock.querySelector('.preset-retry-btn')?.addEventListener('click', () => this.retryPreset(preset.id));
+  }
+
+  retryPreset(id) {
+    const preset = this.getPresetById(id);
+    if (!preset) return;
+    const context = this.normalizeContext();
+    const contextHash = buildPreviewContextHash(context);
+    this.activeContextHash = contextHash;
+
+    const base = this.buildBasePreviewEntry(preset, context);
+    this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+    this.renderPresetList();
+    this.renderPreview(preset);
+    void this.generatePreviewForPreset(preset, context, contextHash);
   }
 
   selectPreset(id) {
@@ -269,6 +486,6 @@ export class SDRPresetLibrary {
 
   destroy() {
     window.removeEventListener('keydown', this.onKeydown);
+    if (this.modalHost?.parentNode) this.modalHost.parentNode.removeChild(this.modalHost);
   }
 }
-

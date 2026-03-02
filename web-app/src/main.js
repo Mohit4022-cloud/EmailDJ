@@ -1,4 +1,4 @@
-import { consumeStream, generateDraft, remixDraft, sendFeedback } from './api/client.js';
+import { consumeStream, generateDraft, generateDraftText, remixDraft, sendFeedback } from './api/client.js';
 import { EmailEditor } from './components/EmailEditor.js';
 import { SDRPresetLibrary, presetToSliderState } from './components/SDRPresetLibrary.js';
 import { SliderBoard } from './components/SliderBoard.js';
@@ -135,6 +135,8 @@ class WebApp {
     this.presetLibrary = new SDRPresetLibrary(this.presetLibraryMount, {
       presets: SDR_PRESETS,
       onSelectPreset: (preset) => this.applyPreset(preset),
+      getPreviewContext: () => this.previewContextPayload(),
+      generatePreviewDraft: (payload) => generateDraftText(payload),
     });
 
     this.seedBetaKey();
@@ -276,6 +278,20 @@ class WebApp {
       research_text: this.researchInput.value.trim(),
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: this.companyContextPayload(),
+    };
+  }
+
+  previewContextPayload() {
+    return {
+      prospect: {
+        name: this.prospectNameInput.value.trim(),
+        title: this.prospectTitleInput.value.trim(),
+        company: this.prospectCompanyInput.value.trim(),
+        linkedin_url: this.prospectLinkedinInput.value.trim(),
+      },
+      research_text: this.researchInput.value.trim(),
+      company_context: this.companyContextPayload(),
+      global_slider_state: this.sliderBoard.getValues(),
     };
   }
 
