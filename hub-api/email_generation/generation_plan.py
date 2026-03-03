@@ -220,11 +220,42 @@ def _sanitize_fact_hint(
     if not text:
         return ""
     full_name = _compact(prospect_name)
+    first_name_key = _compact(first_name).lower()
     if full_name:
         text = re.sub(re.escape(full_name), first_name or "you", text, flags=re.IGNORECASE)
     if company:
         text = re.sub(re.escape(company), "your team", text, flags=re.IGNORECASE)
+    # Remove unrelated full names that can trigger proof-dump heuristics.
+    def _replace_non_prospect_name(match: re.Match[str]) -> str:
+        token = _compact(match.group(0))
+        if not token:
+            return ""
+        if first_name_key and token.split(" ", 1)[0].lower() == first_name_key:
+            return token
+        return "leadership"
+
+    text = re.sub(r"\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b", _replace_non_prospect_name, text)
     return _compact(text)
+
+
+def _offer_lock_sentence_case(value: str) -> str:
+    cleaned = _compact(value)
+    if not cleaned:
+        return ""
+    return cleaned[0].upper() + cleaned[1:].lower()
+
+
+def _apply_offer_lock_sentence_case(value: str, offer_lock: str) -> str:
+    text = _compact(value)
+    lock = _compact(offer_lock)
+    if not text or not lock:
+        return text
+    return re.sub(
+        re.escape(lock),
+        _offer_lock_sentence_case(lock),
+        text,
+        flags=re.IGNORECASE,
+    )
 
 
 def _normalize_offer_category_framing(text: str, offer_lock: str) -> str:
@@ -418,13 +449,37 @@ def build_generation_plan(
     preset_true_rewrite = feature_preset_true_rewrite_enabled()
 
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
+    prospect_name = str(prospect.get("name") or "")
     high_conf_facts = [
-        _first_sentence(entry.get("text", ""))
+        _sanitize_fact_hint(
+            _first_sentence(entry.get("text", "")),
+            prospect_name=prospect_name,
+            company=company,
+            first_name=first_name or "you",
+        )
         for entry in (session.get("allowed_facts_structured") or [])
         if str(entry.get("confidence", "")).lower() == "high" and _first_sentence(entry.get("text", ""))
     ]
-    first_fact = _first_sentence(allowed_facts[0]) if allowed_facts else ""
-    second_fact = _first_sentence(allowed_facts[1]) if len(allowed_facts) > 1 else ""
+    first_fact = (
+        _sanitize_fact_hint(
+            _first_sentence(allowed_facts[0]),
+            prospect_name=prospect_name,
+            company=company,
+            first_name=first_name or "you",
+        )
+        if allowed_facts
+        else ""
+    )
+    second_fact = (
+        _sanitize_fact_hint(
+            _first_sentence(allowed_facts[1]),
+            prospect_name=prospect_name,
+            company=company,
+            first_name=first_name or "you",
+        )
+        if len(allowed_facts) > 1
+        else ""
+    )
     offer_lock = _compact(session.get("offer_lock")) or "this approach"
 
     proof_points = _split_lines_catalog((session.get("company_context") or {}).get("company_notes"), limit=3)
@@ -448,6 +503,8 @@ def build_generation_plan(
             or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
         )
         wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
+
+    wedge_outcome = _apply_offer_lock_sentence_case(wedge_outcome, offer_lock)
 
     formality = style_sliders.get("tone_formal_casual", 50)
     stance = style_sliders.get("stance_bold_diplomatic", 50)
@@ -483,7 +540,7 @@ def build_generation_plan(
         if high_conf_facts:
             exec_fact = _sanitize_fact_hint(
                 high_conf_facts[0],
-                prospect_name=str(prospect.get("name") or ""),
+                prospect_name=prospect_name,
                 company=company,
                 first_name=first_name or "you",
             )
@@ -831,4 +888,12 @@ def apply_generation_plan(
     )
     if _contains_forbidden_term(next_subject, forbidden_terms):
         next_subject = _trim_subject(f"{offer_lock} for your team")
+
+    lines = [line.strip() for line in rendered_body.splitlines() if line.strip()]
+    if lines:
+        cta_tail = lines[-1]
+        narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
+        if narrative:
+            narrative = _apply_offer_lock_sentence_case(narrative, offer_lock)
+            rendered_body = f"{narrative}\n\n{cta_tail}"
     return next_subject, rendered_body

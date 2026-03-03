@@ -545,7 +545,7 @@ async def test_web_beta_key_required_and_rate_limit():
 
     os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key-stream"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "1"
     os.environ["USE_PROVIDER_STUB"] = "1"
 
@@ -556,10 +556,38 @@ async def test_web_beta_key_required_and_rate_limit():
         unauthorized = await client.post("/web/v1/generate", json=_generate_payload())
         assert unauthorized.status_code == 401
 
+        headers = {"x-emaildj-beta-key": "rate-key-stream"}
+
+        first = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
+        assert first.status_code == 200
+
+        second = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
+        assert second.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_web_stream_get_does_not_consume_post_rate_limit_quota():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "1"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         headers = {"x-emaildj-beta-key": "rate-key"}
 
         first = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
         assert first.status_code == 200
+        request_id = first.json()["request_id"]
+
+        stream = await client.get(f"/web/v1/stream/{request_id}", headers=headers)
+        assert stream.status_code == 200
 
         second = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
         assert second.status_code == 429

@@ -416,6 +416,14 @@ def _band(value: int, labels: tuple[str, str, str, str, str]) -> str:
     return labels[4]
 
 
+def _length_band_label(length_short_long: int) -> str:
+    if length_short_long <= 33:
+        return "55-75 words"
+    if length_short_long <= 66:
+        return "75-110 words"
+    return "110-160 words"
+
+
 def ctco_style_bands(style_sliders: dict[str, int]) -> dict[str, str]:
     return {
         "formal_casual": _band(
@@ -438,16 +446,7 @@ def ctco_style_bands(style_sliders: dict[str, int]) -> dict[str, str]:
                 "strongly outcome-first",
             ),
         ),
-        "short_long": _band(
-            style_sliders["length_short_long"],
-            (
-                "45-70 words",
-                "70-110 words",
-                "110-160 words",
-                "160-220 words",
-                "220-300 words",
-            ),
-        ),
+        "short_long": _length_band_label(style_sliders["length_short_long"]),
         "bold_diplomatic": _band(
             style_sliders["stance_bold_diplomatic"],
             (
@@ -467,6 +466,22 @@ def body_word_range(length_short_long: int) -> tuple[int, int]:
     if length_short_long <= 66:
         return 75, 110
     return 110, 160
+
+
+def _effective_body_word_range(session: dict[str, Any], style_sliders: dict[str, int]) -> tuple[int, int]:
+    """Resolve the active length range, allowing exec persona overrides from generation plan."""
+    min_words, max_words = body_word_range(style_sliders["length_short_long"])
+    plan = GenerationPlan.from_dict(session.get("generation_plan"))
+    if not plan or plan.persona_route != "exec":
+        return min_words, max_words
+    try:
+        plan_min = int(plan.length_target.get("min_words", min_words))
+        plan_max = int(plan.length_target.get("max_words", max_words))
+    except (TypeError, ValueError):
+        return min_words, max_words
+    if plan_min < 1 or plan_max < plan_min:
+        return min_words, max_words
+    return plan_min, plan_max
 
 
 def build_factual_brief(prospect: dict[str, Any], research_text: str) -> str:
@@ -1233,7 +1248,7 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
             violations.append(f"unsubstantiated_claim:{claim[:60]}")
             break
 
-    min_words, max_words = body_word_range(style_sliders["length_short_long"])
+    min_words, max_words = _effective_body_word_range(session=session, style_sliders=style_sliders)
     words = _word_count(body)
     if words < min_words or words > max_words:
         violations.append(f"length_out_of_range:{words}_expected_{min_words}_{max_words}")

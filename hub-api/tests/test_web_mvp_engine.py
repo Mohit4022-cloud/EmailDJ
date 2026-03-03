@@ -53,6 +53,20 @@ def test_body_word_range_bins_match_ctco_contract():
     assert body_word_range(67) == (110, 160)
 
 
+def test_ctco_style_bands_medium_length_label_matches_contract():
+    from email_generation.remix_engine import ctco_style_bands
+
+    bands = ctco_style_bands(
+        {
+            "tone_formal_casual": 50,
+            "framing_problem_outcome": 50,
+            "length_short_long": 50,
+            "stance_bold_diplomatic": 50,
+        }
+    )
+    assert bands["short_long"] == "75-110 words"
+
+
 def test_style_profile_key_is_stable():
     from email_generation.remix_engine import style_profile_key
 

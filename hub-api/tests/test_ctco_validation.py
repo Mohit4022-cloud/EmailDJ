@@ -62,6 +62,57 @@ def test_validate_ctco_output_flags_internal_leakage():
     assert any(v.startswith("internal_leakage_term:") for v in violations)
 
 
+def test_validate_ctco_output_uses_exec_length_target_when_persona_route_is_exec():
+    from email_generation.compliance_rules import _word_count
+    from email_generation.remix_engine import create_session_payload, style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = create_session_payload(
+        prospect={
+            "name": "Sarah Chen",
+            "title": "CEO",
+            "company": "Acme Consumer Brands",
+            "linkedin_url": "https://linkedin.com/in/sarah-chen",
+        },
+        prospect_first_name="Sarah",
+        research_text=(
+            "Sarah Chen led Acme Consumer Brands into new international markets and expanded product categories. "
+            "Brand integrity and infringement risk management are recurring themes in leadership updates."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Trademark Search, Screening, and Brand Protection",
+        cta_offer_lock="Open to a quick 15-minute chat next week?",
+        cta_type="time_ask",
+        preset_id="c_suite_sniper",
+        response_contract="legacy_text",
+        company_context={
+            "company_name": "Corsearch",
+            "company_url": "https://corsearch.com",
+            "current_product": "Trademark Search, Screening, and Brand Protection",
+            "company_notes": (
+                "Corsearch helps global brands reduce trademark filing risk and respond to infringement in priority markets."
+            ),
+        },
+    )
+    assert (session.get("generation_plan") or {}).get("persona_route") == "exec"
+
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0})
+    body = (
+        "Hi Sarah, Acme Consumer Brands is balancing international expansion with tighter brand risk oversight. "
+        "Trademark Search, Screening, and Brand Protection gives your team a consistent way to review new marks, "
+        "catch conflicts earlier, and keep enforcement priorities clear across regions without adding extra process "
+        "drag for legal and marketing teams.\n\n"
+        "Open to a quick 15-minute chat next week?"
+    )
+    assert 55 <= _word_count(body) < 75
+    draft = (
+        "Subject: Trademark Search, Screening, and Brand Protection for Acme Consumer Brands\n"
+        f"Body:\n{body}"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert not any(v.startswith("length_out_of_range:") for v in violations)
+
+
 def test_parse_structured_output_reports_salvage_method_for_wrapped_text():
     from email_generation.remix_engine import _parse_structured_output
 

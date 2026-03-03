@@ -1,4 +1,11 @@
-from email_generation.output_enforcement import enforce_cta_last_line, long_mode_section_pool, sanitize_generic_ai_opener
+import re
+
+from email_generation.output_enforcement import (
+    compose_body_without_padding_loops,
+    enforce_cta_last_line,
+    long_mode_section_pool,
+    sanitize_generic_ai_opener,
+)
 
 
 def test_sanitize_generic_ai_opener_replaces_banned_pattern_without_research_anchor():
@@ -74,6 +81,22 @@ def test_long_mode_section_pool_strips_forbidden_multiword_terms():
     assert "sequence qa" not in joined
 
 
+def test_long_mode_section_pool_sanitizes_trusted_by_proof_dump_patterns():
+    sections = long_mode_section_pool(
+        company_notes=(
+            "Corsearch is the global leader in trademark clearance and brand protection. "
+            "Trusted by over 5,000 brands across pharma, FMCG, tech, and retail."
+        ),
+        allowed_facts=[],
+        offer_lock="Trademark Search, Screening, and Brand Protection",
+        company="Acme",
+    )
+
+    joined = " ".join(sections).lower()
+    assert "trusted by" not in joined
+    assert "two proof points from your notes" not in joined
+
+
 def test_enforce_cta_last_line_removes_signoff_and_duplicate_ctas():
     cta = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
     body = (
@@ -91,3 +114,26 @@ def test_enforce_cta_last_line_removes_signoff_and_duplicate_ctas():
     assert sum(1 for line in lines if line == cta) == 1
     assert all("best regards" not in line.lower() for line in lines)
     assert all("quick call next week" not in line.lower() for line in lines)
+
+
+def test_compose_body_without_padding_loops_preserves_min_after_ngram_cap():
+    body = compose_body_without_padding_loops(
+        base_sentences=[
+            (
+                "Hi Marcus, Trademark Search, Screening, and Brand Protection helps teams keep outreach specific "
+                "while raising quality from first touch."
+            ),
+            "Corsearch is the global leader in trademark clearance.",
+        ],
+        extra_sections=[
+            "The goal is keeping outreach consistent without adding manager overhead.",
+            "Teams usually start with one sequence, verify reply quality, then expand.",
+            "That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.",
+        ],
+        cta_line="Open to a quick 15-minute chat next week?",
+        min_words=75,
+        max_words=110,
+    )
+
+    words = len(re.findall(r"[A-Za-z0-9']+", body))
+    assert 75 <= words <= 110
