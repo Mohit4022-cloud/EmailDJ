@@ -92,6 +92,25 @@ _SOCIAL_PROOF_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\bcustomers include\b", "customers in"),
     (r"\bclients include\b", "clients in"),
 )
+_CATEGORY_MISMATCH_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    (r"\bcybersecurity\b", "brand security"),
+    (r"\bcyber security\b", "brand security"),
+    (r"\bdata security\b", "brand security"),
+    (r"\bdata breach\b", "brand abuse"),
+    (r"\bransomware\b", "counterfeit risk"),
+    (r"\bmalware\b", "brand abuse"),
+    (r"\bphishing\b", "impersonation"),
+    (r"\bendpoint protection\b", "brand monitoring"),
+)
+_PROOF_DUMP_TOKEN_RE = re.compile(r"\b([A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]{2,})*|[A-Z]{3,})\b")
+_PROOF_DUMP_COMMON_CAPS = {
+    "You", "Your", "We", "Our", "Their", "The", "This", "That", "These", "Those",
+    "It", "If", "In", "On", "At", "For", "To", "And", "But", "Or", "A", "An",
+    "Hi", "Dear", "Best", "Thanks", "Thank", "Hope", "Would", "Could", "Should",
+    "Let", "Open", "Happy", "Glad", "Given", "Based", "When", "While", "Since",
+    "With", "From", "By", "As", "Is", "Are", "Was", "Were", "Be", "Have",
+    "Has", "Had", "Do", "Does", "Did", "Will", "Can", "May", "Might", "Must",
+}
 
 
 @lru_cache(maxsize=1)
@@ -468,6 +487,85 @@ def _sanitize_social_proof_phrasing(text: str) -> str:
     return body.strip()
 
 
+def _sanitize_category_mismatch_terms(text: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    for pattern, replacement in _CATEGORY_MISMATCH_REPLACEMENTS:
+        body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
+    body = re.sub(r"\s{2,}", " ", body)
+    body = re.sub(r"\s+([,.;!?])", r"\1", body)
+    return body.strip()
+
+
+def _strip_post_greeting_name_fragment(text: str, *, prospect_name: str, first_name: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    full = _compact(prospect_name)
+    parts = full.split()
+    if len(parts) < 2:
+        return body
+    surname = parts[-1]
+    if not surname:
+        return body
+    first = _compact(first_name)
+    if not first:
+        first = parts[0]
+    return re.sub(
+        rf"^(Hi|Hello)\s+{re.escape(first)}\s*,\s*{re.escape(surname)}\s*,\s*",
+        rf"\1 {first}, ",
+        body,
+        flags=re.IGNORECASE,
+    )
+
+
+def _proof_dump_tokens(sentence: str) -> list[str]:
+    tokens = _PROOF_DUMP_TOKEN_RE.findall(sentence)
+    return [token for token in tokens if token not in _PROOF_DUMP_COMMON_CAPS and len(token) >= 3]
+
+
+def _defuse_proof_dump_sentence(sentence: str, *, protected_tokens: set[str]) -> str:
+    working = sentence
+    for _ in range(8):
+        tokens = _proof_dump_tokens(working)
+        if len(tokens) <= 3:
+            return working
+        changed = False
+        for token in reversed(tokens):
+            if token.lower() in protected_tokens:
+                continue
+            replaced = re.sub(rf"\b{re.escape(token)}\b", token.lower(), working, count=1)
+            if replaced != working:
+                working = replaced
+                changed = True
+                break
+        if not changed:
+            break
+    return working
+
+
+def _sanitize_proof_dump_bursts(text: str, *, prospect_name: str, first_name: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    protected: set[str] = set()
+    first = _compact(first_name)
+    if first:
+        protected.add(first.lower())
+    full = _compact(prospect_name)
+    if full:
+        for part in full.split():
+            protected.add(part.lower())
+    out: list[str] = []
+    for sentence in split_sentences(body):
+        out.append(_defuse_proof_dump_sentence(sentence, protected_tokens=protected))
+    sanitized = " ".join(_compact(item) for item in out if _compact(item))
+    sanitized = re.sub(r"\s{2,}", " ", sanitized)
+    sanitized = re.sub(r"\s+([,.;!?])", r"\1", sanitized)
+    return sanitized.strip()
+
+
 def _fit_body_range(
     main_text: str,
     cta_line: str,
@@ -628,12 +726,23 @@ def _mock_body(
         risk_surface=req.offer_lock,
     )
     main = _ensure_preview_greeting(main, prospect_name)
+    main = _strip_post_greeting_name_fragment(
+        main,
+        prospect_name=req.prospect.name,
+        first_name=prospect_name,
+    )
     exec_route = _is_exec_title(req.prospect.title)
     main = _soften_offer_lock_mentions(main, req.offer_lock, force_lowercase=exec_route)
     main = _soften_company_mentions(main, req.prospect.company)
     main = _soften_proof_point_mentions(main, req.product_context.proof_points)
     main = _repair_prospect_offer_ownership(main, company=req.prospect.company)
     main = _sanitize_social_proof_phrasing(main)
+    main = _sanitize_category_mismatch_terms(main)
+    main = _sanitize_proof_dump_bursts(
+        main,
+        prospect_name=req.prospect.name,
+        first_name=prospect_name,
+    )
     cta = _resolve_preview_cta(req, preset, effective)
     section_pool = long_mode_section_pool(
         company_notes=req.raw_research.company_notes,
@@ -1187,11 +1296,22 @@ def _normalize_preview_items(
             risk_surface=req.offer_lock,
         )
         draft_body = _ensure_preview_greeting(draft_body, preview_first_name)
+        draft_body = _strip_post_greeting_name_fragment(
+            draft_body,
+            prospect_name=req.prospect.name,
+            first_name=preview_first_name,
+        )
         draft_body = _soften_offer_lock_mentions(draft_body, req.offer_lock, force_lowercase=exec_route)
         draft_body = _soften_company_mentions(draft_body, req.prospect.company)
         draft_body = _soften_proof_point_mentions(draft_body, req.product_context.proof_points)
         draft_body = _repair_prospect_offer_ownership(draft_body, company=req.prospect.company)
         draft_body = _sanitize_social_proof_phrasing(draft_body)
+        draft_body = _sanitize_category_mismatch_terms(draft_body)
+        draft_body = _sanitize_proof_dump_bursts(
+            draft_body,
+            prospect_name=req.prospect.name,
+            first_name=preview_first_name,
+        )
         draft_body = rewrite_unverified_claims(
             draft_body,
             claim_source,

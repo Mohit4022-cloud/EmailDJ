@@ -177,7 +177,7 @@ def test_preview_normalization_exec_caps_length_and_repairs_greeting_and_ownersh
             "label": "The Challenger",
             "subject": "Protect Your Brand Globally",
             "body": (
-                "Hi Sarah, Sarah, as CEO of Acme Consumer Brands, your focus on brand integrity and risk management is key. "
+                "Hi Sarah, Chen, as CEO of Acme Consumer Brands, your focus on brand integrity and risk management is key in Europe. "
                 "Our Trademark Search, Screening, and Brand Protection service helps identify conflicts and safeguard your trademarks "
                 "across markets. Our tools are proven to help brands like yours. "
                 "With recent filings and European conflicts, proactive IP management is crucial. "
@@ -196,11 +196,39 @@ def test_preview_normalization_exec_caps_length_and_repairs_greeting_and_ownersh
 
     assert len(body.split()) <= 90
     assert "Hi Sarah, Sarah," not in body
+    assert "Hi Sarah, Chen," not in body
     assert "your trademark" not in body.lower()
     assert "brands like" not in body.lower()
     assert "Acme Consumer Brands" not in body
     assert "Trademark Search, Screening, and Brand Protection" not in body
     assert body.splitlines()[-1].strip() == req.cta_lock_text
+
+
+def test_preview_normalization_rewrites_category_mismatch_terms():
+    req = _request_payload("CategoryMismatch")
+    req.offer_lock = "Trademark Search, Screening, and Brand Protection"
+    req.product_context.product_name = req.offer_lock
+    summary_pack = _mock_summary_pack(req)
+    raw_items = [
+        {
+            "preset_id": "challenger",
+            "label": "The Challenger",
+            "subject": "Protect your brand",
+            "body": (
+                "Hi Alex, Your role spans cybersecurity and digital risk with a recent spoofing incident. "
+                "Trademark Search, Screening, and Brand Protection can tighten response coverage.\n\n"
+                f"{req.cta_lock_text}"
+            ),
+            "vibeLabel": "Risk-led",
+            "vibeTags": ["Direct", "Specific"],
+            "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
+        }
+    ]
+
+    normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
+    body = normalized[0].body.lower()
+    assert "cybersecurity" not in body
+    assert "brand security" in body
 
 
 def test_preview_normalization_rewrites_disallowed_numeric_claims_across_surfaces():
