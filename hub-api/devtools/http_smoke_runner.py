@@ -27,6 +27,7 @@ import json
 import sys
 import time
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -41,6 +42,103 @@ DEVTOOLS_DIR = Path(__file__).resolve().parent
 # ---------------------------------------------------------------------------
 # Benchmark pack loading
 # ---------------------------------------------------------------------------
+
+
+@dataclass
+class _RateLimitGate:
+    """Shared gate to coordinate backoff after 429 responses."""
+
+    blocked_until: float = 0.0
+
+    def __post_init__(self) -> None:
+        self._lock = asyncio.Lock()
+
+    async def wait_if_blocked(self) -> None:
+        while True:
+            async with self._lock:
+                now = time.monotonic()
+                wait_s = max(0.0, self.blocked_until - now)
+            if wait_s <= 0:
+                return
+            await asyncio.sleep(wait_s)
+
+    async def block_for(self, seconds: float) -> None:
+        if seconds <= 0:
+            return
+        async with self._lock:
+            candidate = time.monotonic() + seconds
+            if candidate > self.blocked_until:
+                self.blocked_until = candidate
+
+
+def _retry_after_seconds(response: Any) -> float:
+    header = (response.headers.get("retry-after") or "").strip()
+    if not header:
+        return 0.0
+    try:
+        return max(0.0, float(header))
+    except Exception:
+        return 0.0
+
+
+def _retry_backoff(attempt: int) -> float:
+    return min(30.0, max(1.0, float(2**attempt)))
+
+
+async def _request_with_retries(
+    *,
+    client: Any,
+    method: str,
+    url: str,
+    headers: dict[str, str],
+    timeout: float,
+    gate: _RateLimitGate,
+    max_retries: int,
+    json_payload: dict[str, Any] | None = None,
+) -> Any:
+    httpx = __import__("httpx")
+
+    last_error: Exception | None = None
+    for attempt in range(max_retries + 1):
+        await gate.wait_if_blocked()
+        try:
+            response = await client.request(
+                method=method,
+                url=url,
+                headers=headers,
+                timeout=timeout,
+                json=json_payload,
+            )
+            status_code = int(response.status_code)
+            if status_code == 429 and attempt < max_retries:
+                wait_s = _retry_after_seconds(response) or _retry_backoff(attempt)
+                await gate.block_for(wait_s)
+                continue
+            if status_code in {500, 502, 503, 504} and attempt < max_retries:
+                await asyncio.sleep(_retry_backoff(attempt))
+                continue
+            response.raise_for_status()
+            return response
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            if exc.response is not None and int(exc.response.status_code) == 429 and attempt < max_retries:
+                wait_s = _retry_after_seconds(exc.response) or _retry_backoff(attempt)
+                await gate.block_for(wait_s)
+                continue
+            if attempt < max_retries:
+                await asyncio.sleep(_retry_backoff(attempt))
+                continue
+            raise
+        except Exception as exc:
+            last_error = exc
+            if attempt < max_retries:
+                await asyncio.sleep(_retry_backoff(attempt))
+                continue
+            raise
+
+    if last_error:
+        raise last_error
+    raise RuntimeError(f"request_failed:{method}:{url}")
 
 
 def _load_pack() -> dict[str, Any]:
@@ -263,6 +361,8 @@ async def _run_generate_case(
     headers: dict[str, str],
     timeout: float,
     sem: asyncio.Semaphore,
+    max_retries: int,
+    gate: _RateLimitGate,
 ) -> dict[str, Any]:
     """Run Flow A: POST /web/v1/generate → GET /web/v1/stream/{request_id}."""
     httpx = __import__("httpx")
@@ -279,23 +379,29 @@ async def _run_generate_case(
 
         try:
             # Step 1: POST generate
-            gen_resp = await client.post(
-                "/web/v1/generate",
-                json=payload,
+            gen_resp = await _request_with_retries(
+                client=client,
+                method="POST",
+                url="/web/v1/generate",
+                json_payload=payload,
                 headers=headers,
                 timeout=timeout,
+                gate=gate,
+                max_retries=max_retries,
             )
-            gen_resp.raise_for_status()
             accepted = gen_resp.json()
             response_json = accepted
 
             # Step 2: GET stream (reads full SSE response)
-            stream_resp = await client.get(
-                f"/web/v1/stream/{accepted['request_id']}",
+            stream_resp = await _request_with_retries(
+                client=client,
+                method="GET",
+                url=f"/web/v1/stream/{accepted['request_id']}",
                 headers=headers,
                 timeout=timeout + 30,  # generation takes longer
+                gate=gate,
+                max_retries=max_retries,
             )
-            stream_resp.raise_for_status()
             email_text, done_payload, stream_error_payload = _extract_stream(stream_resp.text)
             if stream_error_payload:
                 stream_error = str(stream_error_payload.get("error") or "unknown_stream_error")
@@ -334,6 +440,8 @@ async def _run_preview_case(
     headers: dict[str, str],
     timeout: float,
     sem: asyncio.Semaphore,
+    max_retries: int,
+    gate: _RateLimitGate,
 ) -> dict[str, Any]:
     """Run Flow B: POST /web/v1/preset-previews/batch."""
     httpx = __import__("httpx")
@@ -347,13 +455,16 @@ async def _run_preview_case(
         latency_ms = 0
 
         try:
-            resp = await client.post(
-                "/web/v1/preset-previews/batch",
-                json=payload,
+            resp = await _request_with_retries(
+                client=client,
+                method="POST",
+                url="/web/v1/preset-previews/batch",
+                json_payload=payload,
                 headers=headers,
                 timeout=timeout + 30,
+                gate=gate,
+                max_retries=max_retries,
             )
-            resp.raise_for_status()
             response_json = resp.json()
             previews = response_json.get("previews") or []
             if previews:
@@ -616,6 +727,7 @@ async def _run_all(
     judge_limit: int,
     concurrency: int,
     timeout: float,
+    max_retries: int,
 ) -> dict[str, Any]:
     httpx = __import__("httpx")
 
@@ -629,6 +741,7 @@ async def _run_all(
         "X-EmailDJ-Beta-Key": beta_key,
     }
     sem = asyncio.Semaphore(concurrency)
+    gate = _RateLimitGate()
 
     print(f"\n{'='*60}", flush=True)
     print(f"  EmailDJ Smoke Runner — mode={mode}  flow={flow}", flush=True)
@@ -647,7 +760,15 @@ async def _run_all(
             runner = _run_generate_case
 
         tasks = [
-            runner(client=client, case=case, headers=headers, timeout=timeout, sem=sem)
+            runner(
+                client=client,
+                case=case,
+                headers=headers,
+                timeout=timeout,
+                sem=sem,
+                max_retries=max_retries,
+                gate=gate,
+            )
             for case in cases
         ]
         results = await asyncio.gather(*tasks, return_exceptions=False)
@@ -814,6 +935,12 @@ Examples:
         default=60.0,
         help="HTTP timeout in seconds per request (default: 60)",
     )
+    parser.add_argument(
+        "--max-retries",
+        type=int,
+        default=8,
+        help="Retries per request for 429/5xx/network errors (default: 8)",
+    )
 
     args = parser.parse_args()
 
@@ -833,6 +960,7 @@ Examples:
             judge_limit=args.judge_limit,
             concurrency=args.concurrency,
             timeout=args.timeout,
+            max_retries=max(0, args.max_retries),
         )
     )
 
