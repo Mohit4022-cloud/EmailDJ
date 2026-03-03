@@ -47,3 +47,35 @@ test('consumeStream handles CRLF-delimited SSE blocks', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('consumeStream forwards structured chunk metadata', async () => {
+  const originalFetch = globalThis.fetch;
+  const encoder = new TextEncoder();
+  const chunks = [
+    'event: token\r\ndata: {"token":"Hel","sequence":1,"chunk_index":0,"chunk_len":3}\r\n\r\n',
+    'event: token\r\ndata: {"token":"lo","sequence":2,"chunk_index":1,"chunk_len":2}\r\n\r\n',
+    'event: done\r\ndata: {"stream_checksum":"abc","total_chunks":2}\r\n\r\n',
+  ];
+
+  globalThis.fetch = async () => ({
+    ok: true,
+    body: new ReadableStream({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
+      },
+    }),
+  });
+
+  try {
+    const seen = [];
+    await consumeStream('req-2', (msg) => {
+      if (msg.event === 'token') {
+        seen.push(`${msg.data.chunk_index}:${msg.data.token}`);
+      }
+    });
+    assert.deepEqual(seen, ['0:Hel', '1:lo']);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

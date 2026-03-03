@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
-os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+os.environ["USE_PROVIDER_STUB"] = "0"
 os.environ.setdefault("EMAILDJ_REAL_PROVIDER", "openai")
 os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "off"
 

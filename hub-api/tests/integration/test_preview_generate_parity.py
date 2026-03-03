@@ -122,7 +122,7 @@ async def test_preview_and_generate_share_lock_contract_in_mock_mode(case: dict)
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "on"
 
     from main import app

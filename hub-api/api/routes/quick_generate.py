@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Request
 from api.schemas import QuickGenerateAccepted, QuickGenerateRequest
 from context_vault import cache
 from email_generation.quick_generate import quick_generate
+from email_generation.runtime_policies import quick_generate_mode
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
 
@@ -75,7 +76,7 @@ async def stream_quick_generate(request_id: str, request: Request):
     slider_value = rec.payload.get("slider_value", 5)
     account_id = body.get("accountId", "")
     throttled = bool(getattr(request.state, "cost_throttled", False))
-    mode = os.environ.get("EMAILDJ_QUICK_GENERATE_MODE", "mock")
+    mode = quick_generate_mode()
     logger.info(
         "quick_generate_stream_start",
         extra={"request_id": request_id, "account_id": account_id, "slider_value": slider_value, "mode": mode, "throttled": throttled},

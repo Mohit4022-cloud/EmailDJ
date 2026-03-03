@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -10,6 +11,7 @@ import re
 import time
 from dataclasses import dataclass
 from difflib import SequenceMatcher
+from functools import lru_cache
 from typing import Any
 
 import httpx
@@ -50,7 +52,7 @@ from email_generation.output_enforcement import (
     split_sentences,
 )
 from email_generation.preset_strategies import get_preset_strategy
-from email_generation.runtime_policies import repair_loop_enabled
+from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -67,6 +69,18 @@ _GENERIC_AI_OPENER_PATTERN = re.compile(
     r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
     re.IGNORECASE,
 )
+
+
+@lru_cache(maxsize=1)
+def preview_prompt_template_hashes() -> dict[str, str]:
+    extractor_material = _EXTRACTOR_SYSTEM_PROMPT + inspect.getsource(_extractor_messages)
+    generator_material = _GENERATOR_SYSTEM_PROMPT + inspect.getsource(_generator_messages)
+    combined_material = _COMBINED_SYSTEM_PROMPT + inspect.getsource(_combined_messages)
+    return {
+        "extractor": hashlib.sha256(extractor_material.encode("utf-8")).hexdigest()[:16],
+        "generator": hashlib.sha256(generator_material.encode("utf-8")).hexdigest()[:16],
+        "combined": hashlib.sha256(combined_material.encode("utf-8")).hexdigest()[:16],
+    }
 
 # CTA-like sentence patterns — used to strip duplicate CTA lines from draft body
 _CTA_LINE_PATTERN = re.compile(
@@ -248,7 +262,7 @@ def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
 
 
 def _quick_mode() -> str:
-    return os.environ.get("EMAILDJ_QUICK_GENERATE_MODE", "mock").strip().lower() or "mock"
+    return quick_generate_mode()
 
 
 def _extractor_model() -> str:
@@ -1200,6 +1214,9 @@ def make_response(
     *,
     request_id: str | None = None,
     session_id: str | None = None,
+    flags_effective: dict[str, bool] | None = None,
+    prompt_template_versions: dict[str, Any] | None = None,
+    execution_trace: dict[str, Any] | None = None,
 ) -> WebPresetPreviewBatchResponse:
     return WebPresetPreviewBatchResponse(
         previews=result.previews,
@@ -1222,6 +1239,9 @@ def make_response(
             repair_loop_enabled=result.repair_loop_enabled,
             cache_hit=result.cache_hit,
             latency_ms=result.latency_ms,
+            flags_effective=flags_effective,
+            prompt_template_versions=prompt_template_versions,
+            execution_trace=execution_trace,
         ),
         summary_pack=result.summary_pack if _include_summary_pack() else None,
     )

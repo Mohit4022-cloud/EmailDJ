@@ -55,7 +55,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=("smoke", "full", "focus"), default="full")
     parser.add_argument("--tag", action="append", default=[])
     parser.add_argument("--id", action="append", default=[])
-    parser.add_argument("--real", action="store_true", help="Run with EMAILDJ_QUICK_GENERATE_MODE=real")
+    parser.add_argument("--real", action="store_true", help="Run with USE_PROVIDER_STUB=0 (real provider path)")
     parser.add_argument("--max-cases", type=int, default=0)
     parser.add_argument("--min-cases", type=int, default=80)
     parser.add_argument("--allow-failures", action="store_true", help="Always exit zero")
@@ -86,9 +86,9 @@ def _env_defaults(real: bool) -> str:
     os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
     os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
     if real:
-        os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+        os.environ["USE_PROVIDER_STUB"] = "0"
         return "real"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     return "mock"
 
 

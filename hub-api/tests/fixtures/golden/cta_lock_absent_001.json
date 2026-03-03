@@ -1,0 +1,20 @@
+{
+  "scenario_id": "cta_lock_absent_001",
+  "description": "CTA lock phrase is completely absent from the body",
+  "draft": "Subject: Protect Acme's Brand\nBody:\nHi Alex, we help teams reduce counterfeit risk with Acme Shield Pro.\n\nLet me know if you want to chat.",
+  "session": {
+    "prospect": {"name": "Alex Doe", "title": "VP Sales", "company": "Acme"},
+    "prospect_first_name": "Alex",
+    "offer_lock": "Acme Shield Pro",
+    "cta_lock_effective": "Open to a 15-min call to share a quick teardown and a recommended enforcement workflow? Worth a look / Not a priority?",
+    "company_context": {"company_name": "SellerCo", "company_notes": ""},
+    "research_text_raw": "",
+    "research_text": "",
+    "allowed_facts": [],
+    "generation_plan": {}
+  },
+  "style_sliders": {"tone_formal_casual": 50, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 50},
+  "expected_violations": ["cta_lock_not_used_exactly_once"],
+  "expected_pass": false,
+  "tags": ["cta"]
+}

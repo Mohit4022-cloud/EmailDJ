@@ -9,7 +9,7 @@ async def test_real_mode_provider_prompt_is_redacted(monkeypatch):
     pytest.importorskip('fastapi')
 
     os.environ.setdefault('CHROME_EXTENSION_ORIGIN', 'chrome-extension://dev')
-    os.environ['EMAILDJ_QUICK_GENERATE_MODE'] = 'real'
+    os.environ['USE_PROVIDER_STUB'] = '0'
     os.environ['EMAILDJ_REAL_PROVIDER'] = 'openai'
     os.environ['OPENAI_API_KEY'] = 'test-key'
     os.environ['REDIS_FORCE_INMEMORY'] = '1'

@@ -102,6 +102,12 @@ jobs:
           source .venv/bin/activate
           ./scripts/checks.sh
 
+      - name: Quality gate (20x noisy fixture)
+        working-directory: hub-api
+        run: |
+          source .venv/bin/activate
+          pytest -q tests/test_quality_gate.py::test_quality_gate_noisy_fixture_20x
+
       - name: Judge smoke + sentinel sanity (mock)
         working-directory: hub-api
         run: |

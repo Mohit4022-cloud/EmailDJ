@@ -1,0 +1,20 @@
+{
+  "scenario_id": "golden_pass_001",
+  "description": "A fully compliant draft with no violations",
+  "draft": "Subject: Reduce Counterfeit Risk at Acme with Acme Shield Pro\nBody:\nHi Alex, counterfeit enforcement queues at Acme often stall when detection and action workflows drift apart. Acme Shield Pro helps your team detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one we run a focused sweep and hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a 15-min call to share a quick teardown and a recommended enforcement workflow? Worth a look / Not a priority?",
+  "session": {
+    "prospect": {"name": "Alex Doe", "title": "VP Sales", "company": "Acme"},
+    "prospect_first_name": "Alex",
+    "offer_lock": "Acme Shield Pro",
+    "cta_lock_effective": "Open to a 15-min call to share a quick teardown and a recommended enforcement workflow? Worth a look / Not a priority?",
+    "company_context": {"company_name": "SellerCo", "company_notes": ""},
+    "research_text_raw": "",
+    "research_text": "",
+    "allowed_facts": [],
+    "generation_plan": {}
+  },
+  "style_sliders": {"tone_formal_casual": 50, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 50},
+  "expected_violations": [],
+  "expected_pass": true,
+  "tags": ["pass"]
+}

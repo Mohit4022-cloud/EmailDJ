@@ -62,6 +62,24 @@ def test_validate_ctco_output_flags_internal_leakage():
     assert any(v.startswith("internal_leakage_term:") for v in violations)
 
 
+def test_parse_structured_output_reports_salvage_method_for_wrapped_text():
+    from email_generation.remix_engine import _parse_structured_output
+
+    raw = 'prefix text {"subject":"Hello","body":"Hi Alex, body copy."} trailing text'
+    subject, body, parse_method = _parse_structured_output(raw)
+    assert subject == "Hello"
+    assert "Hi Alex" in body
+    assert parse_method == "salvage_substring"
+
+
+def test_parse_structured_output_rejects_wrapped_text_without_salvage():
+    from email_generation.remix_engine import _parse_structured_output
+
+    raw = 'prefix text {"subject":"Hello","body":"Hi Alex, body copy."} trailing text'
+    with pytest.raises(ValueError, match="non_json_output"):
+        _parse_structured_output(raw, allow_salvage=False)
+
+
 def test_create_session_payload_extracts_allowed_facts_and_strips_instructions():
     from email_generation.remix_engine import create_session_payload
 
@@ -440,6 +458,149 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
 
     assert calls["count"] == 2
     assert "Open to a quick chat to see if this is relevant?" in result.draft
+    assert "Subject:" in result.draft
+    assert "Body:" in result.draft
+
+
+@pytest.mark.asyncio
+async def test_build_draft_structured_output_retries_before_salvage(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = _session_payload()
+    calls = {"count": 0}
+    valid_body = (
+        "Hi Alex, Acme recently launched outbound AI initiatives in enterprise accounts and your SDR team is balancing "
+        "response quality with execution speed across weekly outbound volume. Remix Studio helps keep messaging specific "
+        "and controlled while preserving manager visibility into standards and consistency across reps.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    async def wrapped_then_strict(prompt, task="quick_generate", throttled=False, output_token_budget=None):  # noqa: ARG001
+        calls["count"] += 1
+        payload = json.dumps({"subject": "Remix Studio for Acme", "body": valid_body})
+        if calls["count"] == 1:
+            payload = f"prefix {payload} suffix"
+        return GenerateResult(
+            text=payload,
+            provider="openai",
+            model_name="gpt-4.1-nano",
+            cascade_reason="primary",
+            attempt_count=calls["count"],
+            finish_reason="stop",
+        )
+
+    monkeypatch.setenv("FEATURE_STRUCTURED_OUTPUT", "1")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", wrapped_then_strict)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0},
+    )
+
+    assert calls["count"] == 2
+    assert result.json_repair_count == 1
+    assert "Subject:" in result.draft
+    assert "Body:" in result.draft
+
+
+@pytest.mark.asyncio
+async def test_build_draft_fallback_salvage_only_after_two_parse_retries(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = _session_payload()
+    calls = {"count": 0}
+    valid_body = (
+        "Hi Alex, Acme recently launched outbound AI initiatives in enterprise accounts and your SDR team is balancing "
+        "response quality with execution speed across weekly outbound volume. Remix Studio helps keep messaging specific "
+        "and controlled while preserving manager visibility into standards and consistency across reps.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    async def wrapped_fallback(prompt, task="quick_generate", throttled=False, output_token_budget=None):  # noqa: ARG001
+        calls["count"] += 1
+        payload = json.dumps({"subject": "Remix Studio for Acme", "body": valid_body})
+        return GenerateResult(
+            text=f"prefix {payload} suffix",
+            provider="anthropic",
+            model_name="claude-3-5-haiku-latest",
+            cascade_reason="fallback_after_openai_error",
+            attempt_count=calls["count"],
+            finish_reason="stop",
+        )
+
+    monkeypatch.setenv("FEATURE_STRUCTURED_OUTPUT", "1")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", wrapped_fallback)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0},
+    )
+
+    assert calls["count"] == 3
+    assert result.json_repair_count == 2
+    assert "Subject:" in result.draft
+    assert "Body:" in result.draft
+
+
+@pytest.mark.asyncio
+async def test_build_draft_fluency_repair_retries_on_unmatched_parentheses(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = _session_payload()
+    calls = {"count": 0}
+    broken_body = (
+        "Hi Alex, Acme recently launched outbound AI initiatives in enterprise accounts and your SDR team is balancing "
+        "response quality with execution speed across weekly outbound volume. Remix Studio helps keep messaging specific "
+        "and controlled while preserving manager visibility (into standards and consistency across reps.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+    fixed_body = broken_body.replace("(into", "into")
+
+    async def fluency_retry(prompt, task="quick_generate", throttled=False, output_token_budget=None):  # noqa: ARG001
+        calls["count"] += 1
+        body = broken_body if calls["count"] == 1 else fixed_body
+        return GenerateResult(
+            text=json.dumps({"subject": "Remix Studio for Acme", "body": body}),
+            provider="openai",
+            model_name="gpt-4.1-nano",
+            cascade_reason="primary",
+            attempt_count=calls["count"],
+            finish_reason="stop",
+        )
+
+    monkeypatch.setenv("FEATURE_FLUENCY_REPAIR", "1")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", fluency_retry)
+    monkeypatch.setattr(
+        remix_engine,
+        "apply_generation_plan",
+        lambda subject, body, session, style_sliders, plan: (subject, body),
+    )
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0},
+    )
+
+    assert calls["count"] == 1
+    assert result.violation_retry_count >= 1
     assert "Subject:" in result.draft
     assert "Body:" in result.draft
 

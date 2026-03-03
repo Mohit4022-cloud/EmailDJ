@@ -67,7 +67,7 @@ def _last_nonempty_line(value: str) -> str:
 @pytest.mark.asyncio
 async def test_mock_preview_pipeline_returns_valid_shapes_and_cache_hits():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     os.environ["EMAILDJ_PREVIEW_INCLUDE_SUMMARY_PACK"] = "0"
 
     req = _request_payload("MockCache")
@@ -94,7 +94,7 @@ async def test_mock_preview_pipeline_returns_valid_shapes_and_cache_hits():
 @pytest.mark.asyncio
 async def test_make_response_hides_or_shows_summary_pack_by_flag():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     req = _request_payload("SummaryToggle")
     result = await run_preview_pipeline(req)
@@ -114,7 +114,7 @@ async def test_make_response_hides_or_shows_summary_pack_by_flag():
 @pytest.mark.asyncio
 async def test_preview_pipeline_uses_cta_type_when_lock_blank():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     req = _request_payload("CtaType")
     req.cta_lock = None
@@ -132,7 +132,7 @@ async def test_preview_pipeline_uses_cta_type_when_lock_blank():
 @pytest.mark.asyncio
 async def test_preview_pipeline_lock_text_overrides_cta_type():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     req = _request_payload("CtaLockWins")
     req.cta_type = "event_invite"
@@ -147,7 +147,7 @@ async def test_preview_pipeline_lock_text_overrides_cta_type():
 @pytest.mark.asyncio
 async def test_preview_pipeline_uses_first_name_for_greeting():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     req = _request_payload("Greeting")
     req.prospect.name = "Rohan Singh"
@@ -333,7 +333,7 @@ def test_cta_canonicalization_strips_fuzzy_match():
 @pytest.mark.asyncio
 async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+    os.environ["USE_PROVIDER_STUB"] = "0"
     os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "warn"
 
     req = _request_payload("SingleCall")

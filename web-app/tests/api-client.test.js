@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { generatePresetPreviewsBatch } from '../src/api/client.js';
+import { fetchRuntimeConfig, generatePresetPreviewsBatch } from '../src/api/client.js';
 
 test('generatePresetPreviewsBatch returns parsed JSON on success', async () => {
   const originalFetch = global.fetch;
@@ -14,6 +14,21 @@ test('generatePresetPreviewsBatch returns parsed JSON on success', async () => {
     const result = await generatePresetPreviewsBatch({ presets: [] }, { timeoutMs: 100 });
     assert.equal(Array.isArray(result.previews), true);
     assert.equal(result.meta.request_id, 'r1');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchRuntimeConfig returns debug payload', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ runtime_mode: 'real', provider_stub_enabled: false }),
+  });
+  try {
+    const payload = await fetchRuntimeConfig({ endpoint: 'generate', bucketKey: 'ui' });
+    assert.equal(payload.runtime_mode, 'real');
+    assert.equal(payload.provider_stub_enabled, false);
   } finally {
     global.fetch = originalFetch;
   }

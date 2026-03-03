@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -46,7 +46,7 @@ from email_generation.output_enforcement import (
 from email_generation.policies import policy_runner
 from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
-from email_generation.prompt_templates import get_web_mvp_prompt
+from email_generation.prompt_templates import get_web_mvp_prompt, web_mvp_prompt_template_hash
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
 from email_generation.rc_tco_controller import (
     LEGACY_RESPONSE_CONTRACT,
@@ -54,7 +54,20 @@ from email_generation.rc_tco_controller import (
     build_rc_tco_output,
     validate_rc_tco_json,
 )
-from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
+from email_generation.runtime_policies import (
+    allowed_facts_target_count,
+    feature_fluency_repair_enabled,
+    feature_no_prospect_owns_guardrail_enabled,
+    feature_preset_true_rewrite_enabled,
+    feature_shadow_mode_enabled,
+    feature_structured_output_enabled,
+    feature_sentence_safe_truncation_enabled,
+    repair_loop_enabled,
+    strict_lock_enforcement_level,
+    web_mvp_output_token_budget_default,
+    web_mvp_output_token_budget_long,
+)
+from email_generation.truncation import truncate_sentence_safe
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -70,6 +83,7 @@ SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
 MAX_VALIDATION_ATTEMPTS = 3
 DEFAULT_FALLBACK_CTA = "Open to a quick chat to see if this is relevant?"
+_QUALITY_METRIC_TTL_SECONDS = 3 * 24 * 60 * 60
 
 _BANNED_PHRASES = (
     "ai services",
@@ -138,6 +152,27 @@ _FACT_SIGNAL_TOKENS = (
     "funding",
     "series",
 )
+_GENERIC_RESEARCH_PATTERNS = (
+    re.compile(r"^\s*wikipedia\s*$", re.IGNORECASE),
+    re.compile(r"^\s*\+?\d+\s*$"),
+    re.compile(r"\bis an? (?:american|global|leading)\s+(?:software|technology)\s+company\b", re.IGNORECASE),
+    re.compile(r"\bcore platforms?\b", re.IGNORECASE),
+)
+_RESEARCH_TRIGGER_TOKENS = (
+    "announced",
+    "launched",
+    "hiring",
+    "hired",
+    "roles",
+    "contract",
+    "filing",
+    "earnings",
+    "press release",
+    "headcount",
+    "partnership",
+    "pilot",
+    "rollout",
+)
 
 _STAT_CLAIM_PATTERNS = (
     re.compile(r"\b\d+(?:\.\d+)?%\s+(?:improvement|increase|lift|gain|boost|growth|reduction|decrease)\b"),
@@ -154,6 +189,14 @@ _CLAIM_VIOLATION_PREFIXES = (
     "unsubstantiated_performance_claim",
     "unsubstantiated_claim",
 )
+_FACT_ENTITY_RE = re.compile(r"\b(?:[A-Z][a-z]+|[A-Z]{2,})\b")
+
+_INCOMPLETE_SENTENCE_END_CHARS = (",", ";", ":", "-", "/", "(")
+_TRAILING_FRAGMENT_RE = re.compile(
+    r"(?:\b(?:and|or|to|with|for|of|from|that|which|while|because|so)\b)\s*$",
+    flags=re.IGNORECASE,
+)
+_HANGING_CONNECTOR_END_RE = re.compile(r"(?:\b(?:and|to|with)\b)\s*$", flags=re.IGNORECASE)
 
 
 def _response_contract(session: dict[str, Any]) -> str:
@@ -273,6 +316,40 @@ def normalize_company_context(company_context: dict[str, Any] | None) -> dict[st
     return normalized
 
 
+def _legacy_truncate(value: str, max_chars: int) -> tuple[str, dict[str, Any]]:
+    compact = " ".join((value or "").split())
+    if len(compact) <= max_chars:
+        return compact, {
+            "was_truncated": False,
+            "boundary_used": "none",
+            "cut_mid_sentence": False,
+            "original_length": len(compact),
+            "final_length": len(compact),
+        }
+    truncated = compact[:max_chars].rstrip() + "..."
+    return truncated, {
+        "was_truncated": True,
+        "boundary_used": "legacy_hard_cut",
+        "cut_mid_sentence": True,
+        "original_length": len(compact),
+        "final_length": len(truncated),
+    }
+
+
+def _truncate_context_text(value: str, max_chars: int) -> tuple[str, dict[str, Any]]:
+    compact = " ".join((value or "").split())
+    if feature_sentence_safe_truncation_enabled():
+        result = truncate_sentence_safe(compact, max_chars=max_chars)
+        return result.text, {
+            "was_truncated": result.was_truncated,
+            "boundary_used": result.boundary_used,
+            "cut_mid_sentence": result.cut_mid_sentence,
+            "original_length": result.original_length,
+            "final_length": result.final_length,
+        }
+    return _legacy_truncate(compact, max_chars=max_chars)
+
+
 def build_company_context_brief(company_context: dict[str, Any] | None) -> str:
     normalized = normalize_company_context(company_context)
     if not normalized:
@@ -291,9 +368,7 @@ def build_company_context_brief(company_context: dict[str, Any] | None) -> str:
     if current_product:
         lines.append(f"Primary offering: {current_product}.")
     if notes:
-        compact_notes = " ".join(notes.split())
-        if len(compact_notes) > 800:
-            compact_notes = compact_notes[:800].rstrip() + "..."
+        compact_notes, _truncation_meta = _truncate_context_text(notes, max_chars=800)
         lines.append(f"Context notes: {compact_notes}")
     return " ".join(lines)
 
@@ -395,9 +470,7 @@ def body_word_range(length_short_long: int) -> tuple[int, int]:
 
 
 def build_factual_brief(prospect: dict[str, Any], research_text: str) -> str:
-    compact = " ".join(research_text.split())
-    if len(compact) > 1600:
-        compact = compact[:1600].rstrip() + "..."
+    compact, _truncation_meta = _truncate_context_text(research_text, max_chars=1600)
     linkedin = prospect.get("linkedin_url") or "not provided"
     return (
         f"Prospect: {prospect.get('name')} ({prospect.get('title')}) at {prospect.get('company')}. "
@@ -484,18 +557,65 @@ def _contains_factual_signal(sentence: str) -> bool:
     return any(token in normalized for token in _FACT_SIGNAL_TOKENS)
 
 
+def _is_generic_biography_sentence(sentence: str) -> bool:
+    normalized = _collapse_ws(sentence)
+    if not normalized:
+        return False
+    return any(pattern.search(normalized) for pattern in _GENERIC_RESEARCH_PATTERNS)
+
+
+def _contains_research_trigger(sentence: str) -> bool:
+    normalized = _collapse_ws((sentence or "").lower())
+    if not normalized:
+        return False
+    if re.search(r"\b(?:q[1-4]|20\d{2}|19\d{2})\b", normalized):
+        return True
+    return any(token in normalized for token in _RESEARCH_TRIGGER_TOKENS)
+
+
 def _strip_instructional_phrases(research_text: str) -> str:
     kept: list[str] = []
     for sentence in _split_research_sentences(research_text):
         if _is_instruction_like(sentence):
             continue
+        if _is_generic_biography_sentence(sentence) and not _contains_research_trigger(sentence):
+            continue
         kept.append(sentence.rstrip())
     return " ".join(kept).strip()
 
 
-def _extract_allowed_facts(research_text: str, max_items: int = 4) -> list[str]:
+def _fact_type(sentence: str) -> str:
+    lower = _collapse_ws(sentence.lower())
+    if any(token in lower for token in ("hiring", "hired", "headcount", "roles", "recruiting")):
+        return "hiring"
+    if any(token in lower for token in ("launched", "initiative", "program", "rolled out", "adopted")):
+        return "initiative"
+    if any(token in lower for token in ("january", "february", "march", "april", "may", "june", "q1", "q2", "q3", "q4", "202")):
+        return "timeline"
+    if any(token in lower for token in ("team", "workflow", "playbook", "process", "governance", "qa", "quality")):
+        return "ops"
+    if any(token in lower for token in ("company", "organization", "org")):
+        return "company"
+    return "other"
+
+
+def _fact_confidence(sentence: str) -> str:
+    lower = _collapse_ws(sentence.lower())
+    has_numeric_or_date = bool(re.search(r"\b(?:\d{1,4}|q[1-4]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b", lower))
+    has_signal = _contains_factual_signal(sentence)
+    has_hedge = any(token in lower for token in ("likely", "may", "might", "could", "appears", "seems"))
+    if has_signal and not has_hedge and has_numeric_or_date:
+        return "high"
+    if has_signal and not has_hedge:
+        return "high"
+    if len(re.findall(r"[A-Za-z0-9']+", lower)) >= 8:
+        return "medium"
+    return "low"
+
+
+def _extract_allowed_facts_structured(research_text: str, target_items: int = 8) -> list[dict[str, str]]:
     sanitized = _strip_instructional_phrases(research_text)
-    facts: list[str] = []
+    facts: list[dict[str, str]] = []
     seen: set[str] = set()
 
     for sentence in _split_research_sentences(sanitized):
@@ -503,29 +623,70 @@ def _extract_allowed_facts(research_text: str, max_items: int = 4) -> list[str]:
         key = cleaned.lower()
         if not cleaned or key in seen:
             continue
-        if not _contains_factual_signal(cleaned):
+        if len(re.findall(r"[A-Za-z0-9']+", cleaned)) < 6:
             continue
         seen.add(key)
-        facts.append(cleaned)
-        if len(facts) >= max_items:
-            return facts
-
-    for sentence in _split_research_sentences(sanitized):
-        cleaned = _collapse_ws(sentence.strip().rstrip("."))
-        key = cleaned.lower()
-        if not cleaned or key in seen or _is_instruction_like(cleaned):
-            continue
-        if len(cleaned.split()) < 6:
-            continue
-        seen.add(key)
-        facts.append(cleaned)
-        if len(facts) >= max_items:
+        facts.append(
+            {
+                "text": cleaned,
+                "type": _fact_type(cleaned),
+                "confidence": _fact_confidence(cleaned),
+            }
+        )
+        if len(facts) >= target_items:
             break
 
+    if len(facts) < min(8, target_items):
+        for sentence in _split_research_sentences(sanitized):
+            cleaned = _collapse_ws(sentence.strip().rstrip("."))
+            key = cleaned.lower()
+            if not cleaned or key in seen or _is_instruction_like(cleaned):
+                continue
+            clause_parts = [part.strip() for part in re.split(r";|, and |, but ", cleaned) if part.strip()]
+            for part in clause_parts:
+                part_key = part.lower()
+                if part_key in seen:
+                    continue
+                if len(re.findall(r"[A-Za-z0-9']+", part)) < 6:
+                    continue
+                seen.add(part_key)
+                facts.append(
+                    {
+                        "text": part,
+                        "type": _fact_type(part),
+                        "confidence": _fact_confidence(part),
+                    }
+                )
+                if len(facts) >= target_items:
+                    break
+            if len(facts) >= target_items:
+                break
+
+    if len(facts) < min(8, target_items):
+        for sentence in _split_research_sentences(sanitized):
+            cleaned = _collapse_ws(sentence.strip().rstrip("."))
+            key = cleaned.lower()
+            if not cleaned or key in seen:
+                continue
+            seen.add(key)
+            facts.append({"text": cleaned, "type": _fact_type(cleaned), "confidence": "low"})
+            if len(facts) >= target_items:
+                break
+
     if facts:
-        return facts
+        return facts[: min(12, max(8, target_items))]
 
     compact = _collapse_ws(sanitized)
+    if compact:
+        return [{"text": compact[:220].rstrip(), "type": "other", "confidence": "low"}]
+    return []
+
+
+def _extract_allowed_facts(research_text: str, max_items: int = 8) -> list[str]:
+    structured = _extract_allowed_facts_structured(research_text, target_items=max_items)
+    if structured:
+        return [entry.get("text", "").strip() for entry in structured if entry.get("text", "").strip()]
+    compact = _collapse_ws(_strip_instructional_phrases(research_text))
     if compact:
         return [compact[:220].rstrip()]
     return []
@@ -570,6 +731,84 @@ def _format_draft(subject: str, body: str) -> str:
     return f"Subject: {subject.strip()}\nBody:\n{body.strip()}".strip()
 
 
+def _prompt_checksum(prompt: list[dict[str, str]]) -> str:
+    payload = json.dumps(prompt, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _redact_prompt_for_trace(prompt: list[dict[str, str]], *, session: dict[str, Any]) -> list[dict[str, str]]:
+    prospect = session.get("prospect") or {}
+    company_ctx = session.get("company_context") or {}
+    pii_tokens = [
+        str(prospect.get("name") or "").strip(),
+        str(prospect.get("company") or "").strip(),
+        str(prospect.get("linkedin_url") or "").strip(),
+        str(company_ctx.get("company_name") or "").strip(),
+        str(company_ctx.get("company_url") or "").strip(),
+    ]
+    pii_tokens = [token for token in pii_tokens if token]
+    output: list[dict[str, str]] = []
+    for message in prompt:
+        role = str(message.get("role") or "user")
+        content = str(message.get("content") or "")
+        content = re.sub(r"https?://\S+", "<redacted_url>", content)
+        for token in pii_tokens:
+            content = content.replace(token, "<redacted>")
+        if len(content) > 5000:
+            content = f"{content[:5000]}...[truncated]"
+        output.append({"role": role, "content": content})
+    return output
+
+
+def _prospect_owns_offer_lock_violations(draft: str, session: dict[str, Any]) -> list[str]:
+    offer_lock = _collapse_ws(str(session.get("offer_lock") or ""))
+    company = _collapse_ws(str((session.get("prospect") or {}).get("company") or ""))
+    if not offer_lock or not company:
+        return []
+    patterns = [
+        re.compile(rf"\b{re.escape(company)}['’]s\s+{re.escape(offer_lock)}\b", re.IGNORECASE),
+        re.compile(rf"\byour\s+{re.escape(offer_lock)}\b", re.IGNORECASE),
+    ]
+    violations: list[str] = []
+    for pattern in patterns:
+        match = pattern.search(draft or "")
+        if match:
+            snippet = _collapse_ws(match.group(0))[:80]
+            violations.append(f"prospect_owns_offer_lock:{snippet}")
+    return violations
+
+
+def _repair_prospect_owns_offer_lock(draft: str, session: dict[str, Any]) -> tuple[str, bool, list[str]]:
+    offer_lock = _collapse_ws(str(session.get("offer_lock") or ""))
+    company = _collapse_ws(str((session.get("prospect") or {}).get("company") or ""))
+    if not offer_lock or not company:
+        return draft, False, []
+    subject, body = _extract_subject_and_body(draft)
+    rewritten = False
+    snippets: list[str] = []
+    replacements = [
+        (
+            re.compile(rf"\b{re.escape(company)}['’]s\s+{re.escape(offer_lock)}\b", re.IGNORECASE),
+            f"{offer_lock} for {company}",
+        ),
+        (
+            re.compile(rf"\byour\s+{re.escape(offer_lock)}\b", re.IGNORECASE),
+            f"{offer_lock}",
+        ),
+    ]
+    for pattern, replacement in replacements:
+        while True:
+            match = pattern.search(body)
+            if not match:
+                break
+            snippets.append(_collapse_ws(match.group(0))[:80])
+            body = f"{body[:match.start()]}{replacement}{body[match.end():]}"
+            rewritten = True
+    if not rewritten:
+        return draft, False, []
+    return _format_draft(subject=subject, body=body), True, snippets
+
+
 def _rc_tco_payload_to_draft(payload: dict[str, Any]) -> str:
     email = payload.get("email") if isinstance(payload, dict) else {}
     subject = _collapse_ws((email or {}).get("subject") or "")
@@ -582,41 +821,68 @@ def canonicalize_draft(draft: str) -> str:
     return _format_draft(subject=subject, body=body)
 
 
-def _parse_json_candidate(raw: str) -> dict[str, Any]:
+def _parse_json_candidate(raw: str, *, allow_salvage: bool = True) -> tuple[dict[str, Any], str]:
     payload = (raw or "").strip()
     if not payload:
         raise ValueError("empty_output")
 
+    parse_method = "strict"
     try:
         parsed = json.loads(payload)
     except json.JSONDecodeError:
         if payload.startswith("```"):
             payload = re.sub(r"^```(?:json)?\s*|\s*```$", "", payload, flags=re.IGNORECASE | re.DOTALL).strip()
             if payload:
-                parsed = json.loads(payload)
+                try:
+                    parsed = json.loads(payload)
+                    parse_method = "markdown_fence"
+                except json.JSONDecodeError as exc:
+                    raise ValueError("json_fence_invalid") from exc
             else:
                 raise ValueError("json_fence_without_content") from None
-        else:
+        elif allow_salvage:
             start = payload.find("{")
             end = payload.rfind("}")
             if start == -1 or end <= start:
                 raise ValueError("no_json_object_found") from None
             parsed = json.loads(payload[start : end + 1])
+            parse_method = "salvage_substring"
+        else:
+            raise ValueError("non_json_output") from None
 
     if not isinstance(parsed, dict):
         raise ValueError("json_output_not_object")
-    return parsed
+    return parsed, parse_method
 
 
-def _parse_structured_output(raw: str) -> tuple[str, str]:
-    parsed = _parse_json_candidate(raw)
+def _parse_structured_output(raw: str, *, allow_salvage: bool = True) -> tuple[str, str, str]:
+    parsed, parse_method = _parse_json_candidate(raw, allow_salvage=allow_salvage)
     subject = parsed.get("subject")
     body = parsed.get("body")
     if not isinstance(subject, str) or not subject.strip():
         raise ValueError("missing_json_subject")
     if not isinstance(body, str) or not body.strip():
         raise ValueError("missing_json_body")
-    return subject.strip(), body.strip()
+    return subject.strip(), body.strip(), parse_method
+
+
+def _parse_openai_structured_output(raw: str) -> tuple[str, str, str]:
+    payload = (raw or "").strip()
+    if not payload:
+        raise ValueError("openai_structured_empty_output")
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError("openai_structured_invalid_json") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("openai_structured_not_object")
+    subject = parsed.get("subject")
+    body = parsed.get("body")
+    if not isinstance(subject, str) or not subject.strip():
+        raise ValueError("openai_structured_missing_subject")
+    if not isinstance(body, str) or not body.strip():
+        raise ValueError("openai_structured_missing_body")
+    return subject.strip(), body.strip(), "strict_openai"
 
 
 
@@ -665,6 +931,138 @@ def _check_signoff_before_cta(body: str) -> list[str]:
             snippet = _collapse_ws(sentence)[:60]
             return [f"signoff_before_cta:{snippet}"]
     return []
+
+
+def _body_without_cta(body: str, expected_cta: str) -> str:
+    lines = [line.strip() for line in (body or "").splitlines() if line.strip()]
+    kept: list[str] = []
+    removed = False
+    for line in lines:
+        if line == expected_cta and not removed:
+            removed = True
+            continue
+        kept.append(line)
+    return "\n".join(kept).strip()
+
+
+def _trim_hanging_connectors(text: str) -> str:
+    current = (text or "").rstrip(" ,;:-")
+    while _HANGING_CONNECTOR_END_RE.search(current):
+        current = _HANGING_CONNECTOR_END_RE.sub("", current).rstrip(" ,;:-")
+    return current
+
+
+def _high_confidence_fact_text(session: dict[str, Any]) -> str:
+    entries = session.get("allowed_facts_structured") or []
+    high = [entry.get("text", "") for entry in entries if str(entry.get("confidence", "")).lower() == "high"]
+    return " ".join([_collapse_ws(text) for text in high if _collapse_ws(text)])
+
+
+def _extract_entities(text: str) -> set[str]:
+    return {match.group(0) for match in _FACT_ENTITY_RE.finditer(text or "")}
+
+
+def _fact_preserving_change_ok(before: str, after: str, session: dict[str, Any]) -> bool:
+    before_numbers = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", before or ""))
+    after_numbers = set(re.findall(r"\b\d+(?:\.\d+)?%?\b", after or ""))
+    if not after_numbers.issubset(before_numbers):
+        return False
+
+    allowed_entities = _extract_entities(before) | _extract_entities(_high_confidence_fact_text(session))
+    after_entities = _extract_entities(after)
+    if not after_entities.issubset(allowed_entities):
+        return False
+
+    return True
+
+
+def _fact_preserving_fluency_repair(candidate: str, session: dict[str, Any]) -> tuple[str, bool]:
+    subject, body = _extract_subject_and_body(candidate)
+    if not body:
+        return candidate, False
+
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+    main_lines: list[str] = []
+    cta_line = expected_cta
+    cta_removed = False
+    for line in body_lines:
+        if not cta_removed and line == expected_cta:
+            cta_removed = True
+            cta_line = line
+            continue
+        main_lines.append(line)
+
+    narrative = " ".join(main_lines).strip()
+    if not narrative:
+        return candidate, False
+
+    repaired = narrative.replace("(", "").replace(")", "")
+    repaired = repaired.replace('"', "")
+    repaired = _trim_hanging_connectors(repaired)
+    repaired = repaired.rstrip(" ,;:-")
+    if repaired and repaired[-1] not in ".!?":
+        repaired = repaired + "."
+    repaired = dedupe_sentences_text(repaired)
+    repaired = _collapse_ws(repaired)
+    if not repaired:
+        return candidate, False
+
+    if not _fact_preserving_change_ok(narrative, repaired, session=session):
+        return candidate, False
+
+    repaired_body = f"{repaired}\n\n{cta_line}".strip()
+    repaired_draft = _format_draft(subject=subject, body=repaired_body)
+    return repaired_draft, repaired_draft != candidate
+
+
+def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> list[str]:
+    subject, body = _extract_subject_and_body(draft)
+    if not subject or not body:
+        return []
+
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+    draft_lower = _collapse_ws(draft).lower()
+    body_without_cta = _body_without_cta(body, expected_cta)
+    narrative = _collapse_ws(body_without_cta)
+    violations: list[str] = []
+
+    if narrative:
+        if narrative.endswith("..."):
+            violations.append("fluency_abrupt_truncation_detected")
+        if narrative.endswith(_INCOMPLETE_SENTENCE_END_CHARS) or _TRAILING_FRAGMENT_RE.search(narrative):
+            violations.append("fluency_incomplete_sentence_ending")
+        if narrative.count("(") != narrative.count(")"):
+            violations.append("fluency_unmatched_parentheses")
+        if narrative.count('"') % 2 == 1:
+            violations.append("fluency_unmatched_quotes")
+        sentence_keys: set[str] = set()
+        for sentence in split_sentences(narrative):
+            key = re.sub(r"[^a-z0-9 ]", "", sentence.lower()).strip()
+            if not key:
+                continue
+            if key in sentence_keys:
+                violations.append("fluency_duplicate_sentence")
+                break
+            sentence_keys.add(key)
+
+    expected_first_name = _expected_prospect_first_name(session).lower()
+    if expected_first_name and expected_first_name not in draft_lower:
+        violations.append("missing_required_field:prospect_first_name")
+
+    prospect_company = _collapse_ws(str((session.get("prospect") or {}).get("company") or "")).lower()
+    if prospect_company and prospect_company not in draft_lower:
+        violations.append("missing_required_field:prospect_company")
+
+    offer_lock = _collapse_ws(str(session.get("offer_lock") or "")).lower()
+    if offer_lock and offer_lock not in _collapse_ws(body).lower():
+        violations.append("missing_required_field:offer_lock")
+
+    if expected_cta and sum(1 for line in body_lines if line == expected_cta) != 1:
+        violations.append("missing_required_field:cta")
+
+    return _unique_ordered(violations)
 
 
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
@@ -749,6 +1147,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
                 overlap = sum(1 for kw in offer_keywords if kw in body_lower)
                 if overlap / len(offer_keywords) < 0.4:
                     violations.append("offer_drift_keyword_overlap_low")
+    if feature_no_prospect_owns_guardrail_enabled():
+        violations.extend(_prospect_owns_offer_lock_violations(draft, session=session))
 
     for phrase in _BANNED_PHRASES:
         if phrase in draft_lower:
@@ -869,11 +1269,25 @@ def _validation_feedback(violations: list[str]) -> str:
         notes.append(
             "Claims policy: keep claims qualitative unless the exact quantified claim is in approved proof text."
         )
+    if any(v.startswith("fluency_") for v in violations):
+        notes.append(
+            "Fluency policy: produce complete grammatical sentences, no abrupt endings, no unmatched punctuation, "
+            "and no duplicated sentence."
+        )
+    if any(v.startswith("missing_required_field:") for v in violations):
+        notes.append(
+            "Required fields policy: keep prospect first name, prospect company, offer lock, and exact CTA present."
+        )
     if any(v.startswith("meta_commentary") for v in violations):
         notes.append(
             "Meta-commentary policy: remove any sentence that describes the email's compliance or "
             "construction (e.g. 'This email follows...', 'This keeps messaging...'). "
             "The body must be pure outbound copy — never reference the email itself."
+        )
+    if any(v.startswith("prospect_owns_offer_lock") for v in violations):
+        notes.append(
+            "Ownership policy: OFFER_LOCK is our offering. Never phrase it as the prospect's product "
+            "(forbidden: '<Prospect>'s OFFER_LOCK' or 'your OFFER_LOCK')."
         )
     if any(v.startswith("offer_drift") for v in violations):
         notes.append(
@@ -1055,20 +1469,41 @@ def _mock_body(session: dict[str, Any], style_sliders: dict[str, int]) -> str:
         forbidden_terms=_offer_lock_forbidden_items(session),
     )
     if style_sliders["length_short_long"] >= 85:
-        extra_sections = section_pool[:4]
+        extra_sections = section_pool[:6]
     elif style_sliders["length_short_long"] >= 67:
-        extra_sections = section_pool[:3]
+        extra_sections = section_pool[:4]
     elif style_sliders["length_short_long"] >= 50:
         extra_sections = section_pool[:1]
     else:
         extra_sections = []
-    return _fit_body_range(
+    body = _fit_body_range(
         main_text=main,
         cta_line=cta,
         min_total=min_words,
         max_total=max_words,
         extra_sections=extra_sections,
     )
+    if _word_count(body) < min_words:
+        lines = [line.strip() for line in body.splitlines() if line.strip()]
+        cta_line = lines[-1] if lines else cta
+        main_lines = [line for line in lines if line != cta_line]
+        base_main = " ".join(main_lines).strip()
+        supplements = [
+            f"{offer_lock} keeps message quality consistent across reps without adding extra process burden.",
+            "Managers get clearer control over tone and relevance as outreach volume grows.",
+            f"{company} teams keep a predictable quality bar while scaling outbound volume.",
+        ]
+        expanded = base_main
+        for sentence in supplements:
+            candidate_main = f"{expanded} {sentence}".strip()
+            candidate_body = f"{candidate_main}\n\n{cta_line}".strip()
+            if _word_count(candidate_body) > max_words:
+                continue
+            expanded = candidate_main
+            if _word_count(candidate_body) >= min_words:
+                break
+        body = f"{expanded}\n\n{cta_line}".strip()
+    return body
 
 
 @dataclass
@@ -1100,6 +1535,30 @@ class RealDraftStats:
     violation_retry_count: int = 0
     violation_codes: list[str] = field(default_factory=list)
     violation_count: int = 0
+
+
+def _quality_metric_key(name: str) -> str:
+    day = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return f"web_mvp:quality:{day}:{name}"
+
+
+async def emit_quality_metric(name: str, amount: int = 1) -> None:
+    if amount <= 0:
+        return
+    redis = get_redis()
+    key = _quality_metric_key(name)
+    if amount == 1:
+        await redis.incr(key)
+    else:
+        await redis.incrby(key, amount)
+    await redis.expire(key, _QUALITY_METRIC_TTL_SECONDS)
+
+
+def _output_token_budget(style_sliders: dict[str, int]) -> int:
+    # Keeps medium/short behavior conservative while giving long-band outputs headroom.
+    if style_sliders.get("length_short_long", 50) >= 67:
+        return web_mvp_output_token_budget_long()
+    return web_mvp_output_token_budget_default()
 
 
 async def save_session(session_id: str, session: dict[str, Any]) -> None:
@@ -1152,6 +1611,14 @@ def _trim_style_cache(style_cache: dict[str, str], style_order: list[str]) -> tu
     return style_cache, style_order
 
 
+def _estimate_prompt_tokens(prompt: list[dict[str, str]]) -> int:
+    text_len = 0
+    for message in prompt:
+        text_len += len(str(message.get("content") or ""))
+        text_len += len(str(message.get("role") or "")) + 4
+    return max(1, int(round(text_len / 4)))
+
+
 async def _build_real_draft(
     session: dict[str, Any],
     style_sliders: dict[str, int],
@@ -1182,6 +1649,12 @@ async def _build_real_draft(
         "seller_company_url": (session.get("company_context") or {}).get("company_url"),
         "seller_company_notes": (session.get("company_context") or {}).get("company_notes"),
     }
+    output_budget = _output_token_budget(style_sliders)
+    attempt_trace: list[dict[str, Any]] = []
+    structured_output_enabled = feature_structured_output_enabled()
+    fluency_repair_enabled = feature_fluency_repair_enabled()
+    shadow_mode_enabled = feature_shadow_mode_enabled()
+    parse_invalid_retries = 0
 
     for attempt_index in range(max_attempts):
         validator_attempt_count = attempt_index + 1
@@ -1190,6 +1663,7 @@ async def _build_real_draft(
             prospect=session["prospect"],
             research_sanitized=session.get("research_text_sanitized") or session.get("research_text") or "",
             allowed_facts=session.get("allowed_facts") or [],
+            allowed_facts_structured=session.get("allowed_facts_structured") or [],
             offer_lock=session["offer_lock"],
             cta_offer_lock=session["cta_lock_effective"],
             cta_type=session.get("cta_type"),
@@ -1200,15 +1674,94 @@ async def _build_real_draft(
             correction_notes=correction_notes,
             prospect_first_name=session.get("prospect_first_name"),
         )
-        gen_result = await _real_generate(prompt=prompt, throttled=throttled)
+        prompt_token_estimate = _estimate_prompt_tokens(prompt)
+        logger.info(
+            "web_mvp_provider_request",
+            extra={
+                "session_id": session_id,
+                "attempt": validator_attempt_count,
+                "provider_preference": _preferred_provider(),
+                "prompt_token_estimate": prompt_token_estimate,
+                "output_token_budget": output_budget,
+                "throttled": throttled,
+            },
+        )
         try:
-            subject, body = _parse_structured_output(gen_result.text)
+            gen_result = await _real_generate(
+                prompt=prompt,
+                task="web_mvp",
+                throttled=throttled,
+                output_token_budget=output_budget,
+            )
+        except TypeError:
+            # Backwards compatibility for tests monkeypatching legacy _real_generate signature.
+            gen_result = await _real_generate(prompt=prompt, throttled=throttled)
+
+        logger.info(
+            "web_mvp_provider_response",
+            extra={
+                "session_id": session_id,
+                "attempt": validator_attempt_count,
+                "provider": gen_result.provider,
+                "model": gen_result.model_name,
+                "raw_length": len(gen_result.text or ""),
+                "finish_reason": getattr(gen_result, "finish_reason", None),
+                "cascade_reason": gen_result.cascade_reason,
+                "provider_attempt_count": gen_result.attempt_count,
+            },
+        )
+        trace_row: dict[str, Any] = {
+            "attempt": validator_attempt_count,
+            "provider": gen_result.provider,
+            "model": gen_result.model_name,
+            "prompt_token_estimate": prompt_token_estimate,
+            "output_token_budget": output_budget,
+            "raw_length": len(gen_result.text or ""),
+            "finish_reason": getattr(gen_result, "finish_reason", None),
+            "prompt_template_hash": web_mvp_prompt_template_hash(),
+            "prompt_checksum": _prompt_checksum(prompt),
+            "prompt_redacted": _redact_prompt_for_trace(prompt, session=session),
+        }
+        try:
+            await emit_quality_metric("parse_attempt_count")
+            strict_openai_response = structured_output_enabled and gen_result.provider == "openai"
+            allow_salvage = (not strict_openai_response) and parse_invalid_retries >= 2
+            if strict_openai_response:
+                subject, body, parse_method = _parse_openai_structured_output(gen_result.text)
+            else:
+                subject, body, parse_method = _parse_structured_output(
+                    gen_result.text,
+                    allow_salvage=allow_salvage,
+                )
+            trace_row["parse_method"] = parse_method
+            trace_row["allow_salvage"] = allow_salvage
+            trace_row["parse_invalid_retries"] = parse_invalid_retries
+            trace_row["parsed_json"] = {"subject": subject, "body": body}
+            trace_row["subject_length"] = len(subject)
+            trace_row["body_length"] = len(body)
+            if parse_method == "salvage_substring":
+                await emit_quality_metric("parse_salvage_used_count")
+            logger.info(
+                "web_mvp_parse_complete",
+                extra={
+                    "session_id": session_id,
+                    "attempt": validator_attempt_count,
+                    "parse_method": parse_method,
+                    "subject_length": len(subject),
+                    "body_length": len(body),
+                },
+            )
         except ValueError as exc:
+            await emit_quality_metric("parse_invalid_json_count")
             last_violations = [f"invalid_json_output:{exc}"]
             all_violations.extend(last_violations)
             prior_draft = _collapse_ws((gen_result.text or "").strip())[:1200]
             correction_notes = _json_repair_feedback(gen_result.text, str(exc))
             json_repair_count += 1
+            parse_invalid_retries += 1
+            trace_row["parse_error"] = str(exc)
+            trace_row["violations"] = list(last_violations)
+            attempt_trace.append(trace_row)
             await persist_violations(last_violations, session_id=session_id, pipeline="remix")
             logger.warning(
                 "web_mvp_json_parse_failed",
@@ -1221,6 +1774,16 @@ async def _build_real_draft(
             )
             if enforcement_level == "warn":
                 candidate = canonicalize_draft(gen_result.text)
+                if feature_no_prospect_owns_guardrail_enabled():
+                    candidate, rewritten, snippets = _repair_prospect_owns_offer_lock(candidate, session=session)
+                    trace_row["prospect_owns_offer_lock_rewritten"] = rewritten
+                    if snippets:
+                        trace_row["prospect_owns_offer_lock_snippets"] = snippets[:2]
+                session["last_generation_trace"] = {
+                    "attempts": attempt_trace,
+                    "last_raw_model_output": gen_result.text,
+                    "status": "warn_parse_fallback",
+                }
                 return (
                     candidate,
                     gen_result,
@@ -1247,8 +1810,28 @@ async def _build_real_draft(
             "cta_lock_effective", DEFAULT_FALLBACK_CTA
         )
         candidate = _format_draft(subject=subject, body=body)
+        if feature_no_prospect_owns_guardrail_enabled():
+            candidate, rewritten, snippets = _repair_prospect_owns_offer_lock(candidate, session=session)
+            trace_row["prospect_owns_offer_lock_rewritten"] = rewritten
+            if snippets:
+                trace_row["prospect_owns_offer_lock_snippets"] = snippets[:2]
         violations = validate_ctco_output(candidate, session=session, style_sliders=style_sliders)
+        fluency_violations: list[str] = []
+        if fluency_repair_enabled:
+            fluency_violations = _fluency_completeness_violations(candidate, session=session)
+            if fluency_violations:
+                await emit_quality_metric("fluency_violation_count")
+                violations = _unique_ordered(violations + fluency_violations)
         if not violations:
+            trace_row["violations"] = []
+            trace_row["repaired"] = False
+            attempt_trace.append(trace_row)
+            session["last_generation_trace"] = {
+                "attempts": attempt_trace,
+                "last_raw_model_output": gen_result.text,
+                "final_candidate": candidate,
+                "status": "ok",
+            }
             return (
                 candidate,
                 gen_result,
@@ -1263,6 +1846,9 @@ async def _build_real_draft(
 
         last_violations = violations
         all_violations.extend(violations)
+        trace_row["violations"] = list(violations)
+        trace_row["repaired"] = False
+        attempt_trace.append(trace_row)
         prior_draft = _sanitize_prior_draft(candidate)
         correction_notes = _validation_feedback(violations)
         logger.warning(
@@ -1276,18 +1862,73 @@ async def _build_real_draft(
         )
         await persist_violations(violations, session_id=session_id, pipeline="remix")
 
-        if enforcement_level == "repair" and repair_enabled:
+        fluency_violation_present = any(
+            code.startswith("fluency_") or code.startswith("missing_required_field:")
+            for code in violations
+        )
+        if fluency_repair_enabled and fluency_violation_present:
+            await emit_quality_metric("fluency_repair_attempt_count")
+            repaired_candidate, fluency_repaired = _fact_preserving_fluency_repair(candidate, session=session)
+            if fluency_repaired:
+                repaired_violations = validate_ctco_output(
+                    repaired_candidate,
+                    session=session,
+                    style_sliders=style_sliders,
+                )
+                repaired_fluency = _fluency_completeness_violations(repaired_candidate, session=session)
+                if repaired_fluency:
+                    repaired_violations = _unique_ordered(repaired_violations + repaired_fluency)
+                if not repaired_violations:
+                    await emit_quality_metric("fluency_repair_success_count")
+                    session["last_generation_trace"] = {
+                        "attempts": attempt_trace,
+                        "last_raw_model_output": gen_result.text,
+                        "final_candidate": repaired_candidate,
+                        "status": "ok_fluency_repair",
+                        "shadow_mode": shadow_mode_enabled,
+                    }
+                    return (
+                        repaired_candidate,
+                        gen_result,
+                        RealDraftStats(
+                            validator_attempt_count=validator_attempt_count,
+                            json_repair_count=json_repair_count,
+                            violation_retry_count=violation_retry_count + 1,
+                            violation_codes=_violation_codes(all_violations),
+                            violation_count=len(all_violations),
+                        ),
+                    )
+
+                all_violations.extend(repaired_violations)
+                await persist_violations(repaired_violations, session_id=session_id, pipeline="remix")
+                prior_draft = _sanitize_prior_draft(repaired_candidate)
+                correction_notes = _validation_feedback(repaired_violations)
+                attempt_trace[-1]["fluency_repaired"] = True
+                attempt_trace[-1]["fluency_repaired_violations"] = list(repaired_violations)
+            else:
+                await emit_quality_metric("fluency_repair_rejected_new_claim_count")
+
+        if (
+            enforcement_level == "repair"
+            and repair_enabled
+            and not (fluency_repair_enabled and fluency_violation_present)
+        ):
             repaired_candidate = _deterministic_compliance_repair(
                 candidate,
                 session=session,
                 style_sliders=style_sliders,
             )
             if repaired_candidate != candidate:
+                await emit_quality_metric("ngram_repetition_repair_count")
                 repaired_violations = validate_ctco_output(
                     repaired_candidate,
                     session=session,
                     style_sliders=style_sliders,
                 )
+                if fluency_repair_enabled:
+                    repaired_fluency = _fluency_completeness_violations(repaired_candidate, session=session)
+                    if repaired_fluency:
+                        repaired_violations = _unique_ordered(repaired_violations + repaired_fluency)
                 if not repaired_violations:
                     logger.info(
                         "web_mvp_validation_repaired_deterministically",
@@ -1297,6 +1938,14 @@ async def _build_real_draft(
                             "initial_violations": violations,
                         },
                     )
+                    attempt_trace[-1]["repaired"] = True
+                    attempt_trace[-1]["repaired_violations"] = []
+                    session["last_generation_trace"] = {
+                        "attempts": attempt_trace,
+                        "last_raw_model_output": gen_result.text,
+                        "final_candidate": repaired_candidate,
+                        "status": "ok_deterministic_repair",
+                    }
                     return (
                         repaired_candidate,
                         gen_result,
@@ -1315,6 +1964,8 @@ async def _build_real_draft(
                 last_violations = repaired_violations
                 prior_draft = _sanitize_prior_draft(candidate)
                 correction_notes = _validation_feedback(repaired_violations)
+                attempt_trace[-1]["repaired"] = True
+                attempt_trace[-1]["repaired_violations"] = list(repaired_violations)
                 logger.warning(
                     "web_mvp_validation_deterministic_repair_incomplete",
                     extra={
@@ -1324,8 +1975,16 @@ async def _build_real_draft(
                         "enforcement_level": enforcement_level,
                     },
                 )
+        elif fluency_repair_enabled and fluency_violation_present:
+            attempt_trace[-1]["deterministic_repair_skipped"] = "fluency_repair_path"
 
         if enforcement_level == "warn":
+            session["last_generation_trace"] = {
+                "attempts": attempt_trace,
+                "last_raw_model_output": gen_result.text,
+                "final_candidate": candidate,
+                "status": "warn_with_violations",
+            }
             return (
                 candidate,
                 gen_result,
@@ -1342,8 +2001,19 @@ async def _build_real_draft(
             violation_retry_count += 1
             continue
 
+        session["last_generation_trace"] = {
+            "attempts": attempt_trace,
+            "last_raw_model_output": gen_result.text,
+            "status": "failed_validation",
+            "last_violations": list(last_violations),
+        }
         raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}")
 
+    session["last_generation_trace"] = {
+        "attempts": attempt_trace,
+        "status": "failed_exhausted",
+        "last_violations": list(last_violations),
+    }
     raise ValueError(f"ctco_validation_failed: {'; '.join(last_violations)}")
 
 
@@ -1379,6 +2049,11 @@ async def build_draft(
     enforcement_level = strict_lock_enforcement_level()
     repair_enabled = repair_loop_enabled()
     style_bands = ctco_style_bands(style_sliders)
+    quality_flags = session.get("quality_flags") or {}
+    if quality_flags.get("truncation_mid_sentence") and not quality_flags.get("_reported_truncation_mid_sentence"):
+        await emit_quality_metric("truncation_mid_sentence_count")
+        quality_flags["_reported_truncation_mid_sentence"] = True
+        session["quality_flags"] = quality_flags
     validator_attempt_count = 0
     json_repair_count = 0
     violation_retry_count = 0
@@ -1432,6 +2107,51 @@ async def build_draft(
             style_sliders=style_sliders,
             plan=plan,
         )
+        if plan.persona_route == "exec" or feature_preset_true_rewrite_enabled():
+            min_words = int(plan.length_target.get("min_words", 75))
+            max_words = int(plan.length_target.get("max_words", 110))
+        else:
+            min_words, max_words = body_word_range(style_sliders["length_short_long"])
+        if _word_count(body) < min_words:
+            body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+            cta_line = body_lines[-1] if body_lines else session.get("cta_lock_effective", DEFAULT_FALLBACK_CTA)
+            main_lines = body_lines[:-1] if len(body_lines) > 1 else body_lines
+            main_text = " ".join(main_lines).strip()
+            supplemental_sections = long_mode_section_pool(
+                company_notes=(session.get("company_context") or {}).get("company_notes"),
+                allowed_facts=session.get("allowed_facts") or [],
+                offer_lock=session.get("offer_lock") or "",
+                company=(session.get("prospect") or {}).get("company") or "your company",
+                forbidden_terms=_offer_lock_forbidden_items(session),
+            )
+            body = _fit_body_range(
+                main_text=main_text,
+                cta_line=cta_line,
+                min_total=min_words,
+                max_total=max_words,
+                extra_sections=supplemental_sections[:8],
+            )
+        if _word_count(body) < min_words:
+            body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+            cta_line = body_lines[-1] if body_lines else session.get("cta_lock_effective", DEFAULT_FALLBACK_CTA)
+            main_lines = body_lines[:-1] if len(body_lines) > 1 else body_lines
+            base_main = " ".join(main_lines).strip()
+            supplements = [
+                "Teams maintain consistent outbound quality as volume increases.",
+                "Managers get clearer control over message relevance without extra workflow burden.",
+                "Execution stays practical for organizations that need repeatable weekly output.",
+            ]
+            for sentence in supplements:
+                if sentence.lower() in base_main.lower():
+                    continue
+                candidate_main = f"{base_main} {sentence}".strip()
+                candidate_body = f"{candidate_main}\n\n{cta_line}".strip()
+                if _word_count(candidate_body) > max_words:
+                    break
+                base_main = candidate_main
+                body = candidate_body
+                if _word_count(body) >= min_words:
+                    break
         if body.splitlines():
             session["cta_lock_effective"] = _collapse_ws(body.splitlines()[-1].strip())
         legacy_draft = _format_draft(subject=subject, body=body)
@@ -1456,6 +2176,14 @@ async def build_draft(
         violation_retry_count = real_stats.violation_retry_count
         violation_codes = list(real_stats.violation_codes)
         violation_count = real_stats.violation_count
+
+    if feature_no_prospect_owns_guardrail_enabled():
+        legacy_draft, ownership_rewritten, ownership_snippets = _repair_prospect_owns_offer_lock(legacy_draft, session=session)
+        quality_flags = session.get("quality_flags") or {}
+        quality_flags["prospect_owns_offer_lock_rewritten"] = ownership_rewritten
+        if ownership_snippets:
+            quality_flags["prospect_owns_offer_lock_snippets"] = ownership_snippets[:2]
+        session["quality_flags"] = quality_flags
 
     legacy_violations = validate_ctco_output(legacy_draft, session=session, style_sliders=style_sliders)
     if legacy_violations:
@@ -1555,7 +2283,65 @@ def create_session_payload(
     research_text_sanitized = _strip_instructional_phrases(research_text_raw)
     if not research_text_sanitized:
         research_text_sanitized = _collapse_ws(research_text_raw)
-    allowed_facts = _extract_allowed_facts(research_text_raw, max_items=4)
+    facts_target = allowed_facts_target_count()
+    allowed_facts_structured = _extract_allowed_facts_structured(research_text_raw, target_items=facts_target)
+    allowed_facts = [entry.get("text", "").strip() for entry in allowed_facts_structured if entry.get("text", "").strip()]
+
+    company_notes_source = normalized_company.get("company_notes") or ""
+    _company_notes_preview, company_notes_trunc = _truncate_context_text(company_notes_source, max_chars=800)
+    _research_preview, research_trunc = _truncate_context_text(research_text_sanitized, max_chars=1600)
+    truncation_mid_sentence = bool(company_notes_trunc["cut_mid_sentence"] or research_trunc["cut_mid_sentence"])
+
+    shadow_trace: dict[str, Any] = {}
+    if feature_shadow_mode_enabled() and not feature_sentence_safe_truncation_enabled():
+        shadow_company = truncate_sentence_safe(company_notes_source, max_chars=800)
+        shadow_research = truncate_sentence_safe(research_text_sanitized, max_chars=1600)
+        shadow_trace["sentence_safe_truncation"] = {
+            "company_notes": {
+                "was_truncated": shadow_company.was_truncated,
+                "boundary_used": shadow_company.boundary_used,
+                "cut_mid_sentence": shadow_company.cut_mid_sentence,
+                "original_length": shadow_company.original_length,
+                "final_length": shadow_company.final_length,
+            },
+            "research_excerpt": {
+                "was_truncated": shadow_research.was_truncated,
+                "boundary_used": shadow_research.boundary_used,
+                "cut_mid_sentence": shadow_research.cut_mid_sentence,
+                "original_length": shadow_research.original_length,
+                "final_length": shadow_research.final_length,
+            },
+        }
+
+    logger.info(
+        "web_mvp_input_normalized",
+        extra={
+            "prospect_company": (prospect.get("company") or ""),
+            "offer_lock_length": len(effective_offer_lock or ""),
+            "company_notes_length": len(company_notes_source),
+            "research_raw_length": len(research_text_raw),
+            "research_sanitized_length": len(research_text_sanitized),
+            "facts_target": facts_target,
+        },
+    )
+    logger.info(
+        "web_mvp_truncation_checkpoint",
+        extra={
+            "company_notes": company_notes_trunc,
+            "research_excerpt": research_trunc,
+            "company_notes_tail": company_notes_source[-120:],
+            "research_tail": research_text_sanitized[-120:],
+        },
+    )
+    logger.info(
+        "web_mvp_allowed_facts_extracted",
+        extra={
+            "count": len(allowed_facts),
+            "fact_lengths": [len(fact) for fact in allowed_facts],
+            "fact_types": [entry.get("type", "other") for entry in allowed_facts_structured],
+            "fact_confidence": [entry.get("confidence", "low") for entry in allowed_facts_structured],
+        },
+    )
 
     # Derive first name server-side if not provided by client.
     if not prospect_first_name:
@@ -1569,6 +2355,7 @@ def create_session_payload(
         "prospect_first_name": prospect_first_name,
         "company_context": normalized_company,
         "allowed_facts": allowed_facts,
+        "allowed_facts_structured": allowed_facts_structured,
         "offer_lock": effective_offer_lock,
         "research_text_raw": research_text_raw,
         "research_text": research_text_sanitized,
@@ -1596,6 +2383,16 @@ def create_session_payload(
         "research_text_sanitized": research_text_sanitized,
         "research_text": research_text_sanitized,
         "allowed_facts": allowed_facts,
+        "allowed_facts_structured": allowed_facts_structured,
+        "allowed_facts_target_count": facts_target,
+        "truncation_metadata": {
+            "company_notes": company_notes_trunc,
+            "research_excerpt": research_trunc,
+        },
+        "quality_flags": {
+            "truncation_mid_sentence": truncation_mid_sentence,
+        },
+        "shadow_trace": shadow_trace,
         "factual_brief": build_factual_brief(prospect=prospect, research_text=research_text_sanitized),
         "offer_lock": effective_offer_lock,
         "cta_offer_lock": _normalize_lock_text(cta_offer_lock, max_length=500),
@@ -1614,9 +2411,10 @@ def create_session_payload(
         "style_history": [normalized_style],
         "style_cache": {},
         "style_order": [],
+        "draft_id_counter": 0,
         "metrics": {"generate_count": 0, "remix_count": 0},
     }
 
 
 def mode_is_real() -> bool:
-    return os.environ.get("EMAILDJ_QUICK_GENERATE_MODE", "mock").strip().lower() == "real"
+    return _mode() == "real"

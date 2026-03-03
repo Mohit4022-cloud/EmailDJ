@@ -234,6 +234,9 @@ class WebPreviewBatchMeta(BaseModel):
     repair_loop_enabled: bool = True
     cache_hit: bool
     latency_ms: int = Field(ge=0)
+    flags_effective: dict[str, bool] | None = None
+    prompt_template_versions: dict[str, Any] | None = None
+    execution_trace: dict[str, Any] | None = None
 
 
 class WebPresetPreviewBatchResponse(BaseModel):

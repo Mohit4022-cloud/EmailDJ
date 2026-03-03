@@ -24,6 +24,10 @@ from email_generation.output_enforcement import (
     split_sentences,
 )
 from email_generation.preset_strategies import PresetStrategy, get_preset_strategy, normalize_preset_id
+from email_generation.runtime_policies import (
+    feature_persona_router_enabled,
+    feature_preset_true_rewrite_enabled,
+)
 from email_generation.text_postprocess import enforce_information_density
 
 
@@ -69,6 +73,31 @@ _CTA_LINE_PATTERN = re.compile(
     r"quick chat|calendar|schedule|let me know|next step|reach out|happy to)\b",
     re.IGNORECASE,
 )
+_EXEC_TITLE_RE = re.compile(r"\b(ceo|chief executive officer|founder|co-founder|president)\b", re.IGNORECASE)
+_PRESET_STRUCTURE_REWRITE: dict[str, list[str]] = {
+    "straight_shooter": ["problem", "outcome", "proof", "cta"],
+    "headliner": ["hook", "problem", "proof", "cta"],
+    "giver": ["hook", "outcome", "proof", "cta"],
+    "challenger": ["problem", "hook", "outcome", "cta"],
+    "industry_insider": ["hook", "proof", "outcome", "cta"],
+    "c_suite_sniper": ["outcome", "problem", "cta"],
+}
+_PRESET_CTA_STANDARD: dict[str, str] = {
+    "straight_shooter": "calendar",
+    "headliner": "curiosity",
+    "giver": "async_audit",
+    "challenger": "objection_friendly",
+    "industry_insider": "referral",
+    "c_suite_sniper": "permission",
+}
+_PRESET_CTA_EXEC: dict[str, str] = {
+    "straight_shooter": "permission",
+    "headliner": "curiosity",
+    "giver": "async_audit",
+    "challenger": "permission",
+    "industry_insider": "referral",
+    "c_suite_sniper": "calendar",
+}
 
 def _compact(value: str | None) -> str:
     return " ".join(str(value or "").split())
@@ -213,6 +242,52 @@ def _trim_subject(subject: str, max_words: int = 8) -> str:
     return " ".join(words[:max_words])
 
 
+def _is_exec_title(title: str | None) -> bool:
+    return _EXEC_TITLE_RE.search(_compact(title)) is not None
+
+
+def _default_cta_type(preset_id: str, persona_route: str) -> str:
+    if persona_route == "exec":
+        return _PRESET_CTA_EXEC.get(preset_id, "permission")
+    return _PRESET_CTA_STANDARD.get(preset_id, "calendar")
+
+
+def _preset_wedge_copy(preset_id: str, company: str, offer_lock: str) -> tuple[str, str]:
+    templates = {
+        "straight_shooter": (
+            f"{company} teams often lose replies when first-touch messaging sounds generic.",
+            f"{offer_lock} helps enforce message relevance without adding manager overhead.",
+        ),
+        "headliner": (
+            f"A hidden gap at {company}: strong outreach volume, inconsistent first-touch quality.",
+            f"{offer_lock} gives reps a tighter opening angle that keeps responses qualified.",
+        ),
+        "giver": (
+            f"{company} likely already has enough activity; the gap is clarity in first touches.",
+            f"{offer_lock} lets us share a quick async teardown so your team can test improvements immediately.",
+        ),
+        "challenger": (
+            f"The expensive risk at {company} is not volume, it's low-signal conversations entering pipeline.",
+            f"{offer_lock} reframes outreach around disqualification discipline and higher-quality replies.",
+        ),
+        "industry_insider": (
+            f"Across teams like {company}, reply rates dip when persona triggers are not operationalized.",
+            f"{offer_lock} converts trigger signals into consistent messaging patterns reps can execute quickly.",
+        ),
+        "c_suite_sniper": (
+            f"{company} carries execution risk when outbound quality drifts across teams.",
+            f"{offer_lock} reduces that risk by tightening message quality while preserving sales velocity.",
+        ),
+    }
+    return templates.get(
+        preset_id,
+        (
+            f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline.",
+            f"{offer_lock} helps teams keep outreach specific while raising quality from first touch.",
+        ),
+    )
+
+
 @dataclass
 class GenerationPlan:
     greeting: str
@@ -229,6 +304,7 @@ class GenerationPlan:
     problem_outcome_balance: str
     preset_id: str
     structure_template: list[str]
+    persona_route: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -252,6 +328,7 @@ class GenerationPlan:
             "problem_outcome_balance",
             "preset_id",
             "structure_template",
+            "persona_route",
         }
         if not required.issubset(raw.keys()):
             return None
@@ -271,6 +348,7 @@ class GenerationPlan:
                 problem_outcome_balance=str(raw["problem_outcome_balance"]),
                 preset_id=normalize_preset_id(str(raw["preset_id"])),
                 structure_template=[str(item) for item in list(raw.get("structure_template") or []) if item][:6],
+                persona_route=str(raw.get("persona_route") or "standard"),
             )
         except Exception:
             return None
@@ -286,11 +364,19 @@ def build_generation_plan(
     strategy = get_preset_strategy(preset_id or session.get("preset_id"))
     prospect = session.get("prospect") or {}
     company = _compact(prospect.get("company")) or "your team"
+    title = _compact(prospect.get("title"))
     first_name = derive_first_name(session.get("prospect_first_name") or prospect.get("name"))
     greeting_base = "Hello" if style_sliders.get("tone_formal_casual", 50) <= 33 else "Hi"
     greeting = f"{greeting_base} {first_name or 'there'},"
+    persona_route = "exec" if feature_persona_router_enabled() and _is_exec_title(title) else "standard"
+    preset_true_rewrite = feature_preset_true_rewrite_enabled()
 
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
+    high_conf_facts = [
+        _first_sentence(entry.get("text", ""))
+        for entry in (session.get("allowed_facts_structured") or [])
+        if str(entry.get("confidence", "")).lower() == "high" and _first_sentence(entry.get("text", ""))
+    ]
     first_fact = _first_sentence(allowed_facts[0]) if allowed_facts else ""
     second_fact = _first_sentence(allowed_facts[1]) if len(allowed_facts) > 1 else ""
     offer_lock = _compact(session.get("offer_lock")) or "this approach"
@@ -298,19 +384,35 @@ def build_generation_plan(
     proof_points = _split_lines_catalog((session.get("company_context") or {}).get("company_notes"), limit=3)
     if not proof_points and second_fact:
         proof_points = [second_fact]
+    if preset_true_rewrite and high_conf_facts:
+        merged: list[str] = []
+        seen: set[str] = set()
+        for item in [high_conf_facts[0], *proof_points]:
+            key = _compact(item).lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+        proof_points = merged[:3]
 
-    wedge_problem = (
-        first_fact
-        or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
-    )
-    wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
+    wedge_problem, wedge_outcome = _preset_wedge_copy(strategy.preset_id, company, offer_lock)
+    if not preset_true_rewrite:
+        wedge_problem = (
+            first_fact
+            or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
+        )
+        wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
 
     formality = style_sliders.get("tone_formal_casual", 50)
     stance = style_sliders.get("stance_bold_diplomatic", 50)
     framing = style_sliders.get("framing_problem_outcome", 50)
     min_words, max_words, sentence_budget = _length_target(style_sliders.get("length_short_long", 50))
-    if strategy.preset_id == "c_suite_sniper":
+    if strategy.preset_id == "c_suite_sniper" or persona_route == "exec":
         sentence_budget = 2
+    elif preset_true_rewrite and sentence_budget < 3:
+        sentence_budget = 3
+    if persona_route == "exec":
+        min_words, max_words = 55, 90
 
     tone_style = {
         "use_contractions": formality >= 67,
@@ -320,7 +422,7 @@ def build_generation_plan(
     }
     balance = "problem_first" if framing <= 33 else "outcome_first" if framing >= 67 else "balanced"
 
-    selected_cta_type = cta_type or strategy.cta_type
+    selected_cta_type = cta_type or (strategy.cta_type if not preset_true_rewrite else _default_cta_type(strategy.preset_id, persona_route))
     requested_hook_strategy = _compact(session.get("hook_strategy"))
     if requested_hook_strategy not in {"research_anchored", "risk_framed", "domain_hook", "outcome_hook"}:
         requested_hook_strategy = {
@@ -330,6 +432,19 @@ def build_generation_plan(
             "value_first": "outcome_hook",
             "curiosity_headline": "outcome_hook",
         }.get(strategy.hook_type, "domain_hook")
+    if persona_route == "exec":
+        requested_hook_strategy = "risk_framed"
+        if high_conf_facts:
+            wedge_problem = _normalize_sentence(high_conf_facts[0])
+            proof_points = [high_conf_facts[0]]
+        else:
+            proof_points = proof_points[:1]
+
+    structure_template = list(strategy.structure_template)
+    if preset_true_rewrite:
+        structure_template = list(_PRESET_STRUCTURE_REWRITE.get(strategy.preset_id, structure_template))
+    if persona_route == "exec":
+        structure_template = ["outcome", "problem", "cta"]
 
     return GenerationPlan(
         greeting=greeting,
@@ -337,7 +452,7 @@ def build_generation_plan(
         hook_strategy=requested_hook_strategy,
         wedge_problem=_normalize_sentence(wedge_problem),
         wedge_outcome=_normalize_sentence(wedge_outcome),
-        proof_points_used=[_normalize_sentence(item) for item in proof_points if _compact(item)][:3],
+        proof_points_used=[_normalize_sentence(item) for item in proof_points if _compact(item)][: (1 if persona_route == "exec" else 3)],
         objection_guardrails=[
             "No unverified metrics or absolute guarantees.",
             "Pitch only offer_lock and approved positioning.",
@@ -349,7 +464,8 @@ def build_generation_plan(
         banned_phrases=[*(_BANNED_POSITIONING_PHRASES + _ADDITIONAL_BANNED)],
         problem_outcome_balance=balance,
         preset_id=strategy.preset_id,
-        structure_template=list(strategy.structure_template),
+        structure_template=structure_template,
+        persona_route=persona_route,
     )
 
 
@@ -607,6 +723,37 @@ def apply_generation_plan(
             min_words=min_words,
             max_words=max_words,
         )
+
+    # True-rewrite mode formats narrative as explicit sentence lines so structure is visible:
+    # opener, relevance, value, then CTA.
+    if feature_preset_true_rewrite_enabled():
+        lines = [line.strip() for line in rendered_body.splitlines() if line.strip()]
+        if lines:
+            cta_line = lines[-1]
+            narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
+            sentence_lines = [
+                _normalize_sentence(sentence)
+                for sentence in split_sentences(narrative)
+                if _compact(sentence)
+            ]
+            if plan.persona_route != "exec":
+                for section in extra_sections:
+                    if len(sentence_lines) >= 4:
+                        break
+                    normalized = _normalize_sentence(section)
+                    if normalized and normalized.lower() not in {entry.lower() for entry in sentence_lines}:
+                        sentence_lines.append(normalized)
+                if len(sentence_lines) < 3:
+                    for sentence in base_sentences:
+                        normalized = _normalize_sentence(sentence)
+                        if normalized and normalized.lower() not in {entry.lower() for entry in sentence_lines}:
+                            sentence_lines.append(normalized)
+                        if len(sentence_lines) >= 3:
+                            break
+            if sentence_lines:
+                if plan.persona_route == "exec":
+                    sentence_lines = sentence_lines[:3]
+                rendered_body = "\n".join(sentence_lines) + f"\n\n{cta_line}"
 
     strategy = get_preset_strategy(plan.preset_id)
     fallback_subject = _subject_fallback(strategy, company, offer_lock)

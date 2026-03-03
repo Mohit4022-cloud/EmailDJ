@@ -107,6 +107,18 @@ export async function sendFeedback(payload) {
   return res.json();
 }
 
+export async function fetchRuntimeConfig(options = {}) {
+  const endpoint = String(options.endpoint || 'generate').trim() || 'generate';
+  const bucketKey = String(options.bucketKey || 'web-app').trim() || 'web-app';
+  const params = new URLSearchParams({ endpoint, bucket_key: bucketKey });
+  const res = await fetch(`${HUB_URL}/web/v1/debug/config?${params.toString()}`, {
+    method: 'GET',
+    headers: { 'X-EmailDJ-Beta-Key': betaKey() },
+  });
+  if (!res.ok) throw new Error(`Runtime config failed (${res.status})`);
+  return res.json();
+}
+
 export async function consumeStream(requestId, onEvent) {
   const res = await fetch(`${HUB_URL}/web/v1/stream/${requestId}`, {
     headers: { 'X-EmailDJ-Beta-Key': betaKey(), Accept: 'text/event-stream' },

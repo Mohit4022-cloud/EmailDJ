@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from email_generation.runtime_policies import real_provider_preference
+
 
 @dataclass
 class ModelSpec:
@@ -61,7 +63,7 @@ def _provider_max_retries(provider: str) -> int:
 
 def _preferred_provider_order() -> list[str]:
     """Return providers in fallback order: preferred first, then others."""
-    preferred = os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai"
+    preferred = real_provider_preference()
     all_providers = ["openai", "anthropic", "groq"]
     ordered = [preferred] + [p for p in all_providers if p != preferred]
     return ordered
@@ -82,7 +84,7 @@ def get_model(tier: int, task: str, throttled: bool = False) -> ModelSpec:
         )
 
     provider_map = _TIER_MODEL_OVERRIDES.get(tier, _TIER_MODEL_OVERRIDES[2])
-    preferred = os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai"
+    preferred = real_provider_preference()
     provider = preferred if preferred in provider_map else "openai"
     model_name = provider_map[provider]
 
