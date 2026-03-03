@@ -130,8 +130,10 @@ function normalizeBodyText(value) {
 function buildReadyEmailHtml(preview) {
   const subject = escapeHtml(preview?.subject || '');
   const body = escapeHtml(normalizeBodyText(preview?.body || '')).replaceAll('\n', '<br>');
+  const warning = String(preview?.validationWarning || '').trim();
   return `
     <div class="preset-email-card">
+      ${warning ? `<div class="preset-email-warning">${escapeHtml(warning)}</div>` : ''}
       <div class="preset-email-label">Subject</div>
       <div class="preset-email-subject">${subject}</div>
       <div class="preset-email-divider"></div>
@@ -385,6 +387,14 @@ export class SDRPresetLibrary {
       if (contextHash !== this.activeContextHash) return { ok: true };
 
       const responsePreviews = Array.isArray(response?.previews) ? response.previews : [];
+      const violationCount = Number(response?.meta?.violation_count || 0);
+      const violationCodes = Array.isArray(response?.meta?.violation_codes)
+        ? response.meta.violation_codes.map((code) => String(code)).filter(Boolean)
+        : [];
+      const warning =
+        violationCount > 0
+          ? `Validation warnings: ${violationCodes.slice(0, 4).join(', ') || `${violationCount} issue(s)`}`
+          : '';
       const byPresetId = new Map(
         responsePreviews
           .map((item) => [String(item?.preset_id || ''), item])
@@ -418,6 +428,7 @@ export class SDRPresetLibrary {
             Array.isArray(source.whyItWorks) && source.whyItWorks.length > 0
               ? source.whyItWorks.map((item) => String(item)).slice(0, 3)
               : base.whyItWorks,
+          validationWarning: warning,
         };
         const key = buildPreviewCacheKey(contextHash, preset.id);
         this.previewCache.set(key, preview);

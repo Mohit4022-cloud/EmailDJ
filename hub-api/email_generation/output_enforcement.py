@@ -1,118 +1,77 @@
-"""Shared output-enforcement helpers for main and preset-preview pipelines."""
+"""Shared output-enforcement helpers — partial shim.
+
+Most logic has moved to:
+  email_generation.text_utils                — compact, split_sentences, sentence_key, etc.
+  email_generation.policies.greeting_policy  — derive_first_name, enforce_first_name_greeting
+  email_generation.policies.leakage_policy   — remove_generic_closers
+  email_generation.policies.length_policy    — long_mode_section_pool, compose_body_without_padding_loops
+
+This module re-exports all original names and keeps sanitize_generic_ai_opener locally.
+"""
 
 from __future__ import annotations
 
 import re
-from typing import Iterable
+from difflib import SequenceMatcher
 
-from email_generation.compliance_rules import _GENERIC_CLOSER_PATTERNS
+# ---------------------------------------------------------------------------
+# Re-exports from text_utils
+# ---------------------------------------------------------------------------
 
+from email_generation.text_utils import (
+    _sentence_ngrams,
+    _stable_pick,
+    cap_repeated_ngrams,
+    compact,
+    dedupe_sentence_list,
+    dedupe_sentences_text,
+    sentence_key,
+    split_sentences,
+)
+
+# ---------------------------------------------------------------------------
+# Re-exports from greeting_policy
+# ---------------------------------------------------------------------------
+
+from email_generation.policies.greeting_policy import (
+    derive_first_name,
+    enforce_first_name_greeting,
+)
+
+# ---------------------------------------------------------------------------
+# Re-exports from leakage_policy
+# ---------------------------------------------------------------------------
+
+from email_generation.policies.leakage_policy import (
+    _GENERIC_CLOSER_PATTERNS,
+    remove_generic_closers,
+)
+
+# ---------------------------------------------------------------------------
+# Re-exports from length_policy
+# ---------------------------------------------------------------------------
+
+from email_generation.policies.length_policy import (
+    compose_body_without_padding_loops,
+    long_mode_section_pool,
+)
+
+# ---------------------------------------------------------------------------
+# sanitize_generic_ai_opener — kept locally (not moved to a policy)
+# ---------------------------------------------------------------------------
 
 _GENERIC_AI_OPENER_PATTERN = re.compile(
     r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
     re.IGNORECASE,
 )
 _GENERIC_AI_RESEARCH_PATTERN = re.compile(r"scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives", re.IGNORECASE)
-_SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!?])\s+")
-
-
-def compact(value: str | None) -> str:
-    return " ".join(str(value or "").split())
-
-
-def split_sentences(value: str | None) -> list[str]:
-    text = compact(value)
-    if not text:
-        return []
-    return [part.strip() for part in _SENTENCE_SPLIT_PATTERN.split(text) if part.strip()]
-
-
-def sentence_key(value: str) -> str:
-    return re.sub(r"[^a-z0-9 ]", "", compact(value).lower())
-
-
-def derive_first_name(raw_name: str | None) -> str:
-    tokens = [token.strip(",.!?:;") for token in compact(raw_name).split() if token.strip(",.!?:;")]
-    while tokens and tokens[0].lower().rstrip(".") in {"mr", "mrs", "ms", "dr", "prof", "sir", "madam"}:
-        tokens.pop(0)
-    return tokens[0] if tokens else ""
-
-
-def enforce_first_name_greeting(text: str, first_name: str | None) -> str:
-    body = compact(text)
-    if not body:
-        return ""
-    greeting = "Hi"
-    greeting_match = re.match(r"^(hi|hello)\s+[^,\n]+,\s*", body, flags=re.IGNORECASE)
-    if greeting_match:
-        greeting = "Hello" if greeting_match.group(1).lower() == "hello" else "Hi"
-    stripped = re.sub(r"^(?:hi|hello)\s+[^,\n]+,\s*", "", body, flags=re.IGNORECASE)
-    name = derive_first_name(first_name) or "there"
-    return f"{greeting} {name}, {stripped}".strip()
-
-
-def dedupe_sentence_list(sentences: Iterable[str]) -> list[str]:
-    output: list[str] = []
-    seen: set[str] = set()
-    for sentence in sentences:
-        cleaned = compact(sentence)
-        if not cleaned:
-            continue
-        key = sentence_key(cleaned)
-        if not key or key in seen:
-            continue
-        seen.add(key)
-        output.append(cleaned)
-    return output
-
-
-def dedupe_sentences_text(text: str) -> str:
-    return " ".join(dedupe_sentence_list(split_sentences(text))).strip()
-
-
-def remove_generic_closers(text: str) -> str:
-    """Remove sentences that match known generic AI closer/sign-off patterns."""
-    sentences = split_sentences(text)
-    kept = [s for s in sentences if not any(p.search(s) for p in _GENERIC_CLOSER_PATTERNS)]
-    return " ".join(kept).strip()
-
-
-def _sentence_ngrams(sentence: str, n: int) -> list[str]:
-    words = re.findall(r"[a-z0-9']+", sentence.lower())
-    if len(words) < n:
-        return []
-    return [" ".join(words[index : index + n]) for index in range(len(words) - n + 1)]
-
-
-def cap_repeated_ngrams(sentences: list[str], max_count: int = 2, min_n: int = 3, max_n: int = 5) -> list[str]:
-    counts: dict[str, int] = {}
-    output: list[str] = []
-    for sentence in sentences:
-        reject = False
-        sentence_counts: dict[str, int] = {}
-        for n in range(min_n, max_n + 1):
-            for ngram in _sentence_ngrams(sentence, n):
-                sentence_counts[ngram] = sentence_counts.get(ngram, 0) + 1
-                if counts.get(ngram, 0) + sentence_counts[ngram] > max_count:
-                    reject = True
-                    break
-            if reject:
-                break
-        if reject:
-            continue
-        output.append(sentence)
-        for ngram, value in sentence_counts.items():
-            counts[ngram] = counts.get(ngram, 0) + value
-    return output
-
-
-def _stable_pick(values: list[str], seed: str) -> str:
-    if not values:
-        return ""
-    if not seed:
-        return values[0]
-    index = sum(ord(ch) for ch in seed) % len(values)
-    return values[index]
+_SIGNOFF_LINE_PATTERN = re.compile(r"^(?:best regards|regards|sincerely|thanks|thank you|cheers)\b", re.IGNORECASE)
+_CTA_LIKE_PATTERN = re.compile(
+    r"\b(?:open to|worth a look|not a priority|quick chat|quick call|"
+    r"15\s*(?:-|to)?\s*(?:min|minute|minutes)|20\s*(?:-|to)?\s*(?:min|minute|minutes)|"
+    r"book time|schedule|calendar)\b",
+    re.IGNORECASE,
+)
 
 
 def sanitize_generic_ai_opener(
@@ -150,132 +109,74 @@ def sanitize_generic_ai_opener(
     return " ".join(sentences).strip()
 
 
-def long_mode_section_pool(
+def enforce_cta_last_line(
+    body: str,
     *,
-    company_notes: str | None,
-    allowed_facts: list[str] | None,
-    offer_lock: str,
-    company: str,
-    forbidden_terms: list[str] | None = None,
-) -> list[str]:
-    note_sentences = split_sentences(company_notes)
-    fact_sentences = split_sentences(" ".join(allowed_facts or []))
-    proof_candidates = dedupe_sentence_list(note_sentences + fact_sentences)
-    proof_line = ""
-    if proof_candidates:
-        proof_slice = proof_candidates[:2]
-        if len(proof_slice) == 1:
-            proof_line = f"One proof point from your notes: {proof_slice[0]}"
-        else:
-            proof_line = f"Two proof points from your notes: {proof_slice[0]}; {proof_slice[1]}"
+    cta_line: str,
+) -> str:
+    """Deterministically normalize body text and force a single CTA as last line.
 
-    mechanism_line = (
-        f"{offer_lock} helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context."
-    )
-    deliverable_line = (
-        "In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier."
-    )
-    risk_line = (
-        f"That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for {company}."
-    )
+    Steps:
+    - remove signoff-like lines anywhere in the body
+    - remove duplicate/near-duplicate CTA-like lines
+    - collapse extra spaces and blank lines
+    - append exact CTA once, as final line
+    """
+    cta = compact(cta_line)
+    if not cta:
+        return compact(body)
 
-    pool = [
-        proof_line,
-        mechanism_line,
-        deliverable_line,
-        risk_line,
-    ]
-    filtered_terms: list[str] = []
+    normalized = (body or "").replace("\r\n", "\n").replace("\r", "\n")
+    raw_lines = [compact(line) for line in normalized.split("\n") if compact(line)]
+    cleaned: list[str] = []
+    cta_norm = cta.lower()
+    for line in raw_lines:
+        if _SIGNOFF_LINE_PATTERN.search(line):
+            continue
+        line_norm = compact(line).lower()
+        if not line_norm:
+            continue
+        ratio = SequenceMatcher(None, cta_norm, line_norm).ratio()
+        if line_norm == cta_norm:
+            continue
+        if ratio >= 0.88 and ("?" in line or _CTA_LIKE_PATTERN.search(line)):
+            continue
+        if _CTA_LIKE_PATTERN.search(line) and "?" in line:
+            continue
+        cleaned.append(line)
+
+    deduped: list[str] = []
     seen: set[str] = set()
-    offer_key = compact(offer_lock).lower()
-    for term in forbidden_terms or []:
-        cleaned = compact(term)
-        key = cleaned.lower()
-        if not key or key == offer_key or key in seen:
+    for line in cleaned:
+        key = line.lower()
+        if key in seen:
             continue
         seen.add(key)
-        filtered_terms.append(cleaned)
+        deduped.append(line)
 
-    sanitized: list[str] = []
-    for line in pool:
-        cleaned_line = compact(line)
-        if not cleaned_line:
-            continue
-        for term in filtered_terms:
-            if " " in term:
-                cleaned_line = re.sub(re.escape(term), "", cleaned_line, flags=re.IGNORECASE)
-            else:
-                cleaned_line = re.sub(rf"\b{re.escape(term)}\b", "", cleaned_line, flags=re.IGNORECASE)
-        cleaned_line = re.sub(r"\s{2,}", " ", cleaned_line)
-        cleaned_line = re.sub(r"\s+([,.;!?])", r"\1", cleaned_line).strip(" ,;")
-        if cleaned_line:
-            sanitized.append(cleaned_line)
-    # Cap to 2 extra sections to prevent repetition from thin notes
-    return sanitized[:2]
+    return "\n".join([*deduped, cta]).strip()
 
 
-def compose_body_without_padding_loops(
-    *,
-    base_sentences: list[str],
-    extra_sections: list[str],
-    cta_line: str,
-    min_words: int,
-    max_words: int,
-) -> str:
-    cta = compact(cta_line)
-    cta_words = len(re.findall(r"[A-Za-z0-9']+", cta))
-    min_main = max(20, min_words - cta_words)
-    max_main = max(min_main, max_words - cta_words)
-
-    ordered = dedupe_sentence_list([*base_sentences, *extra_sections])
-    filtered = cap_repeated_ngrams(ordered, max_count=2, min_n=3, max_n=5)
-
-    selected: list[str] = []
-    selected_words = 0
-    for sentence in filtered:
-        count = len(re.findall(r"[A-Za-z0-9']+", sentence))
-        if count == 0:
-            continue
-        if selected_words + count > max_main and selected:
-            continue
-        selected.append(sentence)
-        selected_words += count
-
-    if not selected:
-        selected = [compact(cta)] if cta else []
-
-    if selected_words > max_main:
-        words = re.findall(r"\S+", " ".join(selected))[:max_main]
-        main_text = " ".join(words)
-    else:
-        main_text = " ".join(selected)
-
-    # Add finite unique sections only once (no loops) when below minimum.
-    if len(re.findall(r"[A-Za-z0-9']+", main_text)) < min_main:
-        existing = set(sentence_key(line) for line in split_sentences(main_text))
-        additions: list[str] = []
-        for section in extra_sections:
-            key = sentence_key(section)
-            if not key or key in existing:
-                continue
-            existing.add(key)
-            additions.append(section)
-            candidate = " ".join([main_text, *additions]).strip()
-            if len(re.findall(r"[A-Za-z0-9']+", candidate)) >= min_main:
-                main_text = candidate
-                break
-        else:
-            if additions:
-                main_text = " ".join([main_text, *additions]).strip()
-
-    # Final trim to max in case additions pushed over.
-    words = re.findall(r"\S+", main_text)
-    if len(words) > max_main:
-        main_text = " ".join(words[:max_main]).strip()
-
-    # Post-composition dedup: remove sentence-level duplicates and re-cap n-grams
-    post_sentences = dedupe_sentence_list(split_sentences(main_text))
-    post_sentences = cap_repeated_ngrams(post_sentences, max_count=1, min_n=3, max_n=5)
-    main_text = " ".join(post_sentences).strip()
-
-    return f"{main_text}\n\n{cta}".strip() if cta else main_text.strip()
+__all__ = [
+    # text_utils re-exports
+    "compact",
+    "split_sentences",
+    "sentence_key",
+    "dedupe_sentence_list",
+    "dedupe_sentences_text",
+    "_sentence_ngrams",
+    "cap_repeated_ngrams",
+    "_stable_pick",
+    # greeting_policy re-exports
+    "derive_first_name",
+    "enforce_first_name_greeting",
+    # leakage_policy re-exports
+    "_GENERIC_CLOSER_PATTERNS",
+    "remove_generic_closers",
+    # length_policy re-exports
+    "long_mode_section_pool",
+    "compose_body_without_padding_loops",
+    # local
+    "sanitize_generic_ai_opener",
+    "enforce_cta_last_line",
+]

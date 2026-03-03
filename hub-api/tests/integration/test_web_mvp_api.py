@@ -95,6 +95,10 @@ def _stream_token_text(stream_text: str) -> str:
     return "".join(tokens)
 
 
+def _stream_token_json(stream_text: str) -> dict:
+    return json.loads(_stream_token_text(stream_text))
+
+
 def _stream_done_payload(stream_text: str) -> dict:
     event_name = ""
     for line in stream_text.splitlines():
@@ -375,6 +379,49 @@ async def test_web_generate_empty_cta_uses_canonical_fallback():
         assert stream.status_code == 200
         rendered = _stream_token_text(stream.text)
         _assert_upgraded_cta(rendered)
+
+
+@pytest.mark.asyncio
+async def test_web_generate_rc_tco_contract_streams_strict_json():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+
+    from main import app
+
+    payload = _generate_payload()
+    payload["response_contract"] = "rc_tco_json_v1"
+    payload["pipeline_meta"] = {"mode": "generate", "model_hint": "gpt-4.1-nano"}
+    payload["cta_offer_lock"] = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 200
+        body = start.json()
+
+        stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
+        assert stream.status_code == 200
+        generated = _stream_token_json(stream.text)
+        assert set(generated.keys()) == {
+            "user_company_intel",
+            "prospect_intel",
+            "message_plan",
+            "email",
+            "self_check",
+            "debug",
+        }
+        assert generated["self_check"]["cta_count"] == 1
+        assert generated["self_check"]["cta_is_last_line"] is True
+        assert generated["debug"]["effective_model_used"] == "mock"
+        done = _stream_done_payload(stream.text)
+        assert done["response_contract"] == "rc_tco_json_v1"
 
 
 @pytest.mark.asyncio

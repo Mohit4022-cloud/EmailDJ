@@ -155,6 +155,8 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         company_context=req.company_context.model_dump(exclude_none=True),
         prospect_first_name=req.prospect_first_name,
         preset_id=req.preset_id,
+        response_contract=req.response_contract,
+        pipeline_meta=req.pipeline_meta.model_dump(exclude_none=True) if req.pipeline_meta else None,
     )
     await save_session(session_id, session)
 
@@ -309,6 +311,8 @@ async def web_stream(request_id: str, request: Request):
                 mode_info["violation_count"] = result.violation_count
                 mode_info["enforcement_level"] = result.enforcement_level
                 mode_info["repair_loop_enabled"] = result.repair_loop_enabled
+                mode_info["policy_versions"] = result.policy_version_snapshot
+                mode_info["response_contract"] = result.response_contract
                 async for token in _token_stream(result.draft):
                     yield token
                 if rec.mode == "generate":

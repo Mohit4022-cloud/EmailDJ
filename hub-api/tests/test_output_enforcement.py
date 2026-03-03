@@ -1,4 +1,4 @@
-from email_generation.output_enforcement import long_mode_section_pool, sanitize_generic_ai_opener
+from email_generation.output_enforcement import enforce_cta_last_line, long_mode_section_pool, sanitize_generic_ai_opener
 
 
 def test_sanitize_generic_ai_opener_replaces_banned_pattern_without_research_anchor():
@@ -72,3 +72,22 @@ def test_long_mode_section_pool_strips_forbidden_multiword_terms():
     joined = " ".join(sections).lower()
     assert "prospect enrichment" not in joined
     assert "sequence qa" not in joined
+
+
+def test_enforce_cta_last_line_removes_signoff_and_duplicate_ctas():
+    cta = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
+    body = (
+        "Hi Alex,\n"
+        "Acme is tightening outbound quality controls this quarter.\n"
+        "Best regards,\n"
+        "Open to a quick call next week?\n"
+        "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
+    )
+
+    normalized = enforce_cta_last_line(body, cta_line=cta)
+    lines = [line.strip() for line in normalized.splitlines() if line.strip()]
+
+    assert lines[-1] == cta
+    assert sum(1 for line in lines if line == cta) == 1
+    assert all("best regards" not in line.lower() for line in lines)
+    assert all("quick call next week" not in line.lower() for line in lines)

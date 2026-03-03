@@ -63,6 +63,13 @@ class WebCompanyContext(BaseModel):
     company_notes: str | None = Field(default=None, max_length=8000)
 
 
+class WebPipelineMeta(BaseModel):
+    mode: Literal["preview", "generate"] | None = None
+    model_hint: str | None = Field(default=None, max_length=120)
+    throttled: bool | None = None
+    request_id: str | None = Field(default=None, max_length=120)
+
+
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
     prospect_first_name: str | None = Field(
@@ -83,6 +90,11 @@ class WebGenerateRequest(BaseModel):
         max_length=80,
         description="Optional strategy preset id (e.g., straight_shooter, headliner).",
     )
+    response_contract: Literal["legacy_text", "rc_tco_json_v1"] = Field(
+        default="legacy_text",
+        description="Response contract mode. legacy_text streams Subject/Body text; rc_tco_json_v1 streams strict JSON payload.",
+    )
+    pipeline_meta: WebPipelineMeta | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
     company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 

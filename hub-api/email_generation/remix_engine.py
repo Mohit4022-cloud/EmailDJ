@@ -48,6 +48,12 @@ from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
 from email_generation.prompt_templates import get_web_mvp_prompt
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
+from email_generation.rc_tco_controller import (
+    LEGACY_RESPONSE_CONTRACT,
+    RC_TCO_RESPONSE_CONTRACT,
+    build_rc_tco_output,
+    validate_rc_tco_json,
+)
 from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
@@ -148,6 +154,13 @@ _CLAIM_VIOLATION_PREFIXES = (
     "unsubstantiated_performance_claim",
     "unsubstantiated_claim",
 )
+
+
+def _response_contract(session: dict[str, Any]) -> str:
+    value = _collapse_ws(str(session.get("response_contract") or LEGACY_RESPONSE_CONTRACT)).lower()
+    if value == RC_TCO_RESPONSE_CONTRACT:
+        return RC_TCO_RESPONSE_CONTRACT
+    return LEGACY_RESPONSE_CONTRACT
 
 
 def _session_key(session_id: str) -> str:
@@ -555,6 +568,13 @@ def _extract_subject_and_body(draft: str) -> tuple[str, str]:
 
 def _format_draft(subject: str, body: str) -> str:
     return f"Subject: {subject.strip()}\nBody:\n{body.strip()}".strip()
+
+
+def _rc_tco_payload_to_draft(payload: dict[str, Any]) -> str:
+    email = payload.get("email") if isinstance(payload, dict) else {}
+    subject = _collapse_ws((email or {}).get("subject") or "")
+    body = ((email or {}).get("body") or "").strip()
+    return _format_draft(subject=subject, body=body)
 
 
 def canonicalize_draft(draft: str) -> str:
@@ -1056,6 +1076,7 @@ class DraftResult:
     draft: str
     style_key: str
     style_profile: dict[str, float]
+    response_contract: str = field(default=LEGACY_RESPONSE_CONTRACT)
     mode: str = field(default="mock")
     provider: str = field(default="mock")
     model_name: str = field(default="mock")
@@ -1336,6 +1357,8 @@ async def build_draft(
     style_sliders = style_profile_to_ctco_sliders(normalized)
     preset_id = normalize_preset_id(session.get("preset_id"))
     session["preset_id"] = preset_id
+    response_contract = _response_contract(session)
+    session["response_contract"] = response_contract
     plan = build_generation_plan(
         session=session,
         style_sliders=style_sliders,
@@ -1350,7 +1373,7 @@ async def build_draft(
         style_sliders=style_sliders,
         company_context=session.get("company_context"),
     )
-    style_key = f"p:{preset_id}|{style_profile_key(normalized)}"
+    style_key = f"c:{response_contract}|p:{preset_id}|{style_profile_key(normalized)}"
     style_cache = session.get("style_cache", {})
     mode = _mode()
     enforcement_level = strict_lock_enforcement_level()
@@ -1363,7 +1386,10 @@ async def build_draft(
     violation_codes: list[str] = []
     if style_key in style_cache:
         cached_draft = style_cache[style_key]
-        cached_violations = validate_ctco_output(cached_draft, session=session, style_sliders=style_sliders)
+        if response_contract == RC_TCO_RESPONSE_CONTRACT:
+            cached_violations = validate_rc_tco_json(cached_draft)
+        else:
+            cached_violations = validate_ctco_output(cached_draft, session=session, style_sliders=style_sliders)
         if cached_violations:
             style_cache.pop(style_key, None)
             session["style_cache"] = style_cache
@@ -1376,6 +1402,7 @@ async def build_draft(
                 draft=cached_draft,
                 style_key=style_key,
                 style_profile=normalized,
+                response_contract=response_contract,
                 mode=mode,
                 provider=_provider,
                 model_name=_model,
@@ -1394,6 +1421,7 @@ async def build_draft(
 
     result_cascade_reason = "primary"
     result_attempt_count = 0
+    legacy_draft = ""
     if mode != "real":
         subject = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
         body = _mock_body(session=session, style_sliders=style_sliders)
@@ -1406,11 +1434,11 @@ async def build_draft(
         )
         if body.splitlines():
             session["cta_lock_effective"] = _collapse_ws(body.splitlines()[-1].strip())
-        draft = _format_draft(subject=subject, body=body)
+        legacy_draft = _format_draft(subject=subject, body=body)
         result_provider = "mock"
         result_model = "mock"
     else:
-        draft, gen_result, real_stats = await _build_real_draft(
+        legacy_draft, gen_result, real_stats = await _build_real_draft(
             session=session,
             style_sliders=style_sliders,
             style_bands=style_bands,
@@ -1429,17 +1457,39 @@ async def build_draft(
         violation_codes = list(real_stats.violation_codes)
         violation_count = real_stats.violation_count
 
-    violations = validate_ctco_output(draft, session=session, style_sliders=style_sliders)
-    if violations:
-        await persist_violations(violations, session_id=session_id, pipeline="remix")
-        violation_codes = _unique_ordered(violation_codes + _violation_codes(violations))
-        violation_count += len(violations)
+    legacy_violations = validate_ctco_output(legacy_draft, session=session, style_sliders=style_sliders)
+    if legacy_violations:
+        await persist_violations(legacy_violations, session_id=session_id, pipeline="remix")
+        violation_codes = _unique_ordered(violation_codes + _violation_codes(legacy_violations))
+        violation_count += len(legacy_violations)
         if enforcement_level != "warn":
-            raise ValueError(f"ctco_validation_failed: {'; '.join(violations)}")
+            raise ValueError(f"ctco_validation_failed: {'; '.join(legacy_violations)}")
+
+    draft = legacy_draft
+    policy_draft = legacy_draft
+    if response_contract == RC_TCO_RESPONSE_CONTRACT:
+        subject, body = _extract_subject_and_body(legacy_draft)
+        payload = build_rc_tco_output(
+            session=session,
+            subject=subject,
+            body=body,
+            mode=mode,
+            effective_model_used=result_model,
+            pipeline_meta=session.get("pipeline_meta"),
+        )
+        draft = json.dumps(payload, separators=(",", ":"), ensure_ascii=True)
+        policy_draft = _rc_tco_payload_to_draft(payload)
+        contract_violations = validate_rc_tco_json(draft)
+        if contract_violations:
+            await persist_violations(contract_violations, session_id=session_id, pipeline="remix")
+            violation_codes = _unique_ordered(violation_codes + _violation_codes(contract_violations))
+            violation_count += len(contract_violations)
+            if enforcement_level != "warn":
+                raise ValueError(f"ctco_validation_failed: {'; '.join(contract_violations)}")
 
     # Run policy_runner in parallel for observability — does NOT affect repair loop.
     _policy_report = policy_runner.run(
-        draft,
+        policy_draft,
         session,
         style_sliders,
         session_id=str(session_id) if session_id is not None else None,
@@ -1456,12 +1506,17 @@ async def build_draft(
     session["style_order"] = style_order
     session["last_style_profile"] = normalized
     session["style_history"] = (session.get("style_history", []) + [normalized])[-20:]
-    session["last_draft"] = draft
+    session["last_draft"] = policy_draft
+    if response_contract == RC_TCO_RESPONSE_CONTRACT:
+        session["last_structured_draft"] = draft
+    else:
+        session.pop("last_structured_draft", None)
 
     return DraftResult(
         draft=draft,
         style_key=style_key,
         style_profile=normalized,
+        response_contract=response_contract,
         mode=mode,
         provider=result_provider,
         model_name=result_model,
@@ -1489,6 +1544,8 @@ def create_session_payload(
     company_context: dict[str, Any] | None = None,
     prospect_first_name: str | None = None,
     preset_id: str | None = None,
+    response_contract: str | None = None,
+    pipeline_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized_style = normalize_style_profile(initial_style)
     initial_sliders = style_profile_to_ctco_sliders(normalized_style)
@@ -1506,6 +1563,7 @@ def create_session_payload(
     else:
         prospect_first_name = derive_first_name(prospect_first_name)
     normalized_preset_id = normalize_preset_id(preset_id)
+    normalized_contract = RC_TCO_RESPONSE_CONTRACT if _collapse_ws(str(response_contract or "")).lower() == RC_TCO_RESPONSE_CONTRACT else LEGACY_RESPONSE_CONTRACT
     seed_session = {
         "prospect": prospect,
         "prospect_first_name": prospect_first_name,
@@ -1516,6 +1574,7 @@ def create_session_payload(
         "research_text": research_text_sanitized,
         "preset_id": normalized_preset_id,
         "cta_type": cta_type,
+        "response_contract": normalized_contract,
     }
     initial_plan = build_generation_plan(
         session=seed_session,
@@ -1529,6 +1588,8 @@ def create_session_payload(
         "prospect": prospect,
         "prospect_first_name": prospect_first_name,
         "preset_id": normalized_preset_id,
+        "response_contract": normalized_contract,
+        "pipeline_meta": pipeline_meta or {},
         "company_context": normalized_company,
         "company_context_brief": build_company_context_brief(normalized_company),
         "research_text_raw": research_text_raw,

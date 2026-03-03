@@ -13,6 +13,12 @@ import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
 import { debounce } from './utils.js';
 
+const VITE_RESPONSE_CONTRACT =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_RESPONSE_CONTRACT : undefined;
+const RESPONSE_CONTRACT = String(VITE_RESPONSE_CONTRACT || 'legacy_text').trim().toLowerCase() === 'rc_tco_json_v1'
+  ? 'rc_tco_json_v1'
+  : 'legacy_text';
+
 const DEFAULT_PALANTIR_PROFILE_TEXT = `Palantir Technologies is an American software company that develops data integration and analytics platforms for government agencies, militaries, and large corporations.
 Wikipedia
 Wikipedia
@@ -358,6 +364,11 @@ class WebApp {
       cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
       cta_type: this.ctaTypeSelect.value.trim() || null,
       preset_id: this.selectedPresetId,
+      response_contract: RESPONSE_CONTRACT,
+      pipeline_meta: {
+        mode: 'generate',
+        model_hint: 'gpt-4.1-nano',
+      },
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: companyCtx,
     };
@@ -477,6 +488,7 @@ class WebApp {
     let streamError = '';
     let doneData = null;
     let streamBuffer = '';
+    let finalText = '';
     await consumeStream(requestId, (msg) => {
       if (msg.event === 'token') {
         const token = msg.data?.token || '';
@@ -487,7 +499,21 @@ class WebApp {
         }
       } else if (msg.event === 'done') {
         doneData = msg.data;
-        if (streamBuffer) this.editor.setContent(streamBuffer);
+        if (streamBuffer) {
+          if (doneData?.response_contract === 'rc_tco_json_v1') {
+            try {
+              const parsed = JSON.parse(streamBuffer.trim());
+              const subject = String(parsed?.email?.subject || '').trim();
+              const body = String(parsed?.email?.body || '').trim();
+              finalText = `Subject: ${subject}\nBody:\n${body}`.trim();
+            } catch {
+              finalText = streamBuffer;
+            }
+          } else {
+            finalText = streamBuffer;
+          }
+          this.editor.setContent(finalText);
+        }
       } else if (msg.event === 'error') {
         streamError = String(msg.data?.error || 'Draft generation failed during stream.');
       }
