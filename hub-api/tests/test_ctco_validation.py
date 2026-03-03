@@ -126,6 +126,25 @@ def test_validate_ctco_output_flags_near_match_cta():
     assert "cta_near_match_detected" in violations
 
 
+def test_validate_ctco_output_flags_signoff_before_cta():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": 0.6, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio helps your SDR team keep messaging relevant while preserving control over tone and accuracy for managers. "
+        "This gives the team a cleaner way to scale quality across higher-volume outreach without adding extra workflow drag. "
+        "Best regards, Alex.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert any(v.startswith("signoff_before_cta") for v in violations)
+
+
 def test_validate_ctco_output_flags_offer_lock_missing_in_body():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 

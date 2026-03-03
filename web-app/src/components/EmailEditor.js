@@ -34,9 +34,14 @@ export class EmailEditor {
     this.editorEl.scrollTop = this.editorEl.scrollHeight;
   }
 
-  setText(text) {
+  setContent(text) {
     if (!this.editorEl) return;
     this.editorEl.textContent = text;
+    this.originalDraft = text;
+  }
+
+  setText(text) {
+    this.setContent(text);
   }
 
   markComplete(latencyMs = null) {

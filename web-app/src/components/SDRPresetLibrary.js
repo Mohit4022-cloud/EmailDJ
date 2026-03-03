@@ -486,6 +486,8 @@ export class SDRPresetLibrary {
 
   renderPreview(preset) {
     if (!preset || !this.metaBlock || !this.emailBlock) return;
+    this.emailBlock.innerHTML = '';
+    this.metaBlock.innerHTML = '';
     this.rightPane?.classList.remove('preview-refresh');
     void this.rightPane?.offsetHeight;
     this.rightPane?.classList.add('preview-refresh');

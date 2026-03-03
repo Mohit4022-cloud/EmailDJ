@@ -33,6 +33,7 @@ from email_generation.compliance_rules import (
 from email_generation.cta_templates import resolve_cta_lock
 from email_generation.generation_plan import GenerationPlan, apply_generation_plan, build_generation_plan
 from email_generation.output_enforcement import (
+    _GENERIC_CLOSER_PATTERNS,
     compose_body_without_padding_loops,
     dedupe_sentences_text,
     derive_first_name,
@@ -42,6 +43,8 @@ from email_generation.output_enforcement import (
     sanitize_generic_ai_opener,
     split_sentences,
 )
+from email_generation.policies import policy_runner
+from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
 from email_generation.prompt_templates import get_web_mvp_prompt
 from email_generation.quick_generate import GenerateResult, _mode, _preferred_provider, _real_generate
@@ -634,6 +637,16 @@ def _expected_prospect_first_name(session: dict[str, Any]) -> str:
     return derive_first_name(raw_name)
 
 
+def _check_signoff_before_cta(body: str) -> list[str]:
+    """Hard violation: no generic signoff in body before the final CTA line."""
+    sentences = split_sentences(body)
+    for sentence in sentences[:-1]:
+        if any(pattern.search(sentence) for pattern in _GENERIC_CLOSER_PATTERNS):
+            snippet = _collapse_ws(sentence)[:60]
+            return [f"signoff_before_cta:{snippet}"]
+    return []
+
+
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
     violations: list[str] = []
 
@@ -691,6 +704,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
         if _is_additional_cta_line(line):
             violations.append("additional_cta_detected")
             break
+
+    violations.extend(_check_signoff_before_cta(body))
 
     draft_lower = draft.lower()
     offer_lock = _collapse_ws(session.get("offer_lock") or "")
@@ -1054,6 +1069,7 @@ class DraftResult:
     violation_count: int = field(default=0)
     enforcement_level: str = field(default="repair")
     repair_loop_enabled: bool = field(default=True)
+    policy_version_snapshot: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass
@@ -1373,6 +1389,7 @@ async def build_draft(
                 violation_count=0,
                 enforcement_level=enforcement_level,
                 repair_loop_enabled=repair_enabled,
+                policy_version_snapshot=policy_runner.aggregate_versions(),
             )
 
     result_cascade_reason = "primary"
@@ -1420,6 +1437,17 @@ async def build_draft(
         if enforcement_level != "warn":
             raise ValueError(f"ctco_validation_failed: {'; '.join(violations)}")
 
+    # Run policy_runner in parallel for observability — does NOT affect repair loop.
+    _policy_report = policy_runner.run(
+        draft,
+        session,
+        style_sliders,
+        session_id=str(session_id) if session_id is not None else None,
+        repair_count=violation_retry_count,
+    )
+    session["policy_version_snapshot"] = _policy_report.policy_version_snapshot
+    await persist_policy_metrics(_policy_report, session_id=str(session_id) if session_id is not None else None)
+
     style_cache[style_key] = draft
     style_order = session.get("style_order", [])
     style_order = [k for k in style_order if k != style_key] + [style_key]
@@ -1447,6 +1475,7 @@ async def build_draft(
         violation_count=violation_count,
         enforcement_level=enforcement_level,
         repair_loop_enabled=repair_enabled,
+        policy_version_snapshot=_policy_report.policy_version_snapshot,
     )
 
 

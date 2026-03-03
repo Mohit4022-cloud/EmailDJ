@@ -1,4 +1,4 @@
-"""Two-call preset preview pipeline: extractor -> summary pack -> generator batch."""
+"""Preset preview pipeline with combined extractor+generator on cache misses."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from typing import Any
 
 import httpx
@@ -39,20 +40,23 @@ from email_generation.compliance_rules import (
 )
 from email_generation.cta_templates import resolve_cta_lock
 from email_generation.output_enforcement import (
+    _GENERIC_CLOSER_PATTERNS,
     compose_body_without_padding_loops,
     derive_first_name,
     enforce_first_name_greeting,
     long_mode_section_pool,
+    remove_generic_closers,
     sanitize_generic_ai_opener,
     split_sentences,
 )
 from email_generation.preset_strategies import get_preset_strategy
-from email_generation.runtime_policies import repair_loop_enabled, strict_lock_enforcement_level
+from email_generation.runtime_policies import repair_loop_enabled
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
 PIPELINE_VERSION = "extractor-generator-v1"
+_PREVIEW_ENFORCEMENT_LEVEL_ENV = "EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"
 _BANNED_POSITIONING_PHRASES = (
     "ai services",
     "ai consulting",
@@ -61,6 +65,13 @@ _BANNED_POSITIONING_PHRASES = (
 )
 _GENERIC_AI_OPENER_PATTERN = re.compile(
     r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
+    re.IGNORECASE,
+)
+
+# CTA-like sentence patterns — used to strip duplicate CTA lines from draft body
+_CTA_LINE_PATTERN = re.compile(
+    r"\b(worth a look|not a priority|open to|book|15[ -]?min|quick call|"
+    r"quick chat|calendar|schedule|let me know|next step|reach out|happy to)\b",
     re.IGNORECASE,
 )
 
@@ -163,6 +174,25 @@ _GENERATOR_SCHEMA: dict[str, Any] = {
     "required": ["previews"],
 }
 
+_COMBINED_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "summary_pack": _EXTRACTOR_SCHEMA["properties"]["summary_pack"],
+        "previews": _GENERATOR_SCHEMA["properties"]["previews"],
+    },
+    "required": ["summary_pack", "previews"],
+}
+
+_COMBINED_SYSTEM_PROMPT = (
+    _EXTRACTOR_SYSTEM_PROMPT.replace(
+        "downstream email generation.",
+        "downstream generation in this same response.",
+    )
+    + "\n\n"
+    + _GENERATOR_SYSTEM_PROMPT
+)
+
 
 @dataclass
 class PipelineResult:
@@ -222,11 +252,15 @@ def _quick_mode() -> str:
 
 
 def _extractor_model() -> str:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", "gpt-4.1-nano").strip() or "gpt-4.1-nano"
 
 
 def _generator_model() -> str:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", "gpt-4.1-nano").strip() or "gpt-4.1-nano"
+
+
+def _fallback_model() -> str:
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_FALLBACK", "gpt-4o-mini").strip() or "gpt-4o-mini"
 
 
 def _include_summary_pack() -> bool:
@@ -319,7 +353,7 @@ def _extra_sections_for_brevity(section_pool: list[str], brevity: int) -> list[s
         return section_pool[:3]
     if brevity <= 70:
         return section_pool[:2]
-    return section_pool[:1]
+    return section_pool[:2]
 
 
 def _ensure_preview_greeting(main_text: str, first_name: str) -> str:
@@ -707,6 +741,83 @@ async def _openai_structured_json(
     return parsed
 
 
+async def _openai_structured_json_with_fallback(
+    *,
+    messages: list[dict[str, str]],
+    schema: dict[str, Any],
+    schema_name: str,
+    model_name: str,
+) -> tuple[dict[str, Any], str]:
+    """Call with primary model; fall back on schema/refusal error."""
+    try:
+        result = await _openai_structured_json(
+            messages=messages, schema=schema, schema_name=schema_name, model_name=model_name
+        )
+        return result, model_name
+    except RuntimeError as exc:
+        if "openai_model_refused" in str(exc) or "openai_error_400" in str(exc):
+            fallback = _fallback_model()
+            logger.warning(
+                "preview_model_fallback_triggered",
+                extra={"primary_model": model_name, "fallback_model": fallback, "reason": str(exc)},
+            )
+            result = await _openai_structured_json(
+                messages=messages, schema=schema, schema_name=schema_name, model_name=fallback
+            )
+            return result, fallback
+        raise
+
+
+def _combined_messages(req: WebPresetPreviewBatchRequest) -> list[dict[str, str]]:
+    payload = {
+        "prospect": req.prospect.model_dump(),
+        "product_context": req.product_context.model_dump(),
+        "raw_research": req.raw_research.model_dump(),
+        "global_sliders": req.global_sliders.model_dump(),
+        "presets": [item.model_dump() for item in req.presets],
+        "offer_lock": req.offer_lock,
+        "cta_lock_text": req.cta_lock_text or req.cta_lock or "",
+        "cta_type": req.cta_type,
+        "hook_strategy": req.hook_strategy,
+    }
+    user_prompt = (
+        "INPUTS:\n"
+        f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n\n"
+        "TASK:\n"
+        "Step 1: Extract summary_pack from raw_research (facts, hooks, likely_priorities, keywords).\n"
+        "Step 2: Using that summary_pack, generate previews for ALL presets.\n"
+        "Return both summary_pack and previews in one JSON response."
+    )
+    return [
+        {"role": "system", "content": _COMBINED_SYSTEM_PROMPT},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def _is_cta_like_sentence(sentence: str, canonical_cta: str) -> bool:
+    text = _collapse_ws(sentence).lower()
+    if not text:
+        return False
+    canonical = _collapse_ws(canonical_cta).lower()
+    if canonical and text == canonical:
+        return True
+    if canonical:
+        ratio = SequenceMatcher(None, canonical, text).ratio()
+        if ratio >= 0.82 and ("?" in text or _CTA_LINE_PATTERN.search(text)):
+            return True
+    return _CTA_LINE_PATTERN.search(text) is not None
+
+
+def _strip_cta_lines_from_draft(draft_body: str, canonical_cta: str) -> str:
+    """Remove CTA-like sentences before appending the canonical CTA line."""
+    kept: list[str] = []
+    for sentence in split_sentences(draft_body):
+        if _is_cta_like_sentence(sentence, canonical_cta):
+            continue
+        kept.append(_collapse_ws(sentence))
+    return " ".join(item for item in kept if item).strip()
+
+
 def _sanitize_summary_pack(raw: dict[str, Any], req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
     data = raw.get("summary_pack", {}) if isinstance(raw, dict) else {}
     try:
@@ -859,6 +970,13 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
                 violations.append(f"{item.preset_id}: unsubstantiated_claim:{claim[:60]}")
                 break
 
+        # Signoff must not appear before the final CTA line
+        body_sentences = split_sentences(item.body)
+        for sent in body_sentences[:-1]:  # all except last (CTA)
+            if any(p.search(sent) for p in _GENERIC_CLOSER_PATTERNS):
+                violations.append(f"{item.preset_id}: signoff_before_cta")
+                break
+
     return violations
 
 
@@ -919,6 +1037,8 @@ def _normalize_preview_items(
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
         )
+        draft_body = remove_generic_closers(draft_body)  # strip signoffs before CTA append
+        draft_body = _strip_cta_lines_from_draft(draft_body, cta)  # prevent double CTA
         section_pool = long_mode_section_pool(
             company_notes=req.raw_research.company_notes,
             allowed_facts=summary_pack.facts,
@@ -970,7 +1090,7 @@ def _mock_previews(req: WebPresetPreviewBatchRequest, summary_pack: WebSummaryPa
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:
     started = time.perf_counter()
     mode = _quick_mode()
-    enforcement_level = strict_lock_enforcement_level()
+    enforcement_level = os.environ.get(_PREVIEW_ENFORCEMENT_LEVEL_ENV, "warn").strip().lower() or "warn"
     repair_enabled = repair_loop_enabled()
     cache_hit = False
     provider = "mock"
@@ -985,19 +1105,6 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
     summary_pack = await _load_cached_summary(req)
     if summary_pack is not None:
         cache_hit = True
-    else:
-        if mode == "real":
-            provider = "openai"
-            raw = await _openai_structured_json(
-                messages=_extractor_messages(req),
-                schema=_EXTRACTOR_SCHEMA,
-                schema_name="summary_pack_extractor",
-                model_name=_extractor_model(),
-            )
-            summary_pack = _sanitize_summary_pack(raw, req)
-        else:
-            summary_pack = _mock_summary_pack(req)
-        await _save_cached_summary(req, summary_pack)
 
     all_violations: list[str] = []
 
@@ -1006,13 +1113,26 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
         model_name = _generator_model()
         provider_attempt_count = 1
         validator_attempt_count = 1
-        raw = await _openai_structured_json(
-            messages=_generator_messages(req, summary_pack),
-            schema=_GENERATOR_SCHEMA,
-            schema_name="preset_preview_batch",
-            model_name=model_name,
-        )
-        raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
+        if cache_hit:
+            # Cache hit: summary_pack from Redis; one generator call
+            raw, model_name = await _openai_structured_json_with_fallback(
+                messages=_generator_messages(req, summary_pack),
+                schema=_GENERATOR_SCHEMA,
+                schema_name="preset_preview_batch",
+                model_name=model_name,
+            )
+            raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
+        else:
+            # Cache miss: single combined extractor+generator call
+            combined_raw, model_name = await _openai_structured_json_with_fallback(
+                messages=_combined_messages(req),
+                schema=_COMBINED_SCHEMA,
+                schema_name="preset_preview_combined",
+                model_name=model_name,
+            )
+            summary_pack = _sanitize_summary_pack(combined_raw, req)
+            await _save_cached_summary(req, summary_pack)
+            raw_items = combined_raw.get("previews", []) if isinstance(combined_raw, dict) else []
         previews = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items if isinstance(raw_items, list) else [])
         violations = _violation_messages(previews, req)
         initial_violation_count = len(violations)
@@ -1023,7 +1143,7 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
             repaired = True
             provider_attempt_count += 1
             validator_attempt_count += 1
-            repaired_raw = await _openai_structured_json(
+            repaired_raw, _ = await _openai_structured_json_with_fallback(
                 messages=_generator_messages(req, summary_pack, repair_notes=violations[:10]),
                 schema=_GENERATOR_SCHEMA,
                 schema_name="preset_preview_batch_repair",
@@ -1041,6 +1161,9 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
         if final_violations and enforcement_level in {"repair", "block"}:
             raise ValueError(f"preview_validation_failed: {'; '.join(final_violations)}")
     else:
+        if not cache_hit:
+            summary_pack = _mock_summary_pack(req)
+            await _save_cached_summary(req, summary_pack)
         previews = _mock_previews(req, summary_pack)
         final_violations = _violation_messages(previews, req)
         all_violations.extend(final_violations)

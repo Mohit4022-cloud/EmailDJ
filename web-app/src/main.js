@@ -476,15 +476,18 @@ class WebApp {
     let tokenCount = 0;
     let streamError = '';
     let doneData = null;
+    let streamBuffer = '';
     await consumeStream(requestId, (msg) => {
       if (msg.event === 'token') {
         const token = msg.data?.token || '';
         if (token) {
           tokenCount += 1;
+          streamBuffer += token;
           this.editor.appendToken(token);
         }
       } else if (msg.event === 'done') {
         doneData = msg.data;
+        if (streamBuffer) this.editor.setContent(streamBuffer);
       } else if (msg.event === 'error') {
         streamError = String(msg.data?.error || 'Draft generation failed during stream.');
       }

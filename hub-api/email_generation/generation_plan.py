@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from difflib import SequenceMatcher
 from typing import Any
 
 from email_generation.claim_verifier import (
@@ -62,6 +63,12 @@ _ADDITIONAL_BANNED = [
     "conversion lift",
     "measurable results",
 ]
+
+_CTA_LINE_PATTERN = re.compile(
+    r"\b(worth a look|not a priority|open to|book|15[ -]?min|quick call|"
+    r"quick chat|calendar|schedule|let me know|next step|reach out|happy to)\b",
+    re.IGNORECASE,
+)
 
 def _compact(value: str | None) -> str:
     return " ".join(str(value or "").split())
@@ -383,6 +390,20 @@ def _remove_banned_phrases(text: str, banned_phrases: list[str]) -> str:
     return output.strip()
 
 
+def _is_cta_like_sentence(sentence: str, canonical_cta: str) -> bool:
+    line_norm = _compact(sentence).lower()
+    if not line_norm:
+        return False
+    cta_norm = _compact(canonical_cta).lower()
+    if cta_norm and line_norm == cta_norm:
+        return True
+    if cta_norm:
+        ratio = SequenceMatcher(None, cta_norm, line_norm).ratio()
+        if ratio >= 0.82 and ("?" in line_norm or _CTA_LINE_PATTERN.search(line_norm)):
+            return True
+    return _CTA_LINE_PATTERN.search(line_norm) is not None
+
+
 def apply_generation_plan(
     *,
     subject: str,
@@ -509,6 +530,7 @@ def apply_generation_plan(
             context_key=f"base:{index}",
             forbidden_terms=forbidden_terms,
         )
+    base_sentences = [sentence for sentence in base_sentences if not _is_cta_like_sentence(sentence, cta_line)]
 
     length_slider = style_sliders.get("length_short_long", 50)
     section_pool = long_mode_section_pool(
@@ -547,13 +569,44 @@ def apply_generation_plan(
         )
     extra_sections = sanitized_sections
 
+    min_words = int(plan.length_target.get("min_words", 75))
+    max_words = int(plan.length_target.get("max_words", 110))
     rendered_body = compose_body_without_padding_loops(
         base_sentences=base_sentences,
         extra_sections=extra_sections,
         cta_line=cta_line,
-        min_words=int(plan.length_target.get("min_words", 75)),
-        max_words=int(plan.length_target.get("max_words", 110)),
+        min_words=min_words,
+        max_words=max_words,
     )
+    if _word_count(rendered_body) < min_words:
+        fallback_sections = [section for section in section_pool if section not in extra_sections]
+        filler_seed = [
+            "The goal is keeping outreach consistent without adding manager overhead.",
+            "Teams usually start with one sequence, verify reply quality, then expand.",
+            "That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.",
+        ]
+        filler_sentences: list[str] = []
+        for index, sentence in enumerate(filler_seed):
+            rewritten = rewrite_unverified_claims(
+                sentence,
+                claim_source,
+                allowed_numeric_claims=allowed_numeric_claims,
+            )
+            filler_sentences.append(
+                _rewrite_forbidden_sentence(
+                    rewritten,
+                    offer_lock=offer_lock,
+                    context_key=f"filler:{index}",
+                    forbidden_terms=forbidden_terms,
+                )
+            )
+        rendered_body = compose_body_without_padding_loops(
+            base_sentences=[*base_sentences, *filler_sentences],
+            extra_sections=[*extra_sections, *fallback_sections],
+            cta_line=cta_line,
+            min_words=min_words,
+            max_words=max_words,
+        )
 
     strategy = get_preset_strategy(plan.preset_id)
     fallback_subject = _subject_fallback(strategy, company, offer_lock)

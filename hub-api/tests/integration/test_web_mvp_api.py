@@ -265,6 +265,11 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
         assert "Body:" in generated
         _assert_upgraded_cta(generated)
         assert "pipeline outcomes" not in generated.lower()
+        done = _stream_done_payload(stream.text)
+        assert done["mode"] == "real"
+        assert done["provider"] == "openai"
+        assert isinstance(done["model"], str)
+        assert done["model"] != "mock"
 
     assert calls["count"] == 2
 

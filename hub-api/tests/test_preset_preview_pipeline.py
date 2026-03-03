@@ -4,10 +4,12 @@ import pytest
 
 os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 
-from api.schemas import WebPresetPreviewBatchRequest
+import email_generation.preset_preview_pipeline as preview_pipeline
+from api.schemas import WebPresetPreviewBatchRequest, WebPreviewEffectiveSliders, WebPreviewItem
 from email_generation.preset_preview_pipeline import (
     _mock_summary_pack,
     _normalize_preview_items,
+    _violation_messages,
     make_response,
     run_preview_pipeline,
 )
@@ -254,3 +256,130 @@ def test_preview_normalization_sections_avoid_search_enrich_act_phrase():
     ]
     normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
     assert "search, enrich, act" not in normalized[0].body.lower()
+
+
+def test_normalize_strips_signoff_before_cta():
+    req = _request_payload("SignoffStrip")
+    summary_pack = _mock_summary_pack(req)
+    raw_items = [
+        {
+            "preset_id": "challenger",
+            "label": "The Challenger",
+            "subject": "Remix Studio for Acme",
+            "body": (
+                "Hi Alex, Acme is scaling outbound quality and wants stronger first-touch response rates. "
+                "Remix Studio keeps outreach specific without adding manager review overhead. "
+                "Best regards, Alex.\n\n"
+                f"{req.cta_lock_text}"
+            ),
+            "vibeLabel": "Risk-led",
+            "vibeTags": ["Direct", "Specific"],
+            "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
+        }
+    ]
+    normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
+    body = normalized[0].body
+    assert "best regards" not in body.lower()
+    assert _last_nonempty_line(body) == req.cta_lock_text
+
+
+def test_violation_catches_signoff_before_cta():
+    req = _request_payload("SignoffViolation")
+    preview = WebPreviewItem(
+        preset_id="challenger",
+        label="The Challenger",
+        effective_sliders=WebPreviewEffectiveSliders(formality=40, brevity=65, directness=70, personalization=75),
+        vibeLabel="Risk-led",
+        vibeTags=["Direct", "Specific"],
+        whyItWorks=["Uses one hook", "Focuses risk", "Clear ask"],
+        subject="Remix Studio for Acme",
+        body=(
+            "Hi Alex, Acme is scaling outbound quality across enterprise accounts and the team wants cleaner first-touch "
+            "messages with less manual rewrite work. Remix Studio helps keep outreach specific while preserving rep control, "
+            "and it reduces manager QA cycles across higher-volume sequences. That shift usually creates more consistency in "
+            "qualification conversations and follow-up quality. Best regards, Alex.\n\n"
+            f"{req.cta_lock_text}"
+        ),
+    )
+    violations = _violation_messages([preview], req)
+    assert any("signoff_before_cta" in item for item in violations)
+
+
+def test_cta_canonicalization_strips_fuzzy_match():
+    req = _request_payload("CtaCanonical")
+    summary_pack = _mock_summary_pack(req)
+    raw_items = [
+        {
+            "preset_id": "challenger",
+            "label": "The Challenger",
+            "subject": "Remix Studio for Acme",
+            "body": (
+                "Hi Alex, Acme is tightening outbound quality controls while preserving SDR workflow speed. "
+                "Remix Studio keeps messaging specific and easier to review. "
+                "Open to a quick chat to see if this is relevant? Worth a look? Not a priority?"
+            ),
+            "vibeLabel": "Risk-led",
+            "vibeTags": ["Direct", "Specific"],
+            "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
+        }
+    ]
+    normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
+    body = normalized[0].body
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    assert sum(1 for line in lines if line == req.cta_lock_text) == 1
+    assert "worth a look? not a priority?" not in body.lower()
+
+
+@pytest.mark.asyncio
+async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+    os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "warn"
+
+    req = _request_payload("SingleCall")
+    summary_pack = _mock_summary_pack(req)
+    call_names: list[str] = []
+
+    async def fake_load_cached_summary(_req):
+        return None
+
+    async def fake_save_cached_summary(_req, _summary_pack):
+        return None
+
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name):  # noqa: ARG001
+        call_names.append(schema_name)
+        previews = []
+        for preset in req.presets:
+            previews.append(
+                {
+                    "preset_id": str(preset.preset_id),
+                    "label": preset.label,
+                    "effective_sliders": {
+                        "formality": 40,
+                        "brevity": 65,
+                        "directness": 70,
+                        "personalization": 75,
+                    },
+                    "vibeLabel": "Risk-led",
+                    "vibeTags": ["Direct", "Specific"],
+                    "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
+                    "subject": "Remix Studio for Acme",
+                    "body": (
+                        "Hi Alex, Acme is scaling outbound quality and the team wants cleaner first-touch messaging. "
+                        "Remix Studio keeps outreach specific and reduces rewrite overhead for managers.\n\n"
+                        f"{req.cta_lock_text}"
+                    ),
+                }
+            )
+        return {"summary_pack": summary_pack.model_dump(), "previews": previews}, "gpt-4.1-nano"
+
+    monkeypatch.setattr(preview_pipeline, "_load_cached_summary", fake_load_cached_summary)
+    monkeypatch.setattr(preview_pipeline, "_save_cached_summary", fake_save_cached_summary)
+    monkeypatch.setattr(preview_pipeline, "_openai_structured_json_with_fallback", fake_openai_with_fallback)
+    monkeypatch.setattr(preview_pipeline, "_violation_messages", lambda previews, request: [])  # noqa: ARG005
+
+    result = await run_preview_pipeline(req)
+
+    assert call_names == ["preset_preview_combined"]
+    assert result.provider_attempt_count == 1
+    assert result.model_name == "gpt-4.1-nano"
