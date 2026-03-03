@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-03-02T15:41:38.970356Z",
+  "candidate_a": "A",
+  "candidate_b": "B",
+  "judge": {
+    "model": "gpt-4.1-nano",
+    "mode": "mock"
+  },
+  "summary": {
+    "cases_compared": 5,
+    "wins_a": 0,
+    "wins_b": 0,
+    "ties": 5
+  },
+  "results": [
+    {
+      "id": "lc_001",
+      "winner": "tie",
+      "confidence": 0.0,
+      "order_swapped": true,
+      "flags": [
+        "clarity_violation_detected"
+      ],
+      "rationale_bullets": [
+        "Email A overall=4.05, Email B overall=4.05.",
+        "Winner selected using rubric-weighted comparison with length neutrality."
+      ]
+    },
+    {
+      "id": "lc_007",
+      "winner": "tie",
+      "confidence": 0.0,
+      "order_swapped": false,
+      "flags": [
+        "clarity_violation_detected"
+      ],
+      "rationale_bullets": [
+        "Email A overall=4.05, Email B overall=4.05.",
+        "Winner selected using rubric-weighted comparison with length neutrality."
+      ]
+    },
+    {
+      "id": "lc_013",
+      "winner": "tie",
+      "confidence": 0.0,
+      "order_swapped": false,
+      "flags": [
+        "clarity_violation_detected"
+      ],
+      "rationale_bullets": [
+        "Email A overall=4.05, Email B overall=4.05.",
+        "Winner selected using rubric-weighted comparison with length neutrality."
+      ]
+    },
+    {
+      "id": "lc_019",
+      "winner": "tie",
+      "confidence": 0.0,
+      "order_swapped": false,
+      "flags": [
+        "clarity_violation_detected"
+      ],
+      "rationale_bullets": [
+        "Email A overall=4.05, Email B overall=4.05.",
+        "Winner selected using rubric-weighted comparison with length neutrality."
+      ]
+    },
+    {
+      "id": "lc_025",
+      "winner": "tie",
+      "confidence": 0.0,
+      "order_swapped": false,
+      "flags": [
+        "auto_fail_overclaim_present",
+        "clarity_violation_detected",
+        "auto_fail_guaranteed_outcome"
+      ],
+      "rationale_bullets": [
+        "Email A overall=3.45, Email B overall=3.45.",
+        "Winner selected using rubric-weighted comparison with length neutrality."
+      ]
+    }
+  ]
+}

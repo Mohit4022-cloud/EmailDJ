@@ -1,0 +1,87 @@
+{
+  "captured_at_utc": "2026-03-03T20:17:52.122184+00:00",
+  "request_count": 5,
+  "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/ui_sessions/20260303T201750Z",
+  "requests": [
+    {
+      "index": 1,
+      "endpoint": "/web/v1/preset-previews/batch",
+      "request_id": null,
+      "session_id": null,
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      }
+    },
+    {
+      "index": 2,
+      "endpoint": "/web/v1/generate",
+      "request_id": "ed66cbcf-5f7f-4e74-a5f3-c34736f6ea53",
+      "session_id": "a7fcfb7f-b61a-4329-8be9-3ef61feece80",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      }
+    },
+    {
+      "index": 3,
+      "endpoint": "/web/v1/remix",
+      "request_id": "df09e83f-ac18-430f-908b-e7a68f6002ac",
+      "session_id": null,
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      }
+    },
+    {
+      "index": 4,
+      "endpoint": "/web/v1/remix",
+      "request_id": "cb92dcba-2919-48e5-b990-71203482734b",
+      "session_id": null,
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      }
+    },
+    {
+      "index": 5,
+      "endpoint": "/web/v1/remix",
+      "request_id": "5d5217f4-8def-489b-b300-6cddaf4b6a92",
+      "session_id": null,
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,842 @@
+{
+  "endpoint_count": 24,
+  "endpoints": {
+    "GET /": {
+      "method": "GET",
+      "operation_id": "health__get",
+      "path": "/",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "object"
+      },
+      "tags": []
+    },
+    "GET /assignments/poll": {
+      "method": "GET",
+      "operation_id": "poll_assignments_assignments_poll_get",
+      "path": "/assignments/poll",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "assignments"
+      ]
+    },
+    "GET /campaigns/{campaign_id}": {
+      "method": "GET",
+      "operation_id": "get_campaign_campaigns__campaign_id__get",
+      "path": "/campaigns/{campaign_id}",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "campaigns"
+      ]
+    },
+    "GET /generate/stream/{request_id}": {
+      "method": "GET",
+      "operation_id": "stream_quick_generate_generate_stream__request_id__get",
+      "path": "/generate/stream/{request_id}",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "generate"
+      ]
+    },
+    "GET /research/{job_id}/status": {
+      "method": "GET",
+      "operation_id": "get_research_status_research__job_id__status_get",
+      "path": "/research/{job_id}/status",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "research"
+      ]
+    },
+    "GET /vault/context/{prospect_id}": {
+      "method": "GET",
+      "operation_id": "get_context_vault_context__prospect_id__get",
+      "path": "/vault/context/{prospect_id}",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "vault"
+      ]
+    },
+    "GET /web/v1/compliance/dashboard": {
+      "method": "GET",
+      "operation_id": "compliance_dashboard_web_v1_compliance_dashboard_get",
+      "path": "/web/v1/compliance/dashboard",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "ComplianceDashboardResponse",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "GET /web/v1/stream/{request_id}": {
+      "method": "GET",
+      "operation_id": "web_stream_web_v1_stream__request_id__get",
+      "path": "/web/v1/stream/{request_id}",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "POST /assignments/{assignment_id}/accept": {
+      "method": "POST",
+      "operation_id": "accept_assignment_assignments__assignment_id__accept_post",
+      "path": "/assignments/{assignment_id}/accept",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "assignments"
+      ]
+    },
+    "POST /campaigns/": {
+      "method": "POST",
+      "operation_id": "create_campaign_campaigns__post",
+      "path": "/campaigns/",
+      "request_schema": "CampaignCreateRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "campaigns"
+      ]
+    },
+    "POST /campaigns/{campaign_id}/approve": {
+      "method": "POST",
+      "operation_id": "approve_campaign_campaigns__campaign_id__approve_post",
+      "path": "/campaigns/{campaign_id}/approve",
+      "request_schema": "CampaignApproveRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "campaigns"
+      ]
+    },
+    "POST /campaigns/{campaign_id}/assign": {
+      "method": "POST",
+      "operation_id": "assign_campaign_campaigns__campaign_id__assign_post",
+      "path": "/campaigns/{campaign_id}/assign",
+      "request_schema": "CampaignAssignRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "campaigns"
+      ]
+    },
+    "POST /generate/quick": {
+      "method": "POST",
+      "operation_id": "start_quick_generate_generate_quick_post",
+      "path": "/generate/quick",
+      "request_schema": "QuickGenerateRequest",
+      "response_schemas": {
+        "200": "QuickGenerateAccepted",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "generate"
+      ]
+    },
+    "POST /research/": {
+      "method": "POST",
+      "operation_id": "start_research_research__post",
+      "path": "/research/",
+      "request_schema": "DeepResearchRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "research"
+      ]
+    },
+    "POST /vault/context/{prospect_id}/invalidate": {
+      "method": "POST",
+      "operation_id": "invalidate_context_vault_context__prospect_id__invalidate_post",
+      "path": "/vault/context/{prospect_id}/invalidate",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "vault"
+      ]
+    },
+    "POST /vault/ingest": {
+      "method": "POST",
+      "operation_id": "ingest_context_vault_ingest_post",
+      "path": "/vault/ingest",
+      "request_schema": "VaultIngestRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "vault"
+      ]
+    },
+    "POST /vault/prefetch": {
+      "method": "POST",
+      "operation_id": "prefetch_contexts_vault_prefetch_post",
+      "path": "/vault/prefetch",
+      "request_schema": "VaultPrefetchRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "vault"
+      ]
+    },
+    "POST /web/v1/feedback": {
+      "method": "POST",
+      "operation_id": "web_feedback_web_v1_feedback_post",
+      "path": "/web/v1/feedback",
+      "request_schema": "WebFeedbackRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "POST /web/v1/generate": {
+      "method": "POST",
+      "operation_id": "web_generate_web_v1_generate_post",
+      "path": "/web/v1/generate",
+      "request_schema": "WebGenerateRequest",
+      "response_schemas": {
+        "200": "WebGenerateAccepted",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "POST /web/v1/preset-previews/batch": {
+      "method": "POST",
+      "operation_id": "web_preset_previews_batch_web_v1_preset_previews_batch_post",
+      "path": "/web/v1/preset-previews/batch",
+      "request_schema": "WebPresetPreviewBatchRequest",
+      "response_schemas": {
+        "200": "WebPresetPreviewBatchResponse",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "POST /web/v1/remix": {
+      "method": "POST",
+      "operation_id": "web_remix_web_v1_remix_post",
+      "path": "/web/v1/remix",
+      "request_schema": "WebRemixRequest",
+      "response_schemas": {
+        "200": "WebRemixAccepted",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "POST /webhooks/edit": {
+      "method": "POST",
+      "operation_id": "capture_edit_webhooks_edit_post",
+      "path": "/webhooks/edit",
+      "request_schema": "WebhookEditRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "webhooks"
+      ]
+    },
+    "POST /webhooks/reply": {
+      "method": "POST",
+      "operation_id": "capture_reply_webhooks_reply_post",
+      "path": "/webhooks/reply",
+      "request_schema": "WebhookReplyRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "webhooks"
+      ]
+    },
+    "POST /webhooks/send": {
+      "method": "POST",
+      "operation_id": "capture_send_webhooks_send_post",
+      "path": "/webhooks/send",
+      "request_schema": "WebhookSendRequest",
+      "response_schemas": {
+        "200": "inline",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "webhooks"
+      ]
+    }
+  },
+  "generated_at": "2026-03-02T18:03:18Z",
+  "schema_count": 37,
+  "schemas": {
+    "CampaignApproveRequest": {
+      "properties": [
+        "approval_reason",
+        "confirm"
+      ],
+      "property_count": 2,
+      "required": [
+        "approval_reason"
+      ],
+      "required_count": 1
+    },
+    "CampaignAssignRequest": {
+      "properties": [
+        "sdr_ids"
+      ],
+      "property_count": 1,
+      "required": [
+        "sdr_ids"
+      ],
+      "required_count": 1
+    },
+    "CampaignCreateRequest": {
+      "properties": [
+        "campaign_name",
+        "command"
+      ],
+      "property_count": 2,
+      "required": [
+        "campaign_name",
+        "command"
+      ],
+      "required_count": 2
+    },
+    "ComplianceDashboardDay": {
+      "properties": [
+        "buckets",
+        "date",
+        "total_violations"
+      ],
+      "property_count": 3,
+      "required": [
+        "buckets",
+        "date",
+        "total_violations"
+      ],
+      "required_count": 3
+    },
+    "ComplianceDashboardResponse": {
+      "properties": [
+        "days",
+        "generated_at"
+      ],
+      "property_count": 2,
+      "required": [
+        "days",
+        "generated_at"
+      ],
+      "required_count": 2
+    },
+    "ComplianceViolationBucket": {
+      "properties": [
+        "preview",
+        "remix",
+        "total",
+        "violation_type"
+      ],
+      "property_count": 4,
+      "required": [
+        "preview",
+        "remix",
+        "total",
+        "violation_type"
+      ],
+      "required_count": 4
+    },
+    "DeepResearchRequest": {
+      "properties": [
+        "account_id",
+        "company_name",
+        "domain"
+      ],
+      "property_count": 3,
+      "required": [
+        "account_id",
+        "company_name",
+        "domain"
+      ],
+      "required_count": 3
+    },
+    "ExtractionMetadataIn": {
+      "properties": [
+        "extractedAt",
+        "salesforceUrl",
+        "selectorConfidences"
+      ],
+      "property_count": 3,
+      "required": [],
+      "required_count": 0
+    },
+    "HTTPValidationError": {
+      "properties": [
+        "detail"
+      ],
+      "property_count": 1,
+      "required": [],
+      "required_count": 0
+    },
+    "ProspectPayload": {
+      "properties": [
+        "accountId",
+        "accountName",
+        "activityTimeline",
+        "employeeCount",
+        "extractionMetadata",
+        "industry",
+        "lastActivityDate",
+        "notes",
+        "openOpportunities"
+      ],
+      "property_count": 9,
+      "required": [
+        "accountId"
+      ],
+      "required_count": 1
+    },
+    "QuickGenerateAccepted": {
+      "properties": [
+        "request_id",
+        "stream_url"
+      ],
+      "property_count": 2,
+      "required": [
+        "request_id",
+        "stream_url"
+      ],
+      "required_count": 2
+    },
+    "QuickGenerateRequest": {
+      "properties": [
+        "payload",
+        "slider_value"
+      ],
+      "property_count": 2,
+      "required": [
+        "payload"
+      ],
+      "required_count": 1
+    },
+    "ValidationError": {
+      "properties": [
+        "ctx",
+        "input",
+        "loc",
+        "msg",
+        "type"
+      ],
+      "property_count": 5,
+      "required": [
+        "loc",
+        "msg",
+        "type"
+      ],
+      "required_count": 3
+    },
+    "VaultIngestRequest": {
+      "properties": [
+        "payload"
+      ],
+      "property_count": 1,
+      "required": [
+        "payload"
+      ],
+      "required_count": 1
+    },
+    "VaultPrefetchRequest": {
+      "properties": [
+        "account_ids"
+      ],
+      "property_count": 1,
+      "required": [
+        "account_ids"
+      ],
+      "required_count": 1
+    },
+    "WebCompanyContext": {
+      "properties": [
+        "company_name",
+        "company_notes",
+        "company_url",
+        "current_product",
+        "other_products"
+      ],
+      "property_count": 5,
+      "required": [],
+      "required_count": 0
+    },
+    "WebFeedbackRequest": {
+      "properties": [
+        "draft_after",
+        "draft_before",
+        "session_id",
+        "style_profile"
+      ],
+      "property_count": 4,
+      "required": [
+        "draft_after",
+        "draft_before",
+        "session_id"
+      ],
+      "required_count": 3
+    },
+    "WebGenerateAccepted": {
+      "properties": [
+        "request_id",
+        "session_id",
+        "stream_url"
+      ],
+      "property_count": 3,
+      "required": [
+        "request_id",
+        "session_id",
+        "stream_url"
+      ],
+      "required_count": 3
+    },
+    "WebGenerateRequest": {
+      "properties": [
+        "company_context",
+        "cta_offer_lock",
+        "cta_type",
+        "offer_lock",
+        "prospect",
+        "prospect_first_name",
+        "research_text",
+        "style_profile"
+      ],
+      "property_count": 8,
+      "required": [
+        "offer_lock",
+        "prospect",
+        "research_text"
+      ],
+      "required_count": 3
+    },
+    "WebPresetPreviewBatchRequest": {
+      "properties": [
+        "cta_lock",
+        "global_sliders",
+        "offer_lock",
+        "presets",
+        "product_context",
+        "prospect",
+        "raw_research"
+      ],
+      "property_count": 7,
+      "required": [
+        "cta_lock",
+        "global_sliders",
+        "offer_lock",
+        "presets",
+        "product_context",
+        "prospect",
+        "raw_research"
+      ],
+      "required_count": 7
+    },
+    "WebPresetPreviewBatchResponse": {
+      "properties": [
+        "meta",
+        "previews",
+        "summary_pack"
+      ],
+      "property_count": 3,
+      "required": [
+        "meta",
+        "previews"
+      ],
+      "required_count": 2
+    },
+    "WebPreviewBatchMeta": {
+      "properties": [
+        "cache_hit",
+        "enforcement_level",
+        "final_violation_count",
+        "generation_mode",
+        "initial_violation_count",
+        "latency_ms",
+        "model",
+        "pipeline_version",
+        "provider",
+        "provider_attempt_count",
+        "repair_attempt_count",
+        "repair_loop_enabled",
+        "repaired",
+        "request_id",
+        "session_id",
+        "validator_attempt_count",
+        "violation_codes",
+        "violation_count"
+      ],
+      "property_count": 18,
+      "required": [
+        "cache_hit",
+        "latency_ms",
+        "pipeline_version",
+        "provider"
+      ],
+      "required_count": 4
+    },
+    "WebPreviewEffectiveSliders": {
+      "properties": [
+        "brevity",
+        "directness",
+        "formality",
+        "personalization"
+      ],
+      "property_count": 4,
+      "required": [
+        "brevity",
+        "directness",
+        "formality",
+        "personalization"
+      ],
+      "required_count": 4
+    },
+    "WebPreviewGlobalSliders": {
+      "properties": [
+        "brevity",
+        "directness",
+        "formality",
+        "personalization"
+      ],
+      "property_count": 4,
+      "required": [
+        "brevity",
+        "directness",
+        "formality",
+        "personalization"
+      ],
+      "required_count": 4
+    },
+    "WebPreviewItem": {
+      "properties": [
+        "body",
+        "effective_sliders",
+        "label",
+        "preset_id",
+        "subject",
+        "vibeLabel",
+        "vibeTags",
+        "whyItWorks"
+      ],
+      "property_count": 8,
+      "required": [
+        "body",
+        "effective_sliders",
+        "label",
+        "preset_id",
+        "subject",
+        "vibeLabel",
+        "vibeTags",
+        "whyItWorks"
+      ],
+      "required_count": 8
+    },
+    "WebPreviewPresetInput": {
+      "properties": [
+        "label",
+        "preset_id",
+        "slider_overrides"
+      ],
+      "property_count": 3,
+      "required": [
+        "label",
+        "preset_id"
+      ],
+      "required_count": 2
+    },
+    "WebPreviewProductContext": {
+      "properties": [
+        "one_line_value",
+        "product_name",
+        "proof_points",
+        "target_outcome"
+      ],
+      "property_count": 4,
+      "required": [
+        "one_line_value",
+        "product_name",
+        "target_outcome"
+      ],
+      "required_count": 3
+    },
+    "WebPreviewRawResearch": {
+      "properties": [
+        "company_notes",
+        "deep_research_paste",
+        "extra_constraints"
+      ],
+      "property_count": 3,
+      "required": [
+        "deep_research_paste"
+      ],
+      "required_count": 1
+    },
+    "WebPreviewSliderOverrides": {
+      "properties": [
+        "brevity",
+        "directness",
+        "formality",
+        "personalization"
+      ],
+      "property_count": 4,
+      "required": [],
+      "required_count": 0
+    },
+    "WebProspectInput": {
+      "properties": [
+        "company",
+        "company_url",
+        "linkedin_url",
+        "name",
+        "title"
+      ],
+      "property_count": 5,
+      "required": [
+        "company",
+        "name",
+        "title"
+      ],
+      "required_count": 3
+    },
+    "WebRemixAccepted": {
+      "properties": [
+        "request_id",
+        "stream_url"
+      ],
+      "property_count": 2,
+      "required": [
+        "request_id",
+        "stream_url"
+      ],
+      "required_count": 2
+    },
+    "WebRemixRequest": {
+      "properties": [
+        "session_id",
+        "style_profile"
+      ],
+      "property_count": 2,
+      "required": [
+        "session_id",
+        "style_profile"
+      ],
+      "required_count": 2
+    },
+    "WebStyleProfile": {
+      "properties": [
+        "assertiveness",
+        "formality",
+        "length",
+        "orientation"
+      ],
+      "property_count": 4,
+      "required": [],
+      "required_count": 0
+    },
+    "WebSummaryPack": {
+      "properties": [
+        "facts",
+        "hooks",
+        "keywords",
+        "likely_priorities"
+      ],
+      "property_count": 4,
+      "required": [
+        "facts",
+        "hooks",
+        "keywords",
+        "likely_priorities"
+      ],
+      "required_count": 4
+    },
+    "WebhookEditRequest": {
+      "properties": [
+        "account_id",
+        "assignment_id",
+        "final_edit",
+        "original_draft"
+      ],
+      "property_count": 4,
+      "required": [
+        "final_edit",
+        "original_draft"
+      ],
+      "required_count": 2
+    },
+    "WebhookReplyRequest": {
+      "properties": [
+        "account_id",
+        "contact_id",
+        "raw_payload",
+        "reply_timestamp"
+      ],
+      "property_count": 4,
+      "required": [],
+      "required_count": 0
+    },
+    "WebhookSendRequest": {
+      "properties": [
+        "account_id",
+        "assignment_id",
+        "email_draft",
+        "final_edit",
+        "sent_at"
+      ],
+      "property_count": 5,
+      "required": [
+        "assignment_id",
+        "email_draft"
+      ],
+      "required_count": 2
+    }
+  },
+  "source": "hub-api/openapi.json"
+}

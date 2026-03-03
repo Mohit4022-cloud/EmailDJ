@@ -1,0 +1,9 @@
+{
+  "generated_at": 1772466108.767123,
+  "source_report_json": "reports/judge/baseline_tmp/latest.json",
+  "source_report_md": "reports/judge/baseline_tmp/latest.md",
+  "candidate_id": "4c914b7",
+  "judge_model": "gpt-4.1-nano",
+  "judge_mode": "mock",
+  "prompt_contract_hash": "6a9b6d59bf6ddcb5"
+}

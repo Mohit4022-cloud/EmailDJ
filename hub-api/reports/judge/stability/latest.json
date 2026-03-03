@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-03-02T15:41:39.121894Z",
+  "checks": {
+    "same_inputs_same_aggregate_scores": true,
+    "same_inputs_same_per_case_scores": true,
+    "second_run_cache_hit_rate": 1.0,
+    "rubric_version_bump_cache_hit_rate": 0.0,
+    "judge_model_bump_cache_hit_rate": 0.0,
+    "pairwise_fixed_seed_deterministic": true,
+    "pairwise_seed_change_changes_order_plan": true
+  },
+  "notes": {
+    "expected_cache_behavior": "Run2 should be mostly/all cache hits. Rubric/model bump should force recompute (low cache hit rate).",
+    "same_inputs_contract_hash": "db2b6d42ed326b68",
+    "rubric_bump_contract_hash": "6967a18afe4496df",
+    "model_bump_contract_hash": "db2b6d42ed326b68"
+  }
+}

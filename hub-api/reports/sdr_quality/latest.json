@@ -1,0 +1,898 @@
+{
+  "pack_path": "/Users/mohit/EmailDJ/hub-api/evals/sdr_quality_pack.v1.json",
+  "baseline": {
+    "profile": "baseline",
+    "summary": {
+      "case_count": 20,
+      "average_sdr_score": 77.1,
+      "hallucination_fail_count": 0,
+      "top_failure_reasons": [
+        [
+          "too_few_body_lines",
+          20
+        ],
+        [
+          "vague_cta_phrase",
+          19
+        ],
+        [
+          "narrative_sentence_count_outside_3_to_5",
+          15
+        ],
+        [
+          "no_high_conf_fact_used",
+          10
+        ],
+        [
+          "exec_over_90_words",
+          6
+        ],
+        [
+          "offer_lock_not_connected",
+          2
+        ],
+        [
+          "exec_missing_risk_outcome_framing",
+          1
+        ]
+      ]
+    },
+    "cases": [
+      {
+        "case_id": "case_ceo_01",
+        "title": "CEO",
+        "preset_id": "straight_shooter",
+        "subject": "Remix Studio \u2014 relevant for Palantir?",
+        "body": "Hi Alex, Remix Studio helps teams keep outreach specific while raising quality from first touch. The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 85.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_ceo_02",
+        "title": "CEO",
+        "preset_id": "headliner",
+        "subject": "Remix Studio \u2014 relevant for Palantir?",
+        "body": "Hi Alex, Wikipedia. One pattern that stood out in Palantir: Palantir teams focused on message relevance tend to see stronger engagement from priority accounts. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Palantir.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 65.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_ceo_03",
+        "title": "CEO",
+        "preset_id": "giver",
+        "subject": "Quick thought on Remix Studio for Palantir",
+        "body": "Hi Alex, I put together a quick teardown based on Palantir is navigating priorities that make it hard to engage target accounts with the right message at the right time. Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Palantir.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_ceo_04",
+        "title": "CEO",
+        "preset_id": "challenger",
+        "subject": "Quick thought on Remix Studio for Palantir",
+        "body": "Hi Alex, Wikipedia. Contrarian take: Palantir is navigating priorities that make it hard to engage target accounts with the right message at the right time can hide a costly quality gap. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 45,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_founder_01",
+        "title": "Founder",
+        "preset_id": "industry_insider",
+        "subject": "Remix Studio \u2014 relevant for SignalForge?",
+        "body": "Hi Jamie, The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. Pattern we keep seeing in this segment: SignalForge teams focused on message relevance tend to see stronger engagement from priority accounts.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 75,
+        "readability_score": 100,
+        "sdr_score": 80.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "offer_lock_not_connected"
+        ]
+      },
+      {
+        "case_id": "case_founder_02",
+        "title": "Founder",
+        "preset_id": "c_suite_sniper",
+        "subject": "Remix Studio \u2014 relevant for SignalForge?",
+        "body": "Hi Jamie, Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. The goal is keeping outreach consistent without adding manager overhead. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for SignalForge. Teams maintain consistent outbound quality as volume increases.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 65.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_founder_03",
+        "title": "Founder",
+        "preset_id": "straight_shooter",
+        "subject": "Quick thought on Remix Studio for SignalForge",
+        "body": "Hi Jamie, The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. The goal is keeping outreach consistent without adding manager overhead. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_founder_04",
+        "title": "Founder",
+        "preset_id": "headliner",
+        "subject": "Quick thought on Remix Studio for SignalForge",
+        "body": "Hi Jamie, One pattern that stood out in SignalForge: SignalForge is navigating priorities that make it hard to engage target accounts with the right message at the right time. Wikipedia. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 80,
+        "structure_score": 45,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 73.0,
+        "reason_codes": [
+          "exec_missing_risk_outcome_framing",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_president_01",
+        "title": "President",
+        "preset_id": "giver",
+        "subject": "Remix Studio \u2014 relevant for Northstar Health?",
+        "body": "Hi Morgan, Remix Studio helps teams keep outreach specific while raising quality from first touch. I put together a quick teardown based on Northstar Health teams focused on message relevance tend to see stronger engagement from priority accounts.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 85.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_president_02",
+        "title": "President",
+        "preset_id": "challenger",
+        "subject": "Remix Studio \u2014 relevant for Northstar Health?",
+        "body": "Hi Morgan, Remix Studio helps teams keep outreach specific while raising quality from first touch. Wikipedia. Contrarian take: Northstar Health teams focused on message relevance tend to see stronger engagement from priority accounts can hide a costly quality gap. Two proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Northstar Health.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 65.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_president_03",
+        "title": "President",
+        "preset_id": "industry_insider",
+        "subject": "Quick thought on Remix Studio for Northstar Health",
+        "body": "Hi Morgan, Pattern we keep seeing in this segment: Northstar Health is navigating priorities that make it hard to engage target accounts with the right message at the right time. The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 60,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "exec_over_90_words",
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_president_04",
+        "title": "President",
+        "preset_id": "c_suite_sniper",
+        "subject": "Quick thought on Remix Studio for Northstar Health",
+        "body": "Hi Morgan, Remix Studio helps teams keep outreach specific while raising quality from first touch. The goal is keeping outreach consistent without adding manager overhead. Teams usually start with one sequence, verify reply quality, then expand. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 45,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_01",
+        "title": "Director, Brand Protection",
+        "preset_id": "straight_shooter",
+        "subject": "Remix Studio \u2014 relevant for Mercury Retail?",
+        "body": "Hi Riley, Remix Studio helps teams keep outreach specific while raising quality from first touch. The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 85.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_02",
+        "title": "Director, Brand Protection",
+        "preset_id": "headliner",
+        "subject": "Remix Studio \u2014 relevant for Mercury Retail?",
+        "body": "Hi Riley, Wikipedia. One pattern that stood out in Mercury Retail: Mercury Retail teams focused on message relevance tend to see stronger engagement from priority accounts. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 73.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_03",
+        "title": "Director, Brand Protection",
+        "preset_id": "giver",
+        "subject": "Quick thought on Remix Studio for Mercury Retail",
+        "body": "Hi Riley, I put together a quick teardown based on Mercury Retail is navigating priorities that make it hard to engage target accounts with the right message at the right time. Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. The goal is keeping outreach consistent without adding manager overhead. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 85.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_04",
+        "title": "Director, Brand Protection",
+        "preset_id": "challenger",
+        "subject": "Quick thought on Remix Studio for Mercury Retail",
+        "body": "Hi Riley, Wikipedia. Contrarian take: Mercury Retail is navigating priorities that make it hard to engage target accounts with the right message at the right time can hide a costly quality gap. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 65,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 81.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_01",
+        "title": "VP Legal & IP",
+        "preset_id": "industry_insider",
+        "subject": "Remix Studio \u2014 relevant for Vertex Mobility?",
+        "body": "Hi Taylor, The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. Pattern we keep seeing in this segment: Vertex Mobility teams focused on message relevance tend to see stronger engagement from priority accounts.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 75,
+        "readability_score": 100,
+        "sdr_score": 80.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "offer_lock_not_connected"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_02",
+        "title": "VP Legal & IP",
+        "preset_id": "c_suite_sniper",
+        "subject": "Remix Studio \u2014 relevant for Vertex Mobility?",
+        "body": "Hi Taylor, Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. The goal is keeping outreach consistent without adding manager overhead. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Vertex Mobility.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 73.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_03",
+        "title": "VP Legal & IP",
+        "preset_id": "straight_shooter",
+        "subject": "Quick thought on Remix Studio for Vertex Mobility",
+        "body": "Hi Taylor, The company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. Remix Studio helps teams keep outreach specific while raising quality from first touch. EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit. The goal is keeping outreach consistent without adding manager overhead. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 25,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 85.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_04",
+        "title": "VP Legal & IP",
+        "preset_id": "headliner",
+        "subject": "Quick thought on Remix Studio for Vertex Mobility",
+        "body": "Hi Taylor, One pattern that stood out in Vertex Mobility: Vertex Mobility is navigating priorities that make it hard to engage target accounts with the right message at the right time. Wikipedia. Remix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 45,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 77.0,
+        "reason_codes": [
+          "too_few_body_lines",
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      }
+    ]
+  },
+  "candidate": {
+    "profile": "candidate",
+    "summary": {
+      "case_count": 20,
+      "average_sdr_score": 88.6,
+      "hallucination_fail_count": 0,
+      "top_failure_reasons": [
+        [
+          "vague_cta_phrase",
+          19
+        ],
+        [
+          "no_high_conf_fact_used",
+          11
+        ],
+        [
+          "narrative_sentence_count_outside_3_to_5",
+          5
+        ]
+      ]
+    },
+    "cases": [
+      {
+        "case_id": "case_ceo_01",
+        "title": "CEO",
+        "preset_id": "straight_shooter",
+        "subject": "Remix Studio \u2014 relevant for Palantir?",
+        "body": "Hi Alex, Remix Studio helps enforce message relevance without adding manager overhead.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 60,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 92.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_ceo_02",
+        "title": "CEO",
+        "preset_id": "headliner",
+        "subject": "Remix Studio \u2014 relevant for Palantir?",
+        "body": "Hi Alex, Remix Studio gives reps a tighter opening angle that keeps responses qualified.\nA hidden gap at Palantir: strong outreach volume, inconsistent first-touch quality.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_ceo_03",
+        "title": "CEO",
+        "preset_id": "giver",
+        "subject": "Quick thought on Remix Studio for Palantir",
+        "body": "Hi Alex, Remix Studio lets us share a quick async teardown so your team can test improvements immediately.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_ceo_04",
+        "title": "CEO",
+        "preset_id": "challenger",
+        "subject": "Quick thought on Remix Studio for Palantir",
+        "body": "Hi Alex, Remix Studio reframes outreach around disqualification discipline and higher-quality replies.\nThe expensive risk at Palantir is not volume, it's low-signal conversations entering pipeline.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_founder_01",
+        "title": "Founder",
+        "preset_id": "industry_insider",
+        "subject": "Remix Studio \u2014 relevant for SignalForge?",
+        "body": "Hi Jamie, Remix Studio converts trigger signals into consistent messaging patterns reps can execute quickly.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_founder_02",
+        "title": "Founder",
+        "preset_id": "c_suite_sniper",
+        "subject": "Remix Studio \u2014 relevant for SignalForge?",
+        "body": "Hi Jamie, Remix Studio reduces that risk by tightening message quality while preserving sales velocity.\nSignalForge carries execution risk when outbound quality drifts across teams.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_founder_03",
+        "title": "Founder",
+        "preset_id": "straight_shooter",
+        "subject": "Quick thought on Remix Studio for SignalForge",
+        "body": "Hi Jamie, Remix Studio helps enforce message relevance without adding manager overhead.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_founder_04",
+        "title": "Founder",
+        "preset_id": "headliner",
+        "subject": "Quick thought on Remix Studio for SignalForge",
+        "body": "Hi Jamie, Remix Studio gives reps a tighter opening angle that keeps responses qualified.\nA hidden gap at SignalForge: strong outreach volume, inconsistent first-touch quality.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_president_01",
+        "title": "President",
+        "preset_id": "giver",
+        "subject": "Remix Studio \u2014 relevant for Northstar Health?",
+        "body": "Hi Morgan, Remix Studio lets us share a quick async teardown so your team can test improvements immediately.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_president_02",
+        "title": "President",
+        "preset_id": "challenger",
+        "subject": "Remix Studio \u2014 relevant for Northstar Health?",
+        "body": "Hi Morgan, Remix Studio reframes outreach around disqualification discipline and higher-quality replies.\nThe expensive risk at Northstar Health is not volume, it's low-signal conversations entering pipeline.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_president_03",
+        "title": "President",
+        "preset_id": "industry_insider",
+        "subject": "Quick thought on Remix Studio for Northstar Health",
+        "body": "Hi Morgan, Remix Studio converts trigger signals into consistent messaging patterns reps can execute quickly.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_president_04",
+        "title": "President",
+        "preset_id": "c_suite_sniper",
+        "subject": "Quick thought on Remix Studio for Northstar Health",
+        "body": "Hi Morgan, Remix Studio reduces that risk by tightening message quality while preserving sales velocity.\nNorthstar Health carries execution risk when outbound quality drifts across teams.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_01",
+        "title": "Director, Brand Protection",
+        "preset_id": "straight_shooter",
+        "subject": "Remix Studio \u2014 relevant for Mercury Retail?",
+        "body": "Hi Riley, Remix Studio helps enforce message relevance without adding manager overhead.\nMercury Retail teams often lose replies when first-touch messaging sounds generic.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 96.0,
+        "reason_codes": [
+          "vague_cta_phrase"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_02",
+        "title": "Director, Brand Protection",
+        "preset_id": "headliner",
+        "subject": "Remix Studio \u2014 relevant for Mercury Retail?",
+        "body": "Hi Riley, A hidden gap at Mercury Retail: strong outreach volume, inconsistent first-touch quality.\nOne pattern that stood out in Mercury Retail: Mercury Retail teams focused on message relevance tend to see stronger engagement from priority accounts.\nEmailDJ helps revenue teams control outbound quality across reps and sequences.\nCustomers use structured guardrails to reduce message drift while preserving rep autonomy.\nTeams typically start with one sequence audit.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nThat lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Mercury Retail.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 60,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 80.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_03",
+        "title": "Director, Brand Protection",
+        "preset_id": "giver",
+        "subject": "Quick thought on Remix Studio for Mercury Retail",
+        "body": "Hi Riley, I put together a quick teardown based on Mercury Retail is navigating priorities that make it hard to engage target accounts with the right message at the right time.\nRemix Studio lets us share a quick async teardown so your team can test improvements immediately.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nThat lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Mercury Retail.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 60,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 92.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_director_brand_04",
+        "title": "Director, Brand Protection",
+        "preset_id": "challenger",
+        "subject": "Quick thought on Remix Studio for Mercury Retail",
+        "body": "Hi Riley, The expensive risk at Mercury Retail is not volume, it's low-signal conversations entering pipeline.\nThe goal is keeping outreach consistent without adding manager overhead.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 100,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 88.0,
+        "reason_codes": [
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_01",
+        "title": "VP Legal & IP",
+        "preset_id": "industry_insider",
+        "subject": "Remix Studio \u2014 relevant for Vertex Mobility?",
+        "body": "Hi Taylor, Remix Studio converts trigger signals into consistent messaging patterns reps can execute quickly.\nPattern we keep seeing in this segment: Vertex Mobility teams focused on message relevance tend to see stronger engagement from priority accounts.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_02",
+        "title": "VP Legal & IP",
+        "preset_id": "c_suite_sniper",
+        "subject": "Remix Studio \u2014 relevant for Vertex Mobility?",
+        "body": "Hi Taylor, Remix Studio reduces that risk by tightening message quality while preserving sales velocity.\nVertex Mobility carries execution risk when outbound quality drifts across teams.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\nThat lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Vertex Mobility.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 60,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 80.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5",
+          "no_high_conf_fact_used"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_03",
+        "title": "VP Legal & IP",
+        "preset_id": "straight_shooter",
+        "subject": "Quick thought on Remix Studio for Vertex Mobility",
+        "body": "Hi Taylor, Vertex Mobility teams often lose replies when first-touch messaging sounds generic.\nRemix Studio helps enforce message relevance without adding manager overhead.\nThe company announced a strong outcomes, opened strong outcomes Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call.\nTwo proof points from your notes: EmailDJ helps revenue teams control outbound quality across reps and sequences.; Customers use structured guardrails to reduce message drift while preserving rep autonomy.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\nThat lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Vertex Mobility.\n\nOpen to a 20-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 60,
+        "specificity_score": 100,
+        "readability_score": 100,
+        "sdr_score": 92.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "narrative_sentence_count_outside_3_to_5"
+        ]
+      },
+      {
+        "case_id": "case_vp_legal_04",
+        "title": "VP Legal & IP",
+        "preset_id": "headliner",
+        "subject": "Quick thought on Remix Studio for Vertex Mobility",
+        "body": "Hi Taylor, One pattern that stood out in Vertex Mobility: Vertex Mobility is navigating priorities that make it hard to engage target accounts with the right message at the right time.\nA hidden gap at Vertex Mobility: strong outreach volume, inconsistent first-touch quality.\nRemix Studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+        "hallucination": {
+          "FAIL_HALLUCINATION": 0,
+          "reasons": []
+        },
+        "persona_fit_score": 100,
+        "structure_score": 80,
+        "specificity_score": 40,
+        "readability_score": 100,
+        "sdr_score": 84.0,
+        "reason_codes": [
+          "vague_cta_phrase",
+          "no_high_conf_fact_used"
+        ]
+      }
+    ]
+  },
+  "delta": {
+    "average_sdr_score": 11.5
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "accepted": {
+    "request_id": "4130f27b-a197-4807-ba40-fa96599bcf49",
+    "session_id": "c993d59d-4d2c-4666-936b-242c6e188fd4",
+    "stream_url": "/web/v1/stream/4130f27b-a197-4807-ba40-fa96599bcf49"
+  },
+  "done_payload": {
+    "request_id": "4130f27b-a197-4807-ba40-fa96599bcf49",
+    "sequence": 20,
+    "timestamp": 1772558699.937674,
+    "session_id": "c993d59d-4d2c-4666-936b-242c6e188fd4",
+    "mode": "mock",
+    "provider": "mock",
+    "model": "mock",
+    "cascade_reason": "primary",
+    "provider_attempt_count": 0,
+    "validator_attempt_count": 0,
+    "json_repair_count": 0,
+    "violation_retry_count": 0,
+    "repaired": false,
+    "violation_codes": [],
+    "violation_count": 0,
+    "enforcement_level": "repair",
+    "repair_loop_enabled": true,
+    "policy_versions": {
+      "policy_runner": "1.0.0",
+      "greeting": "1.0.0",
+      "cta": "1.0.0",
+      "offer_lock": "1.0.0",
+      "leakage": "1.0.0",
+      "claims": "1.0.0",
+      "length": "1.0.0"
+    },
+    "response_contract": "legacy_text",
+    "stream_chunk_mode": "stable_chars",
+    "total_chunks": 19,
+    "total_chars": 868,
+    "stream_checksum": "5d8c1c673a95c42be48666809091598fd66055b6cdd49c2cefe0130a1b9ab05f",
+    "stream_missing_chunks": 0
+  },
+  "stream_text_length": 5768,
+  "rendered_text": "Subject: Remix Studio \u2014 relevant for Acme?\nBody:\nHi Alex, Acme launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix Studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. The goal is keeping outreach consistent without adding manager overhead. Teams usually start with one sequence, verify reply quality, then expand. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority?",
+  "rendered_text_length": 868,
+  "session_trace": {},
+  "session_truncation_metadata": {
+    "company_notes": {
+      "was_truncated": true,
+      "boundary_used": "boundary_marker",
+      "cut_mid_sentence": false,
+      "original_length": 6899,
+      "final_length": 919
+    },
+    "research_excerpt": {
+      "was_truncated": true,
+      "boundary_used": "boundary_marker",
+      "cut_mid_sentence": false,
+      "original_length": 8990,
+      "final_length": 1702
+    }
+  },
+  "session_allowed_facts_count": 4,
+  "harness_meta": {
+    "timestamp_utc": "20260303T172459Z",
+    "mode": "mock",
+    "simulate_fallback": false,
+    "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/20260303T172459Z"
+  }
+}

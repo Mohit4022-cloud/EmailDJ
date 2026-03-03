@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-03-02T16:06:53.138755Z",
+  "drift_detected": false,
+  "override_used": false,
+  "gate_status": "allowed",
+  "current": {
+    "judge_model": "gpt-4.1-mini",
+    "judge_model_version": "gpt-4.1-mini",
+    "recommended_thresholds": {
+      "overall": 3.8,
+      "credibility": 4.0
+    },
+    "generated_at": "2026-03-02T15:41:29.046418Z"
+  },
+  "previous": null,
+  "threshold_delta": null,
+  "message": "Judge drift guard passed."
+}

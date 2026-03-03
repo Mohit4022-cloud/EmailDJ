@@ -1,0 +1,9 @@
+{
+  "generated_at": 1772466098.682815,
+  "source_report_json": "/Users/mohit/EmailDJ/hub-api/reports/latest.json",
+  "source_report_md": "/Users/mohit/EmailDJ/hub-api/reports/latest.md",
+  "candidate_id": "stability-check",
+  "judge_model": "gpt-4.1-mini",
+  "judge_mode": "mock",
+  "prompt_contract_hash": "db2b6d42ed326b68"
+}

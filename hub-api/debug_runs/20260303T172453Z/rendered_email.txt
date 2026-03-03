@@ -1,0 +1,5 @@
+Subject: Remix Studio for Acme
+Body:
+Hi Alex, Acme launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix Studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. The goal is keeping outreach consistent without adding manager overhead. Teams usually start with one sequence, verify reply quality, then expand. That creates a cleaner handoff between rep activity, quality checks, and follow-up actions per account.
+
+Open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? Worth a look / Not a priority? 

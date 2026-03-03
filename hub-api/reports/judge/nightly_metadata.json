@@ -1,0 +1,10 @@
+{
+  "generated_at": "2026-03-02T16:06:53.138755Z",
+  "judge_model": "gpt-4.1-mini",
+  "judge_model_version": "gpt-4.1-mini",
+  "recommended_thresholds": {
+    "overall": 3.8,
+    "credibility": 4.0
+  },
+  "source_calibration_report": "reports/judge/calibration/latest.json"
+}
