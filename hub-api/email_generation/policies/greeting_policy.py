@@ -28,6 +28,14 @@ def enforce_first_name_greeting(text: str, first_name: str | None) -> str:
         greeting = "Hello" if greeting_match.group(1).lower() == "hello" else "Hi"
     stripped = re.sub(r"^(?:hi|hello)\s+[^,\n]+,\s*", "", body, flags=re.IGNORECASE)
     name = derive_first_name(first_name) or "there"
+    if name and name.lower() != "there":
+        name_pattern = re.escape(name)
+        stripped = re.sub(
+            rf"^(?:{name_pattern})(?:\s*[,.:;\-]\s*|\s+)",
+            "",
+            stripped,
+            flags=re.IGNORECASE,
+        )
     return f"{greeting} {name}, {stripped}".strip()
 
 

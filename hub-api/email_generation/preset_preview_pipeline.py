@@ -69,6 +69,29 @@ _GENERIC_AI_OPENER_PATTERN = re.compile(
     r"^(?:(?:hi|hello)\s+[^,\n]+,\s*)?as\s+[a-z0-9&.\- ]+\s+scales\s+(?:its|their)\s+(?:enterprise\s+)?ai\s+initiatives[, ]",
     re.IGNORECASE,
 )
+_EXEC_TITLES_RE = re.compile(
+    r"\b(ceo|chief executive officer|founder|co-founder|president|chief of staff)\b",
+    re.IGNORECASE,
+)
+_OWNERSHIP_KEYWORDS = (
+    "brand protection",
+    "trademarks",
+    "trademark",
+    "ip protection",
+    "infringement",
+    "counterfeit",
+    "online brand protection",
+)
+_SOCIAL_PROOF_PATTERNS: tuple[tuple[str, str], ...] = (
+    (r"\bbrands like yours\b", "teams like yours"),
+    (r"\bcompanies like yours\b", "teams like yours"),
+    (r"\bbrands like\b", "teams at"),
+    (r"\bcompanies like\b", "teams at"),
+    (r"\btrusted by\b", "used with"),
+    (r"\bused by\b", "used with"),
+    (r"\bcustomers include\b", "customers in"),
+    (r"\bclients include\b", "clients in"),
+)
 
 
 @lru_cache(maxsize=1)
@@ -112,7 +135,7 @@ HARD COMPLIANCE RULES (violations trigger regeneration):
 
 HARD FORMAT LIMITS:
 - subject: <= 8 words
-- body: 90-130 words total (including cta_lock line)
+- body: 55-130 words total (including cta_lock line); exec titles must stay <=90 words
 - whyItWorks: exactly 3 bullets, each <= 12 words
 - vibeTags: 2-4 tags, each <= 18 characters
 
@@ -350,13 +373,115 @@ def _trim_words(value: str, max_words: int) -> str:
     return " ".join(words[:max_words])
 
 
-def _fit_body_range(main_text: str, cta_line: str, *, extra_sections: list[str] | None = None) -> str:
+def _is_exec_title(title: str | None) -> bool:
+    return bool(_EXEC_TITLES_RE.search(_compact(title)))
+
+
+def _body_word_targets(req: WebPresetPreviewBatchRequest) -> tuple[int, int]:
+    if _is_exec_title(req.prospect.title):
+        return 55, 90
+    return 90, 130
+
+
+def _sentence_case_offer_lock(offer_lock: str) -> str:
+    cleaned = _compact(offer_lock)
+    if not cleaned:
+        return ""
+    return cleaned[0].upper() + cleaned[1:].lower()
+
+
+def _sentence_case_phrase(value: str) -> str:
+    cleaned = _compact(value)
+    if not cleaned:
+        return ""
+    return cleaned[0].upper() + cleaned[1:].lower()
+
+
+def _soften_offer_lock_mentions(text: str, offer_lock: str, *, force_lowercase: bool = False) -> str:
+    body = _compact(text)
+    lock = _compact(offer_lock)
+    if not body or not lock:
+        return body
+    softened = lock.lower() if force_lowercase else _sentence_case_phrase(lock)
+    return re.sub(re.escape(lock), softened, body, flags=re.IGNORECASE)
+
+
+def _soften_company_mentions(text: str, company: str) -> str:
+    body = _compact(text)
+    company_clean = _compact(company)
+    if not body or not company_clean:
+        return body
+    softened = _sentence_case_phrase(company_clean)
+    return re.sub(re.escape(company_clean), softened, body, flags=re.IGNORECASE)
+
+
+def _soften_proof_point_mentions(text: str, proof_points: list[str] | None) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    for point in proof_points or []:
+        point_clean = _compact(point)
+        if not point_clean:
+            continue
+        softened = point_clean.lower()
+        body = re.sub(re.escape(point_clean), softened, body, flags=re.IGNORECASE)
+    body = re.sub(r"\s{2,}", " ", body)
+    body = re.sub(r"\s+([,.;!?])", r"\1", body)
+    return body.strip()
+
+
+def _repair_prospect_offer_ownership(text: str, *, company: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    company_clean = _compact(company)
+    for keyword in _OWNERSHIP_KEYWORDS:
+        safe_keyword = re.escape(keyword)
+        if company_clean:
+            company_safe = re.escape(company_clean)
+            body = re.sub(
+                rf"\b{company_safe}['’]s\s+{safe_keyword}\b",
+                f"{keyword} for {company_clean}",
+                body,
+                flags=re.IGNORECASE,
+            )
+            body = re.sub(
+                rf"\b{company_safe}\s+{safe_keyword}\b",
+                f"{keyword} for {company_clean}",
+                body,
+                flags=re.IGNORECASE,
+            )
+        body = re.sub(rf"\byour\s+{safe_keyword}\b", keyword, body, flags=re.IGNORECASE)
+    body = re.sub(r"\s{2,}", " ", body)
+    body = re.sub(r"\s+([,.;!?])", r"\1", body)
+    return body.strip()
+
+
+def _sanitize_social_proof_phrasing(text: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    for pattern, replacement in _SOCIAL_PROOF_PATTERNS:
+        body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
+    body = re.sub(r"\s{2,}", " ", body)
+    body = re.sub(r"\s+([,.;!?])", r"\1", body)
+    return body.strip()
+
+
+def _fit_body_range(
+    main_text: str,
+    cta_line: str,
+    *,
+    min_words: int,
+    max_words: int,
+    extra_sections: list[str] | None = None,
+) -> str:
     return compose_body_without_padding_loops(
         base_sentences=split_sentences(main_text),
         extra_sections=extra_sections or [],
         cta_line=cta_line,
-        min_words=90,
-        max_words=130,
+        min_words=min_words,
+        max_words=max_words,
     )
 
 
@@ -503,6 +628,12 @@ def _mock_body(
         risk_surface=req.offer_lock,
     )
     main = _ensure_preview_greeting(main, prospect_name)
+    exec_route = _is_exec_title(req.prospect.title)
+    main = _soften_offer_lock_mentions(main, req.offer_lock, force_lowercase=exec_route)
+    main = _soften_company_mentions(main, req.prospect.company)
+    main = _soften_proof_point_mentions(main, req.product_context.proof_points)
+    main = _repair_prospect_offer_ownership(main, company=req.prospect.company)
+    main = _sanitize_social_proof_phrasing(main)
     cta = _resolve_preview_cta(req, preset, effective)
     section_pool = long_mode_section_pool(
         company_notes=req.raw_research.company_notes,
@@ -511,7 +642,14 @@ def _mock_body(
         company=req.prospect.company,
     )
     extras = _extra_sections_for_brevity(section_pool, effective.brevity)
-    return _fit_body_range(main_text=main, cta_line=cta, extra_sections=extras)
+    min_words, max_words = _body_word_targets(req)
+    return _fit_body_range(
+        main_text=main,
+        cta_line=cta,
+        min_words=min_words,
+        max_words=max_words,
+        extra_sections=extras,
+    )
 
 
 def _extract_sentences(*parts: str) -> list[str]:
@@ -847,6 +985,7 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
     seen_subjects: set[str] = set()
     expected_first_name = derive_first_name(req.prospect_first_name or req.prospect.name or "")
     preset_by_id = {str(preset.preset_id): preset for preset in req.presets}
+    min_words, max_words = _body_word_targets(req)
 
     offer_lock_lower = _collapse_ws(req.offer_lock).lower()
     approved_claim_source = merge_claim_sources(
@@ -881,8 +1020,8 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
             violations.append(f"{item.preset_id}: subject is not unique")
         seen_subjects.add(key)
         body_words = len(_to_words(item.body))
-        if body_words < 90 or body_words > 130:
-            violations.append(f"{item.preset_id}: body word count outside 90-130")
+        if body_words < min_words or body_words > max_words:
+            violations.append(f"{item.preset_id}: body word count outside {min_words}-{max_words}")
         if len(item.whyItWorks) != 3:
             violations.append(f"{item.preset_id}: whyItWorks count not equal to 3")
         for bullet in item.whyItWorks:
@@ -1025,6 +1164,8 @@ def _normalize_preview_items(
     )
     allowed_numeric_claims = extract_allowed_numeric_claims(req.raw_research.company_notes)
     preview_first_name = derive_first_name(req.prospect_first_name or req.prospect.name or "")
+    min_words, max_words = _body_word_targets(req)
+    exec_route = _is_exec_title(req.prospect.title)
     for index, preset in enumerate(req.presets):
         source = by_id.get(str(preset.preset_id)) or by_label.get(preset.label.lower()) or {}
         effective = _effective_sliders(req, preset)
@@ -1046,6 +1187,11 @@ def _normalize_preview_items(
             risk_surface=req.offer_lock,
         )
         draft_body = _ensure_preview_greeting(draft_body, preview_first_name)
+        draft_body = _soften_offer_lock_mentions(draft_body, req.offer_lock, force_lowercase=exec_route)
+        draft_body = _soften_company_mentions(draft_body, req.prospect.company)
+        draft_body = _soften_proof_point_mentions(draft_body, req.product_context.proof_points)
+        draft_body = _repair_prospect_offer_ownership(draft_body, company=req.prospect.company)
+        draft_body = _sanitize_social_proof_phrasing(draft_body)
         draft_body = rewrite_unverified_claims(
             draft_body,
             claim_source,
@@ -1068,7 +1214,13 @@ def _normalize_preview_items(
             )
             for section in extras
         ]
-        body = _fit_body_range(main_text=draft_body, cta_line=cta, extra_sections=extras)
+        body = _fit_body_range(
+            main_text=draft_body,
+            cta_line=cta,
+            min_words=min_words,
+            max_words=max_words,
+            extra_sections=extras,
+        )
         vibe_label = rewrite_unverified_claims(
             _compact(source.get("vibeLabel")) or preset.label,
             claim_source,
