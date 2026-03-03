@@ -100,6 +100,25 @@ def test_persona_router_exec_vs_standard(monkeypatch):
     assert director_plan.length_target["max_words"] >= 110
 
 
+def test_exec_route_applies_even_when_persona_flag_off(monkeypatch):
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_GLOBAL", "0")
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_ROLLOUT_PERCENT", "0")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_GLOBAL", "0")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_ROLLOUT_PERCENT", "0")
+
+    exec_session = _base_session("CEO", "straight_shooter")
+    with rollout_context(endpoint="generate", bucket_key="exec-flag-off"):
+        exec_plan = build_generation_plan(
+            session=exec_session,
+            style_sliders={"tone_formal_casual": 45, "framing_problem_outcome": 70, "length_short_long": 80, "stance_bold_diplomatic": 45},
+            preset_id="straight_shooter",
+            cta_type=None,
+        )
+    assert exec_plan.persona_route == "exec"
+    assert exec_plan.length_target["max_words"] <= 90
+    assert exec_plan.structure_template == ["outcome", "problem", "cta"]
+
+
 @pytest.mark.asyncio
 async def test_preset_true_rewrite_generates_semantically_distinct_outputs(monkeypatch):
     monkeypatch.setenv("REDIS_FORCE_INMEMORY", "1")

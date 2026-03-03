@@ -677,6 +677,35 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_build_draft_uses_deterministic_fallback_after_validation_failure(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    async def always_invalid_real_draft(*args, **kwargs):  # noqa: ARG001
+        calls["count"] += 1
+        raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_build_real_draft", always_invalid_real_draft)
+
+    style_profile = {"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0}
+    sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
+    result = await remix_engine.build_draft(session=session, style_profile=style_profile)
+
+    assert calls["count"] == 1
+    assert result.cascade_reason == "fallback_after_validation_failure"
+    assert result.generation_status == "fallback_after_validation_failure"
+    assert result.fallback_reason is not None
+    assert "ctco_validation_failed" in result.fallback_reason
+    assert result.draft.startswith("Subject:")
+    assert remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=sliders) == []
+
+
+@pytest.mark.asyncio
 async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
     import json
 

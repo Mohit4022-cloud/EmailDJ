@@ -25,7 +25,6 @@ from email_generation.output_enforcement import (
 )
 from email_generation.preset_strategies import PresetStrategy, get_preset_strategy, normalize_preset_id
 from email_generation.runtime_policies import (
-    feature_persona_router_enabled,
     feature_preset_true_rewrite_enabled,
 )
 from email_generation.text_postprocess import enforce_information_density
@@ -74,6 +73,25 @@ _CTA_LINE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _EXEC_TITLE_RE = re.compile(r"\b(ceo|chief executive officer|founder|co-founder|president)\b", re.IGNORECASE)
+_BRAND_PROTECTION_TERMS = (
+    "brand protection",
+    "trademark",
+    "counterfeit",
+    "ip enforcement",
+    "brand integrity",
+)
+_DATA_SECURITY_REWRITES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\bcybersecurity\b", re.IGNORECASE), "brand protection"),
+    (re.compile(r"\bcyber security\b", re.IGNORECASE), "brand protection"),
+    (re.compile(r"\bdata security\b", re.IGNORECASE), "brand integrity"),
+    (re.compile(r"\bdata governance\b", re.IGNORECASE), "brand governance"),
+    (re.compile(r"\bdigital risk\b", re.IGNORECASE), "brand risk"),
+    (re.compile(r"\bdata breach(?:es)?\b", re.IGNORECASE), "brand abuse incidents"),
+    (re.compile(r"\bransomware\b", re.IGNORECASE), "counterfeit abuse"),
+    (re.compile(r"\bmalware\b", re.IGNORECASE), "infringement abuse"),
+    (re.compile(r"\bphishing\b", re.IGNORECASE), "impersonation abuse"),
+    (re.compile(r"\bendpoint protection\b", re.IGNORECASE), "brand protection"),
+)
 _PRESET_STRUCTURE_REWRITE: dict[str, list[str]] = {
     "straight_shooter": ["problem", "outcome", "proof", "cta"],
     "headliner": ["hook", "problem", "proof", "cta"],
@@ -189,6 +207,34 @@ def _first_sentence(text: str) -> str:
         return ""
     chunks = re.split(r"(?<=[.!?])\s+", value)
     return chunks[0].strip().rstrip(".")
+
+
+def _sanitize_fact_hint(
+    fact_hint: str,
+    *,
+    prospect_name: str,
+    company: str,
+    first_name: str,
+) -> str:
+    text = _compact(fact_hint)
+    if not text:
+        return ""
+    full_name = _compact(prospect_name)
+    if full_name:
+        text = re.sub(re.escape(full_name), first_name or "you", text, flags=re.IGNORECASE)
+    if company:
+        text = re.sub(re.escape(company), "your team", text, flags=re.IGNORECASE)
+    return _compact(text)
+
+
+def _normalize_offer_category_framing(text: str, offer_lock: str) -> str:
+    normalized = _compact(text)
+    offer_key = _compact(offer_lock).lower()
+    if not normalized or not any(term in offer_key for term in _BRAND_PROTECTION_TERMS):
+        return normalized
+    for pattern, replacement in _DATA_SECURITY_REWRITES:
+        normalized = pattern.sub(replacement, normalized)
+    return _compact(normalized)
 
 
 def _normalize_sentence(text: str) -> str:
@@ -368,7 +414,7 @@ def build_generation_plan(
     first_name = derive_first_name(session.get("prospect_first_name") or prospect.get("name"))
     greeting_base = "Hello" if style_sliders.get("tone_formal_casual", 50) <= 33 else "Hi"
     greeting = f"{greeting_base} {first_name or 'there'},"
-    persona_route = "exec" if feature_persona_router_enabled() and _is_exec_title(title) else "standard"
+    persona_route = "exec" if _is_exec_title(title) else "standard"
     preset_true_rewrite = feature_preset_true_rewrite_enabled()
 
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
@@ -435,8 +481,14 @@ def build_generation_plan(
     if persona_route == "exec":
         requested_hook_strategy = "risk_framed"
         if high_conf_facts:
-            wedge_problem = _normalize_sentence(high_conf_facts[0])
-            proof_points = [high_conf_facts[0]]
+            exec_fact = _sanitize_fact_hint(
+                high_conf_facts[0],
+                prospect_name=str(prospect.get("name") or ""),
+                company=company,
+                first_name=first_name or "you",
+            )
+            wedge_problem = _normalize_sentence(exec_fact or high_conf_facts[0])
+            proof_points = [exec_fact or high_conf_facts[0]]
         else:
             proof_points = proof_points[:1]
 
@@ -542,6 +594,7 @@ def apply_generation_plan(
         minutes=20 if style_sliders.get("length_short_long", 50) >= 67 else 15,
     )
     forbidden_terms = _forbidden_product_terms(session, offer_lock)
+    first_name = derive_first_name(session.get("prospect_first_name") or prospect.get("name")) or "you"
 
     fact_hint = ""
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
@@ -554,6 +607,12 @@ def apply_generation_plan(
         model_signal = re.sub(r"^(Hi|Hello)\s+[^,\n]+,\s*", "", model_signal).strip()
     if model_signal and _word_count(model_signal) >= 6 and not _contains_forbidden_term(model_signal, forbidden_terms):
         fact_hint = model_signal
+    fact_hint = _sanitize_fact_hint(
+        fact_hint,
+        prospect_name=str(prospect.get("name") or ""),
+        company=company,
+        first_name=first_name,
+    )
 
     blocks: dict[str, str] = {
         "hook": _hook_sentence(plan, company, fact_hint),
@@ -574,6 +633,7 @@ def apply_generation_plan(
         sentence = _compact(blocks.get(key))
         if not sentence:
             continue
+        sentence = _normalize_offer_category_framing(sentence, offer_lock)
         toned = _apply_tone(_normalize_sentence(sentence), plan.tone_style)
         parts.append(
             _rewrite_forbidden_sentence(
@@ -607,6 +667,7 @@ def apply_generation_plan(
     allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
 
     main_text = " ".join(parts)
+    main_text = _normalize_offer_category_framing(main_text, offer_lock)
     main_text = _remove_banned_phrases(main_text, plan.banned_phrases)
     main_text = sanitize_generic_ai_opener(
         main_text,
@@ -640,6 +701,7 @@ def apply_generation_plan(
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
         )
+        rewritten = _normalize_offer_category_framing(rewritten, offer_lock)
         base_sentences[index] = _rewrite_forbidden_sentence(
             rewritten,
             offer_lock=offer_lock,

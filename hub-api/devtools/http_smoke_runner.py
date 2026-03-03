@@ -199,9 +199,10 @@ def _build_remix_payload(session_id: str, preset_id: str, slider: dict[str, Any]
 # ---------------------------------------------------------------------------
 
 
-def _extract_stream(stream_text: str) -> tuple[str, dict[str, Any]]:
+def _extract_stream(stream_text: str) -> tuple[str, dict[str, Any], dict[str, Any]]:
     token_parts: list[str] = []
     done_payload: dict[str, Any] = {}
+    error_payload: dict[str, Any] = {}
     event_name = ""
     for line in stream_text.splitlines():
         if line.startswith("event: "):
@@ -219,7 +220,9 @@ def _extract_stream(stream_text: str) -> tuple[str, dict[str, Any]]:
                 token_parts.append(str(token))
         elif event_name == "done":
             done_payload = payload
-    return "".join(token_parts), done_payload
+        elif event_name == "error":
+            error_payload = payload
+    return "".join(token_parts), done_payload, error_payload
 
 
 # ---------------------------------------------------------------------------
@@ -270,6 +273,7 @@ async def _run_generate_case(
         error: str | None = None
         email_text = ""
         done_payload: dict = {}
+        stream_error_payload: dict = {}
         response_json: dict = {}
         latency_ms = 0
 
@@ -292,7 +296,10 @@ async def _run_generate_case(
                 timeout=timeout + 30,  # generation takes longer
             )
             stream_resp.raise_for_status()
-            email_text, done_payload = _extract_stream(stream_resp.text)
+            email_text, done_payload, stream_error_payload = _extract_stream(stream_resp.text)
+            if stream_error_payload:
+                stream_error = str(stream_error_payload.get("error") or "unknown_stream_error")
+                error = f"SSE error: {stream_error}"
             latency_ms = int((time.perf_counter() - t0) * 1000)
 
         except httpx.HTTPStatusError as exc:
@@ -311,6 +318,8 @@ async def _run_generate_case(
             "email_text": email_text,
             "latency_ms": latency_ms,
             "error": error,
+            "stream_error": stream_error_payload,
+            "stream_error_event_seen": bool(stream_error_payload),
         }
 
 
@@ -445,6 +454,8 @@ def _build_debug_meta(result: dict[str, Any], run_id: str) -> dict[str, Any]:
         "flow": result.get("flow"),
         "latency_ms": result.get("latency_ms"),
         "error": result.get("error"),
+        "stream_error": (result.get("stream_error") or {}).get("error"),
+        "stream_error_event_seen": bool(result.get("stream_error_event_seen")),
         # Provenance fields from done payload (Phase 0 additions)
         "endpoint_name": done.get("endpoint_name"),
         "preset_name": done.get("preset_name"),
@@ -461,6 +472,8 @@ def _build_debug_meta(result: dict[str, Any], run_id: str) -> dict[str, Any]:
         "violation_count": done.get("violation_count"),
         "repaired": done.get("repaired"),
         "enforcement_level": done.get("enforcement_level"),
+        "generation_status": done.get("generation_status"),
+        "fallback_reason": done.get("fallback_reason"),
         # Stream integrity
         "stream_checksum": done.get("stream_checksum"),
         "stream_missing_chunks": done.get("stream_missing_chunks"),

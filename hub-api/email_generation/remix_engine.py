@@ -1396,6 +1396,54 @@ def _deterministic_compliance_repair(
     return _format_draft(subject=repaired_subject, body=repaired_body)
 
 
+def _parse_ctco_violation_codes(value: str) -> list[str]:
+    marker = "ctco_validation_failed:"
+    if marker not in value:
+        return []
+    payload = value.split(marker, 1)[1].strip()
+    if not payload:
+        return []
+    codes = [item.strip() for item in payload.split(";") if item.strip()]
+    return _unique_ordered(codes)
+
+
+def _build_validation_fallback_draft(
+    *,
+    session: dict[str, Any],
+    style_sliders: dict[str, int],
+) -> str:
+    plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
+        session=session,
+        style_sliders=style_sliders,
+        preset_id=session.get("preset_id"),
+        cta_type=session.get("cta_type"),
+    )
+    subject_seed = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
+    body_seed = f"{plan.greeting} {plan.wedge_outcome} {plan.wedge_problem}".strip()
+    draft_seed = _format_draft(subject=subject_seed, body=body_seed)
+    repaired = _deterministic_compliance_repair(
+        draft_seed,
+        session=session,
+        style_sliders=style_sliders,
+    )
+    violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
+    if not violations:
+        return repaired
+
+    # Second deterministic pass with richer seed text if the terse fallback misses constraints.
+    fallback_body = _mock_body(session=session, style_sliders=style_sliders)
+    fallback_seed = _format_draft(subject=subject_seed, body=fallback_body)
+    repaired = _deterministic_compliance_repair(
+        fallback_seed,
+        session=session,
+        style_sliders=style_sliders,
+    )
+    violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
+    if violations:
+        raise ValueError(f"ctco_validation_failed: {'; '.join(violations)}")
+    return repaired
+
+
 def _mock_subject(prospect: dict[str, Any], offer_lock: str, style_sliders: dict[str, int]) -> str:
     company = prospect.get("company") or "your team"
     if style_sliders["framing_problem_outcome"] <= 40:
@@ -1526,6 +1574,8 @@ class DraftResult:
     enforcement_level: str = field(default="repair")
     repair_loop_enabled: bool = field(default=True)
     policy_version_snapshot: dict[str, str] = field(default_factory=dict)
+    generation_status: str = field(default="ok")
+    fallback_reason: str | None = field(default=None)
 
 
 @dataclass
@@ -2096,6 +2146,8 @@ async def build_draft(
 
     result_cascade_reason = "primary"
     result_attempt_count = 0
+    generation_status = "ok"
+    fallback_reason: str | None = None
     legacy_draft = ""
     if mode != "real":
         subject = _mock_subject(session["prospect"], session["offer_lock"], style_sliders)
@@ -2158,24 +2210,55 @@ async def build_draft(
         result_provider = "mock"
         result_model = "mock"
     else:
-        legacy_draft, gen_result, real_stats = await _build_real_draft(
-            session=session,
-            style_sliders=style_sliders,
-            style_bands=style_bands,
-            throttled=throttled,
-            enforcement_level=enforcement_level,
-            repair_enabled=repair_enabled,
-            session_id=session_id,
-        )
-        result_provider = gen_result.provider
-        result_model = gen_result.model_name
-        result_cascade_reason = gen_result.cascade_reason
-        result_attempt_count = gen_result.attempt_count
-        validator_attempt_count = real_stats.validator_attempt_count
-        json_repair_count = real_stats.json_repair_count
-        violation_retry_count = real_stats.violation_retry_count
-        violation_codes = list(real_stats.violation_codes)
-        violation_count = real_stats.violation_count
+        try:
+            legacy_draft, gen_result, real_stats = await _build_real_draft(
+                session=session,
+                style_sliders=style_sliders,
+                style_bands=style_bands,
+                throttled=throttled,
+                enforcement_level=enforcement_level,
+                repair_enabled=repair_enabled,
+                session_id=session_id,
+            )
+            result_provider = gen_result.provider
+            result_model = gen_result.model_name
+            result_cascade_reason = gen_result.cascade_reason
+            result_attempt_count = gen_result.attempt_count
+            validator_attempt_count = real_stats.validator_attempt_count
+            json_repair_count = real_stats.json_repair_count
+            violation_retry_count = real_stats.violation_retry_count
+            violation_codes = list(real_stats.violation_codes)
+            violation_count = real_stats.violation_count
+        except ValueError as exc:
+            raw_error = str(exc)
+            if "ctco_validation_failed:" not in raw_error:
+                raise
+            fallback_codes = _parse_ctco_violation_codes(raw_error)
+            if any(code.startswith("invalid_json_output") for code in fallback_codes):
+                raise
+            fallback_reason = raw_error
+            generation_status = "fallback_after_validation_failure"
+            legacy_draft = _build_validation_fallback_draft(
+                session=session,
+                style_sliders=style_sliders,
+            )
+            result_provider = "deterministic_fallback"
+            result_model = "deterministic_fallback"
+            result_cascade_reason = "fallback_after_validation_failure"
+            result_attempt_count = 0
+            validator_attempt_count = max(validator_attempt_count, 1)
+            violation_retry_count = max(violation_retry_count, 1)
+            violation_codes = _unique_ordered([*violation_codes, *fallback_codes])
+            violation_count += len(fallback_codes)
+            logger.warning(
+                "web_mvp_validation_fallback_applied",
+                extra={
+                    "session_id": session_id,
+                    "fallback_reason": raw_error,
+                    "violation_codes": fallback_codes,
+                    "enforcement_level": enforcement_level,
+                },
+            )
 
     if feature_no_prospect_owns_guardrail_enabled():
         legacy_draft, ownership_rewritten, ownership_snippets = _repair_prospect_owns_offer_lock(legacy_draft, session=session)
@@ -2253,12 +2336,14 @@ async def build_draft(
         validator_attempt_count=validator_attempt_count,
         json_repair_count=json_repair_count,
         violation_retry_count=violation_retry_count,
-        repaired=(json_repair_count + violation_retry_count) > 0,
+        repaired=(json_repair_count + violation_retry_count) > 0 or generation_status != "ok",
         violation_codes=violation_codes,
         violation_count=violation_count,
         enforcement_level=enforcement_level,
         repair_loop_enabled=repair_enabled,
         policy_version_snapshot=_policy_report.policy_version_snapshot,
+        generation_status=generation_status,
+        fallback_reason=fallback_reason,
     )
 
 

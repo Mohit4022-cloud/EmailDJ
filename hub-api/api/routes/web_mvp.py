@@ -590,6 +590,8 @@ async def web_stream(request_id: str, request: Request):
                 mode_info["violation_count"] = result.violation_count
                 mode_info["enforcement_level"] = result.enforcement_level
                 mode_info["repair_loop_enabled"] = result.repair_loop_enabled
+                mode_info["generation_status"] = result.generation_status
+                mode_info["fallback_reason"] = result.fallback_reason
                 mode_info["policy_versions"] = result.policy_version_snapshot
                 mode_info["response_contract"] = result.response_contract
                 final_subject, final_body = _final_subject_body(result.draft, response_contract=result.response_contract)
@@ -652,6 +654,8 @@ async def web_stream(request_id: str, request: Request):
                         "violation_count": result.violation_count,
                         "enforcement_level": result.enforcement_level,
                         "repair_loop_enabled": result.repair_loop_enabled,
+                        "generation_status": result.generation_status,
+                        "fallback_reason": result.fallback_reason,
                         "session_id": rec.session_id,
                         "request_id": request_id,
                         "latency_ms": session["metrics"]["last_latency_ms"],
@@ -682,6 +686,8 @@ async def web_stream(request_id: str, request: Request):
                         "repaired": result.repaired,
                         "enforcement_level": result.enforcement_level,
                         "repair_loop_enabled": result.repair_loop_enabled,
+                        "generation_status": result.generation_status,
+                        "fallback_reason": result.fallback_reason,
                         "stream_chunk_mode": mode_info.get("stream_chunk_mode"),
                         "stream_total_chunks": mode_info.get("total_chunks"),
                         "stream_total_chars": mode_info.get("total_chars"),
