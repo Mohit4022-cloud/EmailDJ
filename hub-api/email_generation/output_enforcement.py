@@ -99,11 +99,11 @@ def sanitize_generic_ai_opener(
         return " ".join(sentences).strip()
 
     account = compact(company) or "your team"
-    surface = compact(risk_surface) or "your enforcement workflow"
+    surface = compact(risk_surface) or "this workflow"
     replacements = [
-        f"Brand-risk exposure usually rises when counterfeit enforcement queues stall at {account}.",
-        f"Counterfeit risk is hardest to contain when detection and action workflows drift apart in {surface}.",
-        "The practical win is reducing counterfeit exposure while improving enforcement throughput.",
+        f"Execution gaps compound when {surface} reviews lag behind send volume at {account}.",
+        f"Teams often find {surface} quality drifts when workflows scale without tighter controls at {account}.",
+        f"The practical win is tighter control over {surface} execution and faster team alignment.",
     ]
     sentences[opener_index] = _stable_pick(replacements, f"{account}|{surface}|{hook_strategy or ''}")
     return " ".join(sentences).strip()

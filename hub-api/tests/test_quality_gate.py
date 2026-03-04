@@ -100,7 +100,7 @@ async def test_quality_gate_noisy_fixture_20x(monkeypatch):
         "Acme is refining enterprise targeting and message clarity.",
     ]
     oversized_notes = (
-        "Corsearch helps enterprise teams enforce outbound quality and keep messaging consistent under scale. "
+        "EmailDJ helps enterprise teams enforce outbound quality and keep messaging consistent under scale. "
         "This block is intentionally long so truncation behavior is exercised safely. "
     ) * 25
     base_research = (
@@ -122,8 +122,8 @@ async def test_quality_gate_noisy_fixture_20x(monkeypatch):
             cta_offer_lock="Open to a quick chat to see if this is relevant?",
             cta_type="question",
             company_context={
-                "company_name": "Corsearch",
-                "company_url": "https://corsearch.com",
+                "company_name": "EmailDJ",
+                "company_url": "https://emaildj.ai",
                 "current_product": "Remix Studio",
                 "other_products": "Prospect Enrichment\nSequence QA",
                 "company_notes": oversized_notes,

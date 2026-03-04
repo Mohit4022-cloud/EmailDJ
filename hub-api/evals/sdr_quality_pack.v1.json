@@ -2,9 +2,9 @@
   {
     "id": "case_ceo_01",
     "prospect": {
-      "name": "Alex Karp",
+      "name": "Jordan Smith",
       "title": "CEO",
-      "company": "Palantir",
+      "company": "Acme",
       "linkedin_url": "https://linkedin.com/in/example-prospect"
     },
     "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
@@ -29,9 +29,9 @@
   {
     "id": "case_ceo_02",
     "prospect": {
-      "name": "Alex Karp",
+      "name": "Jordan Smith",
       "title": "CEO",
-      "company": "Palantir",
+      "company": "Acme",
       "linkedin_url": "https://linkedin.com/in/example-prospect"
     },
     "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
@@ -56,9 +56,9 @@
   {
     "id": "case_ceo_03",
     "prospect": {
-      "name": "Alex Karp",
+      "name": "Jordan Smith",
       "title": "CEO",
-      "company": "Palantir",
+      "company": "Acme",
       "linkedin_url": "https://linkedin.com/in/example-prospect"
     },
     "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
@@ -83,9 +83,9 @@
   {
     "id": "case_ceo_04",
     "prospect": {
-      "name": "Alex Karp",
+      "name": "Jordan Smith",
       "title": "CEO",
-      "company": "Palantir",
+      "company": "Acme",
       "linkedin_url": "https://linkedin.com/in/example-prospect"
     },
     "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",

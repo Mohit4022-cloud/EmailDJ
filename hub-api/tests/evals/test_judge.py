@@ -13,9 +13,9 @@ def _case() -> EvalCase:
     return EvalCase(
         id="lc_judge_001",
         tags=["judge"],
-        prospect={"full_name": "Alex Karp", "title": "VP Sales", "company": "Acme"},
+        prospect={"full_name": "Jordan Smith", "title": "VP Sales", "company": "Acme"},
         seller={"company_name": "EmailDJ", "company_url": "https://emaildj.ai", "company_notes": ""},
-        offer_lock="Brand Protection",
+        offer_lock="Remix Studio",
         cta_lock="Open to a 15-min chat next week?",
         cta_type="time_ask",
         style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
@@ -23,9 +23,9 @@ def _case() -> EvalCase:
         other_products=["Pipeline Copilot"],
         approved_proof_points=[],
         expected=EvalExpected(
-            must_include=["Brand Protection", "Open to a 15-min chat next week?"],
+            must_include=["Remix Studio", "Open to a 15-min chat next week?"],
             must_not_include=["Pipeline Copilot"],
-            greeting_first_name="Alex",
+            greeting_first_name="Jordan",
         ),
     )
 
@@ -38,10 +38,10 @@ def test_mock_judge_scores_email() -> None:
     )
     scored = client.evaluate_email(
         case=case,
-        subject="Brand Protection for Acme",
+        subject="Remix Studio for Acme",
         body=(
-            "Hi Alex, Acme teams managing outbound quality often need cleaner controls. "
-            "Brand Protection helps reduce risky language while preserving personalization.\n\n"
+            "Hi Jordan, Acme teams managing outbound quality often need cleaner controls. "
+            "Remix Studio helps reduce risky language while preserving personalization.\n\n"
             "Open to a 15-min chat next week?"
         ),
         candidate_id="test",
@@ -76,9 +76,9 @@ def test_mock_pairwise_returns_winner_or_tie() -> None:
     pair = client.evaluate_pairwise(
         case=case,
         draft_a=(
-            "Subject: Brand Protection for Acme\n"
+            "Subject: Remix Studio for Acme\n"
             "Body:\n"
-            "Hi Alex, Brand Protection helps reduce risky outbound phrasing while preserving personalization.\n\n"
+            "Hi Jordan, Remix Studio helps reduce risky outbound phrasing while preserving personalization.\n\n"
             "Open to a 15-min chat next week?"
         ),
         draft_b=(

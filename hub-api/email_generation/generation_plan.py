@@ -12,6 +12,7 @@ from email_generation.claim_verifier import (
     merge_claim_sources,
     rewrite_unverified_claims,
 )
+from email_generation.offer_domain import infer_offer_domain
 from email_generation.cta_templates import render_cta
 from email_generation.output_enforcement import (
     cap_repeated_ngrams,
@@ -258,10 +259,17 @@ def _apply_offer_lock_sentence_case(value: str, offer_lock: str) -> str:
     )
 
 
-def _normalize_offer_category_framing(text: str, offer_lock: str) -> str:
+def _normalize_offer_category_framing(
+    text: str,
+    offer_lock: str,
+    offer_category: str | None = None,
+) -> str:
     normalized = _compact(text)
-    offer_key = _compact(offer_lock).lower()
-    if not normalized or not any(term in offer_key for term in _BRAND_PROTECTION_TERMS):
+    if not normalized:
+        return normalized
+    # Only apply brand-protection-specific rewrites when the offer is in that domain.
+    # For other sellers (HR tech, AI platform, retail, etc.) this is a no-op.
+    if infer_offer_domain(offer_lock, offer_category) != "brand_protection":
         return normalized
     for pattern, replacement in _DATA_SECURITY_REWRITES:
         normalized = pattern.sub(replacement, normalized)
@@ -640,6 +648,7 @@ def apply_generation_plan(
     prospect = session.get("prospect") or {}
     company = _compact(prospect.get("company")) or "your team"
     offer_lock = _compact(session.get("offer_lock")) or "this approach"
+    offer_category: str | None = session.get("offer_category") or None
     stance = style_sliders.get("stance_bold_diplomatic", 50)
     directness = max(0, min(100, 100 - stance))
     risk_surface = _compact((session.get("company_context") or {}).get("current_product")) or offer_lock
@@ -690,7 +699,7 @@ def apply_generation_plan(
         sentence = _compact(blocks.get(key))
         if not sentence:
             continue
-        sentence = _normalize_offer_category_framing(sentence, offer_lock)
+        sentence = _normalize_offer_category_framing(sentence, offer_lock, offer_category)
         toned = _apply_tone(_normalize_sentence(sentence), plan.tone_style)
         parts.append(
             _rewrite_forbidden_sentence(
@@ -724,7 +733,7 @@ def apply_generation_plan(
     allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
 
     main_text = " ".join(parts)
-    main_text = _normalize_offer_category_framing(main_text, offer_lock)
+    main_text = _normalize_offer_category_framing(main_text, offer_lock, offer_category)
     main_text = _remove_banned_phrases(main_text, plan.banned_phrases)
     main_text = sanitize_generic_ai_opener(
         main_text,
@@ -758,7 +767,7 @@ def apply_generation_plan(
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
         )
-        rewritten = _normalize_offer_category_framing(rewritten, offer_lock)
+        rewritten = _normalize_offer_category_framing(rewritten, offer_lock, offer_category)
         base_sentences[index] = _rewrite_forbidden_sentence(
             rewritten,
             offer_lock=offer_lock,

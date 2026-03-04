@@ -1,0 +1,10 @@
+{
+  "_schema": "scenario_fixture_v1",
+  "description": "Rippling (HR platform) selling to Northstar Labs — hr_tech domain isolation test",
+  "seller": "@sellers/rippling.json",
+  "prospect_pack": "@prospects/northstar_vp_pack.json",
+  "preset_ids": ["straight_shooter", "giver"],
+  "style_configs": {
+    "medium": {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
+  }
+}

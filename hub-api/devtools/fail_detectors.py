@@ -1,13 +1,15 @@
 """Deterministic SDR garbage detectors — no LLM required.
 
 Each detector takes (body: str, metadata: dict) and returns evidence strings.
-The scorecard() function runs all 8 checks and returns a structured result.
+The scorecard() function runs all checks and returns a structured result.
 
 Metadata keys used:
-  prospect_company   str   e.g. "Palantir"
-  prospect_name      str   e.g. "Alex Karp"
-  prospect_title     str   e.g. "CEO"
-  offer_lock         str   e.g. "Trademark Search, Screening, and Brand Protection"
+  prospect_company   str   e.g. "Acme"
+  prospect_name      str   e.g. "Jordan Smith"
+  prospect_title     str   e.g. "VP Sales"
+  seller_company     str   e.g. "EmailDJ"
+  offer_lock         str   e.g. "Remix Studio"
+  offer_category     str   e.g. "revenue_intelligence"  (optional)
   preset_id          str   e.g. "straight_shooter"
   cta_offer_lock     str   e.g. "Open to a quick 15-minute chat next week?"
 """
@@ -17,6 +19,8 @@ from __future__ import annotations
 import re
 from collections import Counter
 from typing import Any
+
+from email_generation.offer_domain import infer_offer_domain, offer_keywords_from_lock
 
 # ---------------------------------------------------------------------------
 # Shared helpers (logic mirrors evals/sdr_quality.py — avoids circular import)
@@ -34,6 +38,7 @@ _EXEC_TITLES_RE = re.compile(
 )
 
 _WEAK_CTA_PRESETS = {"giver", "challenger"}
+_GREETING_TOKENS = {"hi", "hello", "hey"}
 
 
 def _word_count(text: str) -> int:
@@ -75,41 +80,56 @@ def _has_fragment_ending(text: str) -> bool:
 # 1. FAIL_PROSPECT_OWNS_OFFER
 # ---------------------------------------------------------------------------
 
-# Keywords that identify the offer concept (broad enough to catch paraphrasing)
-_OFFER_KEYWORDS = [
-    "brand protection",
-    "trademark",
-    "ip protection",
-    "infringement",
-    "counterfeit",
-    "online brand protection",
-]
-
 
 def _check_prospect_owns_offer(body: str, meta: dict) -> list[str]:
-    """Detect patterns like "<ProspectCo>'s Brand Protection" or "your Brand Protection"."""
+    """Detect patterns like "<ProspectCo>'s <offer>" or "your <offer>".
+
+    Keywords are derived from meta["offer_lock"] at call time — no hardcoded
+    domain vocabulary. Works for any seller: brand protection, HR tech, AI
+    platform, retail partnerships, etc.
+    """
     notes: list[str] = []
     prospect_co = (meta.get("prospect_company") or "").strip()
     if not prospect_co:
         return notes
 
+    offer_lock = (meta.get("offer_lock") or "").strip()
+    offer_keywords = offer_keywords_from_lock(offer_lock)
+    if not offer_keywords:
+        return notes
+
     body_lower = (body or "").lower()
     co_lower = prospect_co.lower()
+    co_safe = re.escape(co_lower)
+    seller_co = (meta.get("seller_company") or meta.get("vendor_company") or "").strip().lower()
+    vendor_differs = bool(seller_co and seller_co != co_lower)
 
-    for keyword in _OFFER_KEYWORDS:
-        # Pattern: "Acme's Brand Protection" / "Acme Brand Protection" (no possessive)
-        possessive = rf"\b{re.escape(co_lower)}'s\s+{re.escape(keyword)}"
-        adjacent = rf"\b{re.escape(co_lower)}\s+{re.escape(keyword)}"
-        if re.search(possessive, body_lower):
+    for keyword in offer_keywords:
+        kw_lower = keyword.lower()
+        kw_safe = re.escape(kw_lower)
+        # Pattern: "Acme's <offer>" (possessive)
+        if re.search(rf"\b{co_safe}'s\s+{kw_safe}", body_lower):
             notes.append(f"Possessive: found '{prospect_co}'s {keyword}'")
-        elif re.search(adjacent, body_lower):
+        # Pattern: "Acme <offer>" (adjacent without possessive)
+        elif re.search(rf"\b{co_safe}\s+{kw_safe}", body_lower):
             notes.append(f"Adjacent: found '{prospect_co} {keyword}'")
 
-    # "your Brand Protection" framing
-    for keyword in _OFFER_KEYWORDS:
-        your_pattern = rf"\byour\s+{re.escape(keyword)}"
-        if re.search(your_pattern, body_lower):
-            notes.append(f"Ownership: found 'your {keyword}'")
+    # Generic preposition ownership framing — check all keywords
+    for kw in offer_keywords:
+        kw_lower = kw.lower()
+        kw_safe = re.escape(kw_lower)
+        for prep in ("for", "at"):
+            if re.search(rf"\b{kw_safe}\s+{prep}\s+{co_safe}\b", body_lower):
+                notes.append(f"Ownership framing: found '{kw} {prep} {prospect_co}'")
+        if re.search(rf"\b{co_safe}\s+uses\s+{kw_safe}\b", body_lower):
+            notes.append(f"Ownership framing: found '{prospect_co} uses {kw}'")
+
+    # "your <offer>" framing — only flagged when seller != prospect
+    if vendor_differs:
+        for keyword in offer_keywords:
+            if re.search(rf"\byour\s+{re.escape(keyword.lower())}", body_lower):
+                notes.append(f"Ownership: found 'your {keyword}' (vendor != prospect)")
+                break
 
     return notes
 
@@ -151,23 +171,41 @@ _DATA_SECURITY_TERMS = [
     re.compile(r"\b(data\s+security|cybersecurity|cyber\s+security|data\s+breach|ransomware|malware|phishing|endpoint\s+protection)\b", re.IGNORECASE),
 ]
 
-_BRAND_PROTECTION_OFFER_KEYWORDS = {"trademark", "brand protection", "counterfeit", "ip enforcement"}
-
-
 def _check_category_mismatch(body: str, meta: dict) -> list[str]:
-    """Flag when primary framing is data security but offer is brand protection (or vice versa)."""
+    """Flag when the email body uses vocabulary from a different product domain than the offer.
+
+    Domain is derived from meta["offer_category"] (explicit) or inferred from
+    meta["offer_lock"] keywords. Unknown domains are skipped — no false positives
+    for sellers outside the known domain map.
+    """
     notes: list[str] = []
-    offer = (meta.get("offer_lock") or "").lower()
+    offer_lock = (meta.get("offer_lock") or "").strip()
+    offer_category = (meta.get("offer_category") or "").strip() or None
+    domain = infer_offer_domain(offer_lock, offer_category)
+    if not domain:
+        return notes
+
     body_lower = (body or "").lower()
 
-    offer_is_brand = any(kw in offer for kw in _BRAND_PROTECTION_OFFER_KEYWORDS)
-
-    if offer_is_brand:
+    if domain == "brand_protection":
         for pattern in _DATA_SECURITY_TERMS:
             match = pattern.search(body_lower)
             if match:
-                notes.append(f"Category mismatch: offer is brand protection but body uses data-security framing: '{match.group()}'")
+                notes.append(
+                    f"Category mismatch: offer domain is brand_protection but body uses "
+                    f"data-security framing: '{match.group()}'"
+                )
                 break
+    elif domain == "data_security":
+        _BRAND_TERMS_RE = re.compile(
+            r"\b(trademark|brand protection|counterfeit|ip enforcement)\b", re.IGNORECASE
+        )
+        match = _BRAND_TERMS_RE.search(body_lower)
+        if match:
+            notes.append(
+                f"Category mismatch: offer domain is data_security but body uses "
+                f"brand-protection framing: '{match.group()}'"
+            )
 
     return notes
 
@@ -255,6 +293,11 @@ def _check_weak_cta(body: str, meta: dict) -> list[str]:
     title = (meta.get("prospect_title") or "").strip()
     is_exec = _EXEC_TITLES_RE.search(title) is not None
     is_allowed_preset = preset in _WEAK_CTA_PRESETS
+    phrase = match.group().strip().lower()
+
+    if "worth a look" in phrase and "not a priority" in phrase and (preset == "straight_shooter" or is_exec):
+        reason = "exec persona" if is_exec else "preset 'straight_shooter'"
+        return ["Weak CTA phrase 'Worth a look / Not a priority?' not allowed for " + reason]
 
     if not is_allowed_preset or is_exec:
         reason = "exec persona" if is_exec else f"preset '{preset}' not in allowed set {_WEAK_CTA_PRESETS}"
@@ -291,7 +334,26 @@ def _check_repetition(body: str, _meta: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# 8. FAIL_FRAGMENT
+# 8. FAIL_DOUBLE_GREETING
+# ---------------------------------------------------------------------------
+
+def _check_double_greeting(body: str, _meta: dict) -> list[str]:
+    """Detect duplicate greeting cues in first 12 tokens (e.g., 'Hi Alex, Hello ...')."""
+    tokens = re.findall(r"[A-Za-z0-9']+", body or "")
+    lower = [token.lower() for token in tokens[:12]]
+    if len(lower) < 2:
+        return []
+    if lower[0] not in _GREETING_TOKENS:
+        return []
+    for token in lower[1:]:
+        if token in _GREETING_TOKENS:
+            snippet = " ".join(tokens[:12])
+            return [f"Double greeting in first 12 tokens: '{snippet}'"]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# 9. FAIL_FRAGMENT
 # ---------------------------------------------------------------------------
 
 def _check_fragment(body: str, _meta: dict) -> list[str]:
@@ -344,6 +406,7 @@ FAIL_TAGS = [
     "FAIL_PROOF_DUMP",
     "FAIL_WEAK_CTA",
     "FAIL_REPETITION",
+    "FAIL_DOUBLE_GREETING",
     "FAIL_FRAGMENT",
 ]
 
@@ -355,12 +418,13 @@ _DETECTORS: dict[str, Any] = {
     "FAIL_PROOF_DUMP": _check_proof_dump,
     "FAIL_WEAK_CTA": _check_weak_cta,
     "FAIL_REPETITION": _check_repetition,
+    "FAIL_DOUBLE_GREETING": _check_double_greeting,
     "FAIL_FRAGMENT": _check_fragment,
 }
 
 
 def scorecard(case_id: str, body: str, meta: dict) -> dict[str, Any]:
-    """Run all 8 deterministic checks and return a structured scorecard.
+    """Run all deterministic checks and return a structured scorecard.
 
     Args:
         case_id: Unique identifier for this email case.

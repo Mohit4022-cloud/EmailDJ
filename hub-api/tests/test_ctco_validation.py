@@ -85,11 +85,11 @@ def test_validate_ctco_output_uses_exec_length_target_when_persona_route_is_exec
         preset_id="c_suite_sniper",
         response_contract="legacy_text",
         company_context={
-            "company_name": "Corsearch",
-            "company_url": "https://corsearch.com",
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
             "current_product": "Trademark Search, Screening, and Brand Protection",
             "company_notes": (
-                "Corsearch helps global brands reduce trademark filing risk and respond to infringement in priority markets."
+                "EmailDJ helps revenue teams reduce outbound quality risk and keep messaging controls consistent across markets."
             ),
         },
     )
@@ -961,7 +961,7 @@ async def test_build_draft_uses_cta_type_when_lock_is_blank(monkeypatch):
     )
     cta_line = _extract_body_text(result.draft).splitlines()[-1].strip()
     assert "Open to a" in cta_line
-    assert "Worth a look / Not a priority?" in cta_line
+    assert "Worth a look / Not a priority?" not in cta_line
     assert "quick chat to see if this is relevant" not in cta_line
 
 
@@ -1053,4 +1053,4 @@ async def test_build_draft_rewrites_unverified_numeric_claims(monkeypatch):
     assert "99.9%" not in draft_lower
     assert "accuracy rate" not in draft_lower
     assert "400 marketplaces" not in draft_lower
-    assert "worth a look / not a priority?" in draft_lower
+    assert "worth a look / not a priority?" not in draft_lower

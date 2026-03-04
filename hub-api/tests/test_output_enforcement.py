@@ -10,15 +10,15 @@ from email_generation.output_enforcement import (
 
 def test_sanitize_generic_ai_opener_replaces_banned_pattern_without_research_anchor():
     text = (
-        "As Palantir scales its enterprise AI initiatives, their team is balancing quality and speed. "
-        "Zeal 2.0 helps prioritize enforcement work."
+        "As Acme scales its enterprise AI initiatives, their team is balancing quality and speed. "
+        "Remix Studio helps prioritize workflow quality."
     )
     sanitized = sanitize_generic_ai_opener(
         text,
-        research_text="Palantir is improving enforcement workflows and counterfeit triage.",
+        research_text="Acme is improving workflow automation and outbound triage.",
         hook_strategy="domain_hook",
-        company="Palantir",
-        risk_surface="marketplaces",
+        company="Acme",
+        risk_surface="outbound workflows",
     )
 
     assert "scales its enterprise ai initiatives" not in sanitized.lower()
@@ -26,15 +26,15 @@ def test_sanitize_generic_ai_opener_replaces_banned_pattern_without_research_anc
 
 def test_sanitize_generic_ai_opener_allows_pattern_when_research_anchored():
     text = (
-        "As Palantir scales its enterprise AI initiatives, their team is balancing quality and speed. "
-        "Zeal 2.0 helps prioritize enforcement work."
+        "As Acme scales its enterprise AI initiatives, their team is balancing quality and speed. "
+        "Remix Studio helps prioritize workflow quality."
     )
     sanitized = sanitize_generic_ai_opener(
         text,
-        research_text="As Palantir scales its enterprise AI initiatives, the company is tightening controls.",
+        research_text="As Acme scales its enterprise AI initiatives, the company is tightening controls.",
         hook_strategy="research_anchored",
-        company="Palantir",
-        risk_surface="marketplaces",
+        company="Acme",
+        risk_surface="outbound workflows",
     )
 
     assert "scales its enterprise ai initiatives" in sanitized.lower()
@@ -84,11 +84,11 @@ def test_long_mode_section_pool_strips_forbidden_multiword_terms():
 def test_long_mode_section_pool_sanitizes_trusted_by_proof_dump_patterns():
     sections = long_mode_section_pool(
         company_notes=(
-            "Corsearch is the global leader in trademark clearance and brand protection. "
-            "Trusted by over 5,000 brands across pharma, FMCG, tech, and retail."
+            "EmailDJ is the leading platform for outbound email quality control. "
+            "Trusted by over 5,000 revenue teams across SaaS, fintech, and enterprise."
         ),
         allowed_facts=[],
-        offer_lock="Trademark Search, Screening, and Brand Protection",
+        offer_lock="Remix Studio",
         company="Acme",
     )
 
@@ -120,10 +120,10 @@ def test_compose_body_without_padding_loops_preserves_min_after_ngram_cap():
     body = compose_body_without_padding_loops(
         base_sentences=[
             (
-                "Hi Marcus, Trademark Search, Screening, and Brand Protection helps teams keep outreach specific "
+                "Hi Jordan, Remix Studio helps revenue teams keep outreach specific "
                 "while raising quality from first touch."
             ),
-            "Corsearch is the global leader in trademark clearance.",
+            "EmailDJ is a leading provider of outbound email quality tooling.",
         ],
         extra_sections=[
             "The goal is keeping outreach consistent without adding manager overhead.",

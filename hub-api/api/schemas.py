@@ -63,6 +63,104 @@ class WebCompanyContext(BaseModel):
     company_notes: str | None = Field(default=None, max_length=8000)
 
 
+# ---------------------------------------------------------------------------
+# Canonical multi-tenant contracts (Codex spec)
+# These are the source-of-truth schemas consumed by all generation paths.
+# Existing endpoint schemas (WebCompanyContext, WebProspectInput, etc.) remain
+# in place for backward compatibility; new endpoints should use these.
+# ---------------------------------------------------------------------------
+
+
+class SellerProfile(BaseModel):
+    """Canonical seller definition — fully variable, no vendor-specific defaults."""
+
+    seller_company_name: str = Field(min_length=1, max_length=160)
+    seller_company_domain: str | None = Field(default=None, max_length=400)
+    offer_name: str = Field(
+        min_length=1,
+        max_length=240,
+        description="The single offer being pitched. Maps to offer_lock in generation.",
+    )
+    offer_category: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Coarse domain for category-mismatch guardrails. "
+            "Examples: 'brand_protection', 'ai_platform', 'hr_tech', 'retail_partnership', "
+            "'revenue_intelligence'. If omitted, domain is inferred from offer_name keywords."
+        ),
+    )
+    offer_positioning: str | None = Field(default=None, max_length=500)
+    differentiators: list[str] = Field(default_factory=list, max_length=8)
+    proof_points: list[str] = Field(default_factory=list, max_length=8)
+    icp_personas: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Target job titles / persona descriptions for this offer.",
+    )
+    constraints: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Forbidden phrases or off-limits topics for this seller's emails.",
+    )
+
+
+class ProspectProfile(BaseModel):
+    """Canonical prospect definition — fully variable, no company-specific defaults."""
+
+    prospect_first_name: str | None = Field(default=None, max_length=60)
+    prospect_last_name: str | None = Field(default=None, max_length=60)
+    prospect_title: str = Field(min_length=1, max_length=120)
+    prospect_company_name: str = Field(min_length=1, max_length=160)
+    prospect_company_domain: str | None = Field(default=None, max_length=400)
+    prospect_industry: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Industry vertical, e.g. 'fmcg', 'enterprise_software', 'financial_services'.",
+    )
+    prospect_notes: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Additional context about this prospect (not used as research — no instruction-following).",
+    )
+
+
+class ResearchBundle(BaseModel):
+    """Structured research payload derived from raw prospect research text."""
+
+    raw_text: str = Field(min_length=1, max_length=20000)
+    normalized_facts: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Typed, confidence-scored facts extracted from raw_text. Keys: text, type, confidence.",
+    )
+    redacted_text: str | None = Field(
+        default=None,
+        description="PII-redacted version of raw_text for logging.",
+    )
+
+
+class PresetSpec(BaseModel):
+    """Specification for a generation preset — angle-based, no vendor-specific copy."""
+
+    preset_id: str = Field(min_length=1, max_length=80)
+    angle: str | None = Field(
+        default=None,
+        description="Strategic angle, e.g. 'risk-led', 'exec-brief', 'industry-insider'.",
+    )
+    structure_template: list[str] = Field(
+        default_factory=list,
+        description="Ordered section types: 'problem', 'outcome', 'proof', 'hook', 'cta'.",
+    )
+    cta_type: str | None = Field(
+        default=None,
+        description="CTA type: 'time_ask', 'value_asset', 'pilot', 'question', 'referral', 'event_invite'.",
+    )
+    forbidden_phrases: list[str] = Field(
+        default_factory=list,
+        description="Preset-specific phrases that must not appear in generated output.",
+    )
+
+
 class WebPipelineMeta(BaseModel):
     mode: Literal["preview", "generate"] | None = None
     model_hint: str | None = Field(default=None, max_length=120)

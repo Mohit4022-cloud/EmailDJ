@@ -7,6 +7,7 @@ os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 import email_generation.preset_preview_pipeline as preview_pipeline
 from api.schemas import WebPresetPreviewBatchRequest, WebPreviewEffectiveSliders, WebPreviewItem
 from email_generation.preset_preview_pipeline import (
+    _preprocess_research_text,
     _mock_summary_pack,
     _normalize_preview_items,
     _violation_messages,
@@ -272,7 +273,7 @@ def test_preview_normalization_blocks_generic_ai_opener_without_research_anchor(
             "label": "The Challenger",
             "subject": "Quick angle",
             "body": (
-                "As Palantir scales its enterprise AI initiatives, their team is balancing quality and speed.\n\n"
+                "As Acme scales its enterprise AI initiatives, their team is balancing quality and speed.\n\n"
                 f"{req.cta_lock_text}"
             ),
             "vibeLabel": "Risk-led",
@@ -288,7 +289,7 @@ def test_preview_normalization_allows_generic_ai_opener_for_research_anchored_ho
     req = _request_payload("OpenersAllowed")
     req.hook_strategy = "research_anchored"
     req.raw_research.deep_research_paste = (
-        "As Palantir scales its enterprise AI initiatives, the team is modernizing enforcement routing."
+        "As Acme scales its enterprise AI initiatives, the team is modernizing enforcement routing."
     )
     summary_pack = _mock_summary_pack(req)
     raw_items = [
@@ -297,7 +298,7 @@ def test_preview_normalization_allows_generic_ai_opener_for_research_anchored_ho
             "label": "The Challenger",
             "subject": "Quick angle",
             "body": (
-                "As Palantir scales its enterprise AI initiatives, their team is balancing quality and speed.\n\n"
+                "As Acme scales its enterprise AI initiatives, their team is balancing quality and speed.\n\n"
                 f"{req.cta_lock_text}"
             ),
             "vibeLabel": "Risk-led",
@@ -307,6 +308,33 @@ def test_preview_normalization_allows_generic_ai_opener_for_research_anchored_ho
     ]
     normalized = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items)
     assert "scales its enterprise ai initiatives" in normalized[0].body.lower()
+
+
+def test_preprocess_research_strips_wikipedia_openers_and_tokens_before_prompt_assembly():
+    req = _request_payload("WikiPreprocess")
+    req.raw_research.deep_research_paste = (
+        "Acme is an American software company that develops analytics platforms.\n"
+        "Wikipedia\n"
+        "+1\n"
+        "Core Platforms\n"
+        "Acme Analytics supports enterprise workflows."
+    )
+    req.raw_research.company_notes = (
+        "Wikipedia\n"
+        "Jordan Smith is the CEO of Acme.\n"
+        "NVIDIA Collaboration: Partnered with NVIDIA for AIP acceleration."
+    )
+
+    cleaned = _preprocess_research_text(req.raw_research.deep_research_paste)
+    assert "is an american" not in cleaned.lower()
+    assert "wikipedia" not in cleaned.lower()
+    assert "+1" not in cleaned
+    assert "Core Platforms" in cleaned
+
+    messages = preview_pipeline._extractor_messages(req)
+    user_prompt = messages[1]["content"]
+    assert "wikipedia" not in user_prompt.lower()
+    assert "is an american software company" not in user_prompt.lower()
 
 
 def test_preview_normalization_sections_avoid_search_enrich_act_phrase():

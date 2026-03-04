@@ -49,7 +49,7 @@ RESEARCH_VARIANTS = [
 ]
 
 NAME_VARIANTS = [
-    {"full_name": "Alex Karp", "first": "Alex", "tag": "name_first_last"},
+    {"full_name": "Jordan Smith", "first": "Jordan", "tag": "name_first_last"},
     {"full_name": "Madonna", "first": "Madonna", "tag": "name_single"},
     {"full_name": "Dr. Maya Chen", "first": "Maya", "tag": "name_dr_prefix"},
     {"full_name": "Mary Jane Watson", "first": "Mary", "tag": "name_multipart"},

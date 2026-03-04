@@ -1,0 +1,23 @@
+{
+  "_schema": "seller_fixture_v1",
+  "seller_company_name": "Rippling",
+  "seller_company_domain": "rippling.com",
+  "offer_name": "Rippling HR Platform",
+  "offer_category": "hr_tech",
+  "offer_positioning": "Unified HR, IT, and Finance platform for fast-scaling companies — one system of record for people ops, payroll, and device management.",
+  "differentiators": [
+    "15-minute payroll run across any country",
+    "Single system of record for HR, IT, and Finance — no integrations to maintain",
+    "Automated onboarding: new hire provisioning across all apps in minutes"
+  ],
+  "proof_points": [],
+  "icp_personas": ["Chief People Officer", "VP HR", "Head of People Ops", "Director of Total Rewards"],
+  "constraints": [
+    "Do not reference specific headcount in prospect company without research grounding",
+    "Do not promise specific implementation timelines"
+  ],
+  "cta_offer_lock": "Open to a 15-min walk through how we handle payroll at your scale?",
+  "cta_type": "time_ask",
+  "other_products": "Rippling IT\nRippling Finance\nRippling Spend",
+  "company_notes": "Rippling unifies HR, IT, and Finance operations so companies can run people ops without manual work. One platform handles payroll, benefits, device management, and compliance across 50+ countries."
+}

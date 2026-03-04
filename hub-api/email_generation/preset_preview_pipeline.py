@@ -51,6 +51,7 @@ from email_generation.output_enforcement import (
     sanitize_generic_ai_opener,
     split_sentences,
 )
+from email_generation.offer_domain import infer_offer_domain, offer_keywords_from_lock
 from email_generation.preset_strategies import get_preset_strategy
 from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled
 from infra.redis_client import get_redis
@@ -73,15 +74,8 @@ _EXEC_TITLES_RE = re.compile(
     r"\b(ceo|chief executive officer|founder|co-founder|president|chief of staff)\b",
     re.IGNORECASE,
 )
-_OWNERSHIP_KEYWORDS = (
-    "brand protection",
-    "trademarks",
-    "trademark",
-    "ip protection",
-    "infringement",
-    "counterfeit",
-    "online brand protection",
-)
+# _OWNERSHIP_KEYWORDS removed — keywords are now derived from req.offer_lock at
+# call time via offer_keywords_from_lock(). See _repair_prospect_offer_ownership().
 _SOCIAL_PROOF_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\bbrands like yours\b", "teams like yours"),
     (r"\bcompanies like yours\b", "teams like yours"),
@@ -92,6 +86,9 @@ _SOCIAL_PROOF_PATTERNS: tuple[tuple[str, str], ...] = (
     (r"\bcustomers include\b", "customers in"),
     (r"\bclients include\b", "clients in"),
 )
+# Brand-protection-specific data-security → brand-protection term rewrites.
+# These are only applied when the offer domain is brand_protection.
+# For all other sellers this is a no-op (gated in _apply_category_mismatch_rewrites).
 _CATEGORY_MISMATCH_REPLACEMENTS: tuple[tuple[str, str], ...] = (
     (r"\bcybersecurity\b", "brand security"),
     (r"\bcyber security\b", "brand security"),
@@ -111,6 +108,14 @@ _PROOF_DUMP_COMMON_CAPS = {
     "With", "From", "By", "As", "Is", "Are", "Was", "Were", "Be", "Have",
     "Has", "Had", "Do", "Does", "Did", "Will", "Can", "May", "Might", "Must",
 }
+_WIKIPEDIA_TOKEN_RE = re.compile(r"\bwikipedia\b", re.IGNORECASE)
+_WIKIPEDIA_TOKEN_LINE_RE = re.compile(r"^\s*wikipedia\s*$", re.IGNORECASE)
+_WIKIPEDIA_SOURCE_INDEX_LINE_RE = re.compile(r"^\s*\+\d+\s*$")
+_WIKI_BIO_OPENER_LINE_RE = re.compile(
+    r"^\s*[A-Z][A-Za-z0-9&.,'’\- ]{1,120}\s+is an?\s+"
+    r"(?:American|British|Canadian|German|French|global|international|leading)\b",
+    re.IGNORECASE,
+)
 
 
 @lru_cache(maxsize=1)
@@ -282,6 +287,38 @@ def _compact(value: Any) -> str:
     return " ".join(str(value or "").strip().split())
 
 
+def _preprocess_research_text(value: str | None) -> str:
+    lines = str(value or "").splitlines()
+    cleaned: list[str] = []
+    for line in lines:
+        candidate = _compact(line)
+        if not candidate:
+            continue
+        if _WIKIPEDIA_TOKEN_LINE_RE.match(candidate):
+            continue
+        if _WIKIPEDIA_SOURCE_INDEX_LINE_RE.match(candidate):
+            continue
+        if _WIKI_BIO_OPENER_LINE_RE.match(candidate):
+            continue
+        cleaned.append(candidate)
+    text = "\n".join(cleaned).strip()
+    if not text:
+        return ""
+    text = _WIKIPEDIA_TOKEN_RE.sub("", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    text = re.sub(r"\s+([,.;!?])", r"\1", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def _preprocessed_raw_research(req: WebPresetPreviewBatchRequest) -> dict[str, Any]:
+    return {
+        "deep_research_paste": _preprocess_research_text(req.raw_research.deep_research_paste),
+        "company_notes": _preprocess_research_text(req.raw_research.company_notes or ""),
+        "extra_constraints": req.raw_research.extra_constraints,
+    }
+
+
 def _violation_codes(violations: list[str]) -> list[str]:
     output: list[str] = []
     seen: set[str] = set()
@@ -360,6 +397,8 @@ def _resolve_preview_cta(
         cta_type=cta_type,
         risk_surface=risk_surface,
         directness=_clamp_slider(effective.directness),
+        preset_id=str(preset.preset_id),
+        prospect_title=req.prospect.title,
     )
 
 
@@ -449,28 +488,64 @@ def _soften_proof_point_mentions(text: str, proof_points: list[str] | None) -> s
     return body.strip()
 
 
-def _repair_prospect_offer_ownership(text: str, *, company: str) -> str:
+def _repair_prospect_offer_ownership(
+    text: str,
+    *,
+    company: str,
+    offer_lock: str = "",
+) -> str:
+    """Repair ownership framing patterns like ‘<Co>’s <offer>’ or ‘your <offer>’.
+
+    Keywords are derived from ``offer_lock`` at call time — no hardcoded domain
+    vocabulary. Works for any seller (brand protection, HR tech, AI platform, etc.).
+    """
     body = _compact(text)
     if not body:
         return body
     company_clean = _compact(company)
-    for keyword in _OWNERSHIP_KEYWORDS:
-        safe_keyword = re.escape(keyword)
+    keywords = offer_keywords_from_lock(offer_lock)
+
+    for keyword in keywords:
+        safe_keyword = re.escape(keyword.lower())
         if company_clean:
             company_safe = re.escape(company_clean)
+            # "<Co>’s <offer>" → "<offer> for <Co>"
             body = re.sub(
-                rf"\b{company_safe}['’]s\s+{safe_keyword}\b",
+                rf"\b{company_safe}[‘’]s\s+{safe_keyword}\b",
                 f"{keyword} for {company_clean}",
                 body,
                 flags=re.IGNORECASE,
             )
+            # "<Co> <offer>" → "<offer> for <Co>"
             body = re.sub(
                 rf"\b{company_safe}\s+{safe_keyword}\b",
                 f"{keyword} for {company_clean}",
                 body,
                 flags=re.IGNORECASE,
             )
-        body = re.sub(rf"\byour\s+{safe_keyword}\b", keyword, body, flags=re.IGNORECASE)
+            # Generic preposition patterns using primary keyword
+            if keyword == keywords[0]:
+                body = re.sub(
+                    rf"\b{safe_keyword}\s+for\s+{company_safe}\b",
+                    f"controls for {company_clean}",
+                    body,
+                    flags=re.IGNORECASE,
+                )
+                body = re.sub(
+                    rf"\b{safe_keyword}\s+at\s+{company_safe}\b",
+                    f"controls at {company_clean}",
+                    body,
+                    flags=re.IGNORECASE,
+                )
+                body = re.sub(
+                    rf"\b{company_safe}\s+uses\s+{safe_keyword}\b",
+                    f"{company_clean} manages controls",
+                    body,
+                    flags=re.IGNORECASE,
+                )
+        # Match singular and plural ("your trademark" and "your trademarks")
+        body = re.sub(rf"\byour\s+{safe_keyword}s?\b", keyword, body, flags=re.IGNORECASE)
+
     body = re.sub(r"\s{2,}", " ", body)
     body = re.sub(r"\s+([,.;!?])", r"\1", body)
     return body.strip()
@@ -487,9 +562,16 @@ def _sanitize_social_proof_phrasing(text: str) -> str:
     return body.strip()
 
 
-def _sanitize_category_mismatch_terms(text: str) -> str:
+def _sanitize_category_mismatch_terms(text: str, *, offer_domain: str | None = None) -> str:
+    """Replace data-security vocabulary with brand-protection equivalents.
+
+    This is a no-op for sellers outside the brand_protection domain — avoids
+    false rewrites for HR tech, AI platform, retail, and other sellers.
+    """
     body = _compact(text)
     if not body:
+        return body
+    if offer_domain != "brand_protection":
         return body
     for pattern, replacement in _CATEGORY_MISMATCH_REPLACEMENTS:
         body = re.sub(pattern, replacement, body, flags=re.IGNORECASE)
@@ -514,6 +596,19 @@ def _strip_post_greeting_name_fragment(text: str, *, prospect_name: str, first_n
         first = parts[0]
     return re.sub(
         rf"^(Hi|Hello)\s+{re.escape(first)}\s*,\s*{re.escape(surname)}\s*,\s*",
+        rf"\1 {first}, ",
+        body,
+        flags=re.IGNORECASE,
+    )
+
+
+def _strip_double_greeting_prefix(text: str, *, first_name: str) -> str:
+    body = _compact(text)
+    if not body:
+        return body
+    first = _compact(first_name) or "there"
+    return re.sub(
+        rf"^(Hi|Hello|Hey)\s+{re.escape(first)}\s*,\s*(Hi|Hello|Hey)(?:\s+{re.escape(first)})?\s*,?\s*",
         rf"\1 {first}, ",
         body,
         flags=re.IGNORECASE,
@@ -716,7 +811,7 @@ def _mock_body(
         f"{req.product_context.product_name} is built to {req.product_context.one_line_value}. "
         f"{proof_line} "
         f"My read is that your team may be prioritizing {likely_clean}. "
-        "The practical win is reducing counterfeit exposure while improving enforcement throughput."
+        f"The practical win is tighter control over {req.offer_lock} execution and faster team alignment."
     )
     main = sanitize_generic_ai_opener(
         main,
@@ -731,13 +826,15 @@ def _mock_body(
         prospect_name=req.prospect.name,
         first_name=prospect_name,
     )
+    main = _strip_double_greeting_prefix(main, first_name=prospect_name)
     exec_route = _is_exec_title(req.prospect.title)
     main = _soften_offer_lock_mentions(main, req.offer_lock, force_lowercase=exec_route)
     main = _soften_company_mentions(main, req.prospect.company)
     main = _soften_proof_point_mentions(main, req.product_context.proof_points)
-    main = _repair_prospect_offer_ownership(main, company=req.prospect.company)
+    _offer_domain = infer_offer_domain(req.offer_lock)
+    main = _repair_prospect_offer_ownership(main, company=req.prospect.company, offer_lock=req.offer_lock)
     main = _sanitize_social_proof_phrasing(main)
-    main = _sanitize_category_mismatch_terms(main)
+    main = _sanitize_category_mismatch_terms(main, offer_domain=_offer_domain)
     main = _sanitize_proof_dump_bursts(
         main,
         prospect_name=req.prospect.name,
@@ -775,7 +872,8 @@ def _extract_sentences(*parts: str) -> list[str]:
 
 
 def _mock_summary_pack(req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
-    sentences = _extract_sentences(req.raw_research.deep_research_paste, req.raw_research.company_notes or "")
+    research = _preprocessed_raw_research(req)
+    sentences = _extract_sentences(research["deep_research_paste"], research["company_notes"])
     facts: list[str] = []
     seen: set[str] = set()
     for sentence in sentences:
@@ -849,11 +947,12 @@ def _mock_summary_pack(req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
 
 
 def _summary_cache_key(req: WebPresetPreviewBatchRequest) -> str:
+    preprocessed_research = _preprocessed_raw_research(req)
     identity = {
         "prospect": req.prospect.model_dump(),
         "prospect_first_name": req.prospect_first_name,
         "product_context": req.product_context.model_dump(),
-        "raw_research": req.raw_research.model_dump(),
+        "raw_research": preprocessed_research,
         "offer_lock": req.offer_lock,
         "cta_lock": req.cta_lock,
         "cta_lock_text": req.cta_lock_text,
@@ -885,10 +984,11 @@ async def _save_cached_summary(req: WebPresetPreviewBatchRequest, summary_pack: 
 
 
 def _extractor_messages(req: WebPresetPreviewBatchRequest) -> list[dict[str, str]]:
+    preprocessed_research = _preprocessed_raw_research(req)
     payload = {
         "prospect": req.prospect.model_dump(),
         "product_context": req.product_context.model_dump(),
-        "raw_research": req.raw_research.model_dump(),
+        "raw_research": preprocessed_research,
     }
     user_prompt = (
         "INPUTS (use exactly; do not invent facts):\n"
@@ -1030,10 +1130,11 @@ async def _openai_structured_json_with_fallback(
 
 
 def _combined_messages(req: WebPresetPreviewBatchRequest) -> list[dict[str, str]]:
+    preprocessed_research = _preprocessed_raw_research(req)
     payload = {
         "prospect": req.prospect.model_dump(),
         "product_context": req.product_context.model_dump(),
-        "raw_research": req.raw_research.model_dump(),
+        "raw_research": preprocessed_research,
         "global_sliders": req.global_sliders.model_dump(),
         "presets": [item.model_dump() for item in req.presets],
         "offer_lock": req.offer_lock,
@@ -1301,12 +1402,14 @@ def _normalize_preview_items(
             prospect_name=req.prospect.name,
             first_name=preview_first_name,
         )
+        draft_body = _strip_double_greeting_prefix(draft_body, first_name=preview_first_name)
         draft_body = _soften_offer_lock_mentions(draft_body, req.offer_lock, force_lowercase=exec_route)
         draft_body = _soften_company_mentions(draft_body, req.prospect.company)
         draft_body = _soften_proof_point_mentions(draft_body, req.product_context.proof_points)
-        draft_body = _repair_prospect_offer_ownership(draft_body, company=req.prospect.company)
+        _offer_domain = infer_offer_domain(req.offer_lock)
+        draft_body = _repair_prospect_offer_ownership(draft_body, company=req.prospect.company, offer_lock=req.offer_lock)
         draft_body = _sanitize_social_proof_phrasing(draft_body)
-        draft_body = _sanitize_category_mismatch_terms(draft_body)
+        draft_body = _sanitize_category_mismatch_terms(draft_body, offer_domain=_offer_domain)
         draft_body = _sanitize_proof_dump_bursts(
             draft_body,
             prospect_name=req.prospect.name,

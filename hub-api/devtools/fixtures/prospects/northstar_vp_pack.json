@@ -1,0 +1,29 @@
+{
+  "_schema": "prospect_fixture_v1",
+  "prospect_company_name": "Northstar Labs",
+  "prospect_company_domain": "northstarlabs.example.com",
+  "prospect_industry": "b2b_saas",
+  "personas": [
+    {
+      "id": "alex_reid",
+      "prospect_first_name": "Alex",
+      "prospect_last_name": "Reid",
+      "prospect_title": "VP Sales",
+      "research_text": "Alex Reid joined Northstar Labs as VP Sales in 2024 to build the direct sales motion. The company previously relied on channel partners. Reid is hiring 8 AEs in H1 2026 and needs outbound tooling that scales without adding SDR headcount."
+    },
+    {
+      "id": "priya_nair",
+      "prospect_first_name": "Priya",
+      "prospect_last_name": "Nair",
+      "prospect_title": "Chief People Officer",
+      "research_text": "Priya Nair leads people operations at Northstar Labs, which grew from 120 to 340 employees in 2025. She manages payroll across 3 countries and is evaluating HRIS consolidation to replace a patchwork of point solutions. Onboarding cycle time is a current pain point."
+    },
+    {
+      "id": "devon_okafor",
+      "prospect_first_name": "Devon",
+      "prospect_last_name": "Okafor",
+      "prospect_title": "CTO",
+      "research_text": "Devon Okafor oversees engineering and AI infrastructure at Northstar Labs. The team is evaluating foundation model providers for internal tooling. They ran a pilot with one provider in Q4 2025 and are benchmarking alternatives on latency, context window, and safety controls."
+    }
+  ]
+}
