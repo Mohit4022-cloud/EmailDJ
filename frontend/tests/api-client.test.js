@@ -45,12 +45,21 @@ test('fetchRuntimeConfig returns debug payload', async () => {
   const originalFetch = global.fetch;
   global.fetch = async () => ({
     ok: true,
-    json: async () => ({ runtime_mode: 'real', provider_stub_enabled: false }),
+    json: async () => ({
+      runtime_mode: 'real',
+      provider_stub_enabled: false,
+      provider_configured: true,
+      llm_drafting_enabled: true,
+      llm_draft_runtime: 'llm',
+    }),
   });
   try {
     const payload = await fetchRuntimeConfig();
     assert.equal(payload.runtime_mode, 'real');
     assert.equal(payload.provider_stub_enabled, false);
+    assert.equal(payload.provider_configured, true);
+    assert.equal(payload.llm_drafting_enabled, true);
+    assert.equal(payload.llm_draft_runtime, 'llm');
   } finally {
     global.fetch = originalFetch;
   }

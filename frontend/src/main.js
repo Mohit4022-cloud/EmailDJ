@@ -478,9 +478,11 @@ class WebApp {
     this.statusLine.classList.toggle('pulse', pulse);
   }
 
-  runtimeMode() {
-    const mode = String(this.runtimeConfig?.runtime_mode || '').trim().toLowerCase();
-    return mode === 'real' || mode === 'unavailable' ? mode : 'unknown';
+  llmDraftMode() {
+    const configured = Boolean(this.runtimeConfig?.provider_configured);
+    const enabled = Boolean(this.runtimeConfig?.llm_drafting_enabled);
+    if (configured && enabled) return 'llm';
+    return 'deterministic';
   }
 
   updateRuntimeModeBadge(doneData = null) {
@@ -492,25 +494,33 @@ class WebApp {
         model: doneData.model || '',
         repaired: Boolean(doneData.repaired),
         repairCount: Number(doneData?.repair_attempt_count || 0),
+        draftSource:
+          String(doneData?.draft_source || '') ||
+          String(doneData?.final?.debug?.draft_source || '') ||
+          '',
       };
     }
 
-    const mode = this.runtimeMode();
+    const mode = this.llmDraftMode();
+    const configured = Boolean(this.runtimeConfig?.provider_configured);
+    const enabled = Boolean(this.runtimeConfig?.llm_drafting_enabled);
     const meta = this.runtimeBadgeMeta || {};
-    if (mode === 'real') {
+    const lastRun = meta.draftSource ? ` · last run: ${meta.draftSource}` : '';
+    if (mode === 'llm') {
       badgeEl.className = 'runtime-mode-badge mode-real';
       const providerLabel = meta.provider && meta.model ? ` · ${meta.provider}/${meta.model}` : '';
       const repairedNote = meta.repaired ? ` · repaired (${meta.repairCount || 1}x)` : '';
-      badgeEl.textContent = `REAL AI${providerLabel}${repairedNote}`;
+      badgeEl.textContent = `LLM Draft: ON (OpenAI)${providerLabel}${lastRun}${repairedNote}`;
       return;
     }
-    if (mode === 'unavailable') {
-      badgeEl.className = 'runtime-mode-badge mode-unknown';
-      badgeEl.textContent = 'REAL AI unavailable (check OPENAI_API_KEY)';
-      return;
-    }
+
     badgeEl.className = 'runtime-mode-badge mode-unknown';
-    badgeEl.textContent = 'Runtime mode unknown';
+    const reason = !configured
+      ? 'provider unavailable'
+      : !enabled
+      ? 'disabled'
+      : 'deterministic';
+    badgeEl.textContent = `LLM Draft: OFF (deterministic) · ${reason}${lastRun}`;
   }
 
   async refreshRuntimeConfig({ silent = false } = {}) {

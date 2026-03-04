@@ -73,6 +73,9 @@ class ValidationDebug:
     repair_attempt_count: int = 0
     repaired: bool = False
     degraded: bool = False
+    draft_source: str = "deterministic"
+    llm_attempt_count: int = 0
+    llm_used: bool = False
     stage_latency_ms: dict[str, int] = field(default_factory=dict)
 
 

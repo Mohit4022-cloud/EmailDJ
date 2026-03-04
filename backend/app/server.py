@@ -18,7 +18,7 @@ from app.engine import (
     normalize_batch_preview_request,
     normalize_generate_request,
     normalize_single_preview_request,
-    run_engine,
+    run_engine_async,
 )
 from app.openai_client import OpenAIClient
 from app.prompts import PROMPT_TEMPLATE_VERSION, prompt_template_hash
@@ -154,7 +154,34 @@ def _sources_from_generate_request(req: WebGenerateRequest) -> list[dict[str, An
 
 
 def _log_prompt_trace(stage: str, payload: dict[str, Any]) -> None:
-    logger.info("prompt_trace stage=%s payload=%s", stage, payload)
+    logger.info("prompt_trace stage=%s payload=%s", stage, _sanitize_prompt_trace(payload))
+
+
+def _truncate(value: str, *, limit: int = 420) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return f"{text[:limit]}...<truncated>"
+
+
+def _sanitize_prompt_trace(value: Any) -> Any:
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for key, raw in value.items():
+            lowered = str(key).lower()
+            if isinstance(raw, str) and lowered in {"research_text", "company_notes"}:
+                out[key] = _truncate(raw, limit=420)
+                continue
+            if isinstance(raw, str) and lowered in {"body", "draft_body"} and state.settings.app_env != "local":
+                out[key] = "<redacted_body>"
+                continue
+            out[key] = _sanitize_prompt_trace(raw)
+        return out
+    if isinstance(value, list):
+        return [_sanitize_prompt_trace(item) for item in value]
+    if isinstance(value, str):
+        return _truncate(value, limit=1000 if state.settings.app_env == "local" else 300)
+    return value
 
 
 router = APIRouter()
@@ -168,11 +195,16 @@ async def health() -> dict[str, str]:
 @router.get("/web/v1/debug/config")
 async def debug_config(x_emaildj_beta_key: str | None = Header(default=None)) -> dict[str, Any]:
     _require_beta(x_emaildj_beta_key)
-    openai_ready = state.openai.enabled()
+    provider_configured = state.openai.enabled()
+    llm_drafting_enabled = state.settings.llm_drafting_enabled
+    llm_draft_runtime = "llm" if provider_configured and llm_drafting_enabled else "deterministic"
     return {
         "app_env": state.settings.app_env,
-        "runtime_mode": "real" if openai_ready else "unavailable",
+        "runtime_mode": "real" if provider_configured else "unavailable",
         "provider_stub_enabled": state.settings.provider_stub_enabled,
+        "provider_configured": provider_configured,
+        "llm_drafting_enabled": llm_drafting_enabled,
+        "llm_draft_runtime": llm_draft_runtime,
         "debug_prompt": state.settings.debug_prompt,
         "openai_model": state.settings.openai_model,
         "prompt_template_versions": {
@@ -294,7 +326,7 @@ async def preset_preview(req: PresetPreviewRequest, x_emaildj_beta_key: str | No
                 "category_confidence": ctx.category_confidence,
             },
         )
-    result = run_engine(ctx, max_repairs=2)
+    result = await run_engine_async(ctx, max_repairs=2, openai=state.openai, settings=state.settings)
     if state.settings.debug_prompt:
         _log_prompt_trace(
             "plan.preview",
@@ -317,6 +349,7 @@ async def preset_preview(req: PresetPreviewRequest, x_emaildj_beta_key: str | No
                 "subject_source": result.draft.subject_source,
                 "body_sources": result.draft.body_sources,
                 "selected_beat_ids": result.draft.selected_beat_ids,
+                "draft_source": result.debug.draft_source,
             },
         )
     style_summary = _slider_summary_from_style(ctx.style_profile)
@@ -336,6 +369,8 @@ async def preset_preview(req: PresetPreviewRequest, x_emaildj_beta_key: str | No
             "violations": result.debug.violations,
             "repair_attempt_count": result.debug.repair_attempt_count,
             "degraded": result.debug.degraded,
+            "draft_source": result.debug.draft_source,
+            "llm_attempt_count": result.debug.llm_attempt_count,
             "stage_latency_ms": result.debug.stage_latency_ms,
         },
         meta={
@@ -376,7 +411,7 @@ async def preset_previews_batch(
                         "category_confidence": ctx.category_confidence,
                     },
                 )
-            result = run_engine(ctx, max_repairs=1)
+            result = await run_engine_async(ctx, max_repairs=1, openai=state.openai, settings=state.settings)
             if state.settings.debug_prompt:
                 _log_prompt_trace(
                     "plan.preview_batch",
@@ -399,6 +434,8 @@ async def preset_previews_batch(
                 "violations": result.debug.violations,
                 "repair_attempt_count": result.debug.repair_attempt_count,
                 "degraded": result.debug.degraded,
+                "draft_source": result.debug.draft_source,
+                "llm_attempt_count": result.debug.llm_attempt_count,
                 "stage_latency_ms": result.debug.stage_latency_ms,
             }
             item = PresetPreviewBatchItem(
@@ -503,7 +540,7 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
             },
         )
     started = time.perf_counter()
-    result = run_engine(ctx, max_repairs=2)
+    result = await run_engine_async(ctx, max_repairs=2, openai=state.openai, settings=state.settings)
     if state.settings.debug_prompt:
         _log_prompt_trace(
             "plan.generate",
@@ -511,6 +548,8 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
                 "hook_type": result.plan.hook_type,
                 "selected_beat_ids": result.plan.selected_beat_ids,
                 "value_prop": result.plan.value_prop,
+                "research_text": ctx.research_text,
+                "company_notes": ctx.company_notes,
             },
         )
         _log_prompt_trace(
@@ -526,6 +565,7 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
                 "subject_source": result.draft.subject_source,
                 "body_sources": result.draft.body_sources,
                 "selected_beat_ids": result.draft.selected_beat_ids,
+                "draft_source": result.debug.draft_source,
             },
         )
     duration_ms = int(round((time.perf_counter() - started) * 1000))
@@ -542,7 +582,10 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
         "repair_attempt_count": result.debug.repair_attempt_count,
         "repaired": result.debug.repaired,
         "degraded": result.debug.degraded,
+        "draft_source": result.debug.draft_source,
+        "llm_attempt_count": result.debug.llm_attempt_count,
     }
+    session["last_draft_source"] = result.debug.draft_source
     sources = _sources_from_generate_request(req_payload)
     session["last_sources"] = sources
 
@@ -553,6 +596,8 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
         "repair_attempt_count": result.debug.repair_attempt_count,
         "repaired": result.debug.repaired,
         "degraded": result.debug.degraded,
+        "draft_source": result.debug.draft_source,
+        "llm_attempt_count": result.debug.llm_attempt_count,
         "stage_latency_ms": result.debug.stage_latency_ms,
         "total_latency_ms": duration_ms,
     }
@@ -564,6 +609,8 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
         "trace_id": trace_id,
         "provider": "openai" if state.openai.enabled() else "stub",
         "model": state.settings.openai_model,
+        "draft_source": result.debug.draft_source,
+        "llm_attempt_count": result.debug.llm_attempt_count,
         "prompt_template_hash": prompt_template_hash(),
         "prompt_template_version": PROMPT_TEMPLATE_VERSION,
         "validator_attempt_count": result.debug.validator_attempt_count,
@@ -590,9 +637,24 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
         }
 
     async def wrapper() -> AsyncGenerator[dict[str, Any], None]:
-        stage = "plan_start" if record.kind == "generate" else "plan_remix"
-        message = "Planning and realizing draft..." if record.kind == "generate" else "Remixing draft..."
-        yield {"event": "progress", "data": {"stage": stage, "message": message}}
+        progress_events = [
+            {"stage": "normalized", "message": "Normalized request context."},
+            {"stage": "planned", "message": "Built deterministic message plan."},
+            {
+                "stage": "drafted",
+                "message": "Draft authored via LLM." if result.debug.draft_source == "llm" else "Draft authored deterministically.",
+            },
+            {"stage": "validated", "message": "Validated and repaired draft constraints."},
+        ]
+        for item in progress_events:
+            yield {
+                "event": "progress",
+                "data": {
+                    **item,
+                    "generation_id": generation_id,
+                    "draft_id": draft_id,
+                },
+            }
         stream_text = legacy_text
         chunk_size = state.settings.stream_chunk_size
         for idx in range(0, len(stream_text), chunk_size):

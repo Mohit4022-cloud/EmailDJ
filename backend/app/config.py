@@ -47,6 +47,7 @@ class Settings:
 
     stream_chunk_size: int
     provider_stub_enabled: bool
+    llm_drafting_enabled: bool
     debug_prompt: bool
 
 
@@ -71,5 +72,6 @@ def load_settings() -> Settings:
         sender_ttl_seconds=_env_int("EMAILDJ_CACHE_SENDER_TTL_SECONDS", 7 * 24 * 60 * 60, minimum=60),
         stream_chunk_size=_env_int("EMAILDJ_STREAM_CHUNK_SIZE", 48, minimum=8, maximum=256),
         provider_stub_enabled=_env_bool("USE_PROVIDER_STUB", False),
+        llm_drafting_enabled=_env_bool("LLM_DRAFTING", False),
         debug_prompt=_env_bool("DEBUG_PROMPT", False),
     )

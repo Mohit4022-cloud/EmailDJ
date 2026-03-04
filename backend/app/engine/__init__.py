@@ -7,7 +7,7 @@ from .normalize import (
     slider_to_axis,
     style_to_global_sliders,
 )
-from .pipeline import assembled_prompt_messages, fallback_draft, run_engine
+from .pipeline import assembled_prompt_messages, fallback_draft, run_engine, run_engine_async
 from .types import EmailDraft, EngineResult, MessagePlan, NormalizedContext, ValidationDebug
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "normalize_generate_request",
     "normalize_single_preview_request",
     "run_engine",
+    "run_engine_async",
     "slider_to_axis",
     "style_to_global_sliders",
 ]
