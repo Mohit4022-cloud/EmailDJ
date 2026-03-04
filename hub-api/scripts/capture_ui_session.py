@@ -60,7 +60,7 @@ def _ui_generate_payload(*, title: str = "CEO", preset_id: str = "straight_shoot
         "cta_type": None,
         "preset_id": preset_id,
         "response_contract": "legacy_text",
-        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-4.1-nano"},
+        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-5-nano"},
         "style_profile": {
             "formality": 0.1,
             "orientation": 0.2,
@@ -167,7 +167,7 @@ async def _fake_real_generate(
     return GenerateResult(
         text=json.dumps(payload, separators=(",", ":"), ensure_ascii=True),
         provider="openai",
-        model_name="gpt-4.1-nano",
+        model_name="gpt-5-nano",
         cascade_reason="primary",
         attempt_count=1,
         finish_reason="stop",

@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from email_generation.model_defaults import openai_reasoning_effort
 from evals.checks import parse_draft
 from evals.judge.cache import JudgeCache
 from evals.judge.prompts import (
@@ -301,6 +302,7 @@ class JudgeClient:
                 json={
                     "model": model_name,
                     "temperature": 0,
+                    "reasoning_effort": openai_reasoning_effort(),
                     "messages": [
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},

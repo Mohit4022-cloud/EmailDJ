@@ -62,7 +62,7 @@ Adds runtime metadata from `build_draft` result (fields present when available):
     "session_id":"...",
     "mode":"real",
     "provider":"openai",
-    "model":"gpt-4.1-nano",
+    "model":"gpt-5-nano",
     "provider_attempt_count":1,
     "validator_attempt_count":1,
     "json_repair_count":0,

@@ -41,6 +41,7 @@ from email_generation.compliance_rules import (
     _contains_term,
 )
 from email_generation.cta_templates import resolve_cta_lock
+from email_generation.model_defaults import default_openai_model, openai_reasoning_effort
 from email_generation.output_enforcement import (
     _GENERIC_CLOSER_PATTERNS,
     compose_body_without_padding_loops,
@@ -345,15 +346,18 @@ def _quick_mode() -> str:
 
 
 def _extractor_model() -> str:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", "gpt-4.1-nano").strip() or "gpt-4.1-nano"
+    default_model = default_openai_model()
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", default_model).strip() or default_model
 
 
 def _generator_model() -> str:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", "gpt-4.1-nano").strip() or "gpt-4.1-nano"
+    default_model = default_openai_model()
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", default_model).strip() or default_model
 
 
 def _fallback_model() -> str:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_FALLBACK", "gpt-4o-mini").strip() or "gpt-4o-mini"
+    default_model = default_openai_model()
+    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_FALLBACK", default_model).strip() or default_model
 
 
 def _include_summary_pack() -> bool:
@@ -1066,6 +1070,7 @@ async def _openai_structured_json(
         "model": model_name,
         "messages": messages,
         "temperature": 0,
+        "reasoning_effort": openai_reasoning_effort(),
         "response_format": {
             "type": "json_schema",
             "json_schema": {"name": schema_name, "strict": True, "schema": schema},

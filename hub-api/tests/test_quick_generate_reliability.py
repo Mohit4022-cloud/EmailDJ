@@ -14,7 +14,7 @@ async def test_real_generate_retries_when_provider_stops_due_to_length(monkeypat
     monkeypatch.setenv("REDIS_FORCE_INMEMORY", "1")
 
     sequence = [
-        ModelSpec(tier=2, provider="openai", model_name="gpt-4.1-nano", temperature=0.0, timeout_seconds=3.0),
+        ModelSpec(tier=2, provider="openai", model_name="gpt-5-nano", temperature=0.0, timeout_seconds=3.0),
     ]
     monkeypatch.setattr(qg, "get_cascade_sequence", lambda task, throttled=False: sequence)
     monkeypatch.setattr(qg, "_provider_max_retries", lambda provider: 2)

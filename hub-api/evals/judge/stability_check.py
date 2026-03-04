@@ -9,16 +9,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from email_generation.model_defaults import default_openai_model
+
 
 def _parse_args() -> argparse.Namespace:
+    default_model = default_openai_model()
     parser = argparse.ArgumentParser(description="Verify judge determinism and cache correctness.")
     parser.add_argument("--report-dir", default="reports")
     parser.add_argument("--out-dir", default="reports/judge/stability")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default="mock")
-    parser.add_argument("--judge-model", default="gpt-4.1-nano")
-    parser.add_argument("--judge-model-version", default=os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "gpt-4.1-nano"))
+    parser.add_argument("--judge-model", default=default_model)
+    parser.add_argument("--judge-model-version", default=os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", default_model))
     parser.add_argument("--judge-sample-count", type=int, default=1)
-    parser.add_argument("--pairwise-model", default="gpt-4.1-nano")
+    parser.add_argument("--pairwise-model", default=default_model)
     return parser.parse_args()
 
 
@@ -42,7 +45,7 @@ def _run_pairwise(root: Path, *, report_a: Path, report_b: Path, env: dict[str, 
         "--judge-mode",
         env.get("EMAILDJ_JUDGE_MODE", "mock"),
         "--judge-model",
-        env.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-nano"),
+        env.get("EMAILDJ_JUDGE_MODEL", default_openai_model()),
     ]
     subprocess.run(cmd, cwd=str(root), env=env, check=True)
     return json.loads((root / "reports" / "judge" / "pairwise_latest.json").read_text(encoding="utf-8"))

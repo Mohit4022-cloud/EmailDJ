@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-PACK_PATH = Path(__file__).resolve().parent / "benchmark_pack.smoke.json"
+DEFAULT_PACK_PATH = Path(__file__).resolve().parent / "benchmark_pack.smoke.json"
 DEVTOOLS_DIR = Path(__file__).resolve().parent
 
 # ---------------------------------------------------------------------------
@@ -141,8 +141,8 @@ async def _request_with_retries(
     raise RuntimeError(f"request_failed:{method}:{url}")
 
 
-def _load_pack() -> dict[str, Any]:
-    return json.loads(PACK_PATH.read_text(encoding="utf-8"))
+def _load_pack(pack_path: Path) -> dict[str, Any]:
+    return json.loads(pack_path.read_text(encoding="utf-8"))
 
 
 def _build_cases(pack: dict[str, Any], mode: str) -> list[dict[str, Any]]:
@@ -220,7 +220,7 @@ def _build_generate_payload(case: dict[str, Any]) -> dict[str, Any]:
         "cta_type": seller["cta_type"],
         "preset_id": case["preset_id"],
         "response_contract": "legacy_text",
-        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-4.1-nano"},
+        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-5-nano"},
         "style_profile": slider,
         "company_context": {
             "company_name": seller["company_name"],
@@ -523,6 +523,7 @@ def _build_scorecard(result: dict[str, Any]) -> dict[str, Any]:
         "prospect_name": persona["name"],
         "prospect_company": company["name"],
         "prospect_title": persona["title"],
+        "seller_company": seller.get("company_name", ""),
         "offer_lock": seller["offer_lock"],
         "preset_id": case["preset_id"],
         "cta_offer_lock": seller["cta_offer_lock"],
@@ -728,10 +729,11 @@ async def _run_all(
     concurrency: int,
     timeout: float,
     max_retries: int,
+    pack_path: Path,
 ) -> dict[str, Any]:
     httpx = __import__("httpx")
 
-    pack = _load_pack()
+    pack = _load_pack(pack_path)
     cases = _build_cases(pack, mode)
     run_id = f"{mode}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -888,6 +890,9 @@ Examples:
 
   # Preview flow (preset-previews/batch):
   python -m devtools.http_smoke_runner --mode smoke --flow preview
+
+  # Custom pack:
+  python -m devtools.http_smoke_runner --flow preview --pack devtools/benchmark_pack.ui_real.json
 """,
     )
     parser.add_argument(
@@ -941,8 +946,21 @@ Examples:
         default=8,
         help="Retries per request for 429/5xx/network errors (default: 8)",
     )
+    parser.add_argument(
+        "--pack",
+        default=str(DEFAULT_PACK_PATH),
+        help="Benchmark pack path (default: devtools/benchmark_pack.smoke.json)",
+    )
 
     args = parser.parse_args()
+    pack_path = Path(args.pack)
+    if not pack_path.exists():
+        candidate = (ROOT / args.pack).resolve()
+        if candidate.exists():
+            pack_path = candidate
+    pack_path = pack_path.resolve()
+    if not pack_path.exists():
+        raise SystemExit(f"Pack file not found: {args.pack}")
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     if args.out:
@@ -961,6 +979,7 @@ Examples:
             concurrency=args.concurrency,
             timeout=args.timeout,
             max_retries=max(0, args.max_retries),
+            pack_path=pack_path,
         )
     )
 

@@ -26,6 +26,7 @@ from api.routes.deep_research import router as deep_research_router
 from api.routes.quick_generate import router as quick_generate_router
 from api.routes.web_mvp import router as web_mvp_router
 from api.routes.webhooks import router as webhooks_router
+from email_generation.model_defaults import default_openai_model, openai_reasoning_effort
 from email_generation.model_cascade import get_cascade_sequence
 from email_generation.runtime_policies import (
     ALLOWED_QUICK_GENERATE_MODES,
@@ -75,6 +76,7 @@ def _preview_pipeline_enabled() -> bool:
 
 def _generation_attestation() -> dict[str, object]:
     policies = resolve_runtime_policies()
+    default_model = default_openai_model()
     mode = policies.quick_generate_mode
     provider = policies.real_provider_preference
     cascade = get_cascade_sequence(task="quick_generate", throttled=False)
@@ -92,8 +94,10 @@ def _generation_attestation() -> dict[str, object]:
         "dev_allow_p0_off": policies.dev_allow_p0_off,
         "p0_flags_effective": policies.p0_flags_effective,
         "p0_all_enabled": policies.p0_all_enabled,
-        "preview_extractor_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", "gpt-4o-mini").strip() or "gpt-4o-mini",
-        "preview_generator_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", "gpt-4o-mini").strip() or "gpt-4o-mini",
+        "openai_model_default": default_model,
+        "openai_reasoning_effort": openai_reasoning_effort(),
+        "preview_extractor_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", default_model).strip() or default_model,
+        "preview_generator_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", default_model).strip() or default_model,
     }
 
 

@@ -152,7 +152,7 @@ jobs:
             --max-cases 5 \
             --judge \
             --judge-mode mock \
-            --judge-model gpt-4.1-nano \
+            --judge-model gpt-5-nano \
             --judge-sample-count 1 \
             --judge-candidate-id baseline \
             --judge-skip-calibration

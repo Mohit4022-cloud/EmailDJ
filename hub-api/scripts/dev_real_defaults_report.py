@@ -88,7 +88,7 @@ def _generate_payload() -> dict[str, Any]:
         "cta_type": "question",
         "preset_id": "straight_shooter",
         "response_contract": "legacy_text",
-        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-4.1-nano"},
+        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-5-nano"},
         "style_profile": {"formality": 0.1, "orientation": 0.2, "length": -0.2, "assertiveness": 0.1},
         "company_context": {
             "company_name": "Corsearch",
@@ -150,7 +150,7 @@ async def _fake_real_generate(
     return GenerateResult(
         text=_fake_real_output(),
         provider="openai",
-        model_name="gpt-4.1-nano",
+        model_name="gpt-5-nano",
         cascade_reason="primary",
         attempt_count=1,
         finish_reason="stop",

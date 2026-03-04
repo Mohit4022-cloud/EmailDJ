@@ -14,6 +14,7 @@ import httpx
 
 from context_vault.models import AccountContext
 from email_generation.model_cascade import _provider_max_retries, get_cascade_sequence
+from email_generation.model_defaults import openai_reasoning_effort
 from email_generation.prompt_templates import get_quick_generate_prompt
 from email_generation.runtime_policies import (
     feature_structured_output_enabled,
@@ -86,7 +87,12 @@ async def _openai_chat_completion(
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
 
-    payload: dict = {"model": model_name, "messages": prompt, "temperature": 0}
+    payload: dict = {
+        "model": model_name,
+        "messages": prompt,
+        "temperature": 0,
+        "reasoning_effort": openai_reasoning_effort(),
+    }
     if max_output_tokens and max_output_tokens > 0:
         payload["max_completion_tokens"] = int(max_output_tokens)
     if strict_json:

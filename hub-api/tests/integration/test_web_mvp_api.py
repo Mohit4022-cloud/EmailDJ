@@ -124,7 +124,11 @@ def _stream_events(stream_text: str) -> list[tuple[str, dict]]:
 
 def _assert_upgraded_cta(text: str) -> None:
     lower = text.lower()
-    assert "worth a look / not a priority?" in lower
+    assert (
+        "worth a look / not a priority?" in lower
+        or "open to a 15-min call" in lower
+        or "open to a 20-min call" in lower
+    )
     assert ("15-min" in lower) or ("20-min" in lower)
     assert ("teardown" in lower) or ("workflow" in lower) or ("examples" in lower)
 
@@ -333,7 +337,7 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
                     ),
                 }
             )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
 
@@ -488,7 +492,7 @@ async def test_web_generate_rc_tco_contract_streams_strict_json():
 
     payload = _generate_payload()
     payload["response_contract"] = "rc_tco_json_v1"
-    payload["pipeline_meta"] = {"mode": "generate", "model_hint": "gpt-4.1-nano"}
+    payload["pipeline_meta"] = {"mode": "generate", "model_hint": "gpt-5-nano"}
     payload["cta_offer_lock"] = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
 
     transport = httpx.ASGITransport(app=app)

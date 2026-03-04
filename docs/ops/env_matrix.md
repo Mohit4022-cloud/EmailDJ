@@ -154,8 +154,10 @@ Sweep-updated: **2026-03-02** (columns aligned to canonical format).
 | VAR_NAME | default | required? | used by | safe test value | notes |
 |---|---|---|---|---|---|
 | `EMAILDJ_PRESET_PREVIEW_PIPELINE` | `off` | no | `api/routes/web_mvp.py`, `main.py`, `scripts/real_mode_failfast_smoke.py` | `off` | Values: `on\|off`. Enable to expose batch preview endpoint |
-| `EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR` | `gpt-4o-mini` | no | `email_generation/preset_preview_pipeline.py`, `main.py` | `gpt-4o-mini` | Model for research extraction step |
-| `EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR` | `gpt-4o-mini` | no | `email_generation/preset_preview_pipeline.py`, `main.py` | `gpt-4o-mini` | Model for email generation step |
+| `EMAILDJ_OPENAI_MODEL` | `gpt-5-nano` | no | `email_generation/model_defaults.py`, generation/eval OpenAI callers | `gpt-5-nano` | Global OpenAI default model alias |
+| `EMAILDJ_OPENAI_REASONING_EFFORT` | `high` | no | `email_generation/model_defaults.py`, generation/eval OpenAI callers | `high` | Values: `minimal\|low\|medium\|high` |
+| `EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR` | `gpt-5-nano` | no | `email_generation/preset_preview_pipeline.py`, `main.py` | `gpt-5-nano` | Model for research extraction step (defaults to `EMAILDJ_OPENAI_MODEL`) |
+| `EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR` | `gpt-5-nano` | no | `email_generation/preset_preview_pipeline.py`, `main.py` | `gpt-5-nano` | Model for email generation step (defaults to `EMAILDJ_OPENAI_MODEL`) |
 | `EMAILDJ_PREVIEW_INCLUDE_SUMMARY_PACK` | `0` | no | `email_generation/preset_preview_pipeline.py` | `0` | Values: `0\|1`. Include research summary pack in batch response |
 | `EMAILDJ_PRESET_PREVIEW_SUMMARY_CACHE_TTL_SEC` | `900` | no | preview pipeline | `900` | Summary pack Redis cache TTL in seconds |
 
@@ -178,9 +180,9 @@ the Hub API in mock or real mode.
 | VAR_NAME | default | required? | used by | safe test value | notes |
 |---|---|---|---|---|---|
 | `EMAILDJ_JUDGE_MODE` | `mock` | no | `evals/judge/client.py`, `evals/judge/calibrate_thresholds.py`, `evals/judge/real_corpus_runner.py` | `mock` | Values: `mock\|real`. Use `mock` in PR CI, `real` in nightly |
-| `EMAILDJ_JUDGE_MODEL` | `gpt-4.1-nano` | no | `evals/judge/client.py` | `gpt-4.1-nano` | Judge model name (e.g., `gpt-4.1-mini` for nightly) |
-| `EMAILDJ_JUDGE_MODEL_VERSION` | — | no | `evals/judge/client.py`, `evals/judge/pairwise_runner.py` | `gpt-4.1-nano` | Model version string used in eval reports |
-| `EMAILDJ_JUDGE_SECONDARY_MODEL` | — | no | `evals/judge/client.py` | `gpt-4.1-nano` | Secondary judge for pairwise validation |
+| `EMAILDJ_JUDGE_MODEL` | `gpt-5-nano` | no | `evals/judge/client.py` | `gpt-5-nano` | Judge model name (e.g., `gpt-4.1-mini` for nightly) |
+| `EMAILDJ_JUDGE_MODEL_VERSION` | — | no | `evals/judge/client.py`, `evals/judge/pairwise_runner.py` | `gpt-5-nano` | Model version string used in eval reports |
+| `EMAILDJ_JUDGE_SECONDARY_MODEL` | — | no | `evals/judge/client.py` | `gpt-5-nano` | Secondary judge for pairwise validation |
 | `EMAILDJ_JUDGE_TIMEOUT_SEC` | `30` | no | `evals/judge/client.py` | `30` | Per-case judge call timeout |
 | `EMAILDJ_JUDGE_CACHE_DIR` | `reports/judge/cache` | no | `evals/runner.py` | `reports/judge/cache` | Directory for judge response cache |
 | `EMAILDJ_JUDGE_RUBRIC_VERSION` | — | no | `evals/judge/rubric.py` | — | Rubric version tag stamped on eval reports |

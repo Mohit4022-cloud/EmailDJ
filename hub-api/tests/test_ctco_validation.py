@@ -315,7 +315,7 @@ async def test_build_draft_rewrites_forbidden_model_signal_in_real_mode(monkeypa
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
 
     monkeypatch.setattr(remix_engine, "_real_generate", contaminated_output)
     style_profile = {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
@@ -354,7 +354,7 @@ async def test_build_draft_real_prompt_does_not_include_other_products_mapping(m
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
 
     monkeypatch.setattr(remix_engine, "_real_generate", capture_prompt)
     await remix_engine.build_draft(
@@ -497,7 +497,7 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
                     ),
                 }
             )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
@@ -537,7 +537,7 @@ async def test_build_draft_structured_output_retries_before_salvage(monkeypatch)
         return GenerateResult(
             text=payload,
             provider="openai",
-            model_name="gpt-4.1-nano",
+            model_name="gpt-5-nano",
             cascade_reason="primary",
             attempt_count=calls["count"],
             finish_reason="stop",
@@ -628,7 +628,7 @@ async def test_build_draft_fluency_repair_retries_on_unmatched_parentheses(monke
         return GenerateResult(
             text=json.dumps({"subject": "Remix Studio for Acme", "body": body}),
             provider="openai",
-            model_name="gpt-4.1-nano",
+            model_name="gpt-5-nano",
             cascade_reason="primary",
             attempt_count=calls["count"],
             finish_reason="stop",
@@ -681,7 +681,7 @@ async def test_build_draft_deterministic_repair_fixes_cta_forbidden_and_length(m
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     style_profile = {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
     style_sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
@@ -714,7 +714,7 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
 
     async def always_invalid(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
         calls["count"] += 1
-        return GenerateResult(text="not valid json", provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text="not valid json", provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", always_invalid)
@@ -778,7 +778,7 @@ async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
 
     monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
     monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "0")
@@ -820,7 +820,7 @@ async def test_build_draft_block_mode_fails_without_repair_retry(monkeypatch):
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
     monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
@@ -1042,7 +1042,7 @@ async def test_build_draft_rewrites_unverified_numeric_claims(monkeypatch):
                 ),
             }
         )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=1)
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
 
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
     result = await remix_engine.build_draft(

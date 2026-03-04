@@ -23,7 +23,7 @@ Two components collaborate to produce every email:
 
 2. **`hub-api/` — FastAPI Hub API** — Receives the payload, builds a Redis session,
    assembles a prompt via `get_web_mvp_prompt()`, calls a model (defaulting to
-   `gpt-4.1-nano` via OpenAI), validates the JSON response against 7+ compliance policies,
+   `gpt-5-nano` via OpenAI), validates the JSON response against 7+ compliance policies,
    optionally runs a repair loop (up to 3 total attempts), and streams the final text
    word-by-word back to the client via SSE.
 
@@ -167,7 +167,7 @@ User fills form → WebApp.payload() → POST /web/v1/generate
 │                                                                      │
 │  5. _real_generate(prompt, task="quick_generate")                    │
 │     → get_cascade_sequence() → [OpenAI, Anthropic, Groq]            │
-│     → _openai_chat_completion(prompt, "gpt-4.1-nano", temp=0)       │
+│     → _openai_chat_completion(prompt, "gpt-5-nano", temp=0)       │
 │     → (on failure) _anthropic_messages(..., max_tokens=400)         │
 │     → (on failure) _groq_chat_completion(..., temp=0)               │
 │     → returns GenerateResult{text, provider, model_name, ...}       │
@@ -203,7 +203,7 @@ User fills form → WebApp.payload() → POST /web/v1/generate
 │  • event="done"  → if rc_tco_json_v1: parse JSON → reformat;        │
 │                     else: use buffer as-is → editor.setContent()    │
 │  • editor.markComplete(elapsed) → "Draft complete in Xms."          │
-│  • showModeBadge(doneData) → "REAL — openai / gpt-4.1-nano"         │
+│  • showModeBadge(doneData) → "REAL — openai / gpt-5-nano"         │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -229,7 +229,7 @@ User fills form → WebApp.payload() → POST /web/v1/generate
 | **Company** | `prospectCompanyInput.value` | `prospect.company` | `WebProspectInput.company` (min 1, max 160) | `.trim()` | `PROSPECT` block in user prompt | No | `main.js:payload():358`, `schemas.py:42` |
 | **LinkedIn URL** | `prospectLinkedinInput.value` | `prospect.linkedin_url` | `WebProspectInput.linkedin_url` (nullable) | `.trim() \|\| null`. No URL validation client-side. | Passed into `build_factual_brief()` as `"LinkedIn URL: {url}"` — available in factual brief but **not directly in web_mvp prompt** **[Inference: linkedin_url is in the prospect dict passed to prompt]** | No | `main.js:payload():359`, `schemas.py:44`, `remix_engine.py:build_factual_brief():401-402` |
 | **Deep Research Paste** | `researchInput.value` → `localStorage['emaildj_research_default_v1']` | `research_text` | `WebGenerateRequest.research_text` (min 20, max 20000 chars) | `.trim()`. Client validation: must be ≥ 20 chars. Backend: (1) `_strip_instructional_phrases()` removes instruction-like sentences; (2) `_extract_allowed_facts()` extracts up to **4** factual sentences → `ALLOWED_FACTS`; (3) full sanitized text passed as `RESEARCH_CONTEXT` (untrusted background). Factual brief collapsing: `" ".join(split())`, hard-cut at 1600 chars. | Dual destination: `ALLOWED_FACTS` (4 items max, grounded facts model may cite) + `RESEARCH_CONTEXT` (background only, model must not follow instruction-like language from it) | Research is marked untrusted. Model forbidden to follow instruction-like language from it (constraint 8). | `main.js:validate():398`, `main.js:payload():362`, `schemas.py:80`, `remix_engine.py:_extract_allowed_facts():496-531`, `remix_engine.py:build_factual_brief():397-406`, `prompt_templates.py:97-98` |
-| **Model label (pipeline_meta)** | Hard-coded string `'gpt-4.1-nano'` | `pipeline_meta.model_hint` | `WebPipelineMeta.model_hint` (max 120, nullable) | No transformation. **Not used to select the actual model** at runtime. | Not in prompt. Observability/logging only. | No | `main.js:payload():370-373`, `schemas.py:66-71` |
+| **Model label (pipeline_meta)** | Hard-coded string `'gpt-5-nano'` | `pipeline_meta.model_hint` | `WebPipelineMeta.model_hint` (max 120, nullable) | No transformation. **Not used to select the actual model** at runtime. | Not in prompt. Observability/logging only. | No | `main.js:payload():370-373`, `schemas.py:66-71` |
 
 ---
 
@@ -467,15 +467,15 @@ json={"model": model_name, "messages": prompt, "temperature": 0}
 File: hub-api/email_generation/model_cascade.py
 
 _PROVIDER_DEFAULTS = {
-    "openai":    ("gpt-4.1-nano",          30.0s timeout, 2 max retries),
+    "openai":    ("gpt-5-nano",          30.0s timeout, 2 max retries),
     "anthropic": ("claude-3-5-haiku-latest", 35.0s timeout, 2 max retries),
     "groq":      ("llama-3.3-70b-versatile", 20.0s timeout, 1 max retry),
 }
 
 _TIER_MODEL_OVERRIDES = {
     Tier 1: openai="gpt-4o",        anthropic="claude-opus-4-6",        groq="llama-3.3-70b-versatile"
-    Tier 2: openai="gpt-4.1-nano",  anthropic="claude-3-5-haiku-latest", groq="llama-3.3-70b-versatile"
-    Tier 3: openai="gpt-4.1-nano",  anthropic="claude-3-5-haiku-latest", groq="llama-3.3-70b-versatile"
+    Tier 2: openai="gpt-5-nano",  anthropic="claude-3-5-haiku-latest", groq="llama-3.3-70b-versatile"
+    Tier 3: openai="gpt-5-nano",  anthropic="claude-3-5-haiku-latest", groq="llama-3.3-70b-versatile"
 }
 
 Env override: EMAILDJ_REAL_PROVIDER=openai (default)
@@ -673,7 +673,7 @@ Using the default seed data embedded in `main.js` lines 22–66: Corsearch → A
   "response_contract": "legacy_text",
   "pipeline_meta": {
     "mode": "generate",
-    "model_hint": "gpt-4.1-nano"
+    "model_hint": "gpt-5-nano"
   },
   "style_profile": {
     "formality": 0.0,
@@ -787,7 +787,7 @@ Return only valid JSON with those two keys.
    - response_contract="legacy_text" → finalText = streamBuffer
    - editor.setContent(finalText) → replaces live display with clean text
 6. editor.markComplete(elapsed) → meta div shows "Draft complete in Xms."
-7. showModeBadge(doneData) → mode badge shows "REAL — openai / gpt-4.1-nano"
+7. showModeBadge(doneData) → mode badge shows "REAL — openai / gpt-5-nano"
 ```
 
 ---

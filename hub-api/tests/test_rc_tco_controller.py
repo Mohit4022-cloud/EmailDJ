@@ -39,8 +39,8 @@ def test_build_rc_tco_output_returns_required_shape():
             "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
         ),
         mode="generate",
-        effective_model_used="gpt-4.1-nano",
-        pipeline_meta={"mode": "generate", "model_hint": "gpt-4.1-nano"},
+        effective_model_used="gpt-5-nano",
+        pipeline_meta={"mode": "generate", "model_hint": "gpt-5-nano"},
     )
 
     assert set(payload.keys()) == {"user_company_intel", "prospect_intel", "message_plan", "email", "self_check", "debug"}
@@ -48,7 +48,7 @@ def test_build_rc_tco_output_returns_required_shape():
     assert payload["self_check"]["cta_count"] == 1
     assert payload["self_check"]["no_signoff_present"] is True
     assert payload["self_check"]["repetition_detected"] is False
-    assert payload["debug"]["effective_model_used"] == "gpt-4.1-nano"
+    assert payload["debug"]["effective_model_used"] == "gpt-5-nano"
 
 
 def test_validate_rc_tco_json_rejects_non_json():

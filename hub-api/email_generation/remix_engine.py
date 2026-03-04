@@ -43,6 +43,7 @@ from email_generation.output_enforcement import (
     sanitize_generic_ai_opener,
     split_sentences,
 )
+from email_generation.model_defaults import default_openai_model
 from email_generation.policies import policy_runner
 from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
@@ -74,10 +75,15 @@ logger = logging.getLogger(__name__)
 
 # Model names keyed by provider (mirrors quick_generate._real_generate hardcoded values)
 _PROVIDER_MODELS: dict[str, str] = {
-    "openai": "gpt-4.1-nano",
     "anthropic": "claude-3-5-haiku-latest",
     "groq": "llama-3.3-70b-versatile",
 }
+
+
+def _provider_model(provider: str) -> str:
+    if provider == "openai":
+        return default_openai_model()
+    return _PROVIDER_MODELS.get(provider, provider)
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
@@ -245,6 +251,8 @@ def _resolve_effective_cta_lock(
     raw_lock: Any,
     cta_type: str | None,
     offer_lock: str,
+    preset_id: str | None = None,
+    prospect_title: str | None = None,
     style_sliders: dict[str, int] | None = None,
     company_context: dict[str, Any] | None = None,
 ) -> str:
@@ -256,6 +264,8 @@ def _resolve_effective_cta_lock(
         cta_type=cta_type,
         risk_surface=risk_surface,
         directness=directness,
+        preset_id=preset_id,
+        prospect_title=prospect_title,
     )
 
 
@@ -2105,6 +2115,8 @@ async def build_draft(
         raw_lock=session.get("cta_offer_lock"),
         cta_type=plan.cta_type,
         offer_lock=session.get("offer_lock") or "",
+        preset_id=preset_id,
+        prospect_title=((session.get("prospect") or {}).get("title") if isinstance(session.get("prospect"), dict) else None),
         style_sliders=style_sliders,
         company_context=session.get("company_context"),
     )
@@ -2137,7 +2149,7 @@ async def build_draft(
         else:
             # Return cached draft with current mode metadata
             _provider = _preferred_provider() if mode == "real" else "mock"
-            _model = _PROVIDER_MODELS.get(_provider, _provider) if mode == "real" else "mock"
+            _model = _provider_model(_provider) if mode == "real" else "mock"
             return DraftResult(
                 draft=cached_draft,
                 style_key=style_key,

@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from email_generation.model_defaults import default_openai_model
 from evals.checks import evaluate_case
 from evals.judge.actions import derive_repair_actions
 from evals.judge.cache import JudgeCache
@@ -16,17 +17,18 @@ from evals.models import EvalCase, EvalExpected
 
 
 def _parse_args() -> argparse.Namespace:
+    default_model = default_openai_model()
     parser = argparse.ArgumentParser(description="Run judge sanity sentinel suite.")
     parser.add_argument("--sentinel", default="evals/judge/sentinel_cases.v1.json")
     parser.add_argument("--report-dir", default="reports/judge/sanity")
     parser.add_argument("--judge-mode", choices=("mock", "real"), default=os.environ.get("EMAILDJ_JUDGE_MODE", "mock"))
-    parser.add_argument("--judge-model", default=os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-nano"))
+    parser.add_argument("--judge-model", default=os.environ.get("EMAILDJ_JUDGE_MODEL", default_model))
     parser.add_argument(
         "--judge-model-version",
         default=(
             os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
-            or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-nano").strip()
-            or "gpt-4.1-nano"
+            or os.environ.get("EMAILDJ_JUDGE_MODEL", default_model).strip()
+            or default_model
         ),
     )
     parser.add_argument("--judge-sample-count", type=int, default=int(os.environ.get("EMAILDJ_JUDGE_SAMPLE_COUNT", "1")))
@@ -104,10 +106,10 @@ def main() -> int:
         cache=cache,
         runtime=JudgeRuntime(
             mode=(args.judge_mode.strip().lower() or "mock"),
-            model=(args.judge_model.strip() or "gpt-4.1-nano"),
+            model=(args.judge_model.strip() or default_openai_model()),
             timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
             sample_count=max(1, int(args.judge_sample_count)),
-            model_version=(args.judge_model_version.strip() or args.judge_model.strip() or "gpt-4.1-nano"),
+            model_version=(args.judge_model_version.strip() or args.judge_model.strip() or default_openai_model()),
             secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
         ),
     )

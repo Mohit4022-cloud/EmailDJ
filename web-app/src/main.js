@@ -367,7 +367,7 @@ class WebApp {
       response_contract: RESPONSE_CONTRACT,
       pipeline_meta: {
         mode: 'generate',
-        model_hint: 'gpt-4.1-nano',
+        model_hint: 'gpt-5-nano',
       },
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: companyCtx,

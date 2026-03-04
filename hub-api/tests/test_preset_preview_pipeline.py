@@ -471,7 +471,7 @@ async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
                     ),
                 }
             )
-        return {"summary_pack": summary_pack.model_dump(), "previews": previews}, "gpt-4.1-nano"
+        return {"summary_pack": summary_pack.model_dump(), "previews": previews}, "gpt-5-nano"
 
     monkeypatch.setattr(preview_pipeline, "_load_cached_summary", fake_load_cached_summary)
     monkeypatch.setattr(preview_pipeline, "_save_cached_summary", fake_save_cached_summary)
@@ -482,4 +482,4 @@ async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
 
     assert call_names == ["preset_preview_combined"]
     assert result.provider_attempt_count == 1
-    assert result.model_name == "gpt-4.1-nano"
+    assert result.model_name == "gpt-5-nano"

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
+from email_generation.model_defaults import default_openai_model
 from email_generation.runtime_policies import real_provider_preference
 
 
@@ -23,15 +24,15 @@ class ModelSpec:
 
 _PROVIDER_DEFAULTS: dict[str, tuple[str, float, float]] = {
     # provider -> (default_model, default_timeout, default_max_retries)
-    "openai": ("gpt-4.1-nano", 30.0, 2),
+    "openai": ("", 30.0, 2),
     "anthropic": ("claude-3-5-haiku-latest", 35.0, 2),
     "groq": ("llama-3.3-70b-versatile", 20.0, 1),
 }
 
 _TIER_MODEL_OVERRIDES: dict[int, dict[str, str]] = {
     1: {"openai": "gpt-4o", "anthropic": "claude-opus-4-6", "groq": "llama-3.3-70b-versatile"},
-    2: {"openai": "gpt-4.1-nano", "anthropic": "claude-3-5-haiku-latest", "groq": "llama-3.3-70b-versatile"},
-    3: {"openai": "gpt-4.1-nano", "anthropic": "claude-3-5-haiku-latest", "groq": "llama-3.3-70b-versatile"},
+    2: {"openai": "", "anthropic": "claude-3-5-haiku-latest", "groq": "llama-3.3-70b-versatile"},
+    3: {"openai": "", "anthropic": "claude-3-5-haiku-latest", "groq": "llama-3.3-70b-versatile"},
 }
 
 
@@ -69,6 +70,13 @@ def _preferred_provider_order() -> list[str]:
     return ordered
 
 
+def _tier_provider_map(tier: int) -> dict[str, str]:
+    provider_map = dict(_TIER_MODEL_OVERRIDES.get(tier, _TIER_MODEL_OVERRIDES[2]))
+    if "openai" in provider_map and not provider_map["openai"]:
+        provider_map["openai"] = default_openai_model()
+    return provider_map
+
+
 def get_model(tier: int, task: str, throttled: bool = False) -> ModelSpec:
     """Return a single ModelSpec for the given tier."""
     creative = {"sequence_draft", "persona_angle", "master_brief"}
@@ -83,7 +91,7 @@ def get_model(tier: int, task: str, throttled: bool = False) -> ModelSpec:
             timeout_seconds=_provider_timeout("groq"),
         )
 
-    provider_map = _TIER_MODEL_OVERRIDES.get(tier, _TIER_MODEL_OVERRIDES[2])
+    provider_map = _tier_provider_map(tier)
     preferred = real_provider_preference()
     provider = preferred if preferred in provider_map else "openai"
     model_name = provider_map[provider]
@@ -121,7 +129,7 @@ def get_cascade_sequence(task: str, throttled: bool = False) -> list[ModelSpec]:
     sequence: list[ModelSpec] = []
     for idx, provider in enumerate(providers):
         tier = 2 if idx == 0 else 3  # primary gets Tier 2; fallbacks get Tier 3
-        model_name = _TIER_MODEL_OVERRIDES.get(tier, _TIER_MODEL_OVERRIDES[2]).get(provider, "llama-3.3-70b-versatile")
+        model_name = _tier_provider_map(tier).get(provider, "llama-3.3-70b-versatile")
         sequence.append(
             ModelSpec(
                 tier=tier,

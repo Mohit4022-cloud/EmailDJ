@@ -54,7 +54,7 @@ against the gold set using a rubric. Runs in mock mode on every PR, real mode ni
 ## model_cascade
 The tiered model selection strategy for generation:
 - Tier 1 (highest quality): GPT-4o / Claude Opus 4.6 / Llama 3.3 70B
-- Tier 2 (balanced): GPT-4.1-nano / Claude 3.5 Haiku / Llama 3.3 70B
+- Tier 2 (balanced): GPT-5-nano / Claude 3.5 Haiku / Llama 3.3 70B
 - Tier 3 (fallback): same as Tier 2
 Provider preference set via `EMAILDJ_REAL_PROVIDER`. See `hub-api/email_generation/model_cascade.py`.
 

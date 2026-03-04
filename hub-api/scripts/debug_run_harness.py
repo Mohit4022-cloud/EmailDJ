@@ -49,7 +49,7 @@ def _payload() -> dict[str, Any]:
         "cta_type": "question",
         "preset_id": "straight_shooter",
         "response_contract": "legacy_text",
-        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-4.1-nano"},
+        "pipeline_meta": {"mode": "generate", "model_hint": "gpt-5-nano"},
         "style_profile": {
             "formality": 0.0,
             "orientation": 0.0,
