@@ -24,8 +24,9 @@ function baseContext() {
       current_product: 'Remix Studio',
       cta_offer_lock: '',
       cta_type: 'event_invite',
-      other_products: 'Prospect Enrichment\nSequence QA',
-      company_notes: 'We help SDR teams improve reply quality with controlled personalization.',
+      seller_offerings: 'Offer A\nOffer B',
+      internal_modules: 'Prospect Enrichment\nSequence QA',
+      company_notes: 'We help teams improve execution consistency with controlled workflows.',
     },
     offer_lock: 'Remix Studio',
     global_slider_state: {

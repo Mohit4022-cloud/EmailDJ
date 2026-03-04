@@ -49,15 +49,16 @@ test('buildPresetPreviewBatchPayload composes extractor+generator input contract
       company: 'Acme',
       linkedin_url: 'https://linkedin.com/in/alex-doe',
     },
-    research_text: 'Acme is scaling outbound programs in enterprise accounts this quarter.',
+    research_text: 'Acme is scaling workflow reliability initiatives in enterprise accounts this quarter.',
     company_context: {
       company_name: 'EmailDJ',
       company_url: 'https://emaildj.ai',
       current_product: 'Remix Studio',
       cta_offer_lock: 'Open to a quick chat to see if this is relevant?',
       cta_type: 'event_invite',
-      other_products: 'Prospect Enrichment\nSequence QA',
-      company_notes: 'We help SDR teams improve reply quality with controllable personalization.',
+      seller_offerings: 'Offer A\nOffer B',
+      internal_modules: 'Prospect Enrichment\nSequence QA',
+      company_notes: 'We help teams improve execution consistency with controllable workflows.',
     },
     global_slider_state: {
       formality: 45,
@@ -83,6 +84,7 @@ test('buildPresetPreviewBatchPayload composes extractor+generator input contract
   assert.equal(payload.cta_lock, 'Open to a quick chat to see if this is relevant?');
   assert.equal(payload.cta_lock_text, 'Open to a quick chat to see if this is relevant?');
   assert.equal(payload.cta_type, 'event_invite');
+  assert.equal(payload.hook_strategy, 'research_anchored');
   assert.equal(payload.prospect_first_name, 'Alex');
   assert.equal(payload.raw_research.deep_research_paste, context.research_text);
   assert.equal(payload.presets.length, 1);
@@ -102,7 +104,7 @@ test('buildPresetPreviewBatchPayload leaves CTA lock empty when no lock override
       title: 'SDR Manager',
       company: 'Acme',
     },
-    research_text: 'Acme is scaling outbound programs in enterprise accounts this quarter.',
+    research_text: 'Acme is scaling workflow programs in enterprise accounts this quarter.',
     company_context: {
       company_name: 'EmailDJ',
       current_product: 'Remix Studio',

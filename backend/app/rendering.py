@@ -114,5 +114,8 @@ async def render_email(
 
 
 def render_to_text(subject: str, body: str) -> str:
-    return f"Subject: {subject.strip()}\nBody:\n{body.strip()}"
-
+    clean_subject = subject.strip()
+    clean_body = body.strip()
+    if clean_subject and clean_body:
+        return f"{clean_subject}\n\n{clean_body}"
+    return clean_subject or clean_body

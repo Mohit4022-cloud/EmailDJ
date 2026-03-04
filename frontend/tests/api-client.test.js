@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  fetchPresetPreviewsBatch,
   fetchPresetPreview,
+  fetchResearchJobStatus,
   fetchRuntimeConfig,
+  startResearchJob,
   startProspectEnrichment,
   startTargetEnrichment,
 } from '../src/api/client.js';
@@ -19,6 +22,20 @@ test('fetchPresetPreview returns parsed JSON on success', async () => {
     const result = await fetchPresetPreview({ preset_id: '1' });
     assert.equal(result.preset_id, '1');
     assert.equal(result.subject, 'Subject');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchPresetPreviewsBatch returns parsed JSON on success', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ previews: [{ preset_id: '1', subject: 'S', body: 'B' }], meta: {} }),
+  });
+  try {
+    const result = await fetchPresetPreviewsBatch({ presets: [{ preset_id: '1' }] });
+    assert.equal(result.previews[0].preset_id, '1');
   } finally {
     global.fetch = originalFetch;
   }
@@ -68,6 +85,36 @@ test('prospect enrichment starter returns accepted payload', async () => {
     const result = await startProspectEnrichment({ prospect_name: 'Alex', target_company_name: 'Acme' });
     assert.equal(result.request_id, 'r1');
     assert.equal(result.stream_url, '/web/v1/stream/r1');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('startResearchJob returns queued job payload', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ job_id: 'j1', status: 'queued' }),
+  });
+  try {
+    const result = await startResearchJob({ account_id: 'acme-001' });
+    assert.equal(result.job_id, 'j1');
+    assert.equal(result.status, 'queued');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('fetchResearchJobStatus returns status payload', async () => {
+  const originalFetch = global.fetch;
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ job_id: 'j1', status: 'complete', result: { summary: 'ok' } }),
+  });
+  try {
+    const result = await fetchResearchJobStatus('j1');
+    assert.equal(result.status, 'complete');
+    assert.equal(result.result.summary, 'ok');
   } finally {
     global.fetch = originalFetch;
   }
