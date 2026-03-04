@@ -95,7 +95,8 @@ def _generation_attestation() -> dict[str, object]:
         "p0_flags_effective": policies.p0_flags_effective,
         "p0_all_enabled": policies.p0_all_enabled,
         "openai_model_default": default_model,
-        "openai_reasoning_effort": openai_reasoning_effort(),
+        "openai_reasoning_effort_enrichment_effective": openai_reasoning_effort(transform_type="enrichment"),
+        "openai_reasoning_effort_draft_effective": openai_reasoning_effort(transform_type="drafting"),
         "preview_extractor_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", default_model).strip() or default_model,
         "preview_generator_model": os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", default_model).strip() or default_model,
     }

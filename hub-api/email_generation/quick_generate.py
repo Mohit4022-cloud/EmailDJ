@@ -14,7 +14,7 @@ import httpx
 
 from context_vault.models import AccountContext
 from email_generation.model_cascade import _provider_max_retries, get_cascade_sequence
-from email_generation.model_defaults import openai_reasoning_effort
+from email_generation.model_defaults import openai_reasoning_effort, openai_supports_temperature_override
 from email_generation.prompt_templates import get_quick_generate_prompt
 from email_generation.runtime_policies import (
     feature_structured_output_enabled,
@@ -87,12 +87,17 @@ async def _openai_chat_completion(
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
 
+    reasoning_effort = openai_reasoning_effort(
+        model_name=model_name,
+        transform_type="drafting",
+    )
     payload: dict = {
         "model": model_name,
         "messages": prompt,
-        "temperature": 0,
-        "reasoning_effort": openai_reasoning_effort(),
+        "reasoning_effort": reasoning_effort,
     }
+    if openai_supports_temperature_override(model_name):
+        payload["temperature"] = 0
     if max_output_tokens and max_output_tokens > 0:
         payload["max_completion_tokens"] = int(max_output_tokens)
     if strict_json:
@@ -100,6 +105,15 @@ async def _openai_chat_completion(
             "type": "json_schema",
             "json_schema": _structured_subject_body_schema(),
         }
+    logger.debug(
+        "quick_generate_openai_request_policy",
+        extra={
+            "model": model_name,
+            "transform_type": "drafting",
+            "reasoning_effort": reasoning_effort,
+            "temperature_override": "temperature" in payload,
+        },
+    )
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         res = await client.post(
@@ -107,13 +121,18 @@ async def _openai_chat_completion(
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json=payload,
         )
-    res.raise_for_status()
+    if res.status_code >= 400:
+        raise RuntimeError(f"openai_error_{res.status_code}:{res.text[:300]}")
     data = res.json()
     choice = (data.get("choices") or [{}])[0]
     message = choice.get("message") or {}
-    content = message.get("content") or ""
+    content = message.get("content")
+    if isinstance(content, list):
+        text = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+    else:
+        text = str(content or "")
     finish_reason = choice.get("finish_reason")
-    return str(content), (str(finish_reason) if finish_reason is not None else None)
+    return text, (str(finish_reason) if finish_reason is not None else None)
 
 
 async def _anthropic_messages(

@@ -337,6 +337,19 @@ def test_preprocess_research_strips_wikipedia_openers_and_tokens_before_prompt_a
     assert "is an american software company" not in user_prompt.lower()
 
 
+def test_openai_timeout_seconds_defaults_and_env_overrides(monkeypatch):
+    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", raising=False)
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 45.0
+    assert preview_pipeline._openai_timeout_seconds("rewrite") == 45.0
+    assert preview_pipeline._openai_timeout_seconds("extraction") == 90.0
+
+    monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", "60")
+    monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", "120")
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 60.0
+    assert preview_pipeline._openai_timeout_seconds("extraction") == 120.0
+
+
 def test_preview_normalization_sections_avoid_search_enrich_act_phrase():
     req = _request_payload("NoSearchEnrichAct")
     summary_pack = _mock_summary_pack(req)
@@ -431,14 +444,16 @@ def test_cta_canonicalization_strips_fuzzy_match():
 
 
 @pytest.mark.asyncio
-async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
+async def test_preview_pipeline_cache_miss_splits_extractor_and_generator_calls(monkeypatch):
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["USE_PROVIDER_STUB"] = "0"
     os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "warn"
+    os.environ["EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR"] = "gpt-5-nano"
+    os.environ["EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR"] = "gpt-5-nano"
 
-    req = _request_payload("SingleCall")
+    req = _request_payload("SplitCalls")
     summary_pack = _mock_summary_pack(req)
-    call_names: list[str] = []
+    call_details: list[tuple[str, str, str]] = []
 
     async def fake_load_cached_summary(_req):
         return None
@@ -446,8 +461,8 @@ async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
     async def fake_save_cached_summary(_req, _summary_pack):
         return None
 
-    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name):  # noqa: ARG001
-        call_names.append(schema_name)
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type):  # noqa: ARG001
+        call_details.append((schema_name, transform_type, model_name))
         previews = []
         for preset in req.presets:
             previews.append(
@@ -471,7 +486,9 @@ async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
                     ),
                 }
             )
-        return {"summary_pack": summary_pack.model_dump(), "previews": previews}, "gpt-5-nano"
+        if schema_name == "preset_preview_extractor":
+            return {"summary_pack": summary_pack.model_dump()}, "gpt-5-nano"
+        return {"previews": previews}, "gpt-5-nano"
 
     monkeypatch.setattr(preview_pipeline, "_load_cached_summary", fake_load_cached_summary)
     monkeypatch.setattr(preview_pipeline, "_save_cached_summary", fake_save_cached_summary)
@@ -480,6 +497,63 @@ async def test_preview_pipeline_single_call_cache_miss(monkeypatch):
 
     result = await run_preview_pipeline(req)
 
-    assert call_names == ["preset_preview_combined"]
-    assert result.provider_attempt_count == 1
+    assert call_details == [
+        ("preset_preview_extractor", "extraction", "gpt-5-nano"),
+        ("preset_preview_batch", "rendering", "gpt-5-nano"),
+    ]
+    assert result.provider_attempt_count == 2
     assert result.model_name == "gpt-5-nano"
+
+
+@pytest.mark.asyncio
+async def test_openai_structured_json_uses_extraction_effort_and_omits_temperature_for_gpt5(monkeypatch):
+    os.environ["OPENAI_API_KEY"] = "sk-test"
+    captured: dict = {}
+    reasoning_calls: list[dict] = []
+
+    def fake_openai_reasoning_effort(*, raw_env_vars=None, model_name=None, transform_type=None):  # noqa: ARG001
+        reasoning_calls.append({"model_name": model_name, "transform_type": transform_type})
+        return "high"
+
+    class FakeResponse:
+        status_code = 200
+        text = ""
+
+        @staticmethod
+        def json():
+            return {"choices": [{"message": {"content": '{"previews": []}'}}]}
+
+    class FakeAsyncClient:
+        def __init__(self, timeout):
+            captured["timeout"] = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):  # noqa: ARG002
+            return None
+
+        async def post(self, url, headers, json):
+            captured["url"] = url
+            captured["headers"] = headers
+            captured["json"] = json
+            return FakeResponse()
+
+    monkeypatch.setattr(preview_pipeline, "openai_reasoning_effort", fake_openai_reasoning_effort)
+    monkeypatch.setattr(preview_pipeline.httpx, "AsyncClient", FakeAsyncClient)
+    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", raising=False)
+
+    await preview_pipeline._openai_structured_json(
+        messages=[{"role": "user", "content": "Return JSON"}],
+        schema={"type": "object", "properties": {"previews": {"type": "array"}}, "required": ["previews"]},
+        schema_name="preset_preview_batch",
+        model_name="gpt-5-nano",
+        transform_type="extraction",
+    )
+
+    assert captured["url"] == "https://api.openai.com/v1/chat/completions"
+    assert captured["json"]["reasoning_effort"] == "high"
+    assert "temperature" not in captured["json"]
+    assert captured["timeout"] == 90.0
+    assert reasoning_calls == [{"model_name": "gpt-5-nano", "transform_type": "extraction"}]

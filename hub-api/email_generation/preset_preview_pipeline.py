@@ -1,4 +1,4 @@
-"""Preset preview pipeline with combined extractor+generator on cache misses."""
+"""Preset preview pipeline with extractor and generator stages."""
 
 from __future__ import annotations
 
@@ -41,7 +41,11 @@ from email_generation.compliance_rules import (
     _contains_term,
 )
 from email_generation.cta_templates import resolve_cta_lock
-from email_generation.model_defaults import default_openai_model, openai_reasoning_effort
+from email_generation.model_defaults import (
+    default_openai_model,
+    openai_reasoning_effort,
+    openai_supports_temperature_override,
+)
 from email_generation.output_enforcement import (
     _GENERIC_CLOSER_PATTERNS,
     compose_body_without_padding_loops,
@@ -61,6 +65,8 @@ logger = logging.getLogger(__name__)
 
 PIPELINE_VERSION = "extractor-generator-v1"
 _PREVIEW_ENFORCEMENT_LEVEL_ENV = "EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"
+_PREVIEW_OPENAI_TIMEOUT_ENV = "EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS"
+_PREVIEW_OPENAI_EXTRACTION_TIMEOUT_ENV = "EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION"
 _BANNED_POSITIONING_PHRASES = (
     "ai services",
     "ai consulting",
@@ -366,6 +372,26 @@ def _include_summary_pack() -> bool:
 
 def _summary_ttl() -> int:
     return _env_int("EMAILDJ_PRESET_PREVIEW_SUMMARY_CACHE_TTL_SEC", 900, 60, 3600)
+
+
+def _openai_timeout_seconds(transform_type: str) -> float:
+    default_timeout = 45.0
+    default_extraction_timeout = 90.0
+    raw_default = os.environ.get(_PREVIEW_OPENAI_TIMEOUT_ENV, str(default_timeout)).strip()
+    try:
+        fallback_timeout = float(raw_default)
+    except ValueError:
+        fallback_timeout = default_timeout
+    fallback_timeout = max(10.0, min(300.0, fallback_timeout))
+
+    if str(transform_type or "").strip().lower() == "extraction":
+        raw_extraction = os.environ.get(_PREVIEW_OPENAI_EXTRACTION_TIMEOUT_ENV, str(default_extraction_timeout)).strip()
+        try:
+            extraction_timeout = float(raw_extraction)
+        except ValueError:
+            extraction_timeout = default_extraction_timeout
+        return max(10.0, min(300.0, extraction_timeout))
+    return fallback_timeout
 
 
 def _to_words(value: str) -> list[str]:
@@ -1061,22 +1087,40 @@ async def _openai_structured_json(
     schema: dict[str, Any],
     schema_name: str,
     model_name: str,
+    transform_type: str,
 ) -> dict[str, Any]:
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
 
+    request_timeout = _openai_timeout_seconds(transform_type)
+    reasoning_effort = openai_reasoning_effort(
+        model_name=model_name,
+        transform_type=transform_type,
+    )
     request_body = {
         "model": model_name,
         "messages": messages,
-        "temperature": 0,
-        "reasoning_effort": openai_reasoning_effort(),
+        "reasoning_effort": reasoning_effort,
         "response_format": {
             "type": "json_schema",
             "json_schema": {"name": schema_name, "strict": True, "schema": schema},
         },
     }
-    async with httpx.AsyncClient(timeout=45.0) as client:
+    if openai_supports_temperature_override(model_name):
+        request_body["temperature"] = 0
+    logger.debug(
+        "preview_openai_request_policy",
+        extra={
+            "schema_name": schema_name,
+            "model": model_name,
+            "transform_type": transform_type,
+            "reasoning_effort": reasoning_effort,
+            "temperature_override": "temperature" in request_body,
+            "timeout_seconds": request_timeout,
+        },
+    )
+    async with httpx.AsyncClient(timeout=request_timeout) as client:
         response = await client.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -1113,11 +1157,16 @@ async def _openai_structured_json_with_fallback(
     schema: dict[str, Any],
     schema_name: str,
     model_name: str,
+    transform_type: str,
 ) -> tuple[dict[str, Any], str]:
     """Call with primary model; fall back on schema/refusal error."""
     try:
         result = await _openai_structured_json(
-            messages=messages, schema=schema, schema_name=schema_name, model_name=model_name
+            messages=messages,
+            schema=schema,
+            schema_name=schema_name,
+            model_name=model_name,
+            transform_type=transform_type,
         )
         return result, model_name
     except RuntimeError as exc:
@@ -1128,7 +1177,11 @@ async def _openai_structured_json_with_fallback(
                 extra={"primary_model": model_name, "fallback_model": fallback, "reason": str(exc)},
             )
             result = await _openai_structured_json(
-                messages=messages, schema=schema, schema_name=schema_name, model_name=fallback
+                messages=messages,
+                schema=schema,
+                schema_name=schema_name,
+                model_name=fallback,
+                transform_type=transform_type,
             )
             return result, fallback
         raise
@@ -1504,29 +1557,40 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
 
     if mode == "real":
         provider = "openai"
-        model_name = _generator_model()
-        provider_attempt_count = 1
         validator_attempt_count = 1
         if cache_hit:
             # Cache hit: summary_pack from Redis; one generator call
+            provider_attempt_count += 1
+            generator_model = _generator_model()
             raw, model_name = await _openai_structured_json_with_fallback(
                 messages=_generator_messages(req, summary_pack),
                 schema=_GENERATOR_SCHEMA,
                 schema_name="preset_preview_batch",
-                model_name=model_name,
+                model_name=generator_model,
+                transform_type="rendering",
             )
             raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
         else:
-            # Cache miss: single combined extractor+generator call
-            combined_raw, model_name = await _openai_structured_json_with_fallback(
-                messages=_combined_messages(req),
-                schema=_COMBINED_SCHEMA,
-                schema_name="preset_preview_combined",
-                model_name=model_name,
+            # Cache miss: separate extraction (high effort) and rendering (low effort).
+            provider_attempt_count += 1
+            extractor_raw, _ = await _openai_structured_json_with_fallback(
+                messages=_extractor_messages(req),
+                schema=_EXTRACTOR_SCHEMA,
+                schema_name="preset_preview_extractor",
+                model_name=_extractor_model(),
+                transform_type="extraction",
             )
-            summary_pack = _sanitize_summary_pack(combined_raw, req)
+            summary_pack = _sanitize_summary_pack(extractor_raw, req)
             await _save_cached_summary(req, summary_pack)
-            raw_items = combined_raw.get("previews", []) if isinstance(combined_raw, dict) else []
+            provider_attempt_count += 1
+            raw, model_name = await _openai_structured_json_with_fallback(
+                messages=_generator_messages(req, summary_pack),
+                schema=_GENERATOR_SCHEMA,
+                schema_name="preset_preview_batch",
+                model_name=_generator_model(),
+                transform_type="rendering",
+            )
+            raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
         previews = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items if isinstance(raw_items, list) else [])
         violations = _violation_messages(previews, req)
         initial_violation_count = len(violations)
@@ -1542,6 +1606,7 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
                 schema=_GENERATOR_SCHEMA,
                 schema_name="preset_preview_batch_repair",
                 model_name=model_name,
+                transform_type="rewrite",
             )
             repaired_items = repaired_raw.get("previews", []) if isinstance(repaired_raw, dict) else []
             previews = _normalize_preview_items(
