@@ -31,7 +31,6 @@ class OpenAIClient:
         payload: dict[str, Any] = {
             "model": self.settings.openai_model,
             "messages": messages,
-            "temperature": 0,
             "reasoning_effort": reasoning_effort,
             "max_completion_tokens": max_completion_tokens,
         }
@@ -95,4 +94,3 @@ class OpenAIClient:
                 return json.loads(maybe)
             except json.JSONDecodeError:
                 return {}
-
