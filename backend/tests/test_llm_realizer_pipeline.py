@@ -3,9 +3,12 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
+import pytest
+
 from app.config import load_settings
 from app.engine import normalize_generate_request, run_engine
 from app.engine.llm_realizer import assemble_llm_prompt_messages
+from app.engine.postprocess import word_count
 from app.engine.planning import build_message_plan
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 
@@ -97,7 +100,7 @@ def test_llm_path_selected_when_enabled_and_provider_available() -> None:
     assert len(openai.calls) == 1
 
 
-def test_llm_disabled_uses_existing_deterministic_path() -> None:
+def test_llm_disabled_fails_closed() -> None:
     req = _request()
     ctx = normalize_generate_request(req)
     openai = StubOpenAI(
@@ -110,24 +113,19 @@ def test_llm_disabled_uses_existing_deterministic_path() -> None:
     )
     settings = replace(load_settings(), llm_drafting_enabled=False)
 
-    result = run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
-
-    assert result.debug.draft_source == "deterministic"
+    with pytest.raises(RuntimeError, match="ai_only_pipeline_requires_openai"):
+        run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
     assert len(openai.calls) == 0
 
 
-def test_malformed_json_then_repair_then_safe_fallback() -> None:
+def test_malformed_json_then_repair_fails_closed() -> None:
     req = _request()
     ctx = normalize_generate_request(req)
     openai = StubOpenAI([{}, {}])
     settings = replace(load_settings(), llm_drafting_enabled=True)
 
-    result = run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
-
-    assert result.debug.draft_source == "fallback"
-    assert result.debug.llm_attempt_count == 2
-    assert result.debug.degraded is True
-    assert result.draft.body.splitlines()[-1].strip() == req.cta_offer_lock
+    with pytest.raises(RuntimeError, match="llm_realize_failed:llm_json_parse_failed"):
+        run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
 
 
 def test_llm_prompt_payload_excludes_internal_modules_values() -> None:
@@ -162,6 +160,43 @@ def test_cta_lock_is_hard_enforced_for_llm_output() -> None:
 
     result = run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
 
-    assert result.debug.draft_source == "llm"
+    assert result.debug.draft_source == "llm_postprocessed"
     assert result.draft.body.splitlines()[-1].strip() == req.cta_offer_lock
     assert result.draft.body.count(req.cta_offer_lock) == 1
+    assert len(openai.calls) == 1
+
+
+def test_length_only_violation_is_postprocessed_without_llm_repair_or_fallback() -> None:
+    req = _request()
+    ctx = normalize_generate_request(req)
+    long_sentences = " ".join(
+        [
+            f"Sentence {idx} ties workflow reliability to trademark enforcement priorities."
+            for idx in range(1, 25)
+        ]
+    )
+    openai = StubOpenAI(
+        [
+            {
+                "subject": "Acme workflow note",
+                "body": (
+                    "Hi Alex,\n\n"
+                    f"{long_sentences}\n\n"
+                    f"{req.cta_offer_lock}"
+                ),
+            }
+        ]
+    )
+    settings = replace(load_settings(), llm_drafting_enabled=True)
+
+    result = run_engine(ctx, max_repairs=2, openai=openai, settings=settings)
+
+    assert result.debug.draft_source == "llm_postprocessed"
+    assert result.debug.repair_attempt_count == 0
+    assert result.debug.llm_attempt_count == 1
+    assert len(openai.calls) == 1
+    assert "trim_to_max_words" in result.debug.postprocess_applied
+    assert "word_count_out_of_band" in result.debug.validation_error_codes_raw
+    assert result.debug.validation_error_codes_final == []
+    assert result.debug.word_count_final <= result.debug.word_band_max
+    assert word_count(result.draft.body) <= result.debug.word_band_max

@@ -46,7 +46,7 @@ def _generate_and_stream() -> None:
     assert stream_res.status_code == 200
 
 
-def test_debug_prompt_logs_are_emitted_only_when_enabled(caplog) -> None:
+def test_debug_prompt_logs_are_not_emitted_in_ai_orchestrator_mode(caplog) -> None:
     original_settings = state.settings
     try:
         caplog.set_level(logging.INFO)
@@ -61,9 +61,9 @@ def test_debug_prompt_logs_are_emitted_only_when_enabled(caplog) -> None:
         caplog.clear()
         _generate_and_stream()
         debug_logs = "\n".join(record.getMessage() for record in caplog.records)
-        assert "prompt_trace stage=normalize.generate" in debug_logs
-        assert "prompt_trace stage=plan.generate" in debug_logs
-        assert "prompt_trace stage=assembled_messages.generate" in debug_logs
-        assert "prompt_trace stage=provenance.generate" in debug_logs
+        assert "prompt_trace stage=normalize.generate" not in debug_logs
+        assert "prompt_trace stage=plan.generate" not in debug_logs
+        assert "prompt_trace stage=assembled_messages.generate" not in debug_logs
+        assert "prompt_trace stage=provenance.generate" not in debug_logs
     finally:
         state.settings = original_settings

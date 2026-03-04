@@ -41,7 +41,10 @@ def test_generate_stream_smoke() -> None:
     assert stream_res.status_code == 200
     body = stream_res.text
     assert "event: done" in body
-    assert "Quick idea" in body or "event: token" in body
+    assert '"ok": false' in body
+    assert '"error":' in body
+    assert '"subject":' not in body
+    assert '"body":' not in body
 
 
 def test_generate_email_json_v1_done_contract() -> None:
@@ -73,9 +76,10 @@ def test_generate_email_json_v1_done_contract() -> None:
     stream_res = client.get(accepted.json()["stream_url"], headers=_headers())
     assert stream_res.status_code == 200
     text = stream_res.text
-    assert '"final":' in text
-    assert '"subject":' in text
-    assert '"debug":' in text
+    assert '"ok": false' in text
+    assert '"error":' in text
+    assert '"subject":' not in text
+    assert '"body":' not in text
 
 
 def test_preset_preview_batch_smoke() -> None:
@@ -114,8 +118,9 @@ def test_preset_preview_batch_smoke() -> None:
     assert res.status_code == 200
     data = res.json()
     assert len(data["previews"]) == 2
-    assert data["previews"][0]["subject"]
-    assert data["previews"][0]["body"]
+    assert data["previews"][0]["subject"] is None
+    assert data["previews"][0]["body"] is None
+    assert isinstance(data["previews"][0]["error"], dict)
 
 
 def test_target_enrichment_requires_anchor() -> None:

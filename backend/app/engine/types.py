@@ -76,6 +76,15 @@ class ValidationDebug:
     draft_source: str = "deterministic"
     llm_attempt_count: int = 0
     llm_used: bool = False
+    length_input_raw: float | None = None
+    length_normalized: int = 50
+    word_band_min: int = 0
+    word_band_max: int = 0
+    word_count_llm_raw: int | None = None
+    word_count_final: int = 0
+    postprocess_applied: list[str] = field(default_factory=list)
+    validation_error_codes_raw: list[str] = field(default_factory=list)
+    validation_error_codes_final: list[str] = field(default_factory=list)
     stage_latency_ms: dict[str, int] = field(default_factory=dict)
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.engine import assembled_prompt_messages, normalize_generate_request, run_engine
+from app.engine import assembled_prompt_messages, normalize_generate_request
+from app.engine.planning import build_message_plan
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 
 
@@ -34,8 +35,8 @@ def _request() -> WebGenerateRequest:
 def test_internal_modules_are_excluded_from_assembled_payload_plan_and_draft() -> None:
     req = _request()
     ctx = normalize_generate_request(req)
-    result = run_engine(ctx, max_repairs=2)
-    messages = assembled_prompt_messages(ctx, result.plan)
+    plan = build_message_plan(ctx)
+    messages = assembled_prompt_messages(ctx, plan)
 
     assert ctx.internal_modules == ["Prospect Enrichment", "Sequence QA", "Persona Research"]
     assert "Prospect Enrichment" not in ctx.proof_points
@@ -47,7 +48,7 @@ def test_internal_modules_are_excluded_from_assembled_payload_plan_and_draft() -
     assert "Sequence QA" not in serialized_messages
     assert "Persona Research" not in serialized_messages
 
-    merged = f"{result.plan.value_prop}\n{result.draft.subject}\n{result.draft.body}"
+    merged = f"{plan.value_prop}\n{plan.hook_sentence}\n{plan.proof_point}"
     assert "Prospect Enrichment" not in merged
     assert "Sequence QA" not in merged
     assert "Persona Research" not in merged

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from app.engine import assembled_prompt_messages, normalize_generate_request, run_engine
+import pytest
+
+from app.engine import normalize_generate_request, run_engine
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 
 
@@ -50,28 +52,16 @@ def _request(*, category: str, length: float) -> WebGenerateRequest:
     )
 
 
-def _collect(category: str) -> list[tuple[int, str]]:
-    rows: list[tuple[int, str]] = []
+def _assert_fail_closed(category: str) -> None:
     for length in (-0.8, 0.0, 0.8):
         ctx = normalize_generate_request(_request(category=category, length=length))
-        result = run_engine(ctx, max_repairs=2)
-        messages = assembled_prompt_messages(ctx, result.plan)
-        merged = f"{messages}\n{result.draft.subject}\n{result.draft.body}".lower()
-        for token in CONTAMINATION_TOKENS:
-            assert token not in merged
-        rows.append((len(result.draft.selected_beat_ids), result.draft.body))
-    return rows
+        with pytest.raises(RuntimeError, match="ai_only_pipeline_requires_openai"):
+            run_engine(ctx, max_repairs=2)
 
 
-def test_length_progression_brand_protection_no_outbound_contamination() -> None:
-    rows = _collect("brand_protection")
-    assert rows[1][0] >= rows[0][0]
-    assert rows[2][0] >= rows[1][0]
-    assert rows[2][0] > rows[0][0]
+def test_length_progression_brand_protection_requires_ai_provider() -> None:
+    _assert_fail_closed("brand_protection")
 
 
-def test_length_progression_generic_b2b_no_outbound_contamination() -> None:
-    rows = _collect("generic_b2b")
-    assert rows[1][0] >= rows[0][0]
-    assert rows[2][0] >= rows[1][0]
-    assert rows[2][0] > rows[0][0]
+def test_length_progression_generic_b2b_requires_ai_provider() -> None:
+    _assert_fail_closed("generic_b2b")

@@ -26,6 +26,14 @@ def _word_count(text: str) -> int:
     return len(re.findall(r"\b\w+\b", text or ""))
 
 
+def violation_code(violation: str) -> str:
+    return str(violation or "").split(":", 1)[0].strip()
+
+
+def violation_codes(violations: list[str]) -> list[str]:
+    return [violation_code(item) for item in violations if str(item or "").strip()]
+
+
 def _normalize_sentence(sentence: str) -> str:
     sentence = re.sub(r"\s+", " ", sentence.strip().lower())
     sentence = re.sub(r"[^a-z0-9\s]", "", sentence)
@@ -38,10 +46,25 @@ def validate_draft(draft: EmailDraft, plan: MessagePlan, ctx: NormalizedContext)
     body = (draft.body or "").strip()
     merged = f"{subject}\n{body}"
 
-    if plan.cta_line_locked and plan.cta_line_locked not in body:
-        violations.append("cta_lock_exact_missing")
-    elif plan.cta_line_locked and body.splitlines() and body.splitlines()[-1].strip() != plan.cta_line_locked.strip():
-        violations.append("cta_not_final_line")
+    if len(subject) > 70:
+        violations.append(f"subject_too_long:{len(subject)}:70")
+
+    if body != (draft.body or ""):
+        violations.append("extra_trailing_whitespace")
+    elif any(line != line.rstrip() for line in (draft.body or "").split("\n")):
+        violations.append("extra_trailing_whitespace")
+
+    if plan.cta_line_locked:
+        cta = plan.cta_line_locked.strip()
+        lines = body.splitlines()
+        occurrences = sum(1 for line in lines if line.strip() == cta)
+        if occurrences == 0:
+            violations.append("cta_lock_exact_missing")
+        else:
+            if occurrences > 1:
+                violations.append(f"duplicate_cta_line:{occurrences}")
+            if lines and lines[-1].strip() != cta:
+                violations.append("cta_not_final_line")
 
     sentences = [part.strip() for part in re.split(r"(?<=[.!?])\s+|\n+", body) if part.strip()]
     seen: set[str] = set()

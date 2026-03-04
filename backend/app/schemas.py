@@ -76,6 +76,13 @@ class WebStyleProfile(BaseModel):
     assertiveness: float = Field(default=0.0, ge=-1.0, le=1.0)
 
 
+class WebSliders(BaseModel):
+    tone: float = Field(default=0.4, ge=0.0, le=1.0)
+    framing: float = Field(default=0.5, ge=0.0, le=1.0)
+    length: Literal["short", "medium", "long"] = Field(default="medium")
+    stance: float = Field(default=0.5, ge=0.0, le=1.0)
+
+
 class WebCompanyContext(BaseModel):
     company_name: str | None = Field(default=None, max_length=200)
     company_url: str | None = Field(default=None, max_length=400)
@@ -103,6 +110,9 @@ class WebGenerateRequest(BaseModel):
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
     preset_id: str | None = Field(default=None, max_length=120)
+    preset_ids: list[str] | None = Field(default=None, max_length=40)
+    mode: Literal["single", "preset_browse"] = Field(default="single")
+    sliders: WebSliders | None = None
     response_contract: Literal["legacy_text", "email_json_v1", "rc_tco_json_v1"] = Field(default="legacy_text")
     pipeline_meta: WebPipelineMeta | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
@@ -237,8 +247,9 @@ class PresetPreviewBatchItem(BaseModel):
     vibeLabel: str
     vibeTags: list[str]
     whyItWorks: list[str]
-    subject: str
-    body: str
+    subject: str | None = None
+    body: str | None = None
+    error: dict[str, Any] | None = None
     debug: dict[str, Any] = Field(default_factory=dict)
 
 

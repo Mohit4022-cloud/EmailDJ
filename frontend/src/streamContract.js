@@ -8,6 +8,7 @@ export function createStreamState() {
     chunkSequenceMismatch: false,
     doneData: null,
     streamError: '',
+    stageEvents: [],
   };
 }
 
@@ -87,13 +88,23 @@ export function applyStreamEvent(state, msg) {
       state.activeDraftId = draftId;
     }
     state.doneData = msg.data || null;
-    const finalBody = typeof msg?.data?.final?.body === 'string' ? msg.data.final.body : null;
+    const finalBody =
+      typeof msg?.data?.body === 'string'
+        ? msg.data.body
+        : typeof msg?.data?.final?.body === 'string'
+        ? msg.data.final.body
+        : null;
     return { accepted: true, done: true, finalBody, doneData: state.doneData };
   }
 
   if (msg.event === 'error') {
     state.streamError = String(msg.data?.error || 'Draft generation failed during stream.');
     return { accepted: true, error: state.streamError };
+  }
+
+  if (msg.event === 'stage') {
+    state.stageEvents.push(msg.data || {});
+    return { accepted: true, stage: msg.data || null };
   }
 
   return { accepted: false };

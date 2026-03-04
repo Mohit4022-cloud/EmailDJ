@@ -1,0 +1,19 @@
+{
+  "preset_id": "executive",
+  "name": "Executive",
+  "tone_descriptor": "strategic, terse, outcome-focused",
+  "style_rules": [
+    "Prioritize business outcomes over feature details",
+    "Use short decisive sentences",
+    "Keep language formal-professional"
+  ],
+  "structure_rules": [
+    "outcome -> risk/cost -> proof -> CTA",
+    "Short mode should stay under 5 concise sentences"
+  ],
+  "banned_phrases_additions": [
+    "hope this finds you well",
+    "reach out"
+  ],
+  "formatting_hints": "Plain text, no contractions in formal tone"
+}

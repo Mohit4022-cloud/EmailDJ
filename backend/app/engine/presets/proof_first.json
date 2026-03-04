@@ -1,0 +1,19 @@
+{
+  "preset_id": "proof_first",
+  "name": "Proof First",
+  "tone_descriptor": "evidence-led, precise, credible",
+  "style_rules": [
+    "Lead with a credible proof element from the brief",
+    "Tie proof to one measurable or operational outcome",
+    "Avoid unsupported superlatives"
+  ],
+  "structure_rules": [
+    "proof -> implication -> value -> CTA",
+    "Keep CTA concise and final"
+  ],
+  "banned_phrases_additions": [
+    "best in class",
+    "world class"
+  ],
+  "formatting_hints": "Plain text, no decorative punctuation"
+}

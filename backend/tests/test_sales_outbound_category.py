@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from app.engine import normalize_generate_request, run_engine
+from app.engine import normalize_generate_request
+from app.engine.planning import build_message_plan
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 
 
@@ -31,8 +32,8 @@ def test_sales_outbound_category_still_generates_outbound_relevant_copy() -> Non
     )
 
     ctx = normalize_generate_request(req)
-    result = run_engine(ctx, max_repairs=2)
+    plan = build_message_plan(ctx)
 
     assert ctx.product_category == "sales_outbound"
-    merged = f"{result.plan.value_prop}\n{result.draft.body}".lower()
+    merged = f"{plan.value_prop}\n{plan.hook_sentence}".lower()
     assert "outreach" in merged or "response" in merged

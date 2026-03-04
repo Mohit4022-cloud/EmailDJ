@@ -1,0 +1,16 @@
+{
+  "preset_id": "base",
+  "name": "Base",
+  "tone_descriptor": "clear, specific, grounded",
+  "style_rules": [
+    "Use concrete language and avoid buzzwords",
+    "Keep one core point per sentence",
+    "Avoid generic compliments and flattery"
+  ],
+  "structure_rules": [
+    "opener -> value -> proof -> CTA",
+    "Keep paragraph count proportional to requested length"
+  ],
+  "banned_phrases_additions": [],
+  "formatting_hints": "Plain text, no markdown, no emoji"
+}

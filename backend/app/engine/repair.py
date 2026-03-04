@@ -96,10 +96,10 @@ def repair_draft(draft: EmailDraft, plan: MessagePlan, ctx: NormalizedContext, v
 
     if not subject:
         role = ctx.prospect_title or "your team"
-        subject = f"Idea for {role}"[:78]
+        subject = f"Idea for {role}"[:70]
 
     return EmailDraft(
-        subject=subject[:78],
+        subject=subject[:70],
         body=body.strip(),
         subject_source=draft.subject_source or "repair",
         body_sources=list(draft.body_sources or []),
