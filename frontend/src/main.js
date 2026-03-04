@@ -63,6 +63,23 @@ function firstName(raw) {
   return String(raw || '').trim().split(/\s+/)[0] || null;
 }
 
+function sliderStateToGenerationSliders(sliderState) {
+  const state = sliderState || {};
+  const tone = 1 - (Number(state.formality || 50) / 100);
+  const framing = Number(state.orientation || 50) / 100;
+  const stance = Number(state.assertiveness || 50) / 100;
+  const lengthValue = Number(state.length || 50);
+  let length = 'medium';
+  if (lengthValue <= 33) length = 'short';
+  else if (lengthValue >= 67) length = 'long';
+  return {
+    tone: Math.max(0, Math.min(1, Number(tone.toFixed(2)))),
+    framing: Math.max(0, Math.min(1, Number(framing.toFixed(2)))),
+    length,
+    stance: Math.max(0, Math.min(1, Number(stance.toFixed(2)))),
+  };
+}
+
 function stripUnknown(items = []) {
   return (Array.isArray(items) ? items : []).map((item) => String(item || '').trim()).filter(Boolean);
 }
@@ -402,6 +419,7 @@ class WebApp {
     const target = this.targetPayload();
     const offerLock = this.sellerCurrentProductInput.value.trim();
     const companyCtx = this.companyContextPayload();
+    const sliderState = this.sliderBoard.getValues();
 
     if (companyCtx.current_product && companyCtx.current_product === offerLock) {
       delete companyCtx.current_product;
@@ -420,15 +438,16 @@ class WebApp {
       offer_lock: offerLock,
       cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
       cta_type: this.ctaTypeSelect.value.trim() || null,
+      mode: 'single',
       preset_id: this.selectedPresetId,
-      style_profile: styleToPayload(this.sliderBoard.getValues()),
+      style_profile: styleToPayload(sliderState),
+      sliders: sliderStateToGenerationSliders(sliderState),
       company_context: companyCtx,
       sender_profile_override: this.enrichedSenderProfile || null,
       target_profile_override: this.enrichedTargetProfile || null,
       contact_profile_override: this.enrichedContactProfile || null,
       pipeline_meta: {
         mode: 'generate',
-        model_hint: 'gpt-5-nano',
       },
     };
   }
@@ -638,10 +657,11 @@ class WebApp {
     await consumeStream(
       requestId,
       (msg) => {
-        if (msg.event === 'progress') {
+        if (msg.event === 'stage' || msg.event === 'progress') {
           const stage = String(msg?.data?.stage || '');
+          const status = String(msg?.data?.status || '');
           const note = String(msg?.data?.message || '');
-          this.setStatus(note || stage || 'Working...', true);
+          this.setStatus(note || [stage, status].filter(Boolean).join(' · ') || 'Working...', true);
           return;
         }
 
@@ -658,7 +678,18 @@ class WebApp {
         }
         if (outcome.done) {
           doneData = outcome.doneData || msg.data || null;
-          const finalSubject = typeof doneData?.final?.subject === 'string' ? doneData.final.subject.trim() : '';
+          if (doneData && doneData.ok === false) {
+            const err = doneData?.error || {};
+            const trace = doneData?.trace_id ? ` (trace: ${doneData.trace_id})` : '';
+            streamState.streamError = `${String(err?.message || 'Generation failed')}${trace}`;
+            return;
+          }
+          const finalSubject =
+            typeof doneData?.subject === 'string'
+              ? doneData.subject.trim()
+              : typeof doneData?.final?.subject === 'string'
+              ? doneData.final.subject.trim()
+              : '';
           const finalBody = typeof outcome.finalBody === 'string' ? outcome.finalBody.trim() : '';
           if (finalSubject || finalBody) {
             const composed =
@@ -688,8 +719,18 @@ class WebApp {
         throw new Error('Draft stream integrity check failed (checksum mismatch).');
       }
     }
-    const doneFinalBody = typeof doneData?.final?.body === 'string' ? doneData.final.body.trim() : '';
-    const doneFinalSubject = typeof doneData?.final?.subject === 'string' ? doneData.final.subject.trim() : '';
+    const doneFinalBody =
+      typeof doneData?.body === 'string'
+        ? doneData.body.trim()
+        : typeof doneData?.final?.body === 'string'
+        ? doneData.final.body.trim()
+        : '';
+    const doneFinalSubject =
+      typeof doneData?.subject === 'string'
+        ? doneData.subject.trim()
+        : typeof doneData?.final?.subject === 'string'
+        ? doneData.final.subject.trim()
+        : '';
     if (!this.editor.getText().trim() && !finalText.trim() && !doneFinalBody && !doneFinalSubject) {
       throw new Error('Draft stream completed without content.');
     }

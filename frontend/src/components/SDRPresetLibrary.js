@@ -388,10 +388,19 @@ export class SDRPresetLibrary {
         });
         continue;
       }
+      if (matched?.error) {
+        this.previewEntries.set(presetId, {
+          ...base,
+          status: 'error',
+          errorMessage: String(matched?.error?.message || 'Preview generation failed for this preset.'),
+          validationWarning: '',
+        });
+        continue;
+      }
 
       const preview = {
         ...base,
-        subject: String(matched?.subject || '').trim() || previewFallbackSubject(context),
+        subject: String(matched?.subject || '').trim(),
         body: String(matched?.body || '').trim(),
         vibeLabel: String(matched?.vibeLabel || base.vibeLabel || ''),
         vibeTags:

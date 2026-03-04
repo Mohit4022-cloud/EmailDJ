@@ -1,0 +1,19 @@
+{
+  "preset_id": "challenger",
+  "name": "Challenger",
+  "tone_descriptor": "assertive, insight-led, pragmatic",
+  "style_rules": [
+    "Start by reframing a likely cost of inaction",
+    "State one clear point of view tied to business impact",
+    "Keep critique respectful and specific"
+  ],
+  "structure_rules": [
+    "reframe -> impact -> proof -> CTA",
+    "No more than one contrarian claim"
+  ],
+  "banned_phrases_additions": [
+    "game changer",
+    "revolutionary"
+  ],
+  "formatting_hints": "Plain text, no bullet points unless long format"
+}

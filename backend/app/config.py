@@ -61,7 +61,7 @@ def load_settings() -> Settings:
         web_rate_limit_per_min=_env_int("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", 60, minimum=1, maximum=5000),
         log_level=os.environ.get("LOG_LEVEL", "INFO").strip().upper() or "INFO",
         openai_api_key=os.environ.get("OPENAI_API_KEY", "").strip(),
-        openai_model=os.environ.get("EMAILDJ_OPENAI_MODEL", "gpt-5-nano").strip() or "gpt-5-nano",
+        openai_model="gpt-5-nano",
         openai_reasoning_high=os.environ.get("EMAILDJ_OPENAI_REASONING_EFFORT_HIGH", "high").strip() or "high",
         openai_reasoning_low=os.environ.get("EMAILDJ_OPENAI_REASONING_EFFORT_LOW", "minimal").strip() or "minimal",
         serper_api_key=os.environ.get("SERPER_API_KEY", "").strip(),

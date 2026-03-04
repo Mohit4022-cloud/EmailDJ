@@ -1,0 +1,19 @@
+{
+  "preset_id": "direct",
+  "name": "Direct",
+  "tone_descriptor": "confident, concise, no fluff",
+  "style_rules": [
+    "Open with a direct observation or focused hypothesis",
+    "Avoid hedge words unless claim is explicitly labeled assumption",
+    "Remove filler transitions"
+  ],
+  "structure_rules": [
+    "opener -> value -> proof -> CTA",
+    "4-6 sentences for short/medium"
+  ],
+  "banned_phrases_additions": [
+    "just wanted to",
+    "checking in"
+  ],
+  "formatting_hints": "Plain text, no em dashes, no exclamation marks"
+}

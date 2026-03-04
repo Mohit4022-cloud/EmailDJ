@@ -13,13 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import Settings, load_settings
 from app.enrichment import EnrichmentService
 from app.engine import (
-    assembled_prompt_messages,
     axis_to_slider,
-    normalize_batch_preview_request,
-    normalize_generate_request,
-    normalize_single_preview_request,
-    run_engine_async,
 )
+from app.engine.ai_orchestrator import AIOrchestrator, available_presets
+from app.engine.brief_cache import BriefCache
+from app.engine.tracer import Trace
 from app.openai_client import OpenAIClient
 from app.prompts import PROMPT_TEMPLATE_VERSION, prompt_template_hash
 from app.rendering import render_to_text
@@ -73,9 +71,12 @@ class AppState:
         self.settings = settings
         self.openai = OpenAIClient(settings)
         self.enrichment = EnrichmentService(settings, self.openai)
+        self.brief_cache = BriefCache(max_size=200, ttl_seconds=30 * 60)
+        self.orchestrator = AIOrchestrator(openai=self.openai, settings=self.settings, brief_cache=self.brief_cache)
         self.requests: dict[str, RequestRecord] = {}
         self.sessions: dict[str, dict[str, Any]] = {}
         self.rate: dict[str, list[float]] = {}
+        self.session_rate: dict[str, list[float]] = {}
         self.research_jobs: dict[str, ResearchJob] = {}
 
     def cleanup_requests(self, ttl_seconds: int = 5 * 60) -> None:
@@ -115,6 +116,17 @@ def _require_beta(beta_key: str | None) -> None:
     history.append(now)
 
 
+def _require_session_rate(session_key: str) -> None:
+    key = str(session_key or "").strip() or "anonymous"
+    now = time.time()
+    window_start = now - 60
+    history = state.session_rate.setdefault(key, [])
+    history[:] = [ts for ts in history if ts >= window_start]
+    if len(history) >= 10:
+        raise HTTPException(status_code=429, detail={"error": "rate_limited_session"})
+    history.append(now)
+
+
 def _slider_summary_from_style(style_profile: dict[str, float]) -> dict[str, int]:
     return {
         "formality": axis_to_slider(float(style_profile.get("formality", 0.0))),
@@ -151,6 +163,121 @@ def _sources_from_generate_request(req: WebGenerateRequest) -> list[dict[str, An
             elif isinstance(citation, dict):
                 out.append(dict(citation))
     return out
+
+
+def _style_axis_to_length(axis_value: float) -> str:
+    slider = axis_to_slider(axis_value)
+    if slider <= 33:
+        return "short"
+    if slider >= 67:
+        return "long"
+    return "medium"
+
+
+def _sliders_from_style_profile(style_profile: dict[str, float]) -> dict[str, Any]:
+    tone = 1.0 - (axis_to_slider(float(style_profile.get("formality", 0.0))) / 100.0)
+    framing = axis_to_slider(float(style_profile.get("orientation", 0.0))) / 100.0
+    stance = axis_to_slider(float(style_profile.get("assertiveness", 0.0))) / 100.0
+    return {
+        "tone": max(0.0, min(1.0, tone)),
+        "framing": max(0.0, min(1.0, framing)),
+        "length": _style_axis_to_length(float(style_profile.get("length", 0.0))),
+        "stance": max(0.0, min(1.0, stance)),
+    }
+
+
+def _preview_request_to_generate(req: PresetPreviewRequest, *, sliders: dict[str, Any]) -> WebGenerateRequest:
+    return WebGenerateRequest(
+        prospect=req.prospect,
+        prospect_first_name=req.prospect_first_name,
+        research_text=req.research_text,
+        offer_lock=req.offer_lock,
+        cta_offer_lock=req.cta_offer_lock,
+        cta_type=req.cta_type,
+        preset_id=req.preset_id,
+        mode="single",
+        sliders=sliders,
+        response_contract="email_json_v1",
+        style_profile=req.style_profile,
+        company_context=req.company_context,
+    )
+
+
+def _sliders_from_batch_request(req: PresetPreviewBatchRequest) -> dict[str, Any]:
+    global_sliders = req.global_sliders.model_dump(mode="json")
+    formality = int(global_sliders.get("formality", 50))
+    personalization = int(global_sliders.get("personalization", 50))
+    directness = int(global_sliders.get("directness", 50))
+    brevity = int(global_sliders.get("brevity", 50))
+    if brevity >= 67:
+        length = "short"
+    elif brevity <= 33:
+        length = "long"
+    else:
+        length = "medium"
+    return {
+        "tone": max(0.0, min(1.0, 1.0 - (formality / 100.0))),
+        "framing": max(0.0, min(1.0, personalization / 100.0)),
+        "length": length,
+        "stance": max(0.0, min(1.0, directness / 100.0)),
+    }
+
+
+def _batch_preview_to_generate(req: PresetPreviewBatchRequest, *, sliders: dict[str, Any]) -> WebGenerateRequest:
+    return WebGenerateRequest(
+        prospect=req.prospect,
+        prospect_first_name=req.prospect_first_name,
+        research_text=req.raw_research.deep_research_paste,
+        offer_lock=req.offer_lock,
+        cta_offer_lock=req.cta_lock or req.cta_lock_text,
+        cta_type=req.cta_type,
+        preset_id=(req.presets[0].preset_id if req.presets else "direct"),
+        preset_ids=[item.preset_id for item in req.presets],
+        mode="preset_browse",
+        sliders=sliders,
+        response_contract="email_json_v1",
+        company_context={
+            "current_product": req.product_context.product_name,
+            "company_notes": req.raw_research.company_notes,
+            "seller_offerings": req.product_context.proof_points,
+            "cta_offer_lock": req.cta_lock or req.cta_lock_text,
+            "cta_type": req.cta_type,
+        },
+    )
+
+
+def _effective_batch_sliders(req: PresetPreviewBatchRequest, preset: Any) -> dict[str, int]:
+    base = dict(req.global_sliders.model_dump(mode="json"))
+    for key in ("formality", "brevity", "directness", "personalization"):
+        if key in (preset.slider_overrides or {}):
+            base[key] = int(preset.slider_overrides[key])
+    return base
+
+
+def _engine_debug_payload(result: Any, *, total_latency_ms: int | None = None) -> dict[str, Any]:
+    payload = {
+        "hook_type": result.plan.hook_type,
+        "violations": result.debug.violations,
+        "validator_attempt_count": result.debug.validator_attempt_count,
+        "repair_attempt_count": result.debug.repair_attempt_count,
+        "repaired": result.debug.repaired,
+        "degraded": result.debug.degraded,
+        "draft_source": result.debug.draft_source,
+        "llm_attempt_count": result.debug.llm_attempt_count,
+        "stage_latency_ms": result.debug.stage_latency_ms,
+        "length_input_raw": result.debug.length_input_raw,
+        "length_normalized": result.debug.length_normalized,
+        "word_band_min": result.debug.word_band_min,
+        "word_band_max": result.debug.word_band_max,
+        "word_count_llm_raw": result.debug.word_count_llm_raw,
+        "word_count_final": result.debug.word_count_final,
+        "postprocess_applied": result.debug.postprocess_applied,
+        "validation_error_codes_raw": result.debug.validation_error_codes_raw,
+        "validation_error_codes_final": result.debug.validation_error_codes_final,
+    }
+    if total_latency_ms is not None:
+        payload["total_latency_ms"] = total_latency_ms
+    return payload
 
 
 def _log_prompt_trace(stage: str, payload: dict[str, Any]) -> None:
@@ -196,17 +323,16 @@ async def health() -> dict[str, str]:
 async def debug_config(x_emaildj_beta_key: str | None = Header(default=None)) -> dict[str, Any]:
     _require_beta(x_emaildj_beta_key)
     provider_configured = state.openai.enabled()
-    llm_drafting_enabled = state.settings.llm_drafting_enabled
-    llm_draft_runtime = "llm" if provider_configured and llm_drafting_enabled else "deterministic"
     return {
         "app_env": state.settings.app_env,
         "runtime_mode": "real" if provider_configured else "unavailable",
         "provider_stub_enabled": state.settings.provider_stub_enabled,
         "provider_configured": provider_configured,
-        "llm_drafting_enabled": llm_drafting_enabled,
-        "llm_draft_runtime": llm_draft_runtime,
+        "llm_drafting_enabled": True,
+        "llm_draft_runtime": "ai_only_fail_closed",
         "debug_prompt": state.settings.debug_prompt,
-        "openai_model": state.settings.openai_model,
+        "openai_model": "gpt-5-nano",
+        "available_presets": available_presets(),
         "prompt_template_versions": {
             "web_mvp_prompt_hash": prompt_template_hash(),
             "web_mvp_prompt_version": PROMPT_TEMPLATE_VERSION,
@@ -221,11 +347,21 @@ async def web_generate(req: WebGenerateRequest, x_emaildj_beta_key: str | None =
 
     session_id = str(uuid4())
     request_id = str(uuid4())
+    mode = str(req.mode or "single")
+    if mode not in {"single", "preset_browse"}:
+        mode = "single"
+    preset_ids = [str(item).strip() for item in (req.preset_ids or []) if str(item).strip()]
+    if mode == "preset_browse" and not preset_ids:
+        preset_ids = [str(req.preset_id or "direct")]
+
     state.sessions[session_id] = {
         "session_id": session_id,
         "generate_request": req.model_dump(mode="json"),
         "preset_id": req.preset_id,
+        "preset_ids": preset_ids,
+        "mode": mode,
         "style_profile": req.style_profile.model_dump(),
+        "sliders": (req.sliders.model_dump(mode="json") if req.sliders else None),
         "response_contract": _normalize_contract(req.response_contract),
         "draft_id_counter": 0,
     }
@@ -235,6 +371,9 @@ async def web_generate(req: WebGenerateRequest, x_emaildj_beta_key: str | None =
         payload={
             "style_profile": req.style_profile.model_dump(),
             "preset_id": req.preset_id,
+            "preset_ids": preset_ids,
+            "mode": mode,
+            "sliders": (req.sliders.model_dump(mode="json") if req.sliders else None),
             "response_contract": _normalize_contract(req.response_contract),
         },
         created_at=time.time(),
@@ -253,6 +392,7 @@ async def web_remix(req: WebRemixRequest, x_emaildj_beta_key: str | None = Heade
 
     if req.preset_id:
         session["preset_id"] = req.preset_id
+    session["mode"] = "single"
     session["style_profile"] = req.style_profile.model_dump()
 
     request_id = str(uuid4())
@@ -262,6 +402,7 @@ async def web_remix(req: WebRemixRequest, x_emaildj_beta_key: str | None = Heade
         payload={
             "style_profile": req.style_profile.model_dump(),
             "preset_id": req.preset_id,
+            "mode": "single",
             "response_contract": session.get("response_contract") or "legacy_text",
         },
         created_at=time.time(),
@@ -313,74 +454,34 @@ async def enrich_sender(req: SenderEnrichmentRequest, x_emaildj_beta_key: str | 
 @router.post("/web/v1/preset-preview", response_model=PresetPreviewResponse)
 async def preset_preview(req: PresetPreviewRequest, x_emaildj_beta_key: str | None = Header(default=None)) -> PresetPreviewResponse:
     _require_beta(x_emaildj_beta_key)
+    sliders = _sliders_from_style_profile(req.style_profile.model_dump(mode="json"))
+    generate_req = _preview_request_to_generate(req, sliders=sliders)
+    trace = Trace(str(uuid4()), state.settings.app_env)
+    result = await state.orchestrator.run_pipeline_single(
+        request=generate_req,
+        trace=trace,
+        preset_id=req.preset_id,
+        sliders=sliders,
+    )
+    if not result.ok:
+        raise HTTPException(status_code=422, detail=result.error or {"error": "preview_generation_failed"})
 
-    ctx = normalize_single_preview_request(req)
-    if state.settings.debug_prompt:
-        _log_prompt_trace(
-            "normalize.preview",
-            {
-                "source": ctx.source,
-                "seller_offerings": ctx.seller_offerings,
-                "internal_modules": ctx.internal_modules,
-                "product_category": ctx.product_category,
-                "category_confidence": ctx.category_confidence,
-            },
-        )
-    result = await run_engine_async(ctx, max_repairs=2, openai=state.openai, settings=state.settings)
-    if state.settings.debug_prompt:
-        _log_prompt_trace(
-            "plan.preview",
-            {
-                "hook_type": result.plan.hook_type,
-                "selected_beat_ids": result.plan.selected_beat_ids,
-                "value_prop": result.plan.value_prop,
-            },
-        )
-        _log_prompt_trace(
-            "assembled_messages.preview",
-            {
-                "messages": assembled_prompt_messages(ctx, result.plan),
-                "selected_template_or_beat_ids": result.draft.selected_beat_ids,
-            },
-        )
-        _log_prompt_trace(
-            "provenance.preview",
-            {
-                "subject_source": result.draft.subject_source,
-                "body_sources": result.draft.body_sources,
-                "selected_beat_ids": result.draft.selected_beat_ids,
-                "draft_source": result.debug.draft_source,
-            },
-        )
-    style_summary = _slider_summary_from_style(ctx.style_profile)
-
-    warning = ", ".join(result.debug.violations[:3]) if result.debug.violations else None
+    style_summary = _slider_summary_from_style(req.style_profile.model_dump(mode="json"))
     return PresetPreviewResponse(
         preset_id=req.preset_id,
-        subject=result.draft.subject,
-        body=result.draft.body,
+        subject=result.subject or "",
+        body=result.body or "",
         vibeLabel=req.preset_id.replace("_", " ").title(),
-        vibeTags=_vibe_tags(ctx.style_profile),
+        vibeTags=_vibe_tags(req.style_profile.model_dump(mode="json")),
         whyItWorks=_why_it_works(),
         sliderSummary=style_summary,
-        validationWarning=warning,
-        debug={
-            "hook_type": result.plan.hook_type,
-            "violations": result.debug.violations,
-            "repair_attempt_count": result.debug.repair_attempt_count,
-            "degraded": result.debug.degraded,
-            "draft_source": result.debug.draft_source,
-            "llm_attempt_count": result.debug.llm_attempt_count,
-            "stage_latency_ms": result.debug.stage_latency_ms,
-        },
+        validationWarning=None,
+        debug={},
         meta={
-            "trace_id": str(uuid4()),
+            "trace_id": result.trace_id,
             "prompt_template_hash": prompt_template_hash(),
             "prompt_template_version": PROMPT_TEMPLATE_VERSION,
-            "validator_attempt_count": result.debug.validator_attempt_count,
-            "repair_attempt_count": result.debug.repair_attempt_count,
-            "repaired": bool(result.debug.repaired),
-            "degraded": bool(result.debug.degraded),
+            "stage_stats": result.stage_stats,
         },
     )
 
@@ -391,108 +492,61 @@ async def preset_previews_batch(
     x_emaildj_beta_key: str | None = Header(default=None),
 ) -> PresetPreviewBatchResponse:
     _require_beta(x_emaildj_beta_key)
-
     started_at = time.perf_counter()
-    previews: list[PresetPreviewBatchItem] = []
-    failures = 0
+    sliders = _sliders_from_batch_request(req)
+    generate_req = _batch_preview_to_generate(req, sliders=sliders)
+    preset_ids = [str(item.preset_id) for item in req.presets]
+    trace = Trace(str(uuid4()), state.settings.app_env)
+    orchestrated = await state.orchestrator.run_pipeline_presets(
+        request=generate_req,
+        trace=trace,
+        preset_ids=preset_ids,
+        sliders=sliders,
+    )
 
+    previews: list[PresetPreviewBatchItem] = []
+    by_preset: dict[str, dict[str, Any]] = {
+        str(item.get("preset_id") or ""): item for item in (orchestrated.variants or [])
+    }
+    failures = 0
     for preset in req.presets:
-        preset_started = time.perf_counter()
-        try:
-            ctx = normalize_batch_preview_request(req, preset)
-            if state.settings.debug_prompt:
-                _log_prompt_trace(
-                    "normalize.preview_batch",
-                    {
-                        "preset_id": preset.preset_id,
-                        "seller_offerings": ctx.seller_offerings,
-                        "internal_modules": ctx.internal_modules,
-                        "product_category": ctx.product_category,
-                        "category_confidence": ctx.category_confidence,
-                    },
-                )
-            result = await run_engine_async(ctx, max_repairs=1, openai=state.openai, settings=state.settings)
-            if state.settings.debug_prompt:
-                _log_prompt_trace(
-                    "plan.preview_batch",
-                    {
-                        "preset_id": preset.preset_id,
-                        "hook_type": result.plan.hook_type,
-                        "selected_beat_ids": result.plan.selected_beat_ids,
-                    },
-                )
-                _log_prompt_trace(
-                    "assembled_messages.preview_batch",
-                    {
-                        "preset_id": preset.preset_id,
-                        "messages": assembled_prompt_messages(ctx, result.plan),
-                        "selected_template_or_beat_ids": result.draft.selected_beat_ids,
-                    },
-                )
-            debug_payload = {
-                "hook_type": result.plan.hook_type,
-                "violations": result.debug.violations,
-                "repair_attempt_count": result.debug.repair_attempt_count,
-                "degraded": result.debug.degraded,
-                "draft_source": result.debug.draft_source,
-                "llm_attempt_count": result.debug.llm_attempt_count,
-                "stage_latency_ms": result.debug.stage_latency_ms,
-            }
-            item = PresetPreviewBatchItem(
+        matched = by_preset.get(str(preset.preset_id)) or {}
+        error_payload = matched.get("error")
+        if not error_payload and (not orchestrated.ok):
+            error_payload = orchestrated.error or {"code": "PRESET_BATCH_FAILED", "message": "Preset browse failed"}
+        if error_payload:
+            failures += 1
+        previews.append(
+            PresetPreviewBatchItem(
                 preset_id=preset.preset_id,
                 label=preset.label,
-                effective_sliders=dict(ctx.sliders),
+                effective_sliders=_effective_batch_sliders(req, preset),
                 vibeLabel=preset.label,
-                vibeTags=_vibe_tags(ctx.style_profile),
+                vibeTags=["Preset"],
                 whyItWorks=_why_it_works(),
-                subject=result.draft.subject,
-                body=result.draft.body,
-                debug=debug_payload,
+                subject=(str(matched.get("subject") or "").strip() or None),
+                body=(str(matched.get("body") or "").strip() or None),
+                error=(dict(error_payload) if isinstance(error_payload, dict) else None),
+                debug={"stage_stats": orchestrated.stage_stats},
             )
-            previews.append(item)
-            logger.info(
-                "preset_preview_batch preset=%s latency_ms=%s repaired=%s degraded=%s",
-                preset.preset_id,
-                int(round((time.perf_counter() - preset_started) * 1000)),
-                result.debug.repaired,
-                result.debug.degraded,
-            )
-        except Exception as exc:  # noqa: BLE001
-            failures += 1
-            logger.exception("preset_preview_batch_failed preset=%s error=%s", preset.preset_id, exc)
-            fallback_subject = f"Quick idea for {req.prospect.company}"[:78]
-            fallback_body = "\n\n".join(
-                [
-                    f"Hi {req.prospect_first_name or req.prospect.name.split()[0] or 'there'},",
-                    f"{req.offer_lock} could help improve execution consistency for this workflow.",
-                    req.cta_lock or req.cta_lock_text or "Open to a quick chat to see if this is relevant?",
-                ]
-            )
-            previews.append(
-                PresetPreviewBatchItem(
-                    preset_id=preset.preset_id,
-                    label=preset.label,
-                    effective_sliders=dict(req.global_sliders.model_dump(mode="json")),
-                    vibeLabel=preset.label,
-                    vibeTags=["Balanced"],
-                    whyItWorks=["Graceful fallback returned due to generation error."],
-                    subject=fallback_subject,
-                    body=fallback_body,
-                    debug={"degraded": True, "violations": ["preset_generation_exception"]},
-                )
-            )
+        )
+
+    if not orchestrated.ok and not previews:
+        raise HTTPException(status_code=422, detail=orchestrated.error or {"error": "preset_batch_failed"})
 
     total_latency_ms = int(round((time.perf_counter() - started_at) * 1000))
     return PresetPreviewBatchResponse(
         previews=previews,
         meta={
-            "trace_id": str(uuid4()),
+            "trace_id": orchestrated.trace_id,
             "prompt_template_hash": prompt_template_hash(),
             "prompt_template_version": PROMPT_TEMPLATE_VERSION,
             "preset_count": len(req.presets),
             "failure_count": failures,
             "total_latency_ms": total_latency_ms,
             "degraded": bool(failures),
+            "ok": orchestrated.ok,
+            "error": orchestrated.error,
         },
     )
 
@@ -507,6 +561,7 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
     session = state.sessions.get(record.session_id or "")
     if session is None:
         raise HTTPException(status_code=404, detail={"error": "session_not_found"})
+    _require_session_rate(str(record.session_id or ""))
 
     draft_id = int(session.get("draft_id_counter") or 0) + 1
     session["draft_id_counter"] = draft_id
@@ -517,160 +572,90 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
     style_payload = record.payload.get("style_profile") or session.get("style_profile") or {}
     style_model = req_payload.style_profile.__class__(**style_payload)
     preset_id = str(record.payload.get("preset_id") or session.get("preset_id") or req_payload.preset_id or "") or None
+    preset_ids = [str(item).strip() for item in (record.payload.get("preset_ids") or session.get("preset_ids") or req_payload.preset_ids or []) if str(item).strip()]
+    mode = str(record.payload.get("mode") or session.get("mode") or req_payload.mode or "single")
+    sliders = record.payload.get("sliders") or session.get("sliders") or (req_payload.sliders.model_dump(mode="json") if req_payload.sliders else None)
     response_contract = _normalize_contract(str(record.payload.get("response_contract") or session.get("response_contract") or req_payload.response_contract))
 
     req_payload = req_payload.model_copy(
         update={
             "style_profile": style_model,
             "preset_id": preset_id,
+            "preset_ids": preset_ids or req_payload.preset_ids,
+            "mode": mode,
             "response_contract": response_contract,
         }
     )
-
-    ctx = normalize_generate_request(req_payload, preset_id=preset_id)
-    if state.settings.debug_prompt:
-        _log_prompt_trace(
-            "normalize.generate",
-            {
-                "source": ctx.source,
-                "seller_offerings": ctx.seller_offerings,
-                "internal_modules": ctx.internal_modules,
-                "product_category": ctx.product_category,
-                "category_confidence": ctx.category_confidence,
-            },
+    trace = Trace(trace_id, state.settings.app_env)
+    if mode == "preset_browse":
+        orchestrated = await state.orchestrator.run_pipeline_presets(
+            request=req_payload,
+            trace=trace,
+            preset_ids=preset_ids or [preset_id or "direct"],
+            sliders=(sliders if isinstance(sliders, dict) else None),
         )
-    started = time.perf_counter()
-    result = await run_engine_async(ctx, max_repairs=2, openai=state.openai, settings=state.settings)
-    if state.settings.debug_prompt:
-        _log_prompt_trace(
-            "plan.generate",
-            {
-                "hook_type": result.plan.hook_type,
-                "selected_beat_ids": result.plan.selected_beat_ids,
-                "value_prop": result.plan.value_prop,
-                "research_text": ctx.research_text,
-                "company_notes": ctx.company_notes,
-            },
+    else:
+        orchestrated = await state.orchestrator.run_pipeline_single(
+            request=req_payload,
+            trace=trace,
+            preset_id=preset_id,
+            sliders=(sliders if isinstance(sliders, dict) else None),
         )
-        _log_prompt_trace(
-            "assembled_messages.generate",
-            {
-                "messages": assembled_prompt_messages(ctx, result.plan),
-                "selected_template_or_beat_ids": result.draft.selected_beat_ids,
-            },
-        )
-        _log_prompt_trace(
-            "provenance.generate",
-            {
-                "subject_source": result.draft.subject_source,
-                "body_sources": result.draft.body_sources,
-                "selected_beat_ids": result.draft.selected_beat_ids,
-                "draft_source": result.debug.draft_source,
-            },
-        )
-    duration_ms = int(round((time.perf_counter() - started) * 1000))
-
-    subject = result.draft.subject
-    body = result.draft.body
-    legacy_text = render_to_text(subject, body)
-
-    session["last_render"] = {"subject": subject, "body": body}
-    session["last_validation"] = {
-        "passed": not result.debug.violations,
-        "violations": result.debug.violations,
-        "validator_attempt_count": result.debug.validator_attempt_count,
-        "repair_attempt_count": result.debug.repair_attempt_count,
-        "repaired": result.debug.repaired,
-        "degraded": result.debug.degraded,
-        "draft_source": result.debug.draft_source,
-        "llm_attempt_count": result.debug.llm_attempt_count,
-    }
-    session["last_draft_source"] = result.debug.draft_source
-    sources = _sources_from_generate_request(req_payload)
-    session["last_sources"] = sources
-
-    debug_payload = {
-        "hook_type": result.plan.hook_type,
-        "violations": result.debug.violations,
-        "validator_attempt_count": result.debug.validator_attempt_count,
-        "repair_attempt_count": result.debug.repair_attempt_count,
-        "repaired": result.debug.repaired,
-        "degraded": result.debug.degraded,
-        "draft_source": result.debug.draft_source,
-        "llm_attempt_count": result.debug.llm_attempt_count,
-        "stage_latency_ms": result.debug.stage_latency_ms,
-        "total_latency_ms": duration_ms,
-    }
 
     done_extra = {
+        **orchestrated.to_done_payload(),
         "session_id": record.session_id,
         "generation_id": generation_id,
         "draft_id": draft_id,
-        "trace_id": trace_id,
-        "provider": "openai" if state.openai.enabled() else "stub",
-        "model": state.settings.openai_model,
-        "draft_source": result.debug.draft_source,
-        "llm_attempt_count": result.debug.llm_attempt_count,
+        "provider": "openai" if state.openai.enabled() else "unavailable",
+        "model": "gpt-5-nano",
         "prompt_template_hash": prompt_template_hash(),
         "prompt_template_version": PROMPT_TEMPLATE_VERSION,
-        "validator_attempt_count": result.debug.validator_attempt_count,
-        "repair_attempt_count": result.debug.repair_attempt_count,
-        "repaired": result.debug.repaired,
-        "degraded": result.debug.degraded,
-        "violations": result.debug.violations,
-        "validation": session.get("last_validation"),
-        "sources": sources,
     }
 
-    if response_contract == "email_json_v1":
-        done_extra["final"] = {
-            "subject": subject,
-            "body": body,
-            "debug": debug_payload,
-        }
+    if orchestrated.ok and orchestrated.subject and orchestrated.body:
+        session["last_render"] = {"subject": orchestrated.subject, "body": orchestrated.body}
+        legacy_text = render_to_text(orchestrated.subject, orchestrated.body)
+        if response_contract == "email_json_v1":
+            done_extra["final"] = {"subject": orchestrated.subject, "body": orchestrated.body}
+        else:
+            done_extra["final"] = {"subject": orchestrated.subject, "body": legacy_text}
     else:
-        # Backward-compatible legacy_text stream output.
-        done_extra["final"] = {
-            "subject": subject,
-            "body": legacy_text,
-            "debug": debug_payload,
-        }
+        legacy_text = ""
 
     async def wrapper() -> AsyncGenerator[dict[str, Any], None]:
-        progress_events = [
-            {"stage": "normalized", "message": "Normalized request context."},
-            {"stage": "planned", "message": "Built deterministic message plan."},
-            {
-                "stage": "drafted",
-                "message": "Draft authored via LLM." if result.debug.draft_source == "llm" else "Draft authored deterministically.",
-            },
-            {"stage": "validated", "message": "Validated and repaired draft constraints."},
-        ]
-        for item in progress_events:
+        for item in orchestrated.stage_stats:
+            stage_name = str(item.get("stage") or "UNKNOWN")
+            status = str(item.get("status") or "complete")
             yield {
-                "event": "progress",
+                "event": "stage",
                 "data": {
-                    **item,
+                    "trace_id": orchestrated.trace_id,
+                    "stage": stage_name,
+                    "status": status,
+                    "elapsed_ms": int(item.get("elapsed_ms") or 0),
+                    "model": str(item.get("model") or "gpt-5-nano"),
                     "generation_id": generation_id,
                     "draft_id": draft_id,
                 },
             }
-        stream_text = legacy_text
-        chunk_size = state.settings.stream_chunk_size
-        for idx in range(0, len(stream_text), chunk_size):
-            chunk = stream_text[idx : idx + chunk_size]
-            await asyncio.sleep(0.004 if idx else 0.01)
-            yield {
-                "event": "token",
-                "data": {
-                    "token": chunk,
-                    "chunk_index": idx // chunk_size,
-                    "chunk_len": len(chunk),
-                    "chunk_mode": "stable_chars",
-                    "generation_id": generation_id,
-                    "draft_id": draft_id,
-                },
-            }
+
+        if orchestrated.ok and legacy_text:
+            chunk_size = state.settings.stream_chunk_size
+            for idx in range(0, len(legacy_text), chunk_size):
+                chunk = legacy_text[idx : idx + chunk_size]
+                await asyncio.sleep(0.004 if idx else 0.01)
+                yield {
+                    "event": "token",
+                    "data": {
+                        "token": chunk,
+                        "chunk_index": idx // chunk_size,
+                        "chunk_len": len(chunk),
+                        "chunk_mode": "stable_chars",
+                        "generation_id": generation_id,
+                        "draft_id": draft_id,
+                    },
+                }
 
     return wrapper(), done_extra
 

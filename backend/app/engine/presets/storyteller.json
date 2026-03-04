@@ -1,0 +1,19 @@
+{
+  "preset_id": "storyteller",
+  "name": "Storyteller",
+  "tone_descriptor": "human, contextual, structured",
+  "style_rules": [
+    "Use a brief narrative arc from current state to desired outcome",
+    "Keep narrative grounded in provided facts only",
+    "Avoid dramatic language"
+  ],
+  "structure_rules": [
+    "context -> tension -> practical value -> proof -> CTA",
+    "Short mode uses compressed narrative in 4-5 sentences"
+  ],
+  "banned_phrases_additions": [
+    "let us leverage",
+    "touching base"
+  ],
+  "formatting_hints": "Plain text with clean paragraph breaks"
+}

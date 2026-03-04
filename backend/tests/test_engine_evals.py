@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from app.engine import normalize_generate_request, run_engine
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 
@@ -88,32 +90,20 @@ def _request_from_fixture(fixture: dict) -> WebGenerateRequest:
     )
 
 
-def test_engine_eval_fixtures_hard_fail_guards() -> None:
+def test_engine_eval_fixtures_fail_closed_without_provider() -> None:
     for fixture in FIXTURES:
         req = _request_from_fixture(fixture)
         ctx = normalize_generate_request(req)
-        result = run_engine(ctx, max_repairs=2)
-
-        subject = result.draft.subject.strip()
-        body = result.draft.body.strip()
-        merged = f"{subject}\n{body}".lower()
-
-        assert subject, fixture["name"]
-        assert body, fixture["name"]
-        assert body.splitlines()[-1].strip() == req.cta_offer_lock, fixture["name"]
-
-        for token in FORBIDDEN_META:
-            assert token not in merged, f"{fixture['name']}: found forbidden token {token}"
-
-        assert "cta_lock_exact_missing" not in result.debug.violations, fixture["name"]
+        with pytest.raises(RuntimeError, match="ai_only_pipeline_requires_openai"):
+            run_engine(ctx, max_repairs=2)
 
 
-def test_engine_eval_multiple_presets_different_outputs() -> None:
+def test_engine_eval_requires_provider_even_when_presets_differ() -> None:
     base = _request_from_fixture(FIXTURES[0])
     req_a = base.model_copy(update={"preset_id": "challenger"})
     req_b = base.model_copy(update={"preset_id": "warm_intro"})
 
-    out_a = run_engine(normalize_generate_request(req_a), max_repairs=2)
-    out_b = run_engine(normalize_generate_request(req_b), max_repairs=2)
-
-    assert out_a.draft.subject != out_b.draft.subject or out_a.draft.body != out_b.draft.body
+    with pytest.raises(RuntimeError, match="ai_only_pipeline_requires_openai"):
+        run_engine(normalize_generate_request(req_a), max_repairs=2)
+    with pytest.raises(RuntimeError, match="ai_only_pipeline_requires_openai"):
+        run_engine(normalize_generate_request(req_b), max_repairs=2)

@@ -18,6 +18,7 @@ class LLMRealizerResult:
     attempt_count: int
     messages: list[dict[str, str]]
     error: str | None = None
+    raw_word_count: int | None = None
 
 
 def email_schema() -> dict[str, Any]:
@@ -80,6 +81,22 @@ def _length_label(ctx: NormalizedContext) -> tuple[str, str]:
     return ("medium", "Use moderate length with clear progression and no filler.")
 
 
+def _length_budget(ctx: NormalizedContext) -> tuple[int, int, int]:
+    brevity = _clamped_slider(ctx.sliders.get("brevity", 50))
+    min_words, max_words = word_band_for_brevity(brevity)
+    return brevity, min_words, max_words
+
+
+def _sentence_target(max_words: int) -> str:
+    if max_words <= 80:
+        return "3-4"
+    if max_words <= 130:
+        return "4-6"
+    if max_words <= 180:
+        return "5-8"
+    return "6-9"
+
+
 def _preset_style_note(preset_id: str) -> str:
     key = _clean_text(preset_id).lower()
     if key in {"straight_shooter", "straight-shooter"}:
@@ -104,6 +121,8 @@ def build_system_prompt(ctx: NormalizedContext, plan: MessagePlan) -> str:
     orientation_label, orientation_instruction = _orientation_label(ctx)
     assertiveness_label, assertiveness_instruction = _assertiveness_label(ctx)
     length_label, length_instruction = _length_label(ctx)
+    _, _, max_words = _length_budget(ctx)
+    sentence_target = _sentence_target(max_words)
     seller_name = _clean_text(ctx.sender_company_name)
     cta = _clean_text(plan.cta_line_locked or ctx.cta_lock)
     seller_rule = (
@@ -122,7 +141,11 @@ def build_system_prompt(ctx: NormalizedContext, plan: MessagePlan) -> str:
             seller_rule,
             "- No invented facts. Use only facts from research_text, company_notes, proof_points, seller_offerings.",
             "- Never mention internal_modules.",
-            f"- CTA must be the final line and match exactly: {cta}",
+            f"- Body must be <= {max_words} words total.",
+            f"- Target {sentence_target} narrative sentences before the CTA line.",
+            "- If over word budget, shorten by removing filler and combining sentences.",
+            f"- CTA must appear exactly once as the final line and match exactly: {cta}",
+            "- Do not add any text after the CTA line.",
             "- Output ONLY valid JSON matching the schema. No prose, no markdown, no extra keys.",
             "Style controls:",
             f"- formality={formality_label}: {formality_instruction}",
@@ -134,6 +157,7 @@ def build_system_prompt(ctx: NormalizedContext, plan: MessagePlan) -> str:
 
 
 def build_user_payload(ctx: NormalizedContext, plan: MessagePlan) -> dict[str, Any]:
+    brevity, min_words, max_words = _length_budget(ctx)
     payload: dict[str, Any] = {
         "seller": {
             "company_name": _clean_text(ctx.sender_company_name),
@@ -160,6 +184,12 @@ def build_user_payload(ctx: NormalizedContext, plan: MessagePlan) -> dict[str, A
             "selected_beat_ids": list(plan.selected_beat_ids),
         },
         "cta_offer_lock": _clean_text(plan.cta_line_locked or ctx.cta_lock),
+        "length_budget": {
+            "brevity_slider": brevity,
+            "min_words": min_words,
+            "max_words": max_words,
+            "target_sentence_count": _sentence_target(max_words),
+        },
     }
     style_note = _preset_style_note(ctx.preset_id)
     if style_note:
@@ -190,65 +220,7 @@ def _word_count(text: str) -> int:
     return len(re.findall(r"\b\w+\b", text or ""))
 
 
-def _trim_to_words(text: str, max_words: int) -> str:
-    words = re.findall(r"\S+", text)
-    if len(words) <= max_words:
-        return text.strip()
-    trimmed = " ".join(words[:max_words]).strip()
-    if trimmed and not trimmed.endswith((".", "!", "?")):
-        trimmed = trimmed.rstrip(",;:") + "."
-    return trimmed
-
-
-def _enforce_word_cap(body: str, *, ctx: NormalizedContext, cta_lock: str) -> str:
-    _, max_words = word_band_for_brevity(int(ctx.sliders.get("brevity", 50)))
-    if _word_count(body) <= max_words:
-        return body
-
-    cta = _clean_text(cta_lock)
-    lines = body.split("\n\n")
-    narrative = body
-    if cta and lines and lines[-1].strip() == cta:
-        narrative = "\n\n".join(lines[:-1]).strip()
-
-    cta_words = _word_count(cta)
-    narrative_max = max(20, max_words - cta_words - 2)
-    clipped = _trim_to_words(narrative, narrative_max)
-    if cta:
-        return f"{clipped}\n\n{cta}".strip()
-    return clipped.strip()
-
-
-def _enforce_cta_final_line(body: str, cta_lock: str) -> str:
-    cta = _clean_text(cta_lock)
-    if not cta:
-        return body.strip()
-
-    lines = [line.rstrip() for line in body.split("\n")]
-    while lines and not lines[-1].strip():
-        lines.pop()
-
-    if lines and lines[-1].strip() == cta:
-        return "\n".join(lines).strip()
-
-    filtered = [line for line in lines if line.strip() != cta]
-    if filtered and filtered[-1].strip():
-        filtered.append("")
-    filtered.append(cta)
-    return "\n".join(filtered).strip()
-
-
-def _trim_subject(subject: str, limit: int = 70) -> str:
-    normalized = re.sub(r"\s+", " ", _clean_text(subject))
-    if len(normalized) <= limit:
-        return normalized
-    clipped = normalized[:limit].rstrip(" ,;:-")
-    if not clipped:
-        return normalized[:limit]
-    return clipped
-
-
-def _payload_to_draft(payload: dict[str, Any], *, plan: MessagePlan, ctx: NormalizedContext) -> EmailDraft | None:
+def _payload_to_draft(payload: dict[str, Any], *, plan: MessagePlan) -> EmailDraft | None:
     if not isinstance(payload, dict):
         return None
     subject = _clean_text(payload.get("subject"))
@@ -257,9 +229,6 @@ def _payload_to_draft(payload: dict[str, Any], *, plan: MessagePlan, ctx: Normal
         return None
 
     body = _normalize_body(body)
-    body = _enforce_cta_final_line(body, plan.cta_line_locked or ctx.cta_lock)
-    body = _enforce_word_cap(body, ctx=ctx, cta_lock=plan.cta_line_locked or ctx.cta_lock)
-    subject = _trim_subject(subject, limit=70)
     if not body or not subject:
         return None
 
@@ -314,6 +283,7 @@ def _validator_repair_messages(
     draft: EmailDraft,
     violations: list[str],
 ) -> list[dict[str, str]]:
+    _, _, max_words = _length_budget(ctx)
     payload = {
         "violations": list(violations),
         "current_draft": {"subject": draft.subject, "body": draft.body},
@@ -324,13 +294,14 @@ def _validator_repair_messages(
             "role": "system",
             "content": (
                 "Repair the draft using only provided facts. "
-                "Return ONLY valid JSON matching schema with keys subject/body."
+                "Return ONLY valid JSON matching schema with keys subject/body. "
+                f"Body must be <= {max_words} words. CTA must remain exact and final."
             ),
         },
         {
             "role": "user",
             "content": (
-                "Fix the violations and keep the CTA exact as final line.\n"
+                "Fix the violations, keep the CTA exact as final line, and stay within the word budget.\n"
                 f"{json.dumps(payload, ensure_ascii=True)}"
             ),
         },
@@ -353,9 +324,14 @@ async def llm_realize(
     except Exception as exc:  # noqa: BLE001
         return LLMRealizerResult(draft=None, attempt_count=attempts, messages=messages, error=str(exc))
 
-    draft = _payload_to_draft(payload, plan=plan, ctx=ctx)
+    draft = _payload_to_draft(payload, plan=plan)
     if draft is not None:
-        return LLMRealizerResult(draft=draft, attempt_count=attempts, messages=messages)
+        return LLMRealizerResult(
+            draft=draft,
+            attempt_count=attempts,
+            messages=messages,
+            raw_word_count=_word_count(draft.body),
+        )
 
     try:
         attempts += 1
@@ -364,10 +340,15 @@ async def llm_realize(
     except Exception as exc:  # noqa: BLE001
         return LLMRealizerResult(draft=None, attempt_count=attempts, messages=messages, error=str(exc))
 
-    repaired_draft = _payload_to_draft(repaired_payload, plan=plan, ctx=ctx)
+    repaired_draft = _payload_to_draft(repaired_payload, plan=plan)
     if repaired_draft is None:
         return LLMRealizerResult(draft=None, attempt_count=attempts, messages=messages, error="llm_json_parse_failed")
-    return LLMRealizerResult(draft=repaired_draft, attempt_count=attempts, messages=messages)
+    return LLMRealizerResult(
+        draft=repaired_draft,
+        attempt_count=attempts,
+        messages=messages,
+        raw_word_count=_word_count(repaired_draft.body),
+    )
 
 
 async def llm_repair(
@@ -386,7 +367,12 @@ async def llm_repair(
     except Exception as exc:  # noqa: BLE001
         return LLMRealizerResult(draft=None, attempt_count=1, messages=messages, error=str(exc))
 
-    repaired = _payload_to_draft(payload, plan=plan, ctx=ctx)
+    repaired = _payload_to_draft(payload, plan=plan)
     if repaired is None:
         return LLMRealizerResult(draft=None, attempt_count=1, messages=messages, error="llm_repair_parse_failed")
-    return LLMRealizerResult(draft=repaired, attempt_count=1, messages=messages)
+    return LLMRealizerResult(
+        draft=repaired,
+        attempt_count=1,
+        messages=messages,
+        raw_word_count=_word_count(repaired.body),
+    )

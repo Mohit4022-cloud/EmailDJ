@@ -58,7 +58,7 @@ def _subject(ctx: NormalizedContext, plan: MessagePlan) -> str:
         base = f"Quick thought for {title}"
 
     subject = re.sub(r"\s+", " ", base).strip()
-    return subject[:78]
+    return subject[:70]
 
 
 def _style_line(ctx: NormalizedContext) -> str:
