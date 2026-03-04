@@ -1,4 +1,5 @@
 import {
+  buildPresetPreviewBatchPayload,
   buildPresetPreviewPayload,
   buildPreviewCacheKey,
   buildPreviewContextHash,
@@ -152,6 +153,8 @@ export class SDRPresetLibrary {
       typeof options.getPreviewContext === 'function' ? options.getPreviewContext : () => ({});
     this.generatePreview =
       typeof options.generatePreview === 'function' ? options.generatePreview : null;
+    this.generatePreviewBatch =
+      typeof options.generatePreviewBatch === 'function' ? options.generatePreviewBatch : null;
     this.maxConcurrentPreviews =
       Number.isFinite(Number(options.maxConcurrentPreviews)) && Number(options.maxConcurrentPreviews) > 0
         ? Number(options.maxConcurrentPreviews)
@@ -348,15 +351,66 @@ export class SDRPresetLibrary {
   }
 
   async generateMissingPreviews(presets, context, contextHash) {
-    if (!this.generatePreview) {
+    if (!this.generatePreview && !this.generatePreviewBatch) {
       this.markPreviewUnavailable(presets, context, 'Preview generation is unavailable.');
       return;
     }
     try {
+      if (this.generatePreviewBatch) {
+        await this.generateMissingPreviewBatch(presets, context, contextHash);
+        return;
+      }
       await this.generateMissingPreviewPool(presets, context, contextHash);
     } catch (error) {
       this.markPreviewUnavailable(presets, context, String(error?.message || error || 'Preview generation failed.'));
     }
+  }
+
+  async generateMissingPreviewBatch(presets, context, contextHash) {
+    if (!this.generatePreviewBatch) return;
+    const payload = buildPresetPreviewBatchPayload(context, presets);
+    const response = await this.generatePreviewBatch(payload);
+    if (contextHash !== this.activeContextHash) return;
+
+    const byPresetId = new Map(
+      (Array.isArray(response?.previews) ? response.previews : []).map((preview) => [String(preview?.preset_id || ''), preview])
+    );
+
+    for (const preset of presets) {
+      const presetId = String(preset.id);
+      const base = this.buildBasePreviewEntry(preset, context);
+      const matched = byPresetId.get(presetId);
+      if (!matched) {
+        this.previewEntries.set(presetId, {
+          ...base,
+          status: 'error',
+          errorMessage: 'Preview missing from batch response.',
+        });
+        continue;
+      }
+
+      const preview = {
+        ...base,
+        subject: String(matched?.subject || '').trim() || previewFallbackSubject(context),
+        body: String(matched?.body || '').trim(),
+        vibeLabel: String(matched?.vibeLabel || base.vibeLabel || ''),
+        vibeTags:
+          Array.isArray(matched?.vibeTags) && matched.vibeTags.length > 0
+            ? matched.vibeTags.map((tag) => String(tag)).slice(0, 4)
+            : base.vibeTags,
+        whyItWorks:
+          Array.isArray(matched?.whyItWorks) && matched.whyItWorks.length > 0
+            ? matched.whyItWorks.map((item) => String(item)).slice(0, 3)
+            : base.whyItWorks,
+        validationWarning: '',
+      };
+      const key = buildPreviewCacheKey(contextHash, preset.id);
+      this.previewCache.set(key, preview);
+      this.previewEntries.set(presetId, { ...preview, status: 'ready', errorMessage: '' });
+    }
+
+    this.renderPresetList();
+    this.renderPreview(this.getPreviewPreset());
   }
 
   markPreviewUnavailable(presets, context, message) {

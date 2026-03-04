@@ -5,6 +5,24 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACK_PID=""
 FRONT_PID=""
 
+BACKEND_ENV_FILE="${ROOT_DIR}/backend/.env"
+if [[ -f "${BACKEND_ENV_FILE}" ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  source "${BACKEND_ENV_FILE}"
+  set +a
+fi
+
+if [[ -z "${OPENAI_API_KEY:-}" ]]; then
+  echo "OPENAI_API_KEY is required for real-AI mode. Export it and re-run make dev." >&2
+  exit 1
+fi
+
+if [[ "${USE_PROVIDER_STUB:-0}" == "1" ]]; then
+  echo "USE_PROVIDER_STUB=1 is not allowed in this dev script. Set USE_PROVIDER_STUB=0." >&2
+  exit 1
+fi
+
 cleanup() {
   if [[ -n "${BACK_PID}" ]] && kill -0 "${BACK_PID}" >/dev/null 2>&1; then
     kill -INT "${BACK_PID}" >/dev/null 2>&1 || true
@@ -27,7 +45,7 @@ trap cleanup EXIT INT TERM
   export WEB_APP_ORIGIN="${WEB_APP_ORIGIN:-http://localhost:5174}"
   export EMAILDJ_WEB_BETA_KEYS="${EMAILDJ_WEB_BETA_KEYS:-dev-beta-key}"
   export EMAILDJ_WEB_RATE_LIMIT_PER_MIN="${EMAILDJ_WEB_RATE_LIMIT_PER_MIN:-300}"
-  export USE_PROVIDER_STUB="${USE_PROVIDER_STUB:-1}"
+  export USE_PROVIDER_STUB="${USE_PROVIDER_STUB:-0}"
   uvicorn main:app --host 127.0.0.1 --port 8000
 ) &
 BACK_PID=$!

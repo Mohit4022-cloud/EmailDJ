@@ -8,6 +8,8 @@ Key request/response schemas live in `backend/app/schemas.py`.
 - `TargetEnrichmentRequest` -> `EnrichmentAccepted`
 - `SenderEnrichmentRequest` -> `EnrichmentAccepted`
 - `PresetPreviewRequest` -> `PresetPreviewResponse`
+- `PresetPreviewBatchRequest` -> `PresetPreviewBatchResponse`
+- `ResearchRequest` -> `ResearchCreateResponse` / `ResearchStatusResponse`
 
 ## Core domain contracts
 - `EmailBlueprint`

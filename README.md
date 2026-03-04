@@ -42,7 +42,7 @@ This starts:
 - Backend: `http://127.0.0.1:8000`
 - Frontend: `http://127.0.0.1:5174`
 
-Default local mode uses `USE_PROVIDER_STUB=1` unless you override env values.
+Local dev now defaults to real AI (`USE_PROVIDER_STUB=0`) and requires `OPENAI_API_KEY`.
 
 ## Tests
 From repo root:
@@ -65,11 +65,23 @@ cd frontend && npm run build
 - `POST /web/v1/generate`
 - `POST /web/v1/remix`
 - `POST /web/v1/preset-preview`
+- `POST /web/v1/preset-previews/batch`
 - `POST /web/v1/enrich/target`
 - `POST /web/v1/enrich/prospect`
 - `POST /web/v1/enrich/sender`
 - `GET /web/v1/stream/{request_id}`
 - `GET /web/v1/debug/config`
+- `POST /research/`
+- `GET /research/{job_id}/status`
+
+### Company context migration note
+- `company_context.seller_offerings` is seller-facing offering context used by generation.
+- `company_context.internal_modules` is never passed to generation/planning and is only for internal UI mapping.
+- `company_context.other_products` remains backward-compatible as a migration field.
+
+### Debug prompt tracing
+- Set `DEBUG_PROMPT=1` to log normalized context, selected beats, assembled prompt messages, and copy provenance map in backend logs.
+- Prompt tracing is disabled by default and is not returned to normal users.
 
 ## Non-negotiable guardrails implemented
 - model cannot browse directly; retrieval through tools only

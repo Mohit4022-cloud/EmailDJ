@@ -1,10 +1,13 @@
 import {
   consumeStream,
+  fetchPresetPreviewsBatch,
   fetchPresetPreview,
+  fetchResearchJobStatus,
   fetchRuntimeConfig,
   generateDraft,
   remixDraft,
   sendFeedback,
+  startResearchJob,
   startProspectEnrichment,
   startSenderEnrichment,
   startTargetEnrichment,
@@ -23,7 +26,8 @@ const DEFAULT_COMPANY_CONTEXT = {
   current_product: '',
   cta_offer_lock: '',
   cta_type: '',
-  other_products: '',
+  seller_offerings: '',
+  internal_modules: '',
   company_notes: '',
 };
 
@@ -122,8 +126,12 @@ class WebApp {
             <div class="field"><label>Current Product / Service to Pitch</label><input id="sellerCurrentProduct" placeholder="Remix Studio" /></div>
           </div>
           <div class="field">
-            <label>Other Products / Services (used for mapping)</label>
-            <textarea id="sellerOtherProducts" class="compact" placeholder="Prospect Enrichment&#10;Sequence QA&#10;Persona Research"></textarea>
+            <label>Seller Offerings (what you sell)</label>
+            <textarea id="sellerOfferings" class="compact" placeholder="Brand monitoring&#10;Trademark enforcement&#10;Marketplace takedowns"></textarea>
+          </div>
+          <div class="field">
+            <label>Internal Modules (never shared)</label>
+            <textarea id="sellerInternalModules" class="compact" placeholder="Internal workflow tags only"></textarea>
           </div>
           <div class="row">
             <div class="field">
@@ -212,7 +220,8 @@ class WebApp {
     this.sellerCompanyNameInput = this.root.querySelector('#sellerCompanyName');
     this.sellerCompanyUrlInput = this.root.querySelector('#sellerCompanyUrl');
     this.sellerCurrentProductInput = this.root.querySelector('#sellerCurrentProduct');
-    this.sellerOtherProductsInput = this.root.querySelector('#sellerOtherProducts');
+    this.sellerOfferingsInput = this.root.querySelector('#sellerOfferings');
+    this.sellerInternalModulesInput = this.root.querySelector('#sellerInternalModules');
     this.ctaOfferLockInput = this.root.querySelector('#ctaOfferLock');
     this.ctaTypeSelect = this.root.querySelector('#ctaType');
     this.sellerCompanyNotesInput = this.root.querySelector('#sellerCompanyNotes');
@@ -240,6 +249,7 @@ class WebApp {
       onSelectPreset: (preset) => this.applyPreset(preset),
       getPreviewContext: () => this.previewContextPayload(),
       generatePreview: (payload) => this.generatePresetPreview(payload),
+      generatePreviewBatch: (payload) => this.generatePresetPreviewBatch(payload),
       maxConcurrentPreviews: 3,
     });
 
@@ -249,8 +259,8 @@ class WebApp {
 
     this.generateBtn.addEventListener('click', () => this.generate());
     this.saveRemixBtn.addEventListener('click', () => this.saveRemix());
-    this.targetAiBtn.addEventListener('click', () => this.enrichTarget(false));
-    this.targetRefreshBtn.addEventListener('click', () => this.enrichTarget(true));
+    this.targetAiBtn.addEventListener('click', () => this.runCompanyResearch(false));
+    this.targetRefreshBtn.addEventListener('click', () => this.runCompanyResearch(true));
     this.prospectAiBtn.addEventListener('click', () => this.enrichProspect(false));
     this.prospectRefreshBtn.addEventListener('click', () => this.enrichProspect(true));
     this.senderAiBtn.addEventListener('click', () => this.enrichSender(false));
@@ -263,7 +273,8 @@ class WebApp {
       this.sellerCompanyNameInput,
       this.sellerCompanyUrlInput,
       this.sellerCurrentProductInput,
-      this.sellerOtherProductsInput,
+      this.sellerOfferingsInput,
+      this.sellerInternalModulesInput,
       this.ctaOfferLockInput,
       this.ctaTypeSelect,
       this.sellerCompanyNotesInput,
@@ -306,13 +317,15 @@ class WebApp {
       current_product: chooseDefaultString(saved.current_product, DEFAULT_COMPANY_CONTEXT.current_product),
       cta_offer_lock: chooseDefaultString(saved.cta_offer_lock, DEFAULT_COMPANY_CONTEXT.cta_offer_lock),
       cta_type: chooseDefaultString(saved.cta_type, DEFAULT_COMPANY_CONTEXT.cta_type),
-      other_products: chooseDefaultString(saved.other_products, DEFAULT_COMPANY_CONTEXT.other_products),
+      seller_offerings: chooseDefaultString(saved.seller_offerings || saved.other_products, DEFAULT_COMPANY_CONTEXT.seller_offerings),
+      internal_modules: chooseDefaultString(saved.internal_modules, DEFAULT_COMPANY_CONTEXT.internal_modules),
       company_notes: chooseDefaultString(saved.company_notes, DEFAULT_COMPANY_CONTEXT.company_notes),
     };
     this.sellerCompanyNameInput.value = merged.company_name;
     this.sellerCompanyUrlInput.value = merged.company_url;
     this.sellerCurrentProductInput.value = merged.current_product;
-    this.sellerOtherProductsInput.value = merged.other_products;
+    this.sellerOfferingsInput.value = merged.seller_offerings;
+    this.sellerInternalModulesInput.value = merged.internal_modules;
     this.ctaOfferLockInput.value = merged.cta_offer_lock;
     this.ctaTypeSelect.value = merged.cta_type;
     this.sellerCompanyNotesInput.value = merged.company_notes;
@@ -353,7 +366,8 @@ class WebApp {
       current_product: this.sellerCurrentProductInput.value.trim(),
       cta_offer_lock: this.ctaOfferLockInput.value.trim(),
       cta_type: this.ctaTypeSelect.value.trim(),
-      other_products: this.sellerOtherProductsInput.value.trim(),
+      seller_offerings: this.sellerOfferingsInput.value.trim(),
+      internal_modules: this.sellerInternalModulesInput.value.trim(),
       company_notes: this.sellerCompanyNotesInput.value.trim(),
     };
     const payload = {};
@@ -442,6 +456,10 @@ class WebApp {
     return fetchPresetPreview(payload);
   }
 
+  async generatePresetPreviewBatch(payload) {
+    return fetchPresetPreviewsBatch(payload);
+  }
+
   validate(data) {
     if (!data.prospect.name || !data.prospect.title || !data.prospect.company) {
       return 'Prospect name, title, and company are required.';
@@ -462,7 +480,7 @@ class WebApp {
 
   runtimeMode() {
     const mode = String(this.runtimeConfig?.runtime_mode || '').trim().toLowerCase();
-    return mode === 'real' || mode === 'mock' ? mode : 'unknown';
+    return mode === 'real' || mode === 'unavailable' ? mode : 'unknown';
   }
 
   updateRuntimeModeBadge(doneData = null) {
@@ -486,9 +504,9 @@ class WebApp {
       badgeEl.textContent = `REAL AI${providerLabel}${repairedNote}`;
       return;
     }
-    if (mode === 'mock') {
-      badgeEl.className = 'runtime-mode-badge mode-mock';
-      badgeEl.textContent = 'MOCK AI';
+    if (mode === 'unavailable') {
+      badgeEl.className = 'runtime-mode-badge mode-unknown';
+      badgeEl.textContent = 'REAL AI unavailable (check OPENAI_API_KEY)';
       return;
     }
     badgeEl.className = 'runtime-mode-badge mode-unknown';
@@ -630,9 +648,14 @@ class WebApp {
         }
         if (outcome.done) {
           doneData = outcome.doneData || msg.data || null;
+          const finalSubject = typeof doneData?.final?.subject === 'string' ? doneData.final.subject.trim() : '';
           const finalBody = typeof outcome.finalBody === 'string' ? outcome.finalBody.trim() : '';
-          if (finalBody) {
-            finalText = finalBody;
+          if (finalSubject || finalBody) {
+            const composed =
+              finalSubject && finalBody && !finalBody.startsWith(finalSubject)
+                ? `${finalSubject}\n\n${finalBody}`
+                : finalBody || finalSubject;
+            finalText = composed;
             this.editor.setContent(finalText);
             return;
           }
@@ -655,7 +678,9 @@ class WebApp {
         throw new Error('Draft stream integrity check failed (checksum mismatch).');
       }
     }
-    if (!this.editor.getText().trim() && !finalText.trim() && !doneData?.final?.body?.trim()) {
+    const doneFinalBody = typeof doneData?.final?.body === 'string' ? doneData.final.body.trim() : '';
+    const doneFinalSubject = typeof doneData?.final?.subject === 'string' ? doneData.final.subject.trim() : '';
+    if (!this.editor.getText().trim() && !finalText.trim() && !doneFinalBody && !doneFinalSubject) {
       throw new Error('Draft stream completed without content.');
     }
     if (doneData?.sources) {
@@ -697,6 +722,108 @@ class WebApp {
     ].join('\n');
     this.researchInput.value = existing ? `${existing}\n\n${block}` : block;
     this.persistTargetDefaults();
+  }
+
+  parseDomainFromInput(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return '';
+    try {
+      const value = text.includes('://') ? text : `https://${text}`;
+      const host = new URL(value).hostname.replace(/^www\./i, '');
+      return host || text.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+    } catch {
+      return text.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+    }
+  }
+
+  async pollResearchJob(jobId, timeoutMs = 120000) {
+    const started = Date.now();
+    while (true) {
+      const status = await fetchResearchJobStatus(jobId);
+      const state = String(status?.status || '').toLowerCase();
+      const progress = String(status?.progress || '').trim();
+      if (progress) this.setStatus(progress, true);
+      if (state === 'complete') return status;
+      if (state === 'failed') {
+        throw new Error(String(status?.error || 'Research job failed.'));
+      }
+      if (Date.now() - started > timeoutMs) {
+        throw new Error('Research job timed out.');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+    }
+  }
+
+  applyResearchResult(result) {
+    if (!result) throw new Error('Research completed without a result payload.');
+
+    if (typeof result === 'string') {
+      const existing = this.researchInput.value.trim();
+      this.researchInput.value = existing ? `${existing}\n\n${result}` : result;
+      this.persistTargetDefaults();
+      return;
+    }
+
+    const domain = String(result?.domain || '').trim();
+    if (domain && domain.toLowerCase() !== 'unknown') {
+      this.prospectCompanyUrlInput.value = `https://${domain}`;
+    }
+
+    const profile = {
+      official_domain: domain || 'Unknown',
+      summary: String(result?.summary || 'Unknown'),
+      icp: String(result?.ICP || 'Unknown'),
+      products: Array.isArray(result?.products) ? result.products : [],
+      differentiators: Array.isArray(result?.differentiators) ? result.differentiators : [],
+      proof_points: Array.isArray(result?.proof_points) ? result.proof_points : [],
+      recent_news: Array.isArray(result?.news) ? result.news : [],
+      citations: Array.isArray(result?.citations) ? result.citations : [],
+      confidence: 0.6,
+    };
+    this.enrichedTargetProfile = profile;
+
+    const summaryLines = [
+      profile.summary,
+      ...(profile.products || []).slice(0, 3).map((item) => `Product: ${item}`),
+      ...(profile.differentiators || []).slice(0, 3).map((item) => `Differentiator: ${item}`),
+      ...(profile.proof_points || []).slice(0, 3).map((item) => `Proof: ${item}`),
+      ...(profile.recent_news || []).slice(0, 3).map((item) => `${item.date || 'Unknown'} — ${item.headline}: ${item.why_it_matters}`),
+    ];
+    this.appendResearchBlock('Target Account Research', summaryLines, profile.citations || []);
+    this.targetRefreshMeta.textContent = `Last refreshed: ${nowPretty()}`;
+    this.persistTargetDefaults();
+  }
+
+  async runCompanyResearch(refresh = false) {
+    const companyName = this.prospectCompanyInput.value.trim();
+    const domain = this.parseDomainFromInput(this.prospectCompanyUrlInput.value.trim());
+    if (!companyName && !domain) {
+      this.setStatus('Enter prospect company (or target company URL/domain) before running Company AI.');
+      return;
+    }
+
+    const accountIdSource = companyName || domain;
+    const accountId = String(accountIdSource || 'account')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80) || 'account';
+
+    try {
+      this.setStatus(refresh ? 'Refreshing company research...' : 'Starting company research...', true);
+      const accepted = await startResearchJob({
+        account_id: accountId,
+        domain: domain || null,
+        company_name: companyName || null,
+      });
+      const completed = await this.pollResearchJob(accepted.job_id);
+      this.applyResearchResult(completed?.result);
+      this.setStatus('Company research complete.');
+      this.statusLine.classList.remove('pulse');
+    } catch (error) {
+      this.setStatus(String(error?.message || error));
+      this.statusLine.classList.remove('pulse');
+    }
   }
 
   async enrichTarget(refresh = false) {
@@ -789,7 +916,7 @@ class WebApp {
         company_name: this.sellerCompanyNameInput.value.trim() || null,
         current_product: this.sellerCurrentProductInput.value.trim() || null,
         company_notes: this.sellerCompanyNotesInput.value.trim() || null,
-        other_products: this.sellerOtherProductsInput.value.trim() || null,
+        other_products: this.sellerOfferingsInput.value.trim() || null,
       });
       const result = await this.runEnrichment(accepted, 'Structuring sender profile...');
       const profile = result?.sender_profile;

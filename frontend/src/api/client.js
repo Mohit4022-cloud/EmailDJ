@@ -119,6 +119,47 @@ export async function fetchPresetPreview(payload) {
   return postJson('/web/v1/preset-preview', payload);
 }
 
+export async function fetchPresetPreviewsBatch(payload) {
+  return postJson('/web/v1/preset-previews/batch', payload);
+}
+
+export async function startResearchJob(payload) {
+  const res = await fetch(`${HUB_URL}/research/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = body?.detail?.error || body?.detail?.message || body?.error || '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(`/research/ failed (${res.status})${detail ? `: ${detail}` : ''}`);
+  }
+  return res.json();
+}
+
+export async function fetchResearchJobStatus(jobId) {
+  const res = await fetch(`${HUB_URL}/research/${encodeURIComponent(jobId)}/status`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!res.ok) {
+    let detail = '';
+    try {
+      const body = await res.json();
+      detail = body?.detail?.error || body?.detail?.message || body?.error || '';
+    } catch {
+      detail = '';
+    }
+    throw new Error(`/research/{job_id}/status failed (${res.status})${detail ? `: ${detail}` : ''}`);
+  }
+  return res.json();
+}
+
 export async function consumeStream(requestId, onEvent, options = {}) {
   const signal = options?.signal;
   const res = await fetch(`${HUB_URL}/web/v1/stream/${requestId}`, {

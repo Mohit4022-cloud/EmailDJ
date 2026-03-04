@@ -66,6 +66,8 @@ export function normalizePreviewContext(raw = {}) {
       cta_offer_lock: ctaLockText,
       cta_lock_text: ctaLockText,
       cta_type: normalizeText(company.cta_type),
+      seller_offerings: normalizeLineBreaks(company.seller_offerings || company.other_products),
+      internal_modules: normalizeLineBreaks(company.internal_modules),
       other_products: normalizeLineBreaks(company.other_products),
       company_notes: normalizeLineBreaks(company.company_notes),
     },
@@ -88,6 +90,8 @@ export function previewContextIdentity(context) {
     currentProductOrService: normalized.company_context.current_product,
     ctaLockText: normalized.company_context.cta_lock_text,
     ctaType: normalized.company_context.cta_type,
+    sellerOfferings: normalized.company_context.seller_offerings,
+    internalModules: normalized.company_context.internal_modules,
     otherProductsServices: normalized.company_context.other_products,
     globalSliders: normalized.global_slider_state,
   };
@@ -174,19 +178,21 @@ function ensureResearchText(normalized) {
   if (research.length >= 20) return research;
   const company = normalized?.prospect?.company || 'the account';
   const title = normalized?.prospect?.title || 'the target role';
-  return `${company} research is limited in this context. Keep messaging grounded for ${title} and focus on practical outbound outcomes.`;
+  return `${company} research is limited in this context. Keep messaging grounded for ${title} and focus on practical outcomes.`;
 }
 
 function deriveOneLineValue(normalized) {
   const notesSentence = splitSentences(normalized?.company_context?.company_notes || '')[0];
   if (notesSentence) return notesSentence;
   const product = normalized?.company_context?.current_product;
-  if (product) return `help outbound teams with ${product}`;
-  return 'help outbound teams improve reply quality with controlled personalization';
+  if (product) return `help teams improve workflow outcomes with ${product}`;
+  return 'help teams improve execution consistency with clearer workflows';
 }
 
 function deriveProofPoints(normalized) {
-  const productItems = parseDelimitedItems(normalized?.company_context?.other_products || '');
+  const productItems = parseDelimitedItems(
+    normalized?.company_context?.seller_offerings || normalized?.company_context?.other_products || ''
+  );
   const noteSentences = splitSentences(normalized?.company_context?.company_notes || '').slice(1, 3);
   return [...productItems, ...noteSentences].slice(0, 4);
 }
@@ -263,6 +269,7 @@ export function buildPresetPreviewBatchPayload(context, presets) {
     cta_lock: ctaLock || null,
     cta_lock_text: ctaLock || null,
     cta_type: ctaType || null,
+    hook_strategy: 'research_anchored',
   };
 }
 
@@ -299,6 +306,8 @@ export function buildPresetPreviewPayload(context, preset) {
       company_name: normalized.company_context.company_name || null,
       company_url: normalized.company_context.company_url || null,
       current_product: normalized.company_context.current_product || null,
+      seller_offerings: normalized.company_context.seller_offerings || null,
+      internal_modules: normalized.company_context.internal_modules || null,
       other_products: normalized.company_context.other_products || null,
       company_notes: normalized.company_context.company_notes || null,
       cta_offer_lock: compactWhitespace(normalized.company_context.cta_lock_text || normalized.company_context.cta_offer_lock) || null,

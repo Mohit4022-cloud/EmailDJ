@@ -81,6 +81,8 @@ class WebCompanyContext(BaseModel):
     company_url: str | None = Field(default=None, max_length=400)
     current_product: str | None = Field(default=None, max_length=300)
     other_products: str | None = Field(default=None, max_length=8000)
+    seller_offerings: str | list[str] | None = Field(default=None)
+    internal_modules: str | list[str] | None = Field(default=None)
     company_notes: str | None = Field(default=None, max_length=12000)
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
@@ -90,6 +92,7 @@ class WebPipelineMeta(BaseModel):
     mode: str | None = Field(default=None, max_length=40)
     model_hint: str | None = Field(default=None, max_length=120)
     request_id: str | None = Field(default=None, max_length=120)
+    throttled: bool | None = None
 
 
 class WebGenerateRequest(BaseModel):
@@ -100,7 +103,7 @@ class WebGenerateRequest(BaseModel):
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
     preset_id: str | None = Field(default=None, max_length=120)
-    response_contract: Literal["legacy_text", "rc_tco_json_v1"] = Field(default="legacy_text")
+    response_contract: Literal["legacy_text", "email_json_v1", "rc_tco_json_v1"] = Field(default="legacy_text")
     pipeline_meta: WebPipelineMeta | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
     company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
@@ -183,7 +186,96 @@ class PresetPreviewResponse(BaseModel):
     whyItWorks: list[str]
     sliderSummary: dict[str, int]
     validationWarning: str | None = None
+    debug: dict[str, Any] = Field(default_factory=dict)
     meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class PresetPreviewBatchGlobalSliders(BaseModel):
+    formality: int = Field(ge=0, le=100)
+    brevity: int = Field(ge=0, le=100)
+    directness: int = Field(ge=0, le=100)
+    personalization: int = Field(ge=0, le=100)
+
+
+class PresetPreviewBatchProductContext(BaseModel):
+    product_name: str = Field(min_length=1, max_length=300)
+    one_line_value: str = Field(min_length=1, max_length=1200)
+    proof_points: list[str] = Field(default_factory=list, max_length=12)
+    target_outcome: str = Field(min_length=1, max_length=240)
+
+
+class PresetPreviewBatchRawResearch(BaseModel):
+    deep_research_paste: str = Field(min_length=1, max_length=50000)
+    company_notes: str | None = Field(default=None, max_length=12000)
+    extra_constraints: str | None = Field(default=None, max_length=4000)
+
+
+class PresetPreviewBatchPreset(BaseModel):
+    preset_id: str = Field(min_length=1, max_length=120)
+    label: str = Field(min_length=1, max_length=200)
+    slider_overrides: dict[str, int] = Field(default_factory=dict)
+
+
+class PresetPreviewBatchRequest(BaseModel):
+    prospect: WebProspectInput
+    prospect_first_name: str | None = Field(default=None, max_length=60)
+    product_context: PresetPreviewBatchProductContext
+    raw_research: PresetPreviewBatchRawResearch
+    global_sliders: PresetPreviewBatchGlobalSliders
+    presets: list[PresetPreviewBatchPreset] = Field(default_factory=list, min_length=1, max_length=24)
+    offer_lock: str = Field(min_length=1, max_length=320)
+    cta_lock: str | None = Field(default=None, max_length=500)
+    cta_lock_text: str | None = Field(default=None, max_length=500)
+    cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
+    hook_strategy: Literal["research_anchored", "role_hypothesis", "domain_signal"] | None = None
+
+
+class PresetPreviewBatchItem(BaseModel):
+    preset_id: str
+    label: str
+    effective_sliders: dict[str, int]
+    vibeLabel: str
+    vibeTags: list[str]
+    whyItWorks: list[str]
+    subject: str
+    body: str
+    debug: dict[str, Any] = Field(default_factory=dict)
+
+
+class PresetPreviewBatchResponse(BaseModel):
+    previews: list[PresetPreviewBatchItem]
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
+class ResearchRequest(BaseModel):
+    account_id: str = Field(min_length=1, max_length=200)
+    domain: str | None = Field(default=None, max_length=400)
+    company_name: str | None = Field(default=None, max_length=200)
+
+
+class ResearchCreateResponse(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "complete", "failed"]
+
+
+class ResearchResult(BaseModel):
+    domain: str = Field(default="Unknown")
+    summary: str = Field(default="Unknown")
+    products: list[str] = Field(default_factory=list)
+    ICP: str = Field(default="Unknown")
+    differentiators: list[str] = Field(default_factory=list)
+    proof_points: list[str] = Field(default_factory=list)
+    news: list[NewsItem] = Field(default_factory=list)
+    citations: list[Citation] = Field(default_factory=list)
+    result_text: str = Field(default="")
+
+
+class ResearchStatusResponse(BaseModel):
+    job_id: str
+    status: Literal["queued", "running", "complete", "failed"]
+    progress: str | None = None
+    result: ResearchResult | str | None = None
+    error: str | None = None
 
 
 class WebFeedbackRequest(BaseModel):
