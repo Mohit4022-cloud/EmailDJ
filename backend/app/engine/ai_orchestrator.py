@@ -177,7 +177,7 @@ class AIOrchestrator:
                 "company": ctx.prospect_company,
                 "industry": "",
                 "notes": "",
-                "research_text": ctx.research_text,
+                "research_text": ctx.usable_research_text,
             },
             "cta": {
                 "cta_type": ctx.cta_type or request.cta_type or "question",
@@ -200,7 +200,7 @@ class AIOrchestrator:
                 "company": ctx.prospect_company,
                 "industry": "",
                 "notes": "",
-                "research_text": ctx.research_text,
+                "research_text": ctx.usable_research_text,
             },
             "cta": {"cta_final_line": cta_line},
         }
@@ -227,6 +227,26 @@ class AIOrchestrator:
             out["proof_gap"] = True
             trace.add_postprocess_step("set_atoms_proof_gap_true")
         return out
+
+    def _split_failed_stage_details(self, details: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
+        raw_details = dict(details or {})
+        trace_details = dict(raw_details)
+        for key in ("first_raw", "repair_raw", "first_payload", "repair_payload"):
+            trace_details.pop(key, None)
+
+        artifact_payload = raw_details.get("first_payload")
+        if artifact_payload is None:
+            artifact_payload = raw_details.get("repair_payload")
+        artifact_raw = str(raw_details.get("first_raw") or raw_details.get("repair_raw") or "").strip() or None
+        artifact_status = str(raw_details.get("artifact_status") or "").strip()
+        if not artifact_status:
+            artifact_status = "failed_artifact_present" if (artifact_payload is not None or artifact_raw) else "artifact_missing"
+        return trace_details, {
+            "artifact_payload": artifact_payload,
+            "artifact_raw": artifact_raw,
+            "artifact_status": artifact_status,
+            "attempt_count": int(raw_details.get("attempt_count") or 0),
+        }
 
     async def _run_stage(
         self,
@@ -262,7 +282,17 @@ class AIOrchestrator:
                     codes=validation_codes,
                     details={"rejected_facts": list((exc.details or {}).get("rejected_facts") or [])},
                 )
-            trace.fail_stage(stage=config.stage, model=ENFORCED_OPENAI_MODEL, error_code=exc.code, details=exc.details)
+            trace_details, artifact = self._split_failed_stage_details(exc.details)
+            trace.fail_stage_with_artifact(
+                stage=config.stage,
+                model=ENFORCED_OPENAI_MODEL,
+                error_code=exc.code,
+                details=trace_details,
+                artifact_status=str(artifact["artifact_status"] or ""),
+                output=artifact["artifact_payload"],
+                raw_output=artifact["artifact_raw"],
+                attempt_count=int(artifact["attempt_count"] or 0),
+            )
             raise
         except ValidationIssue as exc:
             trace.add_validation_error(
@@ -311,7 +341,7 @@ class AIOrchestrator:
         cta_line = self._cta_lock(request, ctx)
 
         trace.put_hash("request:normalized", self._cache_context(ctx=ctx, cta_line=cta_line))
-        trace.set_meta(mode="single", preset_id=ctx.preset_id, sliders=slider_params)
+        trace.set_meta(mode="single", preset_id=ctx.preset_id, sliders=slider_params, research_state=ctx.research_state)
 
         try:
             messaging_brief, fit_map, angle_set = await self._build_or_load_brief_stack(
@@ -501,7 +531,7 @@ class AIOrchestrator:
                 reasoning_effort=self.settings.openai_reasoning_low,
                 response_format=RF_MESSAGING_BRIEF,
             ),
-            messages=stage_a.build_messages(stage_a_input),
+            messages=stage_a.build_messages(stage_a_input, research_state=ctx.research_state),
             validator=lambda payload: validate_messaging_brief(
                 payload,
                 source_text=ctx.research_text,
@@ -565,7 +595,7 @@ class AIOrchestrator:
         slider_params = self._build_slider_params(request, ctx, sliders)
         cta_line = self._cta_lock(request, ctx)
 
-        trace.set_meta(mode="preset_browse", preset_ids=list(preset_ids), sliders=slider_params)
+        trace.set_meta(mode="preset_browse", preset_ids=list(preset_ids), sliders=slider_params, research_state=ctx.research_state)
 
         try:
             messaging_brief, fit_map, angle_set = await self._build_or_load_brief_stack(

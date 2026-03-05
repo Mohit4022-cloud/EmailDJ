@@ -6,6 +6,7 @@ from typing import Literal
 
 HookType = Literal["research_anchored", "role_hypothesis", "domain_signal"]
 ProductCategory = Literal["brand_protection", "sales_outbound", "generic_b2b"]
+ResearchState = Literal["no_research", "sparse", "grounded"]
 
 
 @dataclass(slots=True)
@@ -27,6 +28,8 @@ class NormalizedContext:
     cta_type: str
 
     research_text: str
+    usable_research_text: str
+    research_state: ResearchState
     company_notes: str
     proof_points: list[str]
     seller_offerings: list[str]

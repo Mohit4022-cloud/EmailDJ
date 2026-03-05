@@ -93,8 +93,10 @@ def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
     assert "Do not compensate for sparse input by importing training knowledge." in user_prompt
     assert "you must use ONLY these exact strings as source_field values" in user_prompt
     assert "Never use \"research\", \"research_activity\", or any other variation." in user_prompt
-    assert "If an input field says \"None provided.\" or is blank, it contains zero facts." in user_prompt
-    assert "Treat \"Unknown\" the same way as empty input (zero facts)." in user_prompt
+    assert "SEMANTIC INPUT STATE" in user_prompt
+    assert "research_state=no_research means research_text contributes zero facts" in user_prompt
+    assert "Placeholder/null-ish text must never appear anywhere in output" in user_prompt
+    assert "sparse or no_research input should usually produce 1-3 conservative hooks." in user_prompt
 
 
 def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:

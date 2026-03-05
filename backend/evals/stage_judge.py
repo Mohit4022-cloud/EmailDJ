@@ -141,6 +141,41 @@ def _append_unique(items: list[str], value: str) -> None:
         items.append(text)
 
 
+def _coerce_bool(value: Any) -> Any:
+    if isinstance(value, bool):
+        return value
+    lowered = str(value or "").strip().lower()
+    if lowered == "true":
+        return True
+    if lowered == "false":
+        return False
+    return value
+
+
+def _coerce_int(value: Any) -> Any:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value
+    text = str(value or "").strip()
+    if text.isdigit():
+        return int(text)
+    return value
+
+
+def _normalize_judge_payload_types(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    normalized["pass"] = _coerce_bool(normalized.get("pass"))
+    normalized["hard_fail_triggered"] = _coerce_bool(normalized.get("hard_fail_triggered"))
+    normalized["total"] = _coerce_int(normalized.get("total"))
+
+    raw_scores = normalized.get("scores")
+    if isinstance(raw_scores, dict):
+        normalized["scores"] = {str(key): _coerce_int(value) for key, value in raw_scores.items()}
+
+    return normalized
+
+
 def _default_result(stage: str, *, failure: str | None = None) -> dict[str, Any]:
     criteria = CRITERIA_BY_STAGE[stage]
     failures = [failure] if failure else []
@@ -247,7 +282,7 @@ async def _call_judge_llm(*, openai: OpenAIClient, messages: list[dict[str, str]
         timeout_seconds=timeout_seconds,
     )
     text = _extract_message_text(dict(response.get("message") or {}))
-    payload = _parse_message_content(text)
+    payload = _normalize_judge_payload_types(_parse_message_content(text))
     _validate_schema(payload, {"json_schema": {"schema": JUDGE_RESULT_SCHEMA}})
     return payload, response
 
@@ -272,7 +307,7 @@ def _judge_user_prompt(
     schema_preview = {
         "stage": stage,
         "scores": {criterion: "0|1" for criterion in criteria},
-        "total": f"0-{len(criteria)}",
+        "total": len(criteria),
         "pass": "boolean",
         "hard_fail_triggered": "boolean",
         "hard_fail_criteria": ["criterion_name"],
@@ -292,6 +327,7 @@ def _judge_user_prompt(
         [
             "Output schema contract:",
             json.dumps(schema_preview, ensure_ascii=True, indent=2),
+            "Use integers for scores and total.",
             "Return only valid JSON.",
         ]
     )

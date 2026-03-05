@@ -1,17 +1,20 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 
 def _list_lines(values: list[Any]) -> str:
     clean = [str(item).strip() for item in values if str(item).strip()]
     if not clean:
-        return "- None provided."
+        return ""
     return "\n".join(f"- {item}" for item in clean)
 
 
-def build_messages(payload: dict[str, Any]) -> list[dict[str, str]]:
+def _field_text(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def build_messages(payload: dict[str, Any], *, research_state: str = "grounded") -> list[dict[str, str]]:
     user_company = dict(payload.get("user_company") or {})
     prospect = dict(payload.get("prospect") or {})
     cta = dict(payload.get("cta") or {})
@@ -37,10 +40,10 @@ def build_messages(payload: dict[str, Any]) -> list[dict[str, str]]:
 
 USER COMPANY PROFILE
 Product Summary:
-{str(user_company.get("product_summary") or "").strip() or "None provided."}
+{_field_text(user_company.get("product_summary"))}
 
 Ideal Customer Profile:
-{str(user_company.get("icp_description") or "").strip() or "None provided."}
+{_field_text(user_company.get("icp_description"))}
 
 Differentiators:
 {_list_lines(list(user_company.get("differentiators") or []))}
@@ -52,23 +55,30 @@ Do-Not-Say List:
 {_list_lines(list(user_company.get("do_not_say") or []))}
 
 Additional Company Notes:
-{str(user_company.get("company_notes") or "").strip() or "None provided."}
+{_field_text(user_company.get("company_notes"))}
 
 PROSPECT CONTEXT
-Name: {str(prospect.get("name") or "").strip() or "None provided."}
-Title: {str(prospect.get("title") or "").strip() or "None provided."}
-Company: {str(prospect.get("company") or "").strip() or "None provided."}
-Industry: {str(prospect.get("industry") or "").strip() or "None provided."}
+Name: {_field_text(prospect.get("name"))}
+Title: {_field_text(prospect.get("title"))}
+Company: {_field_text(prospect.get("company"))}
+Industry: {_field_text(prospect.get("industry"))}
 
 prospect_notes:
-{str(prospect.get("notes") or "").strip() or "None provided."}
+{_field_text(prospect.get("notes"))}
 
 research_text:
-{str(prospect.get("research_text") or "").strip() or "None provided."}
+{_field_text(prospect.get("research_text"))}
 
 LOCKED CTA
 CTA Type: {str(cta.get("cta_type") or "question").strip() or "question"}
 CTA Final Line (LOCKED): {str(cta.get("cta_final_line") or "").strip()}
+
+SEMANTIC INPUT STATE
+- research_state: {research_state}
+- research_text contributes facts only when research_state is sparse or grounded.
+- research_state=no_research means research_text contributes zero facts and cannot justify launches, posts, news, initiatives, or congratulatory hooks.
+- research_state=sparse means keep hooks conservative and role-aware; do not overreach into fictional specificity.
+- Blank field bodies and blank list sections are absent input, not evidence.
 
 YOUR INSTRUCTIONS
 
@@ -101,10 +111,9 @@ Never use "research", "research_activity", or any other variation.
 If a fact cannot be attributed to one of these exact strings, do not include it.
 
 EMPTY FIELD RULE:
-- If an input field says "None provided." or is blank, it contains zero facts.
-- Treat "Unknown" the same way as empty input (zero facts).
-- Do not extract facts from that field.
-- Do not create a fact with that field as source_field.
+- Blank field bodies and blank list sections contain zero facts.
+- If a field has no usable signal, do not create a fact with that field as source_field.
+- Placeholder/null-ish text must never appear anywhere in output, including hooks, assumptions, persona_cues, or allowed_personalization_fact_sources.
 
 CONTAINMENT CHECK (run this before finalizing facts_from_input):
 - For each fact ask: "If I removed every input field and only had this fact, could I identify which specific input field it came from?"
@@ -115,6 +124,7 @@ CONTAINMENT CHECK (run this before finalizing facts_from_input):
 - If research_text is sparse or empty, facts_from_input about the prospect should be few.
 - Do not compensate for sparse input by importing training knowledge.
 - In sparse-input conditions, set signal_strength honestly (often low).
+- If research_state is no_research, prospect facts should come only from name/title/company and any non-empty prospect_notes.
 - A brief with three grounded facts is better than ten facts with hallucinated content.
 
 STEP 2 - CONSTRAINT MAPPING
@@ -124,15 +134,20 @@ STEP 2 - CONSTRAINT MAPPING
 STEP 3 - INFERENCE LAYER
 - For significant prospect facts, infer likely priorities as assumptions.
 - Every assumption needs: text, confidence 0.0-0.85, and based_on_fact_ids.
+- In sparse-input or no_research conditions, assumptions must be conservative, explicitly uncertain, and tied to role/title/company context only.
 
 STEP 4 - HOOK IDENTIFICATION
-- Produce 3-5 hooks grounded in facts.
+- Grounded input may produce 3-5 hooks.
+- sparse or no_research input should usually produce 1-3 conservative hooks.
 - Hook quality bar: specific to this prospect, tied to business priority, and fact-backed.
 - Assign hook_type from: pain | priority | initiative | tooling | trigger_event | other.
+- Do not create event/news/post/congrats hooks unless directly grounded in usable research_text facts.
 
 STEP 5 - PERSONA CUES
 - Infer likely_kpis, likely_initiatives, day_to_day, and tools_stack from title/industry/research.
 - Keep these as inferences, not facts.
+- Do not use placeholder entries like "unknown" or "none provided".
+- When research_state is no_research, keep persona cues generic to the role/title and avoid invented initiatives or tools.
 - persona_cues.notes must be included (empty string allowed).
 
 STEP 6 - FORBIDDEN CLAIM PATTERNS
@@ -145,7 +160,8 @@ STEP 6 - FORBIDDEN CLAIM PATTERNS
 STEP 7 - COMPLETENESS SIGNAL
 - grounding_policy.no_new_facts = true
 - grounding_policy.no_ungrounded_personalization = true
-- grounding_policy.allowed_personalization_fact_sources should list only fields with usable grounded signal.
+- grounding_policy.allowed_personalization_fact_sources should list only exact source_field values with usable non-placeholder signal.
+- Do not list fields that are blank, absent, or semantically no_research.
 
 Also include top-level brief_quality:
 {{

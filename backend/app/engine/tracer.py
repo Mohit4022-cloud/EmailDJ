@@ -84,27 +84,62 @@ class Trace:
         return elapsed_ms
 
     def fail_stage(self, *, stage: str, model: str, error_code: str, details: dict[str, Any] | None = None) -> int:
+        return self.fail_stage_with_artifact(
+            stage=stage,
+            model=model,
+            error_code=error_code,
+            details=details,
+            artifact_status=None,
+            output=None,
+            raw_output=None,
+            attempt_count=None,
+        )
+
+    def fail_stage_with_artifact(
+        self,
+        *,
+        stage: str,
+        model: str,
+        error_code: str,
+        details: dict[str, Any] | None = None,
+        artifact_status: str | None = None,
+        output: Any = None,
+        raw_output: str | None = None,
+        attempt_count: int | None = None,
+    ) -> int:
         started = self._stage_started.get(stage, time.perf_counter())
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+        stage_entry = {
+            "stage": stage,
+            "status": "failed",
+            "model": model,
+            "elapsed_ms": elapsed_ms,
+            "error_code": error_code,
+            "details": details or {},
+        }
+        if artifact_status:
+            stage_entry["artifact_status"] = artifact_status
+        if attempt_count is not None:
+            stage_entry["attempt_count"] = int(attempt_count)
         self.stage_stats.append(
-            {
+            stage_entry
+        )
+        if self.debug_trace_raw:
+            raw_entry = {
                 "stage": stage,
                 "status": "failed",
-                "model": model,
-                "elapsed_ms": elapsed_ms,
                 "error_code": error_code,
                 "details": details or {},
             }
-        )
-        if self.debug_trace_raw:
-            self.raw_stage_payloads.append(
-                {
-                    "stage": stage,
-                    "status": "failed",
-                    "error_code": error_code,
-                    "details": details or {},
-                }
-            )
+            if artifact_status:
+                raw_entry["artifact_status"] = artifact_status
+            if attempt_count is not None:
+                raw_entry["attempt_count"] = int(attempt_count)
+            if output is not None:
+                raw_entry["output"] = output
+            if raw_output:
+                raw_entry["raw_output"] = raw_output
+            self.raw_stage_payloads.append(raw_entry)
         return elapsed_ms
 
     def add_validation_error(self, *, stage: str, codes: list[str], details: dict[str, Any] | None = None) -> None:

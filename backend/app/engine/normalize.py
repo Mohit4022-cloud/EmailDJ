@@ -5,6 +5,7 @@ from typing import Iterable
 
 from app.schemas import PresetPreviewBatchPreset, PresetPreviewBatchRequest, PresetPreviewRequest, WebGenerateRequest
 
+from .research_state import classify_research_state, has_grounded_research_signal, usable_research_text
 from .types import NormalizedContext, ProductCategory
 
 
@@ -132,15 +133,7 @@ def _proof_points(*groups: Iterable[str]) -> list[str]:
 
 
 def _detect_signal(research_text: str) -> bool:
-    text = _text(research_text).lower()
-    if len(text) < 20:
-        return False
-    if "research is limited" in text:
-        return False
-    if any(token in text for token in ("http://", "https://", "announced", "launched", "hired", "funding", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")):
-        return True
-    # Non-empty research with enough words is still treated as a weak signal.
-    return len(re.findall(r"\b\w+\b", text)) >= 12
+    return has_grounded_research_signal(research_text)
 
 
 def _looks_internal_module(item: str) -> bool:
@@ -214,6 +207,9 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
     global_sliders = style_to_global_sliders(style_payload)
     company_context = req.company_context
     company_notes = _text(company_context.company_notes)
+    raw_research_text = _text(req.research_text)
+    cleaned_research_text = usable_research_text(raw_research_text)
+    research_state = classify_research_state(raw_research_text)
     seller_offerings, internal_modules = _split_offerings_and_modules(
         other_products=company_context.other_products,
         seller_offerings=company_context.seller_offerings,
@@ -232,7 +228,7 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
     category, category_confidence = _infer_product_category(
         current_product=current_product,
         company_notes=company_notes,
-        research_text=_text(req.research_text),
+        research_text=cleaned_research_text,
     )
     return NormalizedContext(
         source="generate",
@@ -248,7 +244,9 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
         current_product=current_product,
         cta_lock=cta_lock,
         cta_type=_text(req.cta_type) or _text(company_context.cta_type),
-        research_text=_text(req.research_text),
+        research_text=raw_research_text,
+        usable_research_text=cleaned_research_text,
+        research_state=research_state,
         company_notes=company_notes,
         proof_points=proof_points,
         seller_offerings=seller_offerings,
@@ -261,7 +259,7 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
         sliders=global_sliders,
         style_profile={k: float(v) for k, v in style_payload.items()},
         response_contract=_text(req.response_contract) or "legacy_text",
-        signal_available=_detect_signal(req.research_text),
+        signal_available=_detect_signal(raw_research_text),
     )
 
 
@@ -269,6 +267,9 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
     style_payload = req.style_profile.model_dump(mode="json")
     global_sliders = style_to_global_sliders(style_payload)
     company_notes = _text(req.company_context.company_notes)
+    raw_research_text = _text(req.research_text)
+    cleaned_research_text = usable_research_text(raw_research_text)
+    research_state = classify_research_state(raw_research_text)
     seller_offerings, internal_modules = _split_offerings_and_modules(
         other_products=req.company_context.other_products,
         seller_offerings=req.company_context.seller_offerings,
@@ -282,7 +283,7 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
     category, category_confidence = _infer_product_category(
         current_product=current_product,
         company_notes=company_notes,
-        research_text=_text(req.research_text),
+        research_text=cleaned_research_text,
     )
 
     return NormalizedContext(
@@ -299,7 +300,9 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
         current_product=current_product,
         cta_lock=cta_lock,
         cta_type=_text(req.cta_type) or _text(req.company_context.cta_type),
-        research_text=_text(req.research_text),
+        research_text=raw_research_text,
+        usable_research_text=cleaned_research_text,
+        research_state=research_state,
         company_notes=company_notes,
         proof_points=proof_points,
         seller_offerings=seller_offerings,
@@ -312,7 +315,7 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
         sliders=global_sliders,
         style_profile={k: float(v) for k, v in style_payload.items()},
         response_contract="email_json_v1",
-        signal_available=_detect_signal(req.research_text),
+        signal_available=_detect_signal(raw_research_text),
     )
 
 
@@ -327,7 +330,9 @@ def _apply_slider_overrides(global_sliders: dict[str, int], preset: PresetPrevie
 def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: PresetPreviewBatchPreset) -> NormalizedContext:
     global_sliders = _apply_slider_overrides(req.global_sliders.model_dump(mode="json"), preset)
     style_profile = global_sliders_to_style(global_sliders)
-    research_text = _text(req.raw_research.deep_research_paste)
+    raw_research_text = _text(req.raw_research.deep_research_paste)
+    cleaned_research_text = usable_research_text(raw_research_text)
+    research_state = classify_research_state(raw_research_text)
     company_notes = _text(req.raw_research.company_notes)
 
     seller_offerings = _proof_points(req.product_context.proof_points)
@@ -338,7 +343,7 @@ def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: Pres
     category, category_confidence = _infer_product_category(
         current_product=current_product,
         company_notes=company_notes,
-        research_text=research_text,
+        research_text=cleaned_research_text,
     )
 
     return NormalizedContext(
@@ -355,7 +360,9 @@ def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: Pres
         current_product=current_product,
         cta_lock=cta_lock,
         cta_type=_text(req.cta_type),
-        research_text=research_text,
+        research_text=raw_research_text,
+        usable_research_text=cleaned_research_text,
+        research_state=research_state,
         company_notes=company_notes,
         proof_points=proof_points,
         seller_offerings=seller_offerings,
@@ -368,5 +375,5 @@ def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: Pres
         sliders=global_sliders,
         style_profile=style_profile,
         response_contract="email_json_v1",
-        signal_available=_detect_signal(research_text),
+        signal_available=_detect_signal(raw_research_text),
     )

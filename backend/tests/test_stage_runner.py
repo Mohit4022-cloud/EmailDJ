@@ -138,6 +138,9 @@ async def test_run_stage_fails_after_repair_when_still_schema_invalid() -> None:
     assert err.code == "STAGE_JSON_OR_VALIDATION_FAILED"
     assert err.stage == "EMAIL_GENERATION"
     assert "first_error" in err.details
+    assert err.details["artifact_status"] == "failed_artifact_present"
+    assert err.details["first_payload"] == {"version": "1", "subject": "Hello"}
+    assert err.details["repair_payload"] == {"version": "1", "subject": "Still missing"}
     assert len(openai.calls) == 2
 
 
@@ -232,5 +235,7 @@ async def test_run_stage_surfaces_validation_details_in_stage_error() -> None:
 
     err = exc_info.value
     assert err.code == "STAGE_JSON_OR_VALIDATION_FAILED"
+    assert err.details["artifact_status"] == "failed_artifact_present"
     assert err.details.get("codes") == ["fact_source_field_not_allowed"]
+    assert err.details.get("first_payload") == {"version": "1", "subject": "Hello", "body": "World"}
     assert err.details.get("rejected_facts")

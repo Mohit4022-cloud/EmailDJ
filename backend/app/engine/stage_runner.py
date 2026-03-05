@@ -238,6 +238,8 @@ async def run_stage(
     last_raw = ""
     first_raw = ""
     repair_raw = ""
+    first_payload: dict[str, Any] | None = None
+    repair_payload: dict[str, Any] | None = None
     last_error = ""
     first_error = ""
     first_validation_codes: list[str] = []
@@ -268,6 +270,10 @@ async def run_stage(
             else:
                 first_raw = raw_text
             payload = _parse_message_content(raw_text)
+            if is_repair:
+                repair_payload = payload
+            else:
+                first_payload = payload
             _validate_schema(payload, config.response_format)
             if validator is not None:
                 validator(payload)
@@ -287,11 +293,21 @@ async def run_stage(
                 if not first_raw:
                     first_raw = last_raw
                 continue
-            error_details: dict[str, Any] = {"error": str(exc), "first_error": first_error}
+            artifact_status = "failed_artifact_present" if (first_payload or repair_payload or first_raw or repair_raw) else "artifact_missing"
+            error_details: dict[str, Any] = {
+                "error": str(exc),
+                "first_error": first_error,
+                "attempt_count": attempts,
+                "artifact_status": artifact_status,
+            }
             if first_raw:
                 error_details["first_raw"] = first_raw
             if repair_raw:
                 error_details["repair_raw"] = repair_raw
+            if first_payload is not None:
+                error_details["first_payload"] = first_payload
+            if repair_payload is not None:
+                error_details["repair_payload"] = repair_payload
             if first_validation_codes:
                 error_details["codes"] = first_validation_codes
             if first_validation_details:

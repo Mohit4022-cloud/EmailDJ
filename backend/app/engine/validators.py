@@ -4,6 +4,9 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from .research_state import has_meaningful_research, is_placeholder_fact_text, is_semantic_no_research, normalize_placeholder_text
+from .schemas import ALLOWED_STAGE_A_SOURCE_FIELDS
+
 
 BANNED_PHRASES = [
     "touch base",
@@ -23,38 +26,6 @@ UNGROUNDED_PERSONALIZATION_MARKERS = [
     "congrats on",
     "just came across",
 ]
-
-ALLOWED_STAGE_A_SOURCE_FIELDS = {
-    "name",
-    "title",
-    "company",
-    "industry",
-    "prospect_notes",
-    "research_text",
-    "product_summary",
-    "icp_description",
-    "differentiators",
-    "proof_points",
-    "do_not_say",
-    "company_notes",
-    "cta_type",
-    "cta_final_line",
-}
-
-PLACEHOLDER_FACT_TEXTS = {
-    "",
-    "none provided.",
-    "unknown",
-}
-
-PLACEHOLDER_RESEARCH_TEXTS = {
-    "limited public context.",
-    "no research.",
-    "no specific research available for this account.",
-    "no verifiable external research provided.",
-    "no verifiable research available.",
-    "unknown",
-}
 
 GROUNDING_STOPWORDS = {
     "about",
@@ -127,12 +98,41 @@ def _grounding_tokens(text: str) -> set[str]:
 
 
 def _normalize_placeholder_text(text: Any) -> str:
-    return re.sub(r"\s+", " ", str(text or "").strip().lower())
+    return normalize_placeholder_text(text)
 
 
 def _is_placeholder_input_text(text: Any) -> bool:
-    normalized = _normalize_placeholder_text(text)
-    return normalized in PLACEHOLDER_FACT_TEXTS or normalized in PLACEHOLDER_RESEARCH_TEXTS
+    return is_placeholder_fact_text(text) or is_semantic_no_research(text)
+
+
+def _source_field_value_map(source_payload: dict[str, Any]) -> dict[str, Any]:
+    user_company = dict(source_payload.get("user_company") or {})
+    prospect = dict(source_payload.get("prospect") or {})
+    cta = dict(source_payload.get("cta") or {})
+    return {
+        "name": prospect.get("name"),
+        "title": prospect.get("title"),
+        "company": prospect.get("company"),
+        "industry": prospect.get("industry"),
+        "prospect_notes": prospect.get("notes"),
+        "research_text": prospect.get("research_text"),
+        "product_summary": user_company.get("product_summary"),
+        "icp_description": user_company.get("icp_description"),
+        "differentiators": user_company.get("differentiators"),
+        "proof_points": user_company.get("proof_points"),
+        "do_not_say": user_company.get("do_not_say"),
+        "company_notes": user_company.get("company_notes"),
+        "cta_type": cta.get("cta_type"),
+        "cta_final_line": cta.get("cta_final_line"),
+    }
+
+
+def _field_has_usable_signal(value: Any) -> bool:
+    return bool(_flatten_input_text(value))
+
+
+def _has_placeholder_leakage(values: list[Any]) -> bool:
+    return any(_normalize_placeholder_text(item) and _is_placeholder_input_text(item) for item in values)
 
 
 def validate_messaging_brief(
@@ -169,8 +169,9 @@ def validate_messaging_brief(
     details: list[dict[str, Any]] = []
 
     if source_payload:
+        source_field_map = _source_field_value_map(source_payload)
         source_tokens: set[str] = set()
-        for fragment in _flatten_input_text(source_payload):
+        for fragment in _flatten_input_text(list(source_field_map.values())):
             source_tokens.update(_grounding_tokens(fragment))
 
         for fact in facts:
@@ -206,6 +207,38 @@ def validate_messaging_brief(
                 )
                 break
 
+        fact_ids = {str(fact.get("fact_id") or "").strip() for fact in facts if isinstance(fact, dict)}
+        for hook in hooks:
+            hook_text = str(hook.get("hook_text") or "").strip()
+            if _is_placeholder_input_text(hook_text):
+                codes.append("hook_placeholder_text")
+                break
+            supported = [str(item or "").strip() for item in (hook.get("supported_by_fact_ids") or [])]
+            if not supported or any(item not in fact_ids for item in supported):
+                codes.append("hook_unknown_fact_id")
+                break
+
+        for item in assumptions:
+            if _is_placeholder_input_text(item.get("text")):
+                codes.append("assumption_placeholder_text")
+                break
+
+        persona_cues = dict(brief.get("persona_cues") or {})
+        persona_values: list[Any] = [persona_cues.get("notes")]
+        for key in ("likely_kpis", "likely_initiatives", "day_to_day", "tools_stack"):
+            persona_values.extend(list(persona_cues.get(key) or []))
+        if _has_placeholder_leakage(persona_values):
+            codes.append("persona_placeholder_text")
+
+        allowed_sources = [str(item or "").strip() for item in (brief.get("grounding_policy", {}).get("allowed_personalization_fact_sources") or [])]
+        for source_field in allowed_sources:
+            if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
+                codes.append("grounding_policy_unknown_source_field")
+                break
+            if source_field and not _field_has_usable_signal(source_field_map.get(source_field)):
+                codes.append("grounding_policy_uses_unusable_source_field")
+                break
+
         if source_tokens:
             for fact in facts:
                 fact_text = str(fact.get("text") or "").strip()
@@ -237,11 +270,11 @@ def validate_messaging_brief(
         if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
             codes.append("brief_quality_confidence_ceiling_out_of_range")
 
-        has_meaningful_research = not _is_placeholder_input_text(source_text)
-        if has_meaningful_research != has_research:
+        semantic_has_research = has_meaningful_research(source_text)
+        if semantic_has_research != has_research:
             codes.append("brief_quality_has_research_mismatch")
 
-        is_thin_input = not has_meaningful_research and fact_count < 3
+        is_thin_input = not semantic_has_research and fact_count < 3
         if is_thin_input and signal_strength != "low":
             codes.append("brief_quality_signal_strength_mismatch")
 

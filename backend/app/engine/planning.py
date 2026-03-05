@@ -67,7 +67,7 @@ def _proof_point(ctx: NormalizedContext) -> str:
 def _hook_type(ctx: NormalizedContext) -> str:
     if ctx.hook_strategy:
         return ctx.hook_strategy
-    if ctx.signal_available and _text(ctx.research_text):
+    if ctx.signal_available and _text(ctx.usable_research_text):
         return "research_anchored"
     if ctx.prospect_company_url:
         return "domain_signal"
@@ -95,7 +95,7 @@ def build_message_plan(ctx: NormalizedContext) -> MessagePlan:
     hook_type = _hook_type(ctx)
     if hook_type == "research_anchored":
         hook_sentence = _first_sentence(
-            ctx.research_text,
+            ctx.usable_research_text,
             f"Saw a public signal related to {ctx.prospect_company} and thought this could be timely.",
         )
     elif hook_type == "domain_signal":

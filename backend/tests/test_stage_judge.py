@@ -26,6 +26,39 @@ def _all_pass_payload(stage: str) -> dict[str, Any]:
     }
 
 
+def test_judge_user_prompt_declares_integer_total_contract() -> None:
+    prompt = stage_judge._judge_user_prompt(
+        stage="CONTEXT_SYNTHESIS",
+        criteria=stage_judge.CRITERIA_BY_STAGE["CONTEXT_SYNTHESIS"],
+        rubric_text="containment_clean",
+        artifacts={"artifact": {}},
+    )
+
+    assert '"total": 6' in prompt
+    assert "Use integers for scores and total." in prompt
+
+
+def test_normalize_judge_payload_types_coerces_string_bools_and_ints() -> None:
+    payload = stage_judge._normalize_judge_payload_types(
+        {
+            "stage": "CONTEXT_SYNTHESIS",
+            "scores": {"containment_clean": "1", "assumptions_labeled": "0"},
+            "total": "1",
+            "pass": "false",
+            "hard_fail_triggered": "true",
+            "hard_fail_criteria": [],
+            "failures": [],
+            "warnings": [],
+        }
+    )
+
+    assert payload["scores"]["containment_clean"] == 1
+    assert payload["scores"]["assumptions_labeled"] == 0
+    assert payload["total"] == 1
+    assert payload["pass"] is False
+    assert payload["hard_fail_triggered"] is True
+
+
 @pytest.mark.asyncio
 async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001

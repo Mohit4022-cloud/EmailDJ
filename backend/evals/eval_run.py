@@ -44,6 +44,16 @@ STAGE_ORDER = [
     "EMAIL_REWRITE",
 ]
 
+ARTIFACT_KEY_BY_STAGE = {
+    "CONTEXT_SYNTHESIS": "messaging_brief",
+    "FIT_REASONING": "fit_map",
+    "ANGLE_PICKER": "angle_set",
+    "ONE_LINER_COMPRESSOR": "message_atoms",
+    "EMAIL_GENERATION": "email_draft",
+    "EMAIL_QA": "qa_report",
+    "EMAIL_REWRITE": "rewritten_draft",
+}
+
 PAYLOAD_TYPE_ALIASES = {
     "high_signal": "high_signal",
     "medium_signal": "medium_signal",
@@ -125,13 +135,13 @@ def _load_raw_trace(trace_id: str) -> dict[str, Any] | None:
 
 def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]:
     artifacts = {
-        "messaging_brief": None,
-        "fit_map": None,
-        "angle_set": None,
-        "message_atoms": None,
-        "email_draft": None,
-        "qa_report": None,
-        "rewritten_draft": None,
+        key: {
+            "artifact": None,
+            "status": "artifact_missing",
+            "error_code": None,
+            "raw_output": None,
+        }
+        for key in ARTIFACT_KEY_BY_STAGE.values()
     }
     if not isinstance(raw_trace, dict):
         return artifacts
@@ -140,26 +150,39 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
     for item in stage_payloads:
         if not isinstance(item, dict):
             continue
-        if str(item.get("status") or "") != "complete":
-            continue
         stage = str(item.get("stage") or "")
-        output = item.get("output")
-        if not isinstance(output, dict):
+        artifact_key = ARTIFACT_KEY_BY_STAGE.get(stage)
+        if not artifact_key:
             continue
-        if stage == "CONTEXT_SYNTHESIS":
-            artifacts["messaging_brief"] = output
-        elif stage == "FIT_REASONING":
-            artifacts["fit_map"] = output
-        elif stage == "ANGLE_PICKER":
-            artifacts["angle_set"] = output
-        elif stage == "ONE_LINER_COMPRESSOR":
-            artifacts["message_atoms"] = output
-        elif stage == "EMAIL_GENERATION":
-            artifacts["email_draft"] = output
-        elif stage == "EMAIL_QA":
-            artifacts["qa_report"] = output
-        elif stage == "EMAIL_REWRITE":
-            artifacts["rewritten_draft"] = output
+        status = str(item.get("status") or "")
+        output = item.get("output")
+        raw_output = item.get("raw_output")
+        slot = artifacts[artifact_key]
+
+        if status == "complete" and isinstance(output, dict):
+            slot["artifact"] = output
+            slot["status"] = "complete_artifact"
+            slot["error_code"] = None
+            slot["raw_output"] = raw_output
+            continue
+
+        if status != "failed" or slot["status"] == "complete_artifact":
+            continue
+
+        artifact_status = str(item.get("artifact_status") or "").strip() or "artifact_missing"
+        failed_output = output if isinstance(output, dict) else None
+        if failed_output is None and isinstance(raw_output, str):
+            try:
+                parsed_raw = json.loads(raw_output)
+            except json.JSONDecodeError:
+                parsed_raw = None
+            if isinstance(parsed_raw, dict):
+                failed_output = parsed_raw
+        slot["status"] = artifact_status
+        slot["error_code"] = str(item.get("error_code") or "").strip() or None
+        slot["raw_output"] = raw_output if isinstance(raw_output, str) else None
+        if failed_output is not None:
+            slot["artifact"] = failed_output
 
     return artifacts
 
@@ -338,13 +361,13 @@ async def _evaluate_payload(
     raw_trace = _load_raw_trace(pipeline.trace_id) if read_raw else None
     artifacts = _extract_stage_artifacts(raw_trace)
 
-    brief = artifacts["messaging_brief"]
-    fit_map = artifacts["fit_map"]
-    angle_set = artifacts["angle_set"]
-    atoms = artifacts["message_atoms"]
-    draft = artifacts["email_draft"]
-    qa_report = artifacts["qa_report"]
-    rewritten = artifacts["rewritten_draft"]
+    brief = artifacts["messaging_brief"]["artifact"]
+    fit_map = artifacts["fit_map"]["artifact"]
+    angle_set = artifacts["angle_set"]["artifact"]
+    atoms = artifacts["message_atoms"]["artifact"]
+    draft = artifacts["email_draft"]["artifact"]
+    qa_report = artifacts["qa_report"]["artifact"]
+    rewritten = artifacts["rewritten_draft"]["artifact"]
 
     locked_cta = _cta_lock_from_request(request)
     angle = _selected_angle(angle_set, atoms)
@@ -440,6 +463,10 @@ async def _evaluate_payload(
         "trace_id": pipeline.trace_id,
         "final_subject": str(pipeline.subject or ""),
         "final_body": str(pipeline.body or ""),
+        "artifact_statuses": {
+            stage: str(artifacts[key].get("status") or "artifact_missing")
+            for stage, key in ARTIFACT_KEY_BY_STAGE.items()
+        },
         "judge_results": judge_results,
         "overall_pass": overall_pass,
         "hard_fail_triggered": hard_fail_triggered,

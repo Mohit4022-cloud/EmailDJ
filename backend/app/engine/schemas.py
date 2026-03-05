@@ -1,10 +1,32 @@
 from __future__ import annotations
 
+ALLOWED_STAGE_A_SOURCE_FIELDS = [
+    "name",
+    "title",
+    "company",
+    "industry",
+    "prospect_notes",
+    "research_text",
+    "product_summary",
+    "icp_description",
+    "differentiators",
+    "proof_points",
+    "do_not_say",
+    "company_notes",
+    "cta_type",
+    "cta_final_line",
+]
+
+
 COMMON_DEFS = {
     "NonEmptyStr": {"type": "string", "minLength": 1},
     "IdStr": {"type": "string", "minLength": 1, "maxLength": 128},
     "ShortEvidenceStr": {"type": "string", "minLength": 1, "maxLength": 200},
     "RiskFlag": {"type": "string", "minLength": 1, "maxLength": 80},
+    "SourceField": {
+        "type": "string",
+        "enum": ALLOWED_STAGE_A_SOURCE_FIELDS,
+    },
     "HookType": {
         "type": "string",
         "enum": ["pain", "priority", "initiative", "tooling", "trigger_event", "other"],
@@ -42,7 +64,7 @@ COMMON_DEFS = {
         "required": ["fact_id", "source_field", "text"],
         "properties": {
             "fact_id": {"$ref": "#/$defs/IdStr"},
-            "source_field": {"$ref": "#/$defs/NonEmptyStr"},
+            "source_field": {"$ref": "#/$defs/SourceField"},
             "text": {"$ref": "#/$defs/NonEmptyStr"},
         },
     },
@@ -56,6 +78,7 @@ COMMON_DEFS = {
             "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
             "based_on_fact_ids": {
                 "type": "array",
+                "minItems": 1,
                 "items": {"$ref": "#/$defs/IdStr"},
             },
         },
@@ -146,7 +169,7 @@ MESSAGING_BRIEF_SCHEMA = {
                 "no_ungrounded_personalization": {"type": "boolean"},
                 "allowed_personalization_fact_sources": {
                     "type": "array",
-                    "items": {"$ref": "#/$defs/NonEmptyStr"},
+                    "items": {"$ref": "#/$defs/SourceField"},
                 },
             },
         },
