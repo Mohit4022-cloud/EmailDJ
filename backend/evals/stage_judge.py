@@ -244,9 +244,7 @@ async def _call_judge_llm(*, openai: OpenAIClient, messages: list[dict[str, str]
         messages=messages,
         reasoning_effort="minimal",
         max_completion_tokens=1000,
-        response_format=RF_JUDGE_RESULT,
         timeout_seconds=timeout_seconds,
-        temperature=0.1,
     )
     text = _extract_message_text(dict(response.get("message") or {}))
     payload = _parse_message_content(text)

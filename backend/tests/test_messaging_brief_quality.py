@@ -126,3 +126,33 @@ def test_validate_messaging_brief_rejects_has_research_mismatch() -> None:
         )
 
     assert "brief_quality_has_research_mismatch" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_accepts_placeholder_research_as_no_research() -> None:
+    brief = _base_brief(signal_strength="low")
+    brief["brief_quality"]["has_research"] = False
+    validate_messaging_brief(
+        brief,
+        source_text="No verifiable external research provided.",
+        source_payload=_source_payload(),
+    )
+
+
+@pytest.mark.parametrize(
+    "placeholder_text",
+    [
+        "Limited public context.",
+        "No specific research available for this account.",
+        "Unknown",
+        "No research.",
+        "No verifiable research available.",
+    ],
+)
+def test_validate_messaging_brief_treats_research_placeholders_as_thin_input(placeholder_text: str) -> None:
+    brief = _base_brief(signal_strength="low")
+    brief["brief_quality"]["has_research"] = False
+    validate_messaging_brief(
+        brief,
+        source_text=placeholder_text,
+        source_payload=_source_payload(),
+    )

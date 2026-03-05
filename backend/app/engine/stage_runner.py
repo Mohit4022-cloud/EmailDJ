@@ -236,6 +236,8 @@ async def run_stage(
     attempts = 0
     usage: dict[str, Any] = {}
     last_raw = ""
+    first_raw = ""
+    repair_raw = ""
     last_error = ""
     first_error = ""
     first_validation_codes: list[str] = []
@@ -261,6 +263,10 @@ async def run_stage(
             raw_text, usage_payload = await _call(call_messages)
             usage = usage_payload or usage
             last_raw = raw_text
+            if is_repair:
+                repair_raw = raw_text
+            else:
+                first_raw = raw_text
             payload = _parse_message_content(raw_text)
             _validate_schema(payload, config.response_format)
             if validator is not None:
@@ -278,8 +284,14 @@ async def run_stage(
                     first_validation_details = validation_details
                 if not last_raw:
                     last_raw = str(exc)
+                if not first_raw:
+                    first_raw = last_raw
                 continue
             error_details: dict[str, Any] = {"error": str(exc), "first_error": first_error}
+            if first_raw:
+                error_details["first_raw"] = first_raw
+            if repair_raw:
+                error_details["repair_raw"] = repair_raw
             if first_validation_codes:
                 error_details["codes"] = first_validation_codes
             if first_validation_details:

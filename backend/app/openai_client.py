@@ -73,7 +73,13 @@ class OpenAIClient:
                 },
                 json=payload,
             )
-        resp.raise_for_status()
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            body = exc.response.text.strip()
+            if len(body) > 2000:
+                body = body[:2000] + "...[truncated]"
+            raise RuntimeError(f"{exc} :: {body}") from exc
         data = resp.json()
         choice = (data.get("choices") or [{}])[0]
         return {

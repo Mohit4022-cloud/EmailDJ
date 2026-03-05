@@ -47,6 +47,15 @@ PLACEHOLDER_FACT_TEXTS = {
     "unknown",
 }
 
+PLACEHOLDER_RESEARCH_TEXTS = {
+    "limited public context.",
+    "no research.",
+    "no specific research available for this account.",
+    "no verifiable external research provided.",
+    "no verifiable research available.",
+    "unknown",
+}
+
 GROUNDING_STOPWORDS = {
     "about",
     "after",
@@ -107,7 +116,7 @@ def _flatten_input_text(value: Any) -> list[str]:
             out.extend(_flatten_input_text(item))
         return out
     text = str(value or "").strip()
-    if text:
+    if text and not _is_placeholder_input_text(text):
         out.append(text)
     return out
 
@@ -115,6 +124,15 @@ def _flatten_input_text(value: Any) -> list[str]:
 def _grounding_tokens(text: str) -> set[str]:
     tokens = re.findall(r"[a-z0-9']+", str(text or "").lower())
     return {token for token in tokens if len(token) >= 4 and token not in GROUNDING_STOPWORDS}
+
+
+def _normalize_placeholder_text(text: Any) -> str:
+    return re.sub(r"\s+", " ", str(text or "").strip().lower())
+
+
+def _is_placeholder_input_text(text: Any) -> bool:
+    normalized = _normalize_placeholder_text(text)
+    return normalized in PLACEHOLDER_FACT_TEXTS or normalized in PLACEHOLDER_RESEARCH_TEXTS
 
 
 def validate_messaging_brief(
@@ -160,7 +178,7 @@ def validate_messaging_brief(
             source_field = str(fact.get("source_field") or "").strip().lower()
 
             # Placeholder text is never a valid grounded fact.
-            if fact_text.lower() in PLACEHOLDER_FACT_TEXTS:
+            if _is_placeholder_input_text(fact_text):
                 codes.append("fact_placeholder_text")
                 details.append(
                     {
@@ -191,7 +209,7 @@ def validate_messaging_brief(
         if source_tokens:
             for fact in facts:
                 fact_text = str(fact.get("text") or "").strip()
-                if fact_text.lower() in PLACEHOLDER_FACT_TEXTS:
+                if _is_placeholder_input_text(fact_text):
                     continue
                 tokens = _grounding_tokens(fact_text)
                 if tokens and tokens.isdisjoint(source_tokens):
@@ -219,10 +237,11 @@ def validate_messaging_brief(
         if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
             codes.append("brief_quality_confidence_ceiling_out_of_range")
 
-        if bool(str(source_text or "").strip()) != has_research:
+        has_meaningful_research = not _is_placeholder_input_text(source_text)
+        if has_meaningful_research != has_research:
             codes.append("brief_quality_has_research_mismatch")
 
-        is_thin_input = not bool(str(source_text or "").strip()) and fact_count < 3
+        is_thin_input = not has_meaningful_research and fact_count < 3
         if is_thin_input and signal_strength != "low":
             codes.append("brief_quality_signal_strength_mismatch")
 
