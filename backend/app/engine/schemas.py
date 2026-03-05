@@ -296,7 +296,7 @@ MESSAGE_ATOMS_SCHEMA = {
         },
         "opener_line": {"type": "string", "minLength": 1, "maxLength": 220},
         "value_line": {"type": "string", "minLength": 1, "maxLength": 220},
-        "proof_line": {"type": "string", "minLength": 1, "maxLength": 220},
+        "proof_line": {"type": "string", "minLength": 0, "maxLength": 220},
         "cta_line": {"type": "string", "minLength": 1, "maxLength": 240},
     },
 }

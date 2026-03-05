@@ -64,6 +64,28 @@ def _nullable_response_format() -> dict[str, Any]:
     }
 
 
+def _atoms_response_format_allow_empty_proof() -> dict[str, Any]:
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "MessageAtoms",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["version", "opener_line", "value_line", "proof_line", "cta_line"],
+                "properties": {
+                    "version": {"type": "string", "minLength": 1},
+                    "opener_line": {"type": "string", "minLength": 1},
+                    "value_line": {"type": "string", "minLength": 1},
+                    "proof_line": {"type": "string", "minLength": 0},
+                    "cta_line": {"type": "string", "minLength": 1},
+                },
+            },
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_run_stage_repairs_after_schema_failure() -> None:
     openai = StubOpenAI(
@@ -139,3 +161,32 @@ async def test_run_stage_allows_nullable_field_via_oneof() -> None:
 
     assert result.attempts == 1
     assert "proof_line" in result.payload and result.payload["proof_line"] is None
+
+
+@pytest.mark.asyncio
+async def test_run_stage_allows_empty_string_proof_line() -> None:
+    openai = StubOpenAI(
+        responses=[
+            {
+                "version": "1",
+                "opener_line": "Noticed your RevOps ownership expanded this quarter.",
+                "value_line": "RevOps teams reduce pipeline leakage within one quarter.",
+                "proof_line": "",
+                "cta_line": "Open to a quick chat to see if this is relevant?",
+            },
+        ]
+    )
+    result = await run_stage(
+        openai=openai,  # type: ignore[arg-type]
+        config=StageConfig(
+            stage="ONE_LINER_COMPRESSOR",
+            max_tokens=100,
+            reasoning_effort="low",
+            response_format=_atoms_response_format_allow_empty_proof(),
+        ),
+        messages=[{"role": "system", "content": "Return JSON."}],
+        validator=None,
+    )
+
+    assert result.attempts == 1
+    assert result.payload["proof_line"] == ""

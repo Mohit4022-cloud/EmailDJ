@@ -230,6 +230,13 @@ def _orchestrator(responses: list[Any]) -> AIOrchestrator:
     return AIOrchestrator(openai=StubOpenAI(responses), settings=settings, brief_cache=BriefCache())
 
 
+def _extract_context_json_from_user_prompt(content: str) -> dict[str, Any]:
+    marker = "CONTEXT JSON:\\n"
+    start = content.index(marker) + len(marker)
+    end = content.rfind("\\n\\nOutput")
+    return json.loads(content[start:end])
+
+
 def test_stage_a_invalid_json_fails_closed_no_subject_body() -> None:
     req = _request()
     orchestrator = _orchestrator([{}, {}])
@@ -336,6 +343,38 @@ def test_cta_lock_mechanical_postprocess_preserves_exact_final_line() -> None:
     assert result.body
     assert result.body.rstrip().endswith(CTA)
     assert result.body.count(CTA) == 1
+
+
+def test_empty_proof_line_is_normalized_to_proof_gap_before_stage_c() -> None:
+    req = _request()
+    atoms_without_proof = _atoms()
+    atoms_without_proof["proof_line"] = "   "
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        atoms_without_proof,
+        _valid_draft(),
+        _qa(pass_rewrite_needed=False),
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert isinstance(orchestrator.openai, StubOpenAI)
+    email_calls = [
+        call
+        for call in orchestrator.openai.calls
+        if call.get("response_format", {}).get("json_schema", {}).get("name") == "EmailDraft"
+    ]
+    assert len(email_calls) == 1
+
+    context = _extract_context_json_from_user_prompt(email_calls[0]["messages"][1]["content"])
+    message_atoms = dict(context.get("message_atoms") or {})
+    assert message_atoms["proof_line"] == ""
+    assert message_atoms["proof_gap"] is True
 
 
 def test_brief_cache_hit_skips_stage_a_b_b0_on_second_request() -> None:

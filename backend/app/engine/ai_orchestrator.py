@@ -205,6 +205,29 @@ class AIOrchestrator:
             "cta": {"cta_final_line": cta_line},
         }
 
+    def _normalize_message_atoms(self, atoms: dict[str, Any], *, cta_line: str, trace: Trace) -> dict[str, Any]:
+        out = dict(atoms)
+
+        if str(out.get("cta_line") or "").strip() != cta_line:
+            out["cta_line"] = cta_line
+            trace.add_postprocess_step("force_atoms_cta_lock")
+
+        raw_proof = out.get("proof_line")
+        proof_line = str(raw_proof or "").strip()
+        if proof_line:
+            if proof_line != str(raw_proof or ""):
+                trace.add_postprocess_step("normalize_atoms_proof_line_whitespace")
+            out["proof_line"] = proof_line
+            out["proof_gap"] = False
+            trace.add_postprocess_step("set_atoms_proof_gap_false")
+        else:
+            if str(raw_proof or "") != "":
+                trace.add_postprocess_step("normalize_atoms_proof_line_empty")
+            out["proof_line"] = ""
+            out["proof_gap"] = True
+            trace.add_postprocess_step("set_atoms_proof_gap_true")
+        return out
+
     async def _run_stage(
         self,
         *,
@@ -312,10 +335,7 @@ class AIOrchestrator:
                     forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
                 ),
             )
-
-            if str(atoms.get("cta_line") or "").strip() != cta_line:
-                atoms["cta_line"] = cta_line
-                trace.add_postprocess_step("force_atoms_cta_lock")
+            atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
 
             preset = load_preset(ctx.preset_id)
             draft = await self._run_stage(
@@ -559,9 +579,7 @@ class AIOrchestrator:
                     forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
                 ),
             )
-            if str(atoms.get("cta_line") or "").strip() != cta_line:
-                atoms["cta_line"] = cta_line
-                trace.add_postprocess_step("force_atoms_cta_lock")
+            atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
 
             presets = [load_preset(pid) for pid in preset_ids]
             batch = await self._run_stage(
