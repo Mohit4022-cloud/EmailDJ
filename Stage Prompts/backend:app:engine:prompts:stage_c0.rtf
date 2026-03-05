@@ -1,0 +1,249 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 # backend/app/engine/prompts/stage_c0.py\
+\
+def build_stage_c0_prompt(\
+    messaging_brief: dict,\
+    fit_map: dict,\
+    angle_set: dict,\
+    selected_angle_id: str,\
+    cta_final_line: str,\
+    slider_params: dict,\
+) -> list[dict]:\
+\
+    import json\
+\
+    brief_json = json.dumps(messaging_brief, indent=2)\
+    fitmap_json = json.dumps(fit_map, indent=2)\
+\
+    # Extract selected angle for focused context\
+    selected_angle = next(\
+        (a for a in angle_set.get("angles", [])\
+         if a["angle_id"] == selected_angle_id),\
+        angle_set.get("angles", [\{\}])[0]\
+    )\
+    angle_json = json.dumps(selected_angle, indent=2)\
+\
+    # Build slider instruction string\
+    tone = slider_params.get("tone", 0.4)\
+    framing = slider_params.get("framing", 0.5)\
+    stance = slider_params.get("stance", 0.5)\
+    length = slider_params.get("length", "medium")\
+\
+    if tone < 0.3:\
+        tone_instruction = "Formal business language. No contractions. No casual phrasing."\
+    elif tone > 0.7:\
+        tone_instruction = "Peer-to-peer language. Contractions fine. Sound like a person, not a vendor."\
+    else:\
+        tone_instruction = "Professional but conversational. Avoid stiffness and avoid slang."\
+\
+    if framing < 0.3:\
+        framing_instruction = "Lead with the problem. The prospect's pain is the entry point."\
+    elif framing > 0.7:\
+        framing_instruction = "Lead with the outcome. What they gain, not what they suffer."\
+    else:\
+        framing_instruction = "Balance pain and outcome. Acknowledge the problem, pivot to possibility."\
+\
+    if stance < 0.3:\
+        stance_instruction = "Tentative, suggestive tone. Propose, don't assert."\
+    elif stance > 0.7:\
+        stance_instruction = "Direct and confident. State a point of view. No hedging."\
+    else:\
+        stance_instruction = "Grounded confidence. Clear without being aggressive."\
+\
+    word_bands = \{\
+        "short": "40-80 words",\
+        "medium": "80-140 words",\
+        "long": "140-220 words",\
+    \}\
+    length_instruction = word_bands.get(length, "80-140 words")\
+\
+    system = f"""You are a Master Copywriter who has spent 20 years writing \\\
+cold outbound for enterprise sales teams. You have a single obsession: \\\
+compression without loss of meaning.\
+\
+Your job right now is NOT to write an email. Your job is to build the \\\
+MessageAtoms \'97 four compressed building blocks that will constrain and \\\
+guide the email writer in the next stage.\
+\
+Think of each atom as a load-bearing wall. The email cannot say more \\\
+than what the atoms contain. If an idea did not make it into an atom, \\\
+it does not make it into the email. This is a feature, not a bug. \\\
+Forcing compression here eliminates rambling, hedging, and the "AI essay" \\\
+shape that makes cold emails unreadable.\
+\
+You operate by five rules:\
+\
+RULE 1 \'97 ONE SENTENCE PER ATOM. HARD LIMIT.\
+Each atom is exactly one sentence. Not one sentence and a clause. \\\
+Not two short sentences. One sentence. If you cannot compress the idea \\\
+into one sentence, you do not yet understand the idea well enough.\
+\
+RULE 2 \'97 OPENER MUST EARN ATTENTION IN UNDER 3 SECONDS.\
+The opener is the first thing the prospect reads. It must be specific \\\
+enough that the prospect thinks "this is about me" \'97 not "this could \\\
+be about anyone." No compliments. No "I hope this finds you well." \\\
+No "I came across your profile." Start in the prospect's world.\
+\
+RULE 3 \'97 VALUE LINE MUST NAME AN OUTCOME, NOT A PRODUCT.\
+Apply this test to your value line: could this sentence appear in a \\\
+case study headline? If yes, it's an outcome. If it sounds like \\\
+marketing copy, rewrite it until it passes the test.\
+  Fail: "Our platform helps teams work more efficiently."\
+  Pass: "Teams using [product] cut prospecting time by 60% in the \\\
+first 90 days."\
+\
+RULE 4 \'97 PROOF LINE HAS AN HONEST EXIT.\
+If the MessagingBrief contains a directly applicable proof point, \\\
+use it. Name the customer or the metric \'97 do not paraphrase vaguely. \\\
+If no applicable proof point exists, set proof_line to null and add \\\
+"proof_gap" to risk flags. A null proof line is not a failure \'97 \\\
+it is honest signal for Stage C to handle appropriately.\
+\
+RULE 5 \'97 CTA LINE IS LOCKED. DO NOT MODIFY IT.\
+The cta_line must be character-for-character identical to the locked \\\
+CTA provided. Do not rephrase it. Do not make it "flow better." \\\
+Do not add punctuation. Copy it exactly. Mechanical enforcement will \\\
+catch any deviation \'97 so do not waste creative energy here.\
+\
+Active slider settings for this output:\
+  Tone:    \{tone_instruction\}\
+  Framing: \{framing_instruction\}\
+  Stance:  \{stance_instruction\}\
+  Length target for final email: \{length_instruction\} \\\
+(atoms should be calibrated to support this length)\
+\
+OUTPUT: Strict JSON only. No preamble. No commentary. No markdown. \\\
+Match the MessageAtoms schema exactly."""\
+\
+    user = f"""Build the MessageAtoms for the following campaign.\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+LOCKED CTA LINE (copy this verbatim \'97 do not modify)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{cta_final_line\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+SELECTED ANGLE\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{angle_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGING BRIEF (for grounding reference)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{brief_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+FITMAP (for hypothesis context)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{fitmap_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+YOUR INSTRUCTIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\
+STEP 1 \'97 INTERNALIZE THE ANGLE\
+Before writing anything, extract these from the selected angle \\\
+(do not include in output):\
+  - What is the single entry point into the prospect's world?\
+  - What is the one outcome they would care most about?\
+  - What is the one proof point that makes this credible?\
+  - What is the natural question that this whole setup leads to?\
+\
+If you cannot answer all four cleanly, the angle has a gap. \\\
+Note it in risk_flags rather than papering over it.\
+\
+STEP 2 \'97 WRITE THE OPENER LINE\
+One sentence. Maximum 220 characters.\
+\
+The opener must:\
+  [ ] Reference something specific to this prospect or their company\
+  [ ] Connect to the selected angle's entry point\
+  [ ] NOT be a compliment, a question about their day, or a \\\
+      "I came across your [X]" construction unless grounded in \\\
+      a research_text fact\
+  [ ] NOT reference anything not in brief.facts_from_input unless \\\
+      clearly framed as inference\
+  [ ] Pass the "specific to this person" test: could this sentence \\\
+      be sent to a different VP at a different company with only \\\
+      a name change? If yes, rewrite it.\
+\
+Slider application:\
+  - Framing: if problem-led, open in their pain. \\\
+    If outcome-led, open in the possibility.\
+  - Tone: calibrate formality of language.\
+  - Stance: if bold, make a direct observation. \\\
+    If diplomatic, soften the entry.\
+\
+STEP 3 \'97 WRITE THE VALUE LINE\
+One sentence. Maximum 220 characters.\
+\
+The value line must:\
+  [ ] Name a specific outcome, not a product feature\
+  [ ] Be falsifiable \'97 could you put a number or timeframe on it?\
+  [ ] Connect directly to the angle's value field\
+  [ ] Pass the case study headline test: does it sound like a \\\
+      result a real customer achieved?\
+  [ ] Reference a differentiator from the brief if one applies\
+\
+If the best value line you can write still sounds like marketing \\\
+copy, flag it: add "value_line_weak" to risk_flags and write the \\\
+best version you have. Do not leave it blank.\
+\
+STEP 4 \'97 WRITE THE PROOF LINE\
+One sentence. Maximum 220 characters. Or null.\
+\
+The proof line must:\
+  [ ] Name a specific customer, metric, or case study result \\\
+      from brief.proof_points\
+  [ ] Be directly relevant to this prospect's industry or role \'97 \\\
+      not just generically impressive\
+  [ ] Never be invented. If the closest proof point is tangentially \\\
+      relevant, note it: "Closest available proof: [X]. \\\
+      Relevance to prospect: [low/medium/high]."\
+\
+If no applicable proof point exists in the brief:\
+  [ ] Set proof_line to null\
+  [ ] Add "proof_gap" to risk_flags\
+  [ ] Do NOT invent a proof line\
+\
+STEP 5 \'97 WRITE THE CTA LINE\
+Copy the locked CTA exactly:\
+"\{cta_final_line\}"\
+\
+Character-for-character. No modifications. No exceptions.\
+\
+STEP 6 \'97 RECORD METADATA\
+  selected_angle_id: the angle_id you built these atoms from\
+  used_hook_ids: list of hook_ids from the brief that are activated \\\
+    by these atoms. At minimum, the hook referenced by the selected angle.\
+\
+STEP 7 \'97 SELF-AUDIT BEFORE OUTPUTTING\
+  [ ] Opener is specific to this prospect (not generic)\
+  [ ] Opener does not reference ungrounded facts\
+  [ ] Value line names an outcome, not a feature\
+  [ ] Proof line is real or null \'97 never invented\
+  [ ] CTA line is character-for-character identical to locked CTA\
+  [ ] used_hook_ids are non-empty\
+  [ ] All hook_ids in used_hook_ids exist in brief.hooks[]\
+  [ ] Atoms are calibrated to support a \{length_instruction\} email \\\
+      (not so dense they force a long email, not so thin they \\\
+      force padding)\
+\
+If any check fails, fix it before outputting. If proof_line is null, \\\
+that is a valid output \'97 do not retroactively invent proof to pass \\\
+the audit.\
+\
+Now output the complete MessageAtoms JSON. Nothing else."""\
+\
+    return [\
+        \{"role": "system", "content": system\},\
+        \{"role": "user", "content": user\},\
+    ]}

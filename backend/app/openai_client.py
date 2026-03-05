@@ -10,6 +10,17 @@ from app.config import Settings
 ENFORCED_OPENAI_MODEL = "gpt-5-nano"
 
 
+def _normalized_reasoning_effort(*, model: str, reasoning_effort: str) -> str:
+    normalized = str(reasoning_effort or "").strip().lower() or "minimal"
+    if model == ENFORCED_OPENAI_MODEL:
+        # gpt-5-nano is configured as the enforced production model and is most
+        # stable with minimal reasoning in this pipeline.
+        return "minimal"
+    if normalized not in {"minimal", "low", "medium", "high"}:
+        return "minimal"
+    return normalized
+
+
 class OpenAIClient:
     def __init__(self, settings: Settings):
         self.settings = settings
@@ -37,7 +48,10 @@ class OpenAIClient:
         payload: dict[str, Any] = {
             "model": ENFORCED_OPENAI_MODEL,
             "messages": messages,
-            "reasoning_effort": reasoning_effort,
+            "reasoning_effort": _normalized_reasoning_effort(
+                model=ENFORCED_OPENAI_MODEL,
+                reasoning_effort=reasoning_effort,
+            ),
             "max_completion_tokens": max_completion_tokens,
         }
         if tools:

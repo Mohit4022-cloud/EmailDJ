@@ -93,6 +93,7 @@ def _brief() -> dict[str, Any]:
             "likely_initiatives": ["workflow consistency"],
             "day_to_day": ["manage sequence quality"],
             "tools_stack": ["crm"],
+            "notes": "",
         },
         "do_not_say": [],
         "forbidden_claim_patterns": ["saw your post"],
@@ -100,6 +101,15 @@ def _brief() -> dict[str, Any]:
             "no_new_facts": True,
             "no_ungrounded_personalization": True,
             "allowed_personalization_fact_sources": ["research_text"],
+        },
+        "brief_quality": {
+            "fact_count": 1,
+            "assumption_count": 1,
+            "hook_count": 1,
+            "has_research": True,
+            "confidence_ceiling": 0.6,
+            "signal_strength": "medium",
+            "quality_notes": [],
         },
     }
 
@@ -316,6 +326,7 @@ def test_cta_lock_mechanical_postprocess_preserves_exact_final_line() -> None:
         _atoms(),
         wrong_cta_draft,
         _qa(pass_rewrite_needed=False),
+        _valid_draft(),
     ])
 
     trace = Trace(str(uuid4()), "test")

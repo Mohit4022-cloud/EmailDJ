@@ -684,11 +684,29 @@ class WebApp {
             streamState.streamError = `${String(err?.message || 'Generation failed')}${trace}`;
             return;
           }
+          const variants = Array.isArray(doneData?.variants) ? doneData.variants : [];
+          if (variants.length > 0) {
+            const successCount = variants.filter(
+              (item) =>
+                typeof item?.subject === 'string' &&
+                item.subject.trim() &&
+                typeof item?.body === 'string' &&
+                item.body.trim()
+            ).length;
+            const failureCount = Math.max(0, variants.length - successCount);
+            if (failureCount > 0) {
+              this.setStatus(`Generated ${successCount}/${variants.length} preset variants.`);
+            } else {
+              this.setStatus(`Generated ${variants.length} preset variants.`);
+            }
+          }
           const finalSubject =
             typeof doneData?.subject === 'string'
               ? doneData.subject.trim()
               : typeof doneData?.final?.subject === 'string'
               ? doneData.final.subject.trim()
+              : typeof outcome.finalSubject === 'string'
+              ? outcome.finalSubject.trim()
               : '';
           const finalBody = typeof outcome.finalBody === 'string' ? outcome.finalBody.trim() : '';
           if (finalSubject || finalBody) {
@@ -730,7 +748,17 @@ class WebApp {
         ? doneData.subject.trim()
         : typeof doneData?.final?.subject === 'string'
         ? doneData.final.subject.trim()
-        : '';
+        : (() => {
+            const variants = Array.isArray(doneData?.variants) ? doneData.variants : [];
+            const first = variants.find(
+              (item) =>
+                typeof item?.subject === 'string' &&
+                item.subject.trim() &&
+                typeof item?.body === 'string' &&
+                item.body.trim()
+            );
+            return typeof first?.subject === 'string' ? first.subject.trim() : '';
+          })();
     if (!this.editor.getText().trim() && !finalText.trim() && !doneFinalBody && !doneFinalSubject) {
       throw new Error('Draft stream completed without content.');
     }

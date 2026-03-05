@@ -38,3 +38,24 @@ test('discard stale generation tokens and always apply done.final.body', () => {
   assert.equal(state.streamBuffer, 'new draft ');
   assert.equal(finalBody, 'FINAL BODY');
 });
+
+test('done variants payload uses first successful variant as final content', () => {
+  const state = createStreamState();
+  const outcome = applyStreamEvent(state, {
+    event: 'done',
+    data: {
+      generation_id: 'gen-v',
+      draft_id: 4,
+      ok: true,
+      variants: [
+        { preset_id: 'direct', error: { code: 'VALIDATION_FAILED', message: 'failed' } },
+        { preset_id: 'challenger', subject: 'Variant subject', body: 'Variant body' },
+      ],
+    },
+  });
+
+  assert.equal(outcome.accepted, true);
+  assert.equal(outcome.done, true);
+  assert.equal(outcome.finalSubject, 'Variant subject');
+  assert.equal(outcome.finalBody, 'Variant body');
+});

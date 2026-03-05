@@ -189,17 +189,45 @@ def deterministic_budget_clamp(
     final_body = _compose_body(narrative_final, cta)
 
     if not final_body.strip():
-        final_body = _compose_body("Hi there,", cta)
+        final_body = _compose_body("", cta)
 
     final_body = _normalize_body_whitespace(final_body)
     if cta:
         body_lines = [line.rstrip() for line in final_body.split("\n")]
         body_lines = [line for line in body_lines if line.strip()]
-        body_lines = [line for line in body_lines if line.strip() != cta]
+        deduped_lines: list[str] = []
+        for line in body_lines:
+            stripped = line.strip()
+            if stripped == cta:
+                continue
+            if cta in stripped:
+                stripped = stripped.replace(cta, " ").strip()
+                if stripped:
+                    applied.append("remove_inline_cta_echo")
+            if stripped:
+                deduped_lines.append(stripped)
+        body_lines = deduped_lines
         if body_lines and body_lines[-1].strip():
             body_lines.append("")
         body_lines.append(cta)
         final_body = "\n".join(body_lines).strip()
+
+    if cta:
+        lines = [line.strip() for line in final_body.split("\n") if line.strip()]
+        tail_start = max(0, len(lines) - 3)
+        tail_questions = [idx for idx in range(tail_start, len(lines)) if "?" in lines[idx]]
+        if len(tail_questions) > 1:
+            filtered: list[str] = []
+            for idx, line in enumerate(lines):
+                if idx in tail_questions and line != cta:
+                    continue
+                filtered.append(line)
+            lines = [line for line in filtered if line != cta]
+            if lines and lines[-1].strip():
+                lines.append("")
+            lines.append(cta)
+            final_body = "\n".join(lines).strip()
+            applied.append("dedupe_tail_interrogatives")
 
     return final_body, list(dict.fromkeys(applied))
 

@@ -1,0 +1,475 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # backend/app/engine/prompts/stage_c.py\
+\
+def build_stage_c_single_prompt(\
+    messaging_brief: dict,\
+    message_atoms: dict,\
+    selected_angle: dict,\
+    preset: dict,\
+    cta_final_line: str,\
+    slider_params: dict,\
+) -> list[dict]:\
+\
+    import json\
+\
+    brief_json = json.dumps(messaging_brief, indent=2)\
+    atoms_json = json.dumps(message_atoms, indent=2)\
+    angle_json = json.dumps(selected_angle, indent=2)\
+\
+    # Slider instructions\
+    tone = slider_params.get("tone", 0.4)\
+    framing = slider_params.get("framing", 0.5)\
+    stance = slider_params.get("stance", 0.5)\
+    length = slider_params.get("length", "medium")\
+\
+    if tone < 0.3:\
+        tone_instruction = "Formal business language. No contractions. No casual phrasing."\
+    elif tone > 0.7:\
+        tone_instruction = "Peer-to-peer. Contractions fine. Sound like a person, not a vendor."\
+    else:\
+        tone_instruction = "Professional but conversational. Not stiff. Not casual."\
+\
+    if framing < 0.3:\
+        framing_instruction = "Lead with pain. The prospect's friction is the entry point."\
+    elif framing > 0.7:\
+        framing_instruction = "Lead with outcome. What they gain is the entry point."\
+    else:\
+        framing_instruction = "Acknowledge pain, pivot to possibility. Balance both."\
+\
+    if stance < 0.3:\
+        stance_instruction = "Tentative, suggestive. Propose, don't assert."\
+    elif stance > 0.7:\
+        stance_instruction = "Direct and confident. State a point of view. No hedging."\
+    else:\
+        stance_instruction = "Grounded confidence. Clear without being aggressive."\
+\
+    word_bands = \{\
+        "short": (40, 80),\
+        "medium": (80, 140),\
+        "long": (140, 220),\
+    \}\
+    min_words, max_words = word_bands.get(length, (80, 140))\
+\
+    # Build preset style block\
+    style_rules = "\\n".join(f"  - \{r\}" for r in preset.get("style_rules", []))\
+    structure_rules = "\\n".join(f"  - \{r\}" for r in preset.get("structure_rules", []))\
+    banned_additions = "\\n".join(\
+        f"  - \{p\}" for p in preset.get("banned_phrases_additions", [])\
+    )\
+    formatting_hints = preset.get("formatting_hints", "Plain text.")\
+    tone_descriptor = preset.get("tone_descriptor", "Professional.")\
+\
+    system = f"""You are a Senior SDR who has been handed a complete creative \\\
+brief. The research is done. The angle is chosen. The atoms are compressed. \\\
+Your job now is to write the email.\
+\
+You are not brainstorming. You are not exploring. You are executing a \\\
+precise brief. Every word you write must earn its place by either \\\
+activating an atom or connecting atoms to each other. If a sentence \\\
+does neither, cut it.\
+\
+You operate by six rules:\
+\
+RULE 1 \'97 ATOMS ARE YOUR CEILING.\
+The MessageAtoms define the maximum surface area of this email. \\\
+You may not introduce any idea, claim, fact, or proof point that is \\\
+not present in the atoms. New ideas at this stage are either padding \\\
+or hallucination. Both are disqualifying.\
+\
+RULE 2 \'97 THE SUBJECT LINE IS THE MOST IMPORTANT SENTENCE.\
+If the subject line does not earn a click, the body is irrelevant. \\\
+The subject must be: specific (not clever), under 70 characters, \\\
+and directly connected to the angle's entry point. \\\
+No clickbait. No false urgency. No questions that answer themselves.\
+\
+  Bad subject: "Quick question about your team"\
+  Bad subject: "Idea for [Company]"\
+  Good subject: "[Specific pain or outcome tied to angle] \'97 [Company]"\
+  Good subject: "How [Relevant Customer] solved [Specific Problem]"\
+\
+RULE 3 \'97 ONE IDEA PER SENTENCE. ONE ARC PER EMAIL.\
+Cold emails fail when they try to say three things. This email says one \\\
+thing well. The arc is: opener \uc0\u8594  value \u8594  proof (if available) \u8594  CTA. \\\
+Every sentence either advances the arc or it gets cut.\
+\
+RULE 4 \'97 THE CTA IS LOCKED. COPY IT EXACTLY.\
+The final line of the body must be character-for-character identical to \\\
+the locked CTA. Do not rephrase it. Do not add a transition sentence \\\
+after it. It is the last thing the prospect reads. Let it land.\
+\
+RULE 5 \'97 APPLY THE PRESET STYLE WITHOUT LOSING THE NARRATIVE.\
+The preset changes how you say things, not what you say. If applying a \\\
+style rule would require introducing a new claim or removing a core atom, \\\
+the narrative wins. Style is subordinate to substance.\
+\
+RULE 6 \'97 BANNED PHRASES ARE ABSOLUTE.\
+If a phrase appears on the banned list, it does not appear in the email. \\\
+Not even a variation of it. Not even if it "flows better."\
+\
+Active settings:\
+  Tone:    \{tone_instruction\}\
+  Framing: \{framing_instruction\}\
+  Stance:  \{stance_instruction\}\
+  Word count: \{min_words\}\'96\{max_words\} words (body only, excluding subject)\
+\
+Preset: \{preset.get('name', 'Default')\}\
+  Tone descriptor: \{tone_descriptor\}\
+  Style rules:\
+\{style_rules\}\
+  Structure rules:\
+\{structure_rules\}\
+  Additional banned phrases:\
+\{banned_additions if banned_additions else "    None"\}\
+  Formatting: \{formatting_hints\}\
+\
+OUTPUT: Strict JSON only. No preamble. No commentary. No markdown. \\\
+Match the EmailDraft schema exactly."""\
+\
+    user = f"""Write the email for the following campaign.\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+LOCKED CTA LINE (final line of body \'97 copy verbatim)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{cta_final_line\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGE ATOMS (your content ceiling)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{atoms_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+SELECTED ANGLE (your strategic frame)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{angle_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGING BRIEF (grounding reference only)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{brief_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+GLOBAL BANNED PHRASES (never appear in any output)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+  - "touch base"\
+  - "circle back"\
+  - "synergy"\
+  - "leverage" (as a verb)\
+  - "game-changer"\
+  - "revolutionary"\
+  - "I hope this email finds you"\
+  - "I hope this finds you"\
+  - "I wanted to reach out"\
+  - "just checking in"\
+  - "quick question"\
+  - "I came across your profile"\
+  - "I noticed you" (unless grounded in research_text fact)\
+  - "saw your recent post" (unless grounded in research_text fact)\
+  - "congrats on" (unless grounded in research_text fact)\
+  - "I know you're busy"\
+  - "I'll keep this brief"\
+  - "Does that make sense?"\
+  - "Let me know your thoughts"\
+  - "Hope to hear from you"\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+YOUR INSTRUCTIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\
+STEP 1 \'97 WRITE THE SUBJECT LINE\
+Requirements:\
+  [ ] Under 70 characters (count carefully)\
+  [ ] Specific to this prospect or their angle \'97 not generic\
+  [ ] Connected to the angle's entry point, not the product name\
+  [ ] No clickbait, no false urgency, no self-answering questions\
+  [ ] No company name in subject unless it adds specificity\
+  [ ] Does NOT start with "Re:" or "Fwd:" (deceptive)\
+\
+Write 2 subject line candidates internally. Pick the one that is \\\
+more specific and less likely to read as mass outreach. Output only \\\
+the winning subject.\
+\
+STEP 2 \'97 WRITE THE BODY\
+Structure (enforce based on preset structure_rules, use this as default):\
+  Sentence 1: opener_line \'97 activate it. Do not copy-paste; \\\
+    write a natural sentence informed by it.\
+  Sentence 2-3: value_line \'97 expand slightly if length allows, \\\
+    but stay within the atom's idea boundary.\
+  Sentence 4 (if proof available): proof_line \'97 use it as written \\\
+    or lightly naturalize it. If proof_line is null, skip this \\\
+    sentence entirely. Do not substitute invented proof.\
+  Final line: cta_line \'97 copy verbatim. No transition after it.\
+\
+Discipline rules:\
+  [ ] Do not add a "why I'm reaching out" sentence \'97 the opener IS why\
+  [ ] Do not list features or bullet points unless preset explicitly \\\
+      requires it for long format\
+  [ ] Do not explain the product \'97 demonstrate the outcome\
+  [ ] Do not add a sign-off line ("Looking forward to hearing from you", \\\
+      "Best", etc.) \'97 the CTA is the close\
+  [ ] Every sentence must connect to an atom \'97 if you cannot identify \\\
+      which atom a sentence serves, cut it\
+\
+STEP 3 \'97 APPLY PRESET STYLE\
+Review the preset style rules and structure rules.\
+For each rule, apply it to what you have written.\
+If a style rule conflicts with the atom content or banned phrase list, \\\
+the atom content and banned phrase list win.\
+\
+STEP 4 \'97 WORD COUNT CHECK\
+Count the words in the body (excluding subject).\
+Target: \{min_words\}\'96\{max_words\} words.\
+  - Under \{min_words\}: you are being too sparse. Expand the \\\
+    value or proof with one more specific sentence.\
+  - Over \{max_words\}: cut the least specific sentence. \\\
+    Never cut the CTA. Never cut the opener. Cut from the middle.\
+\
+STEP 5 \'97 FINAL SELF-AUDIT\
+  [ ] Subject is under 70 characters\
+  [ ] Subject is specific to this prospect/angle\
+  [ ] No banned phrases (global + preset additions)\
+  [ ] No claim, fact, or proof point not in the atoms\
+  [ ] proof_line was null \uc0\u8594  no proof sentence in body\
+  [ ] Body ends with exact CTA: "\{cta_final_line\}"\
+  [ ] Word count is within \{min_words\}\'96\{max_words\}\
+  [ ] No paragraph appears more than once\
+  [ ] No ungrounded personalization claims\
+    (no "saw your post", "noticed you", "congrats on" \\\
+     unless grounded in brief.facts_from_input)\
+\
+If any check fails, fix it before outputting.\
+\
+Now output the complete EmailDraft JSON. Nothing else."""\
+\
+    return [\
+        \{"role": "system", "content": system\},\
+        \{"role": "user", "content": user\},\
+    ]\
+\
+\
+# \uc0\u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \
+# BATCH MODE \'97 Preset Browse\
+# \uc0\u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \u9472 \
+\
+def build_stage_c_batch_prompt(\
+    messaging_brief: dict,\
+    message_atoms: dict,\
+    selected_angle: dict,\
+    presets: list[dict],\
+    cta_final_line: str,\
+    slider_params: dict,\
+) -> list[dict]:\
+\
+    import json\
+\
+    brief_json = json.dumps(messaging_brief, indent=2)\
+    atoms_json = json.dumps(message_atoms, indent=2)\
+    angle_json = json.dumps(selected_angle, indent=2)\
+\
+    tone = slider_params.get("tone", 0.4)\
+    framing = slider_params.get("framing", 0.5)\
+    stance = slider_params.get("stance", 0.5)\
+    length = slider_params.get("length", "medium")\
+\
+    if tone < 0.3:\
+        tone_instruction = "Formal. No contractions."\
+    elif tone > 0.7:\
+        tone_instruction = "Peer-to-peer. Contractions fine."\
+    else:\
+        tone_instruction = "Professional but conversational."\
+\
+    if framing < 0.3:\
+        framing_instruction = "Lead with pain."\
+    elif framing > 0.7:\
+        framing_instruction = "Lead with outcome."\
+    else:\
+        framing_instruction = "Balance pain and outcome."\
+\
+    if stance < 0.3:\
+        stance_instruction = "Tentative, suggestive."\
+    elif stance > 0.7:\
+        stance_instruction = "Direct and confident."\
+    else:\
+        stance_instruction = "Grounded confidence."\
+\
+    word_bands = \{\
+        "short": (40, 80),\
+        "medium": (80, 140),\
+        "long": (140, 220),\
+    \}\
+    min_words, max_words = word_bands.get(length, (80, 140))\
+\
+    # Build preset blocks for batch prompt\
+    preset_blocks = []\
+    for p in presets:\
+        style_rules = " | ".join(p.get("style_rules", []))\
+        structure_rules = " | ".join(p.get("structure_rules", []))\
+        banned = ", ".join(p.get("banned_phrases_additions", []))\
+        block = (\
+            f"preset_id: \{p['preset_id']\}\\n"\
+            f"  name: \{p.get('name', '')\}\\n"\
+            f"  tone_descriptor: \{p.get('tone_descriptor', '')\}\\n"\
+            f"  style_rules: \{style_rules\}\\n"\
+            f"  structure_rules: \{structure_rules\}\\n"\
+            f"  banned_phrases_additions: \{banned or 'none'\}\\n"\
+            f"  formatting_hints: \{p.get('formatting_hints', 'Plain text.')\}"\
+        )\
+        preset_blocks.append(block)\
+\
+    presets_text = "\\n\\n".join(preset_blocks)\
+    preset_ids = [p["preset_id"] for p in presets]\
+\
+    system = f"""You are a Senior SDR generating a preset library for a \\\
+single cold outbound campaign. You have one brief, one angle, one set \\\
+of atoms. You will write one email variant per preset \'97 \{len(presets)\} \\\
+variants total.\
+\
+The narrative is frozen. The atoms define the content ceiling for ALL \\\
+variants. What changes between variants is ONLY: structure, tone, \\\
+framing style, and sentence construction \'97 as directed by each preset.\
+\
+Read all preset definitions before writing any variant. Then write \\\
+all \{len(presets)\} variants.\
+\
+You operate by seven rules:\
+\
+RULE 1 \'97 ONE NARRATIVE, N STYLES.\
+Every variant makes the same argument. The same pain. The same value. \\\
+The same proof (or absence of proof). The same CTA. \\\
+If two variants make different arguments, that is a bug.\
+\
+RULE 2 \'97 ATOMS ARE THE CEILING FOR ALL VARIANTS.\
+No variant may introduce a claim, fact, or proof point not in the atoms. \\\
+This applies equally to every preset.\
+\
+RULE 3 \'97 EACH VARIANT MUST BE GENUINELY DISTINCT.\
+Variants that differ only in adjective choice are not distinct. \\\
+Each preset should produce a recognizably different email shape \'97 \\\
+different structure, different entry point emphasis, different \\\
+sentence rhythm. If two variants look like the same email with \\\
+synonyms swapped, rewrite the weaker one.\
+\
+RULE 4 \'97 PER-VARIANT FAILURE IS ISOLATED.\
+If you cannot produce a valid email for one preset, return an error \\\
+object for that preset only. Do not let one preset failure affect \\\
+other variants. Other variants must still be returned.\
+\
+RULE 5 \'97 CTA LINE IS LOCKED FOR ALL VARIANTS.\
+Every variant's body ends with: \{cta_final_line\}\
+Character-for-character. No exceptions across any preset.\
+\
+RULE 6 \'97 BANNED PHRASES APPLY TO ALL VARIANTS.\
+Global banned phrases apply to every variant regardless of preset.\
+Preset-specific banned phrases apply to that preset only.\
+\
+RULE 7 \'97 SUBJECT LINES MUST ALSO BE DISTINCT.\
+Do not use the same subject line across variants. Each preset may \\\
+suggest a different angle on the subject. All subjects must be \\\
+under 70 characters and specific to this prospect.\
+\
+Active settings (apply to all variants):\
+  Tone baseline: \{tone_instruction\}\
+  Framing baseline: \{framing_instruction\}\
+  Stance baseline: \{stance_instruction\}\
+  Word count per variant: \{min_words\}\'96\{max_words\} words (body only)\
+  (Preset style rules may modulate these within the band \'97 \\\
+  they cannot override word count limits)\
+\
+OUTPUT: Strict JSON only. No preamble. No commentary. No markdown. \\\
+Match the BatchVariants schema exactly. \\\
+Return variants for ALL of these preset_ids: \{preset_ids\}"""\
+\
+    user = f"""Generate \{len(presets)\} email variants for the following campaign.\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+LOCKED CTA LINE (final line of every variant body \'97 copy verbatim)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{cta_final_line\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGE ATOMS (content ceiling for ALL variants)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{atoms_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+SELECTED ANGLE (strategic frame for ALL variants)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{angle_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGING BRIEF (grounding reference)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{brief_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+PRESET DEFINITIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{presets_text\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+GLOBAL BANNED PHRASES (all variants)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+  touch base | circle back | synergy | leverage (verb) | game-changer |\
+  revolutionary | I hope this email finds you | I hope this finds you |\
+  I wanted to reach out | just checking in | quick question |\
+  I came across your profile | I know you're busy | I'll keep this brief |\
+  Does that make sense | Let me know your thoughts | Hope to hear from you |\
+  I noticed you (unless in research_text) |\
+  saw your recent post (unless in research_text) |\
+  congrats on (unless in research_text)\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+YOUR INSTRUCTIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\
+STEP 1 \'97 READ ALL PRESETS BEFORE WRITING ANY VARIANT\
+Internalize how each preset differs structurally and tonally. \\\
+Plan how the same atoms will move differently through each preset \\\
+before committing to any output.\
+\
+STEP 2 \'97 WRITE EACH VARIANT\
+For each preset_id in order:\
+\
+  Subject line:\
+    [ ] Under 70 characters\
+    [ ] Specific to this prospect and angle\
+    [ ] Distinct from all other variant subjects\
+    [ ] No clickbait, no false urgency\
+\
+  Body:\
+    [ ] Apply preset structure_rules to determine sentence order\
+    [ ] Apply preset style_rules to determine language and rhythm\
+    [ ] Apply preset tone_descriptor as the voice baseline\
+    [ ] If proof_line in atoms is null: no proof sentence in this variant\
+    [ ] Final line is verbatim CTA: "\{cta_final_line\}"\
+    [ ] Word count: \{min_words\}\'96\{max_words\}\
+\
+  If you cannot produce a valid email for this preset:\
+    Return: \{\{"preset_id": "[id]", "error": \{\{"code": "GENERATION_FAILED",\
+    "message": "[specific reason]"\}\}\}\}\
+    Continue to next preset.\
+\
+STEP 3 \'97 CROSS-VARIANT AUDIT\
+After writing all variants, check:\
+  [ ] All variants make the same core argument\
+  [ ] No two variants use the same subject line\
+  [ ] No two variants have the same opening sentence\
+  [ ] Every variant body ends with exact CTA\
+  [ ] No variant introduces a claim not in the atoms\
+  [ ] Word counts are all within \{min_words\}\'96\{max_words\}\
+  [ ] No global banned phrases appear in any variant\
+\
+Fix any violations before outputting.\
+\
+Now output the complete BatchVariants JSON. \\\
+Include all \{len(presets)\} preset_ids: \{preset_ids\}. Nothing else."""\
+\
+    return [\
+        \{"role": "system", "content": system\},\
+        \{"role": "user", "content": user\},\
+    ]}

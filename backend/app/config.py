@@ -49,6 +49,7 @@ class Settings:
     provider_stub_enabled: bool
     llm_drafting_enabled: bool
     debug_prompt: bool
+    debug_trace_raw: bool
 
 
 def load_settings() -> Settings:
@@ -74,4 +75,5 @@ def load_settings() -> Settings:
         provider_stub_enabled=_env_bool("USE_PROVIDER_STUB", False),
         llm_drafting_enabled=_env_bool("LLM_DRAFTING", False),
         debug_prompt=_env_bool("DEBUG_PROMPT", False),
+        debug_trace_raw=_env_bool("DEBUG_TRACE_RAW", False),
     )

@@ -16,8 +16,7 @@ from .postprocess import (
     violation_codes,
     word_count,
 )
-from .realize import realize_email, word_band_for_brevity
-from .repair import repair_draft
+from .realize import word_band_for_brevity
 from .types import EmailDraft, EngineResult, MessagePlan, NormalizedContext, ValidationDebug
 from .validate import validate_draft
 
@@ -36,7 +35,7 @@ def fallback_draft(ctx: NormalizedContext, plan: MessagePlan | None = None) -> E
 async def run_engine_async(
     ctx: NormalizedContext,
     *,
-    max_repairs: int = 2,
+    max_repairs: int = 1,
     openai: OpenAIClient | None = None,
     settings: Settings | None = None,
 ) -> EngineResult:
@@ -57,17 +56,15 @@ async def run_engine_async(
 
     t1 = time.perf_counter()
     llm_attempt_count = 0
-    draft_source = "deterministic"
-    draft = realize_email(plan, ctx)
-    if llm_ready and openai and settings:
-        llm_result = await llm_realize(plan=plan, ctx=ctx, openai=openai, settings=settings)
-        llm_attempt_count += llm_result.attempt_count
-        debug.word_count_llm_raw = llm_result.raw_word_count
-        if llm_result.draft is not None:
-            draft = llm_result.draft
-            draft_source = "llm"
-        else:
-            raise RuntimeError(f"llm_realize_failed:{llm_result.error or 'unknown'}")
+    if not (openai and settings):
+        raise RuntimeError("ai_only_pipeline_requires_openai")
+    llm_result = await llm_realize(plan=plan, ctx=ctx, openai=openai, settings=settings)
+    llm_attempt_count += llm_result.attempt_count
+    debug.word_count_llm_raw = llm_result.raw_word_count
+    if llm_result.draft is None:
+        raise RuntimeError(f"llm_realize_failed:{llm_result.error or 'unknown'}")
+    draft = llm_result.draft
+    draft_source = "llm"
 
     logger.info(
         "engine_draft_selected draft_source=%s llm_drafting_enabled=%s provider_configured=%s",
@@ -115,7 +112,7 @@ async def run_engine_async(
     attempts = 0
     repaired = False
     postprocess_applied: list[str] = []
-    if violations and draft_source == "llm":
+    if violations:
         violations, applied = _apply_mechanical_postprocess(violations)
         if applied:
             postprocess_applied.extend(applied)
@@ -124,7 +121,7 @@ async def run_engine_async(
 
         can_retry_llm = bool(openai and settings)
         needs_llm_repair = bool(violations)
-        if needs_llm_repair and can_retry_llm and openai and settings:
+        if needs_llm_repair and attempts < max_repairs and can_retry_llm and openai and settings:
             attempts += 1
             repaired = True
             t_repair = time.perf_counter()
@@ -146,14 +143,6 @@ async def run_engine_async(
                     if not violations:
                         draft_source = "llm_postprocessed"
             debug.stage_latency_ms[f"repair_{attempts}"] = int(round((time.perf_counter() - t_repair) * 1000))
-    else:
-        while violations and attempts < max_repairs:
-            attempts += 1
-            repaired = True
-            t_repair = time.perf_counter()
-            draft = repair_draft(draft, plan, ctx, violations)
-            debug.stage_latency_ms[f"repair_{attempts}"] = int(round((time.perf_counter() - t_repair) * 1000))
-            violations = _validate(label="validate")
 
     if violations:
         raise RuntimeError(f"final_validation_failed:{','.join(violations)}")
@@ -191,7 +180,7 @@ async def run_engine_async(
 def run_engine(
     ctx: NormalizedContext,
     *,
-    max_repairs: int = 2,
+    max_repairs: int = 1,
     openai: OpenAIClient | None = None,
     settings: Settings | None = None,
 ) -> EngineResult:

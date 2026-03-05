@@ -89,6 +89,7 @@ MESSAGING_BRIEF_SCHEMA = {
     "additionalProperties": False,
     "required": [
         "version",
+        "brief_id",
         "facts_from_input",
         "assumptions",
         "hooks",
@@ -96,6 +97,7 @@ MESSAGING_BRIEF_SCHEMA = {
         "do_not_say",
         "forbidden_claim_patterns",
         "grounding_policy",
+        "brief_quality",
     ],
     "$defs": {**COMMON_DEFS},
     "properties": {
@@ -118,7 +120,7 @@ MESSAGING_BRIEF_SCHEMA = {
         "persona_cues": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["likely_kpis", "likely_initiatives", "day_to_day", "tools_stack"],
+            "required": ["likely_kpis", "likely_initiatives", "day_to_day", "tools_stack", "notes"],
             "properties": {
                 "likely_kpis": {"type": "array", "items": {"$ref": "#/$defs/NonEmptyStr"}},
                 "likely_initiatives": {"type": "array", "items": {"$ref": "#/$defs/NonEmptyStr"}},
@@ -138,7 +140,7 @@ MESSAGING_BRIEF_SCHEMA = {
         "grounding_policy": {
             "type": "object",
             "additionalProperties": False,
-            "required": ["no_new_facts", "no_ungrounded_personalization"],
+            "required": ["no_new_facts", "no_ungrounded_personalization", "allowed_personalization_fact_sources"],
             "properties": {
                 "no_new_facts": {"type": "boolean"},
                 "no_ungrounded_personalization": {"type": "boolean"},
@@ -146,6 +148,28 @@ MESSAGING_BRIEF_SCHEMA = {
                     "type": "array",
                     "items": {"$ref": "#/$defs/NonEmptyStr"},
                 },
+            },
+        },
+        "brief_quality": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": [
+                "fact_count",
+                "assumption_count",
+                "hook_count",
+                "has_research",
+                "confidence_ceiling",
+                "signal_strength",
+                "quality_notes",
+            ],
+            "properties": {
+                "fact_count": {"type": "integer", "minimum": 0, "maximum": 500},
+                "assumption_count": {"type": "integer", "minimum": 0, "maximum": 500},
+                "hook_count": {"type": "integer", "minimum": 0, "maximum": 100},
+                "has_research": {"type": "boolean"},
+                "confidence_ceiling": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "signal_strength": {"type": "string", "enum": ["low", "medium", "high"]},
+                "quality_notes": {"type": "array", "items": {"$ref": "#/$defs/NonEmptyStr"}},
             },
         },
     },
@@ -281,7 +305,7 @@ EMAIL_DRAFT_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "additionalProperties": False,
-    "required": ["version", "subject", "body", "used_hook_ids", "selected_angle_id", "preset_id"],
+    "required": ["version", "preset_id", "selected_angle_id", "used_hook_ids", "subject", "body"],
     "$defs": {**COMMON_DEFS},
     "properties": {
         "version": {"type": "string", "minLength": 1, "maxLength": 32},
@@ -313,7 +337,7 @@ BATCH_VARIANTS_SCHEMA = {
                     {
                         "type": "object",
                         "additionalProperties": False,
-                        "required": ["preset_id", "subject", "body", "used_hook_ids", "selected_angle_id"],
+                        "required": ["preset_id", "selected_angle_id", "used_hook_ids", "subject", "body"],
                         "properties": {
                             "preset_id": {"type": "string", "minLength": 1, "maxLength": 64},
                             "selected_angle_id": {"$ref": "#/$defs/IdStr"},
@@ -379,7 +403,7 @@ QA_REPORT_SCHEMA = {
         "risk_flags": {"type": "array", "items": {"$ref": "#/$defs/RiskFlag"}},
         "rewrite_plan": {
             "type": "array",
-            "minItems": 1,
+            "minItems": 0,
             "items": {"type": "string", "minLength": 1, "maxLength": 240},
         },
     },

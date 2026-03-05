@@ -21,9 +21,10 @@ def hash_json(value: Any) -> str:
 
 
 class Trace:
-    def __init__(self, trace_id: str, app_env: str):
+    def __init__(self, trace_id: str, app_env: str, *, debug_trace_raw: bool = False):
         self.trace_id = trace_id
         self.app_env = app_env
+        self.debug_trace_raw = bool(debug_trace_raw)
         self.started_at = time.time()
         self._stage_started: dict[str, float] = {}
         self.stage_stats: list[dict[str, Any]] = []
@@ -31,6 +32,7 @@ class Trace:
         self.postprocess_steps: list[str] = []
         self.hashes: dict[str, str] = {}
         self.meta: dict[str, Any] = {}
+        self.raw_stage_payloads: list[dict[str, Any]] = []
 
     def start_stage(self, *, stage: str, model: str) -> None:
         self._stage_started[stage] = time.perf_counter()
@@ -69,6 +71,16 @@ class Trace:
             }
         )
         self.hashes[f"output:{stage}"] = hash_json(output)
+        if self.debug_trace_raw:
+            self.raw_stage_payloads.append(
+                {
+                    "stage": stage,
+                    "status": "complete",
+                    "attempt_count": int(attempt_count),
+                    "schema_ok": bool(schema_ok),
+                    "output": output,
+                }
+            )
         return elapsed_ms
 
     def fail_stage(self, *, stage: str, model: str, error_code: str, details: dict[str, Any] | None = None) -> int:
@@ -84,6 +96,15 @@ class Trace:
                 "details": details or {},
             }
         )
+        if self.debug_trace_raw:
+            self.raw_stage_payloads.append(
+                {
+                    "stage": stage,
+                    "status": "failed",
+                    "error_code": error_code,
+                    "details": details or {},
+                }
+            )
         return elapsed_ms
 
     def add_validation_error(self, *, stage: str, codes: list[str], details: dict[str, Any] | None = None) -> None:
@@ -128,4 +149,19 @@ class Trace:
             root.mkdir(parents=True, exist_ok=True)
             path = root / f"{self.trace_id}.json"
             path.write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+            if self.debug_trace_raw and self.app_env in {"local", "dev"}:
+                raw_root = root / "_raw"
+                raw_root.mkdir(parents=True, exist_ok=True)
+                raw_payload = {
+                    "trace_id": self.trace_id,
+                    "app_env": self.app_env,
+                    "started_at": self.started_at,
+                    "finished_at": payload.get("finished_at"),
+                    "duration_ms": payload.get("duration_ms"),
+                    "meta": self.meta,
+                    "outcome": outcome,
+                    "stage_payloads": self.raw_stage_payloads,
+                }
+                raw_path = raw_root / f"{self.trace_id}.json"
+                raw_path.write_text(json.dumps(raw_payload, indent=2, ensure_ascii=True), encoding="utf-8")
         return payload

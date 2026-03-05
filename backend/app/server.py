@@ -331,6 +331,7 @@ async def debug_config(x_emaildj_beta_key: str | None = Header(default=None)) ->
         "llm_drafting_enabled": True,
         "llm_draft_runtime": "ai_only_fail_closed",
         "debug_prompt": state.settings.debug_prompt,
+        "debug_trace_raw": state.settings.debug_trace_raw,
         "openai_model": "gpt-5-nano",
         "available_presets": available_presets(),
         "prompt_template_versions": {
@@ -456,7 +457,7 @@ async def preset_preview(req: PresetPreviewRequest, x_emaildj_beta_key: str | No
     _require_beta(x_emaildj_beta_key)
     sliders = _sliders_from_style_profile(req.style_profile.model_dump(mode="json"))
     generate_req = _preview_request_to_generate(req, sliders=sliders)
-    trace = Trace(str(uuid4()), state.settings.app_env)
+    trace = Trace(str(uuid4()), state.settings.app_env, debug_trace_raw=state.settings.debug_trace_raw)
     result = await state.orchestrator.run_pipeline_single(
         request=generate_req,
         trace=trace,
@@ -496,7 +497,7 @@ async def preset_previews_batch(
     sliders = _sliders_from_batch_request(req)
     generate_req = _batch_preview_to_generate(req, sliders=sliders)
     preset_ids = [str(item.preset_id) for item in req.presets]
-    trace = Trace(str(uuid4()), state.settings.app_env)
+    trace = Trace(str(uuid4()), state.settings.app_env, debug_trace_raw=state.settings.debug_trace_raw)
     orchestrated = await state.orchestrator.run_pipeline_presets(
         request=generate_req,
         trace=trace,
@@ -586,7 +587,7 @@ async def _run_generate_like(record: RequestRecord, request_id: str) -> tuple[As
             "response_contract": response_contract,
         }
     )
-    trace = Trace(trace_id, state.settings.app_env)
+    trace = Trace(trace_id, state.settings.app_env, debug_trace_raw=state.settings.debug_trace_raw)
     if mode == "preset_browse":
         orchestrated = await state.orchestrator.run_pipeline_presets(
             request=req_payload,

@@ -295,7 +295,7 @@ class AIOrchestrator:
                 config=StageConfig(
                     stage=STAGES["C0"],
                     max_tokens=400,
-                    reasoning_effort="low",
+                    reasoning_effort=self.settings.openai_reasoning_low,
                     response_format=RF_MESSAGE_ATOMS,
                 ),
                 messages=stage_c0.build_messages(
@@ -323,7 +323,7 @@ class AIOrchestrator:
                 config=StageConfig(
                     stage=STAGES["C"],
                     max_tokens=800,
-                    reasoning_effort="low",
+                    reasoning_effort=self.settings.openai_reasoning_low,
                     response_format=RF_EMAIL_DRAFT,
                 ),
                 messages=stage_c.build_single_messages(
@@ -352,10 +352,10 @@ class AIOrchestrator:
                 config=StageConfig(
                     stage=STAGES["D"],
                     max_tokens=800,
-                    reasoning_effort="high",
+                    reasoning_effort=self.settings.openai_reasoning_high,
                     response_format=RF_QA_REPORT,
                 ),
-                messages=stage_d.build_messages(draft, messaging_brief),
+                messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line),
                 validator=None,
             )
             qa = normalize_qa_report(qa)
@@ -368,7 +368,7 @@ class AIOrchestrator:
                     config=StageConfig(
                         stage=STAGES["E"],
                         max_tokens=800,
-                        reasoning_effort="low",
+                        reasoning_effort=self.settings.openai_reasoning_low,
                         response_format=RF_EMAIL_DRAFT,
                     ),
                     messages=stage_e.build_messages(
@@ -377,6 +377,7 @@ class AIOrchestrator:
                         messaging_brief=messaging_brief,
                         message_atoms=atoms,
                         cta_final_line=cta_line,
+                        sliders=slider_params,
                     ),
                     validator=None,
                 )
@@ -460,7 +461,7 @@ class AIOrchestrator:
             config=StageConfig(
                 stage=STAGES["A"],
                 max_tokens=1800,
-                reasoning_effort="low",
+                reasoning_effort=self.settings.openai_reasoning_low,
                 response_format=RF_MESSAGING_BRIEF,
             ),
             messages=stage_a.build_messages(stage_a_input),
@@ -472,7 +473,7 @@ class AIOrchestrator:
             config=StageConfig(
                 stage=STAGES["B"],
                 max_tokens=1200,
-                reasoning_effort="high",
+                reasoning_effort=self.settings.openai_reasoning_high,
                 response_format=RF_FIT_MAP,
             ),
             messages=stage_b.build_messages(messaging_brief),
@@ -484,7 +485,7 @@ class AIOrchestrator:
             config=StageConfig(
                 stage=STAGES["B0"],
                 max_tokens=1000,
-                reasoning_effort="high",
+                reasoning_effort=self.settings.openai_reasoning_high,
                 response_format=RF_ANGLE_SET,
             ),
             messages=stage_b0.build_messages(messaging_brief, fit_map),
@@ -541,7 +542,7 @@ class AIOrchestrator:
                 config=StageConfig(
                     stage=STAGES["C0"],
                     max_tokens=400,
-                    reasoning_effort="low",
+                    reasoning_effort=self.settings.openai_reasoning_low,
                     response_format=RF_MESSAGE_ATOMS,
                 ),
                 messages=stage_c0.build_messages(
@@ -568,7 +569,7 @@ class AIOrchestrator:
                 config=StageConfig(
                     stage=STAGES["C"],
                     max_tokens=2400,
-                    reasoning_effort="low",
+                    reasoning_effort=self.settings.openai_reasoning_low,
                     response_format=RF_BATCH_VARIANTS,
                 ),
                 messages=stage_c.build_batch_messages(
@@ -634,10 +635,10 @@ class AIOrchestrator:
                         config=StageConfig(
                             stage=STAGES["D"],
                             max_tokens=800,
-                            reasoning_effort="high",
+                            reasoning_effort=self.settings.openai_reasoning_high,
                             response_format=RF_QA_REPORT,
                         ),
-                        messages=stage_d.build_messages(draft, messaging_brief),
+                        messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line),
                         validator=None,
                     )
                     qa = normalize_qa_report(qa)
@@ -648,7 +649,7 @@ class AIOrchestrator:
                             config=StageConfig(
                                 stage=STAGES["E"],
                                 max_tokens=800,
-                                reasoning_effort="low",
+                                reasoning_effort=self.settings.openai_reasoning_low,
                                 response_format=RF_EMAIL_DRAFT,
                             ),
                             messages=stage_e.build_messages(
@@ -657,6 +658,7 @@ class AIOrchestrator:
                                 messaging_brief=messaging_brief,
                                 message_atoms=atoms,
                                 cta_final_line=cta_line,
+                                sliders=slider_params,
                             ),
                             validator=None,
                         )

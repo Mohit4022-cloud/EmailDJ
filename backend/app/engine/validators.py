@@ -41,6 +41,7 @@ def validate_messaging_brief(brief: dict[str, Any], *, source_text: str = "") ->
     facts = list(brief.get("facts_from_input") or [])
     assumptions = list(brief.get("assumptions") or [])
     hooks = list(brief.get("hooks") or [])
+    brief_quality = dict(brief.get("brief_quality") or {})
 
     if len(facts) < 1:
         codes.append("brief_missing_facts")
@@ -60,6 +61,20 @@ def validate_messaging_brief(brief: dict[str, Any], *, source_text: str = "") ->
         if any(marker in text for marker in UNGROUNDED_PERSONALIZATION_MARKERS) and text not in source_lower:
             codes.append("fact_contains_ungrounded_behavior_claim")
             break
+
+    if not brief_quality:
+        codes.append("brief_missing_brief_quality")
+    else:
+        fact_count = int(brief_quality.get("fact_count") or 0)
+        signal_strength = str(brief_quality.get("signal_strength") or "").strip().lower()
+        confidence_ceiling = float(brief_quality.get("confidence_ceiling") or 0.0)
+
+        if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
+            codes.append("brief_quality_confidence_ceiling_out_of_range")
+
+        is_thin_input = not bool(str(source_text or "").strip()) and fact_count < 3
+        if is_thin_input and signal_strength != "low":
+            codes.append("brief_quality_signal_strength_mismatch")
 
     _codes_or_raise(codes)
 

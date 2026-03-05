@@ -44,6 +44,35 @@ def test_budget_clamp_removes_duplicate_cta_and_trailing_content() -> None:
     assert "remove_trailing_after_cta" in applied
 
 
+def test_budget_clamp_removes_inline_cta_echo_and_keeps_single_final_cta() -> None:
+    body = (
+        "Hi Alex,\n\n"
+        f"Useful context {CTA} should not remain inline.\n\n"
+        f"{CTA}"
+    )
+
+    clamped, applied = deterministic_budget_clamp(body=body, max_words=120, cta_line=CTA)
+
+    assert clamped.splitlines()[-1].strip() == CTA
+    assert clamped.count(CTA) == 1
+    assert "remove_inline_cta_echo" in applied
+
+
+def test_budget_clamp_dedupes_multiple_tail_questions_to_locked_cta_only() -> None:
+    body = (
+        "Hi Alex,\n\n"
+        "Could this improve your RevOps handoff process?\n\n"
+        "Would this reduce forecasting variance?\n\n"
+        f"{CTA}"
+    )
+
+    clamped, applied = deterministic_budget_clamp(body=body, max_words=120, cta_line=CTA)
+
+    assert clamped.splitlines()[-1].strip() == CTA
+    assert "Would this reduce forecasting variance?" not in clamped
+    assert "dedupe_tail_interrogatives" in applied
+
+
 def test_budget_clamp_handles_bullets_and_missing_greeting() -> None:
     body = (
         "- Point one explains the workflow shift and expected KPI impact.\n"

@@ -1,0 +1,269 @@
+{
+  "trace_id": "57661d4c-ae66-47ff-aca4-ee8c0d76031f",
+  "app_env": "local",
+  "started_at": 1772690820.898082,
+  "finished_at": 1772690845.111108,
+  "duration_ms": 24213,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.44999999999999996,
+      "framing": 0.45,
+      "length": "short",
+      "stance": 0.6
+    },
+    "cache_hit": false,
+    "brief_cache_key": "baae6a75e63decf51a426040710516535e5fabab22f8f7959a976fe907b7f9da"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ANGLE_PICKER failed after repair attempt",
+    "stage": "ANGLE_PICKER"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB- Nimbus-RevOps-01",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "product_summary",
+            "text": "Workflow QA Platform"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "ipo",
+            "text": "Ideal Customer Profile: Helps RevOps teams reduce process drift in outbound execution."
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "differentiators",
+            "text": "Differentiators: Messaging consistency analytics; Handoff health scoring"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "proof_points",
+            "text": "- Messaging consistency analytics\n- Handoff health scoring\n- Helps RevOps teams reduce process drift in outbound execution."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "prospect_context",
+            "text": "Name: Jordan Lee; Title: VP Revenue Operations; Company: Nimbus Health; Industry: Unknown"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "research",
+            "text": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene, handoff SLAs, and forecasting consistency."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "cta",
+            "text": "CTA Type: question; CTA Final Line (LOCKED): Open to a quick chat to see if this is relevant?"
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption_id": "ass_01",
+            "text": "Nimbus Health is prioritizing pipeline hygiene, handoff SLAs, and forecasting consistency in RevOps as of Jan 2026.",
+            "confidence": 0.72,
+            "based_on_fact_ids": [
+              "fact_07"
+            ]
+          },
+          {
+            "assumption_id": "ass_02",
+            "text": "VP Revenue Operations at Nimbus Health is likely focused on reducing process drift in outbound execution.",
+            "confidence": 0.65,
+            "based_on_fact_ids": [
+              "fact_02"
+            ]
+          }
+        ],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nimbus Health recently expanded RevOps ownership to improve pipeline hygiene and forecasting consistency, aligning with our messaging consistency analytics to reduce process drift in outbound execution (fact_07; fact_03; fact_02).",
+            "supported_by_fact_ids": [
+              "fact_07",
+              "fact_03",
+              "fact_02"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Handoff SLAs are a known RevOps pain point; our handoff health scoring helps ensure smoother transitions between teams, addressing this explicit objective (fact_07; fact_03).",
+            "supported_by_fact_ids": [
+              "fact_07",
+              "fact_03"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Our workflow QA platform provides Messaging consistency analytics that can quantify drift reduction in outbound execution for Nimbus Health (fact_01; fact_03; fact_04).",
+            "supported_by_fact_ids": [
+              "fact_01",
+              "fact_03",
+              "fact_04"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "pipeline hygiene accuracy",
+            "handoff SLA adherence",
+            "forecasting consistency",
+            "outbound win rate"
+          ],
+          "likely_initiatives": [
+            "align RevOps ownership with outbound ops",
+            "reduce process drift in outbound execution"
+          ],
+          "day_to_day": [
+            "monitor outbound sequences",
+            "validate handoffs between RevOps and sales",
+            "analyze messaging performance"
+          ],
+          "tools_stack": [
+            "CRM (Salesforce/HubSpot)",
+            "marketing automation",
+            "data/analytics tooling"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "facts_from_input.fact_02",
+            "facts_from_input.fact_03",
+            "facts_from_input.fact_07",
+            "facts_from_input.fact_04"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 8,
+          "assumption_count": 2,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Solid grounding from explicit facts; multiple hooks tied to RevOps priorities; compliant with do-not-say rules."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 1,
+            "selected_hook_id": "hook_02",
+            "pain": "Handoff SLAs are a known RevOps pain point that cause delays and misalignment between teams.",
+            "impact": "Missed revenue opportunities due to delays in quote-to-cash handoffs and forecasting inaccuracies; increased cycle time and team churn.",
+            "value": "Concrete improvement in handoff reliability and faster, more accurate outbound execution.",
+            "proof": "Handoff SLAs are a known RevOps pain point; our handoff health scoring helps ensure smoother transitions between teams, addressing this explicit objective (fact_07; fact_03).",
+            "supporting_fact_ids": [
+              "fact_07",
+              "fact_03"
+            ],
+            "why_now": "Nimbus Health expanded RevOps ownership in Jan 2026 to improve pipeline hygiene, handoff SLAs, and forecasting consistency, creating urgency to adopt tools that quantify and improve handoff quality (fact_07).",
+            "confidence": 0.86,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 2,
+            "selected_hook_id": "hook_01",
+            "pain": "Outbound messaging drift reduces pipeline hygiene and forecast accuracy.",
+            "impact": "Inaccurate forecast and wasted outbound touches; reduced win rate and extended sales cycle.",
+            "value": "Improved messaging consistency analytics to reduce drift and align outbound with RevOps goals.",
+            "proof": "Nimbus Health expanded RevOps ownership to improve pipeline hygiene and forecasting consistency, aligning with our messaging consistency analytics to reduce process drift in outbound execution (fact_07; fact_03; fact_02).",
+            "supporting_fact_ids": [
+              "fact_07",
+              "fact_03",
+              "fact_02"
+            ],
+            "why_now": "Company explicitly aims to improve pipeline hygiene and forecasting, providing a current driver for tools that quantify messaging drift (fact_07).",
+            "confidence": 0.82,
+            "risk_flags": [
+              "assumption_heavy"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 3,
+            "selected_hook_id": "hook_03",
+            "pain": "Lack of visibility into drift and handoff health across outbound workflows.",
+            "impact": "Operational friction and rework across RevOps and sales teams; longer cycle times.",
+            "value": "A quantified view of drift and handoff health to drive targeted improvements.",
+            "proof": "Our workflow QA platform provides Messaging consistency analytics that can quantify drift reduction in outbound execution for Nimbus Health (fact_01; fact_03; fact_04).",
+            "supporting_fact_ids": [
+              "fact_01",
+              "fact_03",
+              "fact_04"
+            ],
+            "why_now": "The need to quantify drift aligns with current RevOps expansion and focus on reliability (fact_07; fact_02).",
+            "confidence": 0.78,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "schema_validation_failed:version:required_missing; angles:required_missing"
+      }
+    }
+  ]
+}

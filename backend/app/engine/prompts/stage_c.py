@@ -4,41 +4,85 @@ import json
 from typing import Any
 
 
-def _slider_instructions(sliders: dict[str, Any]) -> list[str]:
+def _length_band(length: str) -> tuple[int, int]:
+    if length == "short":
+        return (40, 80)
+    if length == "long":
+        return (140, 220)
+    return (80, 140)
+
+
+def _slider_instructions(sliders: dict[str, Any]) -> dict[str, str]:
     tone = float(sliders.get("tone", 0.4))
     framing = float(sliders.get("framing", 0.5))
     stance = float(sliders.get("stance", 0.5))
     length = str(sliders.get("length", "medium"))
 
-    out: list[str] = []
     if tone < 0.3:
-        out.append("Use formal business language. No contractions.")
+        tone_instruction = "Formal business language. No contractions."
     elif tone > 0.7:
-        out.append("Write like a peer, not a salesperson. Contractions OK.")
+        tone_instruction = "Peer-to-peer style. Contractions allowed."
     else:
-        out.append("Use professional but conversational tone.")
+        tone_instruction = "Professional but conversational."
 
     if framing < 0.3:
-        out.append("Lead with the problem/pain the prospect likely faces.")
+        framing_instruction = "Lead with pain/friction."
     elif framing > 0.7:
-        out.append("Lead with the outcome/result the prospect could achieve.")
+        framing_instruction = "Lead with outcomes/results."
     else:
-        out.append("Balance current pain and practical outcomes.")
+        framing_instruction = "Balance pain and outcome."
 
     if stance < 0.3:
-        out.append("Be tentative. Suggest, do not over-assert.")
+        stance_instruction = "Suggestive and measured."
     elif stance > 0.7:
-        out.append("Be direct and confident. State your point of view clearly.")
+        stance_instruction = "Direct and confident."
     else:
-        out.append("Be confident but tactful.")
+        stance_instruction = "Grounded confidence."
 
-    if length == "short":
-        out.append("Keep body in 40-80 words.")
-    elif length == "long":
-        out.append("Keep body in 140-220 words.")
-    else:
-        out.append("Keep body in 80-140 words.")
-    return out
+    min_words, max_words = _length_band(length)
+    return {
+        "tone": tone_instruction,
+        "framing": framing_instruction,
+        "stance": stance_instruction,
+        "length": length,
+        "min_words": str(min_words),
+        "max_words": str(max_words),
+    }
+
+
+def _select_angle(angle_set: dict[str, Any], message_atoms: dict[str, Any]) -> dict[str, Any]:
+    selected_id = str(message_atoms.get("selected_angle_id") or "")
+    angles = list(angle_set.get("angles") or [])
+    if selected_id:
+        for angle in angles:
+            if str(angle.get("angle_id") or "") == selected_id:
+                return angle
+    return angles[0] if angles else {}
+
+
+def _global_banned_phrases() -> list[str]:
+    return [
+        "touch base",
+        "circle back",
+        "synergy",
+        "leverage",
+        "game-changer",
+        "revolutionary",
+        "i hope this email finds you",
+        "i hope this finds you",
+        "i wanted to reach out",
+        "just checking in",
+        "quick question",
+        "i came across your profile",
+        "i noticed you",
+        "saw your recent post",
+        "congrats on",
+        "i know you're busy",
+        "i'll keep this brief",
+        "does that make sense",
+        "let me know your thoughts",
+        "hope to hear from you",
+    ]
 
 
 def build_single_messages(
@@ -51,46 +95,63 @@ def build_single_messages(
     sliders: dict[str, Any],
     cta_final_line: str,
 ) -> list[dict[str, str]]:
-    instructions = _slider_instructions(sliders)
-    banned = [
-        "touch base",
-        "circle back",
-        "synergy",
-        "leverage",
-        "game-changer",
-        "revolutionary",
-        "I hope this email finds you",
-        "I wanted to reach out",
-        "just checking in",
+    selected_angle = _select_angle(angle_set, message_atoms)
+    slider_rules = _slider_instructions(sliders)
+    banned = _global_banned_phrases() + [
+        str(item).strip().lower() for item in (preset.get("banned_phrases_additions") or []) if str(item).strip()
     ]
+
+    system = (
+        "You are a Senior SDR writing one outbound email from a fully constrained brief. "
+        "Research is complete, angle is chosen, atoms are compressed. Execute; do not brainstorm.\\n\\n"
+        "RULE 1 - ATOMS ARE THE CEILING.\\n"
+        "Do not introduce claims/facts/proof beyond message_atoms + grounded brief support.\\n\\n"
+        "RULE 2 - SUBJECT QUALITY.\\n"
+        "Subject must be specific, <70 chars, tied to angle entry point, no deception.\\n\\n"
+        "RULE 3 - SINGLE ARC.\\n"
+        "Body arc is opener -> value -> proof(if available) -> locked CTA.\\n\\n"
+        "RULE 4 - LOCKED CTA.\\n"
+        f"Final body line must exactly match: {cta_final_line}\\n\\n"
+        "RULE 5 - STYLE IS SECONDARY TO GROUNDING.\\n"
+        "Apply preset style without adding ungrounded content.\\n\\n"
+        "RULE 6 - BANNED PHRASES ARE ABSOLUTE.\\n"
+        "If phrase is banned, do not use it.\\n\\n"
+        "Active settings: "
+        f"tone={slider_rules['tone']} framing={slider_rules['framing']} stance={slider_rules['stance']} "
+        f"body_words={slider_rules['min_words']}-{slider_rules['max_words']}.\\n\\n"
+        "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
+    )
+
+    user_payload = {
+        "locking": {"cta_final_line": cta_final_line},
+        "message_atoms": message_atoms,
+        "selected_angle": selected_angle,
+        "messaging_brief": messaging_brief,
+        "fit_map": fit_map,
+        "preset": preset,
+        "slider_rules": slider_rules,
+        "banned_phrases": sorted(list(dict.fromkeys(banned))),
+    }
+
+    user = (
+        "Write one cold outbound email.\\n"
+        "INSTRUCTIONS:\\n"
+        "1) Subject under 70 chars; specific to selected angle and prospect context.\\n"
+        "2) Use atom-driven structure; one argument only.\\n"
+        "3) The value_line atom must appear as a distinct sentence in the body. It may not be merged into opener/proof.\\n"
+        "4) If proof_line is empty, skip proof sentence entirely.\\n"
+        "5) End body with exact locked CTA and no text after CTA.\\n"
+        "6) Keep body within configured word band.\\n"
+        "7) No banned phrases and no ungrounded personalization claims.\\n"
+        "8) Preserve selected_angle_id and used_hook_ids alignment with message_atoms.\\n"
+        "9) Self-audit before output for schema, grounding, CTA lock, and length.\\n\\n"
+        f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
+        "Output complete EmailDraft JSON only."
+    )
+
     return [
-        {
-            "role": "system",
-            "content": (
-                "Write a cold outbound email using the atoms and angle provided. "
-                "Apply the style rules from the preset. Do NOT add facts not in the brief. "
-                "Do NOT use phrases in do_not_say or banned phrases lists. "
-                "Subject must be under 70 characters. "
-                f"Body must end with this exact CTA line: '{cta_final_line}'. "
-                "Output strict JSON. No preamble. Output JSON only, no commentary."
-            ),
-        },
-        {
-            "role": "user",
-            "content": json.dumps(
-                {
-                    "messaging_brief": messaging_brief,
-                    "fit_map": fit_map,
-                    "angle_set": angle_set,
-                    "message_atoms": message_atoms,
-                    "preset": preset,
-                    "slider_instructions": instructions,
-                    "banned_phrases": banned,
-                    "cta_final_line": cta_final_line,
-                },
-                ensure_ascii=True,
-            ),
-        },
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
     ]
 
 
@@ -104,30 +165,53 @@ def build_batch_messages(
     sliders: dict[str, Any],
     cta_final_line: str,
 ) -> list[dict[str, str]]:
-    instructions = _slider_instructions(sliders)
+    selected_angle = _select_angle(angle_set, message_atoms)
+    slider_rules = _slider_instructions(sliders)
+
+    system = (
+        "You are generating a preset library from one fixed campaign narrative. "
+        "Produce one variant per preset.\\n\\n"
+        "RULE 1 - SAME ARGUMENT, DIFFERENT STYLE.\\n"
+        "All variants must share the same core argument and atoms.\\n\\n"
+        "RULE 2 - ATOMS ARE THE CEILING FOR ALL VARIANTS.\\n"
+        "No variant can introduce external claims/facts/proof.\\n\\n"
+        "RULE 3 - VARIANTS MUST BE DISTINCT.\\n"
+        "Distinct structure/rhythm/voice by preset; avoid synonym-only rewrites.\\n\\n"
+        "RULE 4 - ISOLATED FAILURE.\\n"
+        "If one preset cannot be produced, return an error for that preset only.\\n\\n"
+        "RULE 5 - LOCKED CTA FOR EVERY VARIANT.\\n"
+        f"Every body must end exactly with: {cta_final_line}\\n\\n"
+        "RULE 6 - BANNED PHRASES APPLY GLOBALLY + PER PRESET.\\n"
+        "RULE 7 - SUBJECTS MUST BE DISTINCT AND <70 chars.\\n\\n"
+        "Output strict JSON only. No markdown. No commentary. Match BatchVariants schema exactly."
+    )
+
+    user_payload = {
+        "locking": {"cta_final_line": cta_final_line},
+        "message_atoms": message_atoms,
+        "selected_angle": selected_angle,
+        "messaging_brief": messaging_brief,
+        "fit_map": fit_map,
+        "presets": presets,
+        "slider_rules": slider_rules,
+        "global_banned_phrases": _global_banned_phrases(),
+    }
+
+    user = (
+        "Generate one email variant per preset_id provided.\\n"
+        "INSTRUCTIONS:\\n"
+        "1) Return all requested presets in output.\\n"
+        "2) Keep each body in configured word band.\\n"
+        "3) Keep CTA locked as final line in every successful variant.\\n"
+        "4) Use same core narrative across variants; style differs by preset only.\\n"
+        "5) If a variant cannot be generated, emit preset-scoped error object and continue.\\n"
+        "6) Cross-variant audit: no duplicate subject lines or opening sentences.\\n"
+        "7) No banned phrases or ungrounded claims.\\n\\n"
+        f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
+        "Output complete BatchVariants JSON only."
+    )
+
     return [
-        {
-            "role": "system",
-            "content": (
-                "Generate one email variant per preset in the variants array. "
-                "Each variant is independently styled. Use the SAME angle and atoms for all variants. "
-                "If you cannot generate a valid email for a preset, return an error object for that preset only. "
-                "Do not omit any preset. Output strict JSON. No preamble. Output JSON only, no commentary."
-            ),
-        },
-        {
-            "role": "user",
-            "content": json.dumps(
-                {
-                    "messaging_brief": messaging_brief,
-                    "fit_map": fit_map,
-                    "angle_set": angle_set,
-                    "message_atoms": message_atoms,
-                    "presets": presets,
-                    "slider_instructions": instructions,
-                    "cta_final_line": cta_final_line,
-                },
-                ensure_ascii=True,
-            ),
-        },
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
     ]

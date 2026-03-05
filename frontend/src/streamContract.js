@@ -88,13 +88,31 @@ export function applyStreamEvent(state, msg) {
       state.activeDraftId = draftId;
     }
     state.doneData = msg.data || null;
+    const variants = Array.isArray(msg?.data?.variants) ? msg.data.variants : [];
+    const firstSuccessVariant = variants.find(
+      (item) =>
+        typeof item?.subject === 'string' &&
+        item.subject.trim() &&
+        typeof item?.body === 'string' &&
+        item.body.trim()
+    );
+    const finalSubject =
+      typeof msg?.data?.subject === 'string'
+        ? msg.data.subject
+        : typeof msg?.data?.final?.subject === 'string'
+        ? msg.data.final.subject
+        : typeof firstSuccessVariant?.subject === 'string'
+        ? firstSuccessVariant.subject
+        : null;
     const finalBody =
       typeof msg?.data?.body === 'string'
         ? msg.data.body
         : typeof msg?.data?.final?.body === 'string'
         ? msg.data.final.body
+        : typeof firstSuccessVariant?.body === 'string'
+        ? firstSuccessVariant.body
         : null;
-    return { accepted: true, done: true, finalBody, doneData: state.doneData };
+    return { accepted: true, done: true, finalBody, finalSubject, doneData: state.doneData };
   }
 
   if (msg.event === 'error') {
