@@ -485,7 +485,11 @@ class AIOrchestrator:
                 response_format=RF_MESSAGING_BRIEF,
             ),
             messages=stage_a.build_messages(stage_a_input),
-            validator=lambda payload: validate_messaging_brief(payload, source_text=ctx.research_text),
+            validator=lambda payload: validate_messaging_brief(
+                payload,
+                source_text=ctx.research_text,
+                source_payload=stage_a_input,
+            ),
         )
 
         fit_map = await self._run_stage(

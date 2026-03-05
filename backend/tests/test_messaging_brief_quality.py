@@ -59,14 +59,70 @@ def _base_brief(*, signal_strength: str) -> dict:
     }
 
 
+def _source_payload() -> dict:
+    return {
+        "user_company": {
+            "product_summary": "Workflow QA Platform",
+            "icp_description": "RevOps teams reduce process drift in outbound execution.",
+            "differentiators": ["Messaging consistency analytics"],
+            "proof_points": ["Handoff health scoring"],
+            "do_not_say": [],
+            "company_notes": "Supports GTM teams with repeatable messaging workflows.",
+        },
+        "prospect": {
+            "name": "Jordan Lee",
+            "title": "VP Revenue Operations",
+            "company": "Nimbus Health",
+            "industry": "",
+            "notes": "",
+            "research_text": "Nimbus Health expanded RevOps ownership in January 2026.",
+        },
+        "cta": {
+            "cta_type": "question",
+            "cta_final_line": "Open to a quick chat to see if this is relevant?",
+        },
+    }
+
+
 def test_validate_messaging_brief_accepts_low_signal_for_thin_input() -> None:
     brief = _base_brief(signal_strength="low")
-    validate_messaging_brief(brief, source_text="")
+    validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
 
 
 def test_validate_messaging_brief_rejects_incorrect_signal_strength() -> None:
     brief = _base_brief(signal_strength="medium")
     with pytest.raises(ValidationIssue) as exc_info:
-        validate_messaging_brief(brief, source_text="")
+        validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
 
     assert "brief_quality_signal_strength_mismatch" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_unknown_fact_source_field() -> None:
+    brief = _base_brief(signal_strength="low")
+    brief["facts_from_input"][0]["source_field"] = "customer_feedback"
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+
+    assert "fact_source_field_not_allowed" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_fact_not_grounded_in_input() -> None:
+    brief = _base_brief(signal_strength="low")
+    brief["facts_from_input"][0]["text"] = "Customers report difficulty tracking order status."
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+
+    assert "fact_not_grounded_in_input" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_has_research_mismatch() -> None:
+    brief = _base_brief(signal_strength="low")
+    brief["brief_quality"]["has_research"] = False
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(
+            brief,
+            source_text="Nimbus Health expanded RevOps ownership in January 2026.",
+            source_payload=_source_payload(),
+        )
+
+    assert "brief_quality_has_research_mismatch" in exc_info.value.codes

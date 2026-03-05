@@ -24,6 +24,60 @@ UNGROUNDED_PERSONALIZATION_MARKERS = [
     "just came across",
 ]
 
+ALLOWED_STAGE_A_SOURCE_FIELDS = {
+    "name",
+    "title",
+    "company",
+    "industry",
+    "notes",
+    "prospect_notes",
+    "prospect_context",
+    "research_text",
+    "research",
+    "product_summary",
+    "icp_description",
+    "ideal_customer_profile",
+    "ipo",
+    "differentiators",
+    "proof_points",
+    "do_not_say",
+    "company_notes",
+    "cta_type",
+    "cta_final_line",
+    "cta",
+    "lockbox_cta",
+}
+
+GROUNDING_STOPWORDS = {
+    "about",
+    "after",
+    "also",
+    "and",
+    "are",
+    "because",
+    "been",
+    "before",
+    "being",
+    "between",
+    "both",
+    "could",
+    "from",
+    "have",
+    "into",
+    "more",
+    "most",
+    "that",
+    "their",
+    "there",
+    "these",
+    "they",
+    "this",
+    "those",
+    "through",
+    "with",
+    "would",
+}
+
 
 class ValidationIssue(ValueError):
     def __init__(self, codes: list[str], message: str = "validation_failed"):
@@ -36,7 +90,33 @@ def _codes_or_raise(codes: list[str]) -> None:
         raise ValidationIssue(codes)
 
 
-def validate_messaging_brief(brief: dict[str, Any], *, source_text: str = "") -> None:
+def _flatten_input_text(value: Any) -> list[str]:
+    out: list[str] = []
+    if isinstance(value, dict):
+        for item in value.values():
+            out.extend(_flatten_input_text(item))
+        return out
+    if isinstance(value, list):
+        for item in value:
+            out.extend(_flatten_input_text(item))
+        return out
+    text = str(value or "").strip()
+    if text:
+        out.append(text)
+    return out
+
+
+def _grounding_tokens(text: str) -> set[str]:
+    tokens = re.findall(r"[a-z0-9']+", str(text or "").lower())
+    return {token for token in tokens if len(token) >= 4 and token not in GROUNDING_STOPWORDS}
+
+
+def validate_messaging_brief(
+    brief: dict[str, Any],
+    *,
+    source_text: str = "",
+    source_payload: dict[str, Any] | None = None,
+) -> None:
     codes: list[str] = []
     facts = list(brief.get("facts_from_input") or [])
     assumptions = list(brief.get("assumptions") or [])
@@ -62,15 +142,37 @@ def validate_messaging_brief(brief: dict[str, Any], *, source_text: str = "") ->
             codes.append("fact_contains_ungrounded_behavior_claim")
             break
 
+    if source_payload:
+        source_tokens: set[str] = set()
+        for fragment in _flatten_input_text(source_payload):
+            source_tokens.update(_grounding_tokens(fragment))
+
+        for fact in facts:
+            source_field = str(fact.get("source_field") or "").strip().lower()
+            if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
+                codes.append("fact_source_field_not_allowed")
+                break
+
+        if source_tokens:
+            for fact in facts:
+                tokens = _grounding_tokens(str(fact.get("text") or ""))
+                if tokens and tokens.isdisjoint(source_tokens):
+                    codes.append("fact_not_grounded_in_input")
+                    break
+
     if not brief_quality:
         codes.append("brief_missing_brief_quality")
     else:
         fact_count = int(brief_quality.get("fact_count") or 0)
         signal_strength = str(brief_quality.get("signal_strength") or "").strip().lower()
         confidence_ceiling = float(brief_quality.get("confidence_ceiling") or 0.0)
+        has_research = bool(brief_quality.get("has_research"))
 
         if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
             codes.append("brief_quality_confidence_ceiling_out_of_range")
+
+        if bool(str(source_text or "").strip()) != has_research:
+            codes.append("brief_quality_has_research_mismatch")
 
         is_thin_input = not bool(str(source_text or "").strip()) and fact_count < 3
         if is_thin_input and signal_strength != "low":

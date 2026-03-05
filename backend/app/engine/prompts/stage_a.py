@@ -78,6 +78,17 @@ STEP 1 - FACT EXTRACTION
 - Record exact source_field (research_text, prospect_notes, proof_points, etc).
 - If info is not explicit in input, it is not a fact.
 
+CONTAINMENT CHECK (run this before finalizing facts_from_input):
+- For each fact ask: "If I removed every input field and only had this fact, could I identify which specific input field it came from?"
+- If the answer is no, remove the fact as ungrounded.
+- Do not include facts about how companies in this industry typically operate.
+- Do not include competitor facts unless competitors are explicitly named in input fields.
+- Do not include market trends, industry benchmarks, or sector norms unless explicitly stated in input fields.
+- If research_text is sparse or empty, facts_from_input about the prospect should be few.
+- Do not compensate for sparse input by importing training knowledge.
+- In sparse-input conditions, set signal_strength honestly (often low).
+- A brief with three grounded facts is better than ten facts with hallucinated content.
+
 STEP 2 - CONSTRAINT MAPPING
 - Determine which proof points are most relevant to this prospect.
 - Add any context-specific phrases to do_not_say when warranted.

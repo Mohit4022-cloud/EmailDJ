@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.engine.prompts import stage_c, stage_c0
+from app.engine.prompts import stage_a, stage_c, stage_c0
 
 
 def _messaging_brief() -> dict:
@@ -60,6 +60,37 @@ def test_stage_c0_prompt_contains_value_formula_and_external_proof_rule() -> Non
     assert "[Persona's team] [specific verb: cut/reduced/protected/freed]" in user_prompt
     assert "If no brief proof point supports this formula, set proof_line to empty string \"\"." in user_prompt
     assert "never use the prospect's own facts as proof" in user_prompt
+
+
+def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
+    messages = stage_a.build_messages(
+        {
+            "user_company": {
+                "product_summary": "Workflow QA Platform",
+                "icp_description": "RevOps teams",
+                "differentiators": [],
+                "proof_points": [],
+                "do_not_say": [],
+                "company_notes": "",
+            },
+            "prospect": {
+                "name": "Jordan Lee",
+                "title": "VP Revenue Operations",
+                "company": "Nimbus Health",
+                "industry": "",
+                "notes": "",
+                "research_text": "Nimbus Health expanded RevOps ownership in January 2026.",
+            },
+            "cta": {
+                "cta_type": "question",
+                "cta_final_line": "Open to a quick chat to see if this is relevant?",
+            },
+        }
+    )
+    user_prompt = messages[1]["content"]
+    assert "CONTAINMENT CHECK" in user_prompt
+    assert "could I identify which specific input field it came from?" in user_prompt
+    assert "Do not compensate for sparse input by importing training knowledge." in user_prompt
 
 
 def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:
