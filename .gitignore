@@ -19,6 +19,11 @@ dist/
 # Logs
 *.log
 
+# Eval outputs
+backend/evals/reports/*
+!backend/evals/reports/.gitkeep
+backend/debug_traces/evals/
+
 # IDE
 .vscode/
 .idea/

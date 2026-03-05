@@ -238,6 +238,8 @@ async def run_stage(
     last_raw = ""
     last_error = ""
     first_error = ""
+    first_validation_codes: list[str] = []
+    first_validation_details: list[dict[str, Any]] = []
 
     async def _call(request_messages: list[dict[str, str]]) -> tuple[str, dict[str, Any]]:
         response = await openai.chat_completion(
@@ -266,16 +268,31 @@ async def run_stage(
             return StageRunResult(payload=payload, attempts=attempts, usage=usage)
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
+            validation_codes = list(getattr(exc, "codes", []) or [])
+            validation_details = list(getattr(exc, "details", []) or [])
             if not is_repair:
                 first_error = last_error
+                if validation_codes:
+                    first_validation_codes = validation_codes
+                if validation_details:
+                    first_validation_details = validation_details
                 if not last_raw:
                     last_raw = str(exc)
                 continue
+            error_details: dict[str, Any] = {"error": str(exc), "first_error": first_error}
+            if first_validation_codes:
+                error_details["codes"] = first_validation_codes
+            if first_validation_details:
+                error_details["rejected_facts"] = first_validation_details
+            if validation_codes and validation_codes != first_validation_codes:
+                error_details["repair_codes"] = validation_codes
+            if validation_details and validation_details != first_validation_details:
+                error_details["repair_rejected_facts"] = validation_details
             raise StageError(
                 stage=config.stage,
                 code="STAGE_JSON_OR_VALIDATION_FAILED",
                 message=f"{config.stage} failed after repair attempt",
-                details={"error": str(exc), "first_error": first_error},
+                details=error_details,
             ) from exc
 
     raise StageError(

@@ -29,23 +29,22 @@ ALLOWED_STAGE_A_SOURCE_FIELDS = {
     "title",
     "company",
     "industry",
-    "notes",
     "prospect_notes",
-    "prospect_context",
     "research_text",
-    "research",
     "product_summary",
     "icp_description",
-    "ideal_customer_profile",
-    "ipo",
     "differentiators",
     "proof_points",
     "do_not_say",
     "company_notes",
     "cta_type",
     "cta_final_line",
-    "cta",
-    "lockbox_cta",
+}
+
+PLACEHOLDER_FACT_TEXTS = {
+    "",
+    "none provided.",
+    "unknown",
 }
 
 GROUNDING_STOPWORDS = {
@@ -80,14 +79,21 @@ GROUNDING_STOPWORDS = {
 
 
 class ValidationIssue(ValueError):
-    def __init__(self, codes: list[str], message: str = "validation_failed"):
+    def __init__(
+        self,
+        codes: list[str],
+        message: str = "validation_failed",
+        *,
+        details: list[dict[str, Any]] | None = None,
+    ):
         super().__init__(message)
         self.codes = list(codes)
+        self.details = list(details or [])
 
 
-def _codes_or_raise(codes: list[str]) -> None:
+def _codes_or_raise(codes: list[str], details: list[dict[str, Any]] | None = None) -> None:
     if codes:
-        raise ValidationIssue(codes)
+        raise ValidationIssue(codes, details=details)
 
 
 def _flatten_input_text(value: Any) -> list[str]:
@@ -142,22 +148,64 @@ def validate_messaging_brief(
             codes.append("fact_contains_ungrounded_behavior_claim")
             break
 
+    details: list[dict[str, Any]] = []
+
     if source_payload:
         source_tokens: set[str] = set()
         for fragment in _flatten_input_text(source_payload):
             source_tokens.update(_grounding_tokens(fragment))
 
         for fact in facts:
+            fact_text = str(fact.get("text") or "").strip()
             source_field = str(fact.get("source_field") or "").strip().lower()
+
+            # Placeholder text is never a valid grounded fact.
+            if fact_text.lower() in PLACEHOLDER_FACT_TEXTS:
+                codes.append("fact_placeholder_text")
+                details.append(
+                    {
+                        "code": "fact_placeholder_text",
+                        "rejected_fact": {
+                            "fact_id": str(fact.get("fact_id") or ""),
+                            "source_field": source_field,
+                            "text_preview": fact_text[:80],
+                        },
+                    }
+                )
+                break
+
             if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
                 codes.append("fact_source_field_not_allowed")
+                details.append(
+                    {
+                        "code": "fact_source_field_not_allowed",
+                        "rejected_fact": {
+                            "fact_id": str(fact.get("fact_id") or ""),
+                            "source_field": source_field,
+                            "text_preview": fact_text[:80],
+                        },
+                    }
+                )
                 break
 
         if source_tokens:
             for fact in facts:
-                tokens = _grounding_tokens(str(fact.get("text") or ""))
+                fact_text = str(fact.get("text") or "").strip()
+                if fact_text.lower() in PLACEHOLDER_FACT_TEXTS:
+                    continue
+                tokens = _grounding_tokens(fact_text)
                 if tokens and tokens.isdisjoint(source_tokens):
                     codes.append("fact_not_grounded_in_input")
+                    details.append(
+                        {
+                            "code": "fact_not_grounded_in_input",
+                            "rejected_fact": {
+                                "fact_id": str(fact.get("fact_id") or ""),
+                                "source_field": str(fact.get("source_field") or "").strip().lower(),
+                                "text_preview": fact_text[:80],
+                            },
+                        }
+                    )
                     break
 
     if not brief_quality:
@@ -178,7 +226,7 @@ def validate_messaging_brief(
         if is_thin_input and signal_strength != "low":
             codes.append("brief_quality_signal_strength_mismatch")
 
-    _codes_or_raise(codes)
+    _codes_or_raise(codes, details=details)
 
 
 def validate_fit_map(fit_map: dict[str, Any], messaging_brief: dict[str, Any]) -> None:

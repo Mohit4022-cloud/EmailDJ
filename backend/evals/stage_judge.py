@@ -1,0 +1,871 @@
+from __future__ import annotations
+
+import json
+import re
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+_BACKEND_ROOT = Path(__file__).resolve().parents[1]
+if str(_BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(_BACKEND_ROOT))
+
+from app.engine.schemas import JUDGE_RESULT_SCHEMA, RF_JUDGE_RESULT
+from app.engine.stage_runner import _extract_message_text, _parse_message_content, _validate_schema
+from app.openai_client import ENFORCED_OPENAI_MODEL, OpenAIClient
+
+
+STAGE_NAME_MAP = {
+    "a": "CONTEXT_SYNTHESIS",
+    "b": "FIT_REASONING",
+    "b0": "ANGLE_PICKER",
+    "c0": "ONE_LINER_COMPRESSOR",
+    "c": "EMAIL_GENERATION",
+    "d": "EMAIL_QA",
+    "e": "EMAIL_REWRITE",
+}
+
+CRITERIA_BY_STAGE: dict[str, list[str]] = {
+    "CONTEXT_SYNTHESIS": [
+        "containment_clean",
+        "assumptions_labeled",
+        "hooks_grounded",
+        "confidence_calibrated",
+        "signal_strength_honest",
+        "no_prospect_as_proof",
+    ],
+    "FIT_REASONING": [
+        "hypotheses_grounded",
+        "hook_ids_valid",
+        "proof_specific",
+        "why_now_honest",
+        "ranking_justified",
+    ],
+    "ANGLE_PICKER": [
+        "angles_distinct",
+        "hook_ids_valid",
+        "hypothesis_ids_valid",
+        "why_you_why_now_earned",
+        "risk_flags_inherited",
+        "cta_bridge_natural",
+    ],
+    "ONE_LINER_COMPRESSOR": [
+        "opener_specific",
+        "opener_simple",
+        "value_outcome_not_mechanism",
+        "proof_not_circular",
+        "cta_locked",
+        "hook_ids_valid",
+    ],
+    "EMAIL_GENERATION": [
+        "subject_specific",
+        "subject_length",
+        "no_atoms_violation",
+        "value_visible",
+        "proof_respected",
+        "cta_exact",
+        "no_banned_phrases",
+        "no_double_cta",
+    ],
+    "EMAIL_QA": [
+        "evidence_quoted",
+        "fix_instructions_surgical",
+        "severity_calibrated",
+        "rewrite_plan_actionable",
+    ],
+    "EMAIL_REWRITE": [
+        "high_issues_resolved",
+        "no_new_content",
+        "untouched_sentences_preserved",
+        "cta_exact",
+        "metadata_preserved",
+    ],
+}
+
+PASS_THRESHOLD_BY_STAGE = {
+    "CONTEXT_SYNTHESIS": 5,
+    "FIT_REASONING": 4,
+    "ANGLE_PICKER": 5,
+    "ONE_LINER_COMPRESSOR": 5,
+    "EMAIL_GENERATION": 6,
+    "EMAIL_QA": 3,
+    "EMAIL_REWRITE": 4,
+}
+
+HARD_FAIL_BY_STAGE = {
+    "CONTEXT_SYNTHESIS": set(),
+    "FIT_REASONING": set(),
+    "ANGLE_PICKER": set(),
+    "ONE_LINER_COMPRESSOR": {"value_outcome_not_mechanism", "proof_not_circular"},
+    "EMAIL_GENERATION": {"cta_exact", "no_banned_phrases"},
+    "EMAIL_QA": {"fix_instructions_surgical"},
+    "EMAIL_REWRITE": {"cta_exact"},
+}
+
+BANNED_PHRASES = [
+    "touch base",
+    "circle back",
+    "synergy",
+    "leverage",
+    "game-changer",
+    "revolutionary",
+    "i hope this email finds you",
+    "i hope this finds you",
+    "i wanted to reach out",
+    "just checking in",
+    "quick question",
+    "i came across your profile",
+    "i know you're busy",
+    "i'll keep this brief",
+    "does that make sense",
+    "let me know your thoughts",
+    "hope to hear from you",
+]
+
+
+def _as_list_of_strings(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for item in value:
+        text = str(item or "").strip()
+        if text:
+            out.append(text)
+    return out
+
+
+def _append_unique(items: list[str], value: str) -> None:
+    text = str(value or "").strip()
+    if text and text not in items:
+        items.append(text)
+
+
+def _default_result(stage: str, *, failure: str | None = None) -> dict[str, Any]:
+    criteria = CRITERIA_BY_STAGE[stage]
+    failures = [failure] if failure else []
+    return {
+        "stage": stage,
+        "scores": {criterion: 0 for criterion in criteria},
+        "total": 0,
+        "pass": False,
+        "hard_fail_triggered": False,
+        "hard_fail_criteria": [],
+        "failures": failures,
+        "warnings": [],
+    }
+
+
+def missing_artifact_result(stage: str, artifact_name: str) -> dict[str, Any]:
+    return _default_result(stage, failure=f"artifact missing: {artifact_name}")
+
+
+def _finalize_result(stage: str, payload: dict[str, Any]) -> dict[str, Any]:
+    criteria = CRITERIA_BY_STAGE[stage]
+    pass_threshold = PASS_THRESHOLD_BY_STAGE[stage]
+    hard_fail_criteria = HARD_FAIL_BY_STAGE[stage]
+
+    raw_scores = payload.get("scores") if isinstance(payload.get("scores"), dict) else {}
+    scores = {criterion: int(raw_scores.get(criterion) == 1) for criterion in criteria}
+
+    failures = _as_list_of_strings(payload.get("failures"))
+    warnings = _as_list_of_strings(payload.get("warnings"))
+
+    total = sum(scores.values())
+    reported_total = payload.get("total")
+    if isinstance(reported_total, int) and reported_total != total:
+        _append_unique(warnings, f"normalized_total_from_{reported_total}_to_{total}")
+
+    hard_failed = sorted([criterion for criterion in hard_fail_criteria if scores.get(criterion) == 0])
+    hard_fail_triggered = bool(hard_failed)
+
+    overall_pass = total >= pass_threshold and not hard_fail_triggered
+    if bool(payload.get("pass")) != overall_pass:
+        _append_unique(warnings, "normalized_pass_after_score_recompute")
+
+    return {
+        "stage": stage,
+        "scores": scores,
+        "total": total,
+        "pass": overall_pass,
+        "hard_fail_triggered": hard_fail_triggered,
+        "hard_fail_criteria": hard_failed,
+        "failures": failures,
+        "warnings": warnings,
+    }
+
+
+def _apply_failures(result: dict[str, Any], *, forced_failures: list[tuple[str, str]]) -> dict[str, Any]:
+    for criterion, failure_text in forced_failures:
+        scores = result.get("scores") if isinstance(result.get("scores"), dict) else {}
+        if criterion in scores:
+            scores[criterion] = 0
+            _append_unique(result["failures"], failure_text)
+    return _finalize_result(str(result.get("stage") or ""), result)
+
+
+def _write_judge_trace(
+    *,
+    run_id: str | None,
+    payload_id: str | None,
+    stage: str,
+    request_artifacts: dict[str, Any],
+    messages: list[dict[str, str]],
+    response_payload: dict[str, Any] | None,
+    response_raw: dict[str, Any] | None,
+    result: dict[str, Any],
+    error: str | None,
+    elapsed_ms: int,
+) -> None:
+    if not run_id:
+        return
+    root = _BACKEND_ROOT / "debug_traces" / "evals" / str(run_id)
+    root.mkdir(parents=True, exist_ok=True)
+    safe_payload_id = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(payload_id or "unknown_payload"))
+    filename = f"{safe_payload_id}_{stage}.json"
+    payload = {
+        "run_id": run_id,
+        "payload_id": payload_id,
+        "stage": stage,
+        "elapsed_ms": elapsed_ms,
+        "request_artifacts": request_artifacts,
+        "messages": messages,
+        "response_payload": response_payload,
+        "response_raw": response_raw,
+        "result": result,
+        "error": error,
+    }
+    (root / filename).write_text(json.dumps(payload, indent=2, ensure_ascii=True), encoding="utf-8")
+
+
+async def _call_judge_llm(*, openai: OpenAIClient, messages: list[dict[str, str]], timeout_seconds: float = 45.0) -> tuple[dict[str, Any], dict[str, Any]]:
+    response = await openai.chat_completion(
+        model=ENFORCED_OPENAI_MODEL,
+        messages=messages,
+        reasoning_effort="minimal",
+        max_completion_tokens=1000,
+        response_format=RF_JUDGE_RESULT,
+        timeout_seconds=timeout_seconds,
+        temperature=0.1,
+    )
+    text = _extract_message_text(dict(response.get("message") or {}))
+    payload = _parse_message_content(text)
+    _validate_schema(payload, {"json_schema": {"schema": JUDGE_RESULT_SCHEMA}})
+    return payload, response
+
+
+def _judge_system_prompt() -> str:
+    return (
+        "You are an automated QA evaluator for a cold email generation pipeline. "
+        "You score outputs against explicit rubrics. You output only JSON. "
+        "You never explain scores in prose outside failures[] and warnings[]. "
+        "You are strict: partial credit does not exist. A criterion either passes (1) or fails (0)."
+    )
+
+
+def _judge_user_prompt(
+    *,
+    stage: str,
+    criteria: list[str],
+    rubric_text: str,
+    artifacts: dict[str, Any],
+    examples_text: str | None = None,
+) -> str:
+    schema_preview = {
+        "stage": stage,
+        "scores": {criterion: "0|1" for criterion in criteria},
+        "total": f"0-{len(criteria)}",
+        "pass": "boolean",
+        "hard_fail_triggered": "boolean",
+        "hard_fail_criteria": ["criterion_name"],
+        "failures": ["string"],
+        "warnings": ["string"],
+    }
+    parts = [
+        f"Stage: {stage}",
+        "Rubric (strict pass/fail per criterion):",
+        rubric_text,
+        "Artifacts JSON:",
+        json.dumps(artifacts, ensure_ascii=True, indent=2),
+    ]
+    if examples_text:
+        parts.extend(["Reasoning examples (pass/fail bar):", examples_text])
+    parts.extend(
+        [
+            "Output schema contract:",
+            json.dumps(schema_preview, ensure_ascii=True, indent=2),
+            "Return only valid JSON.",
+        ]
+    )
+    return "\n\n".join(parts)
+
+
+def _signal_strength_matches(brief: dict[str, Any]) -> bool:
+    quality = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
+    fact_count = int(quality.get("fact_count") or 0)
+    hook_count = int(quality.get("hook_count") or 0)
+    has_research = bool(quality.get("has_research"))
+    signal_strength = str(quality.get("signal_strength") or "").strip().lower()
+    if signal_strength == "high":
+        return fact_count >= 6 and has_research and hook_count >= 3
+    if signal_strength == "medium":
+        return fact_count >= 3 or has_research
+    if signal_strength == "low":
+        return fact_count < 3 and not has_research
+    return False
+
+
+def _check_bracket_placeholder(text: str) -> bool:
+    return bool(re.search(r"\[[^\]]+\]", str(text or "")))
+
+
+def _check_outcome_like(text: str) -> bool:
+    lowered = str(text or "").lower()
+    has_metric = bool(re.search(r"\b\d+[%xk]?\b", lowered))
+    has_time = any(token in lowered for token in ("week", "month", "quarter", "day", "within", "faster"))
+    outcome_words = (
+        "reduce",
+        "reduced",
+        "improve",
+        "improved",
+        "increase",
+        "increased",
+        "lift",
+        "lifted",
+        "fewer",
+        "less",
+        "more",
+        "higher",
+        "lower",
+        "cut",
+        "protect",
+        "stabilize",
+    )
+    has_outcome_verb = any(word in lowered for word in outcome_words)
+    mechanism_words = (
+        "scoring",
+        "tracking",
+        "platform",
+        "tool",
+        "system",
+        "workflow",
+        "qa",
+        "process",
+        "cadence",
+    )
+    has_mechanism = any(word in lowered for word in mechanism_words)
+    if has_mechanism and not (has_metric or has_time or has_outcome_verb):
+        return False
+    return has_metric or has_time or has_outcome_verb
+
+
+def _proof_looks_circular(proof_line: str, brief: dict[str, Any], angle: dict[str, Any] | None = None) -> bool:
+    proof = str(proof_line or "").strip().lower()
+    if not proof:
+        return False
+
+    prospect_company = ""
+    facts = brief.get("facts_from_input") if isinstance(brief.get("facts_from_input"), list) else []
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        source = str(fact.get("source_field") or "").lower()
+        text = str(fact.get("text") or "").strip().lower()
+        if source in {"prospect_context", "research", "research_text"} and text and text in proof:
+            return True
+        if "company:" in text:
+            prospect_company = text.split("company:", 1)[-1].strip()
+
+    if prospect_company and prospect_company in proof:
+        return True
+
+    if angle and isinstance(angle, dict):
+        angle_proof = str(angle.get("proof") or "").strip().lower()
+        if angle_proof and angle_proof == proof:
+            return True
+
+    return False
+
+
+def _extract_last_nonempty_line(body: str) -> str:
+    lines = [line.strip() for line in str(body or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def _count_questions(body: str) -> int:
+    return str(body or "").count("?")
+
+
+def _non_actionable_fix_instruction(text: str) -> bool:
+    lowered = str(text or "").strip().lower()
+    if not lowered:
+        return True
+    vague_only = [
+        "make it more specific",
+        "improve the opener",
+        "be more concrete",
+        "tighten this",
+        "make it better",
+    ]
+    if lowered in vague_only:
+        return True
+    if ("make it" in lowered or "improve" in lowered) and not any(
+        token in lowered for token in ("fact_id", "proof", "atom", "replace", "line", "sentence")
+    ):
+        return True
+    return False
+
+
+async def _run_stage_judge(
+    *,
+    stage: str,
+    artifacts: dict[str, Any],
+    rubric_text: str,
+    examples_text: str | None,
+    openai: OpenAIClient,
+    run_id: str | None,
+    payload_id: str | None,
+) -> dict[str, Any]:
+    criteria = CRITERIA_BY_STAGE[stage]
+    missing_keys = [key for key, value in artifacts.items() if value is None and key == "artifact"]
+    if missing_keys:
+        return missing_artifact_result(stage, missing_keys[0])
+
+    messages = [
+        {"role": "system", "content": _judge_system_prompt()},
+        {
+            "role": "user",
+            "content": _judge_user_prompt(
+                stage=stage,
+                criteria=criteria,
+                rubric_text=rubric_text,
+                artifacts=artifacts,
+                examples_text=examples_text,
+            ),
+        },
+    ]
+
+    started = time.perf_counter()
+    response_payload: dict[str, Any] | None = None
+    response_raw: dict[str, Any] | None = None
+    error_text: str | None = None
+    try:
+        response_payload, response_raw = await _call_judge_llm(openai=openai, messages=messages)
+        response_payload["stage"] = stage
+        result = _finalize_result(stage, response_payload)
+    except Exception as exc:  # noqa: BLE001
+        error_text = str(exc)
+        result = _default_result(stage, failure=f"judge_call_failed:{error_text}")
+
+    elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+    _write_judge_trace(
+        run_id=run_id,
+        payload_id=payload_id,
+        stage=stage,
+        request_artifacts=artifacts,
+        messages=messages,
+        response_payload=response_payload,
+        response_raw=response_raw,
+        result=result,
+        error=error_text,
+        elapsed_ms=elapsed_ms,
+    )
+    return result
+
+
+async def judge_messaging_brief(
+    brief: dict[str, Any] | None,
+    raw_inputs: dict[str, Any] | None,
+    *,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "CONTEXT_SYNTHESIS"
+    if not brief:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) containment_clean: facts must be traceable to explicit source fields.
+2) assumptions_labeled: uncertain language belongs in assumptions, not facts.
+3) hooks_grounded: every hook references valid fact ids.
+4) confidence_calibrated: assumptions > 0.75 must cite >=2 facts; none > 0.85.
+5) signal_strength_honest: low/medium/high must follow fact_count + has_research rules.
+6) no_prospect_as_proof: forbidden_claim_patterns includes at least saw your post / noticed you / congrats on.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={"artifact": brief, "raw_inputs": raw_inputs or {}},
+        rubric_text=rubric,
+        examples_text=None,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    if not _signal_strength_matches(brief):
+        forced.append(("signal_strength_honest", "signal_strength_honest failed deterministic quality rule"))
+
+    assumptions = brief.get("assumptions") if isinstance(brief.get("assumptions"), list) else []
+    if any(float((item or {}).get("confidence") or 0.0) > 0.85 for item in assumptions if isinstance(item, dict)):
+        forced.append(("confidence_calibrated", "assumption confidence exceeds 0.85"))
+
+    forbidden = [str(item or "").lower() for item in (brief.get("forbidden_claim_patterns") or [])]
+    for required in ("saw your post", "noticed you", "congrats on"):
+        if not any(required in item for item in forbidden):
+            forced.append(("no_prospect_as_proof", f"forbidden_claim_patterns missing '{required}'"))
+            break
+
+    return _apply_failures(result, forced_failures=forced)
+
+
+async def judge_fit_map(
+    fit_map: dict[str, Any] | None,
+    brief: dict[str, Any] | None,
+    *,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "FIT_REASONING"
+    if not fit_map:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) hypotheses_grounded: supporting_fact_ids map to brief facts.
+2) hook_ids_valid: selected_hook_id exists in brief hooks.
+3) proof_specific: proof is specific outcome/proof or explicit no-proof fallback.
+4) why_now_honest: urgency statements are source-backed or explicitly evergreen.
+5) ranking_justified: top-ranked hypothesis aligns with highest confidence unless override explained.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={"artifact": fit_map, "brief": brief or {}},
+        rubric_text=rubric,
+        examples_text=None,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    return result
+
+
+async def judge_angle_set(
+    angle_set: dict[str, Any] | None,
+    brief: dict[str, Any] | None,
+    fit_map: dict[str, Any] | None,
+    *,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "ANGLE_PICKER"
+    if not angle_set:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) angles_distinct: no duplicate angle_type or duplicate selected_hook_id.
+2) hook_ids_valid: all selected_hook_id values exist in brief hooks.
+3) hypothesis_ids_valid: all selected_fit_hypothesis_id values exist in fit map.
+4) why_you_why_now_earned: why_you_why_now only when timing signal is grounded.
+5) risk_flags_inherited: inherited hypothesis risk flags are preserved.
+6) cta_bridge_natural: CTA suggestion is a <=160 char question.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={"artifact": angle_set, "brief": brief or {}, "fit_map": fit_map or {}},
+        rubric_text=rubric,
+        examples_text=None,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    seen_types: set[str] = set()
+    seen_hooks: set[str] = set()
+    for angle in angle_set.get("angles") or []:
+        if not isinstance(angle, dict):
+            continue
+        angle_type = str(angle.get("angle_type") or "")
+        hook_id = str(angle.get("selected_hook_id") or "")
+        if angle_type and angle_type in seen_types:
+            forced.append(("angles_distinct", f"duplicate angle_type '{angle_type}'"))
+        if hook_id and hook_id in seen_hooks:
+            forced.append(("angles_distinct", f"duplicate selected_hook_id '{hook_id}'"))
+        seen_types.add(angle_type)
+        seen_hooks.add(hook_id)
+        cta = str(angle.get("cta_question_suggestion") or "").strip()
+        if cta and (not cta.endswith("?") or len(cta) > 160):
+            forced.append(("cta_bridge_natural", "cta_question_suggestion must be <=160 chars and end with ?"))
+
+    return _apply_failures(result, forced_failures=forced)
+
+
+async def judge_message_atoms(
+    atoms: dict[str, Any] | None,
+    brief: dict[str, Any] | None,
+    angle: dict[str, Any] | None,
+    *,
+    locked_cta: str,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "ONE_LINER_COMPRESSOR"
+    if not atoms:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) opener_specific: opener must be specific to this prospect/company context.
+2) opener_simple: opener has <=1 comma and avoids stacked conjunctions.
+3) value_outcome_not_mechanism: value line states outcome, not mechanism or imperative.
+4) proof_not_circular: proof cannot restate prospect facts; empty proof is allowed.
+5) cta_locked: cta line must match locked CTA character-for-character.
+6) hook_ids_valid: used_hook_ids are valid brief hook ids.
+""".strip()
+
+    examples = """
+PASS value_outcome_not_mechanism: "RevOps teams cut handoff delays by 18% in one quarter."
+FAIL value_outcome_not_mechanism: "Use our workflow QA platform for scoring and tracking."
+PASS proof_not_circular: "A fintech customer lifted meetings 22% after QA rollout."
+FAIL proof_not_circular: proof repeats the prospect's own research facts as seller proof.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={"artifact": atoms, "brief": brief or {}, "angle": angle or {}, "locked_cta": locked_cta},
+        rubric_text=rubric,
+        examples_text=examples,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    opener_line = str(atoms.get("opener_line") or "")
+    value_line = str(atoms.get("value_line") or "")
+    proof_line = str(atoms.get("proof_line") or "")
+    cta_line = str(atoms.get("cta_line") or "")
+
+    if _check_bracket_placeholder(opener_line) or _check_bracket_placeholder(value_line):
+        forced.append(("value_outcome_not_mechanism", "placeholder bracket token leaked in atoms"))
+
+    if not _check_outcome_like(value_line):
+        forced.append(("value_outcome_not_mechanism", "value_line describes mechanism without concrete outcome"))
+
+    if proof_line and _proof_looks_circular(proof_line, brief or {}, angle=angle or {}):
+        forced.append(("proof_not_circular", "proof_line appears circular or prospect-derived"))
+
+    if cta_line.strip() != str(locked_cta or "").strip():
+        forced.append(("cta_locked", "atoms cta_line does not match locked CTA"))
+
+    comma_count = opener_line.count(",")
+    connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener_line.lower()))
+    if comma_count > 1 or connector_count > 1:
+        forced.append(("opener_simple", "opener contains too many clauses"))
+
+    hook_ids = {str(item.get("hook_id") or "") for item in (brief or {}).get("hooks") or [] if isinstance(item, dict)}
+    used_hook_ids = [str(item or "") for item in atoms.get("used_hook_ids") or []]
+    if any(hook_id and hook_id not in hook_ids for hook_id in used_hook_ids):
+        forced.append(("hook_ids_valid", "used_hook_ids contains unknown hook id"))
+
+    return _apply_failures(result, forced_failures=forced)
+
+
+async def judge_email_draft(
+    draft: dict[str, Any] | None,
+    atoms: dict[str, Any] | None,
+    brief: dict[str, Any] | None,
+    *,
+    cta_final_line: str,
+    proof_gap: bool,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "EMAIL_GENERATION"
+    if not draft:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) subject_specific: specific and non-generic subject.
+2) subject_length: <=70 chars.
+3) no_atoms_violation: no extra claims beyond atoms.
+4) value_visible: value atom is a distinct sentence.
+5) proof_respected: proof presence/absence follows proof_gap.
+6) cta_exact: final body line exactly equals locked CTA.
+7) no_banned_phrases: banned phrase list never appears.
+8) no_double_cta: exactly one question and it is the locked CTA.
+""".strip()
+
+    examples = """
+PASS cta_exact: body last line equals locked CTA exactly.
+FAIL cta_exact: CTA paraphrased or extra punctuation.
+PASS no_banned_phrases: no outreach cliches.
+FAIL no_banned_phrases: includes "touch base" or "quick question".
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={
+            "artifact": draft,
+            "atoms": atoms or {},
+            "brief": brief or {},
+            "cta_final_line": cta_final_line,
+            "proof_gap": bool(proof_gap),
+        },
+        rubric_text=rubric,
+        examples_text=examples,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    subject = str(draft.get("subject") or "").strip()
+    body = str(draft.get("body") or "")
+    last_line = _extract_last_nonempty_line(body)
+
+    if len(subject) > 70:
+        forced.append(("subject_length", "subject exceeds 70 characters"))
+
+    if last_line != str(cta_final_line or "").strip():
+        forced.append(("cta_exact", "final body line does not exactly match locked CTA"))
+
+    lowered_text = f"{subject}\n{body}".lower()
+    for banned in BANNED_PHRASES:
+        if banned in lowered_text:
+            forced.append(("no_banned_phrases", f"contains banned phrase '{banned}'"))
+            break
+
+    if _count_questions(body) != 1:
+        forced.append(("no_double_cta", "body must contain exactly one question mark"))
+
+    if proof_gap and str((atoms or {}).get("proof_line") or "").strip() == "" and "peer" in body.lower():
+        forced.append(("proof_respected", "proof sentence appears despite proof_gap"))
+
+    return _apply_failures(result, forced_failures=forced)
+
+
+async def judge_qa_report(
+    qa_report: dict[str, Any] | None,
+    draft: dict[str, Any] | None,
+    *,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "EMAIL_QA"
+    if not qa_report:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) evidence_quoted: each issue includes draft-quoted evidence.
+2) fix_instructions_surgical: each fix_instruction says what to change and where to source replacement.
+3) severity_calibrated: structural failures are high; stylistic preferences are not high.
+4) rewrite_plan_actionable: rewrite plan is executable if rewrite is required.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={"artifact": qa_report, "draft": draft or {}},
+        rubric_text=rubric,
+        examples_text=None,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    issues = qa_report.get("issues") if isinstance(qa_report.get("issues"), list) else []
+    draft_blob = f"{(draft or {}).get('subject', '')}\n{(draft or {}).get('body', '')}".strip()
+
+    for issue in issues:
+        if not isinstance(issue, dict):
+            continue
+        evidence = _as_list_of_strings(issue.get("evidence"))
+        if not evidence or not all(snippet in draft_blob for snippet in evidence):
+            forced.append(("evidence_quoted", "issue evidence is not directly quoted from draft"))
+        fix_instruction = str(issue.get("fix_instruction") or "")
+        if _non_actionable_fix_instruction(fix_instruction):
+            forced.append(("fix_instructions_surgical", "fix_instruction is directional but not surgical"))
+
+    if bool(qa_report.get("pass_rewrite_needed")) and not _as_list_of_strings(qa_report.get("rewrite_plan")):
+        forced.append(("rewrite_plan_actionable", "pass_rewrite_needed true but rewrite_plan is empty"))
+
+    return _apply_failures(result, forced_failures=forced)
+
+
+async def judge_rewritten_draft(
+    rewritten: dict[str, Any] | None,
+    original_draft: dict[str, Any] | None,
+    qa_report: dict[str, Any] | None,
+    atoms: dict[str, Any] | None,
+    *,
+    cta_final_line: str,
+    proof_gap: bool,
+    openai: OpenAIClient,
+    run_id: str | None = None,
+    payload_id: str | None = None,
+) -> dict[str, Any]:
+    stage = "EMAIL_REWRITE"
+    if not rewritten:
+        return missing_artifact_result(stage, "artifact")
+
+    rubric = """
+1) high_issues_resolved: high-severity QA issues are addressed.
+2) no_new_content: rewritten copy does not add unsupported claims.
+3) untouched_sentences_preserved: unrelated passing sentences are preserved.
+4) cta_exact: final line exactly matches locked CTA.
+5) metadata_preserved: preset_id, selected_angle_id, used_hook_ids unchanged.
+""".strip()
+
+    examples = """
+PASS metadata_preserved: preset and selected ids exactly unchanged.
+FAIL metadata_preserved: rewritten draft changed selected_angle_id.
+PASS cta_exact: final line exactly locked CTA.
+FAIL cta_exact: CTA wording changed.
+""".strip()
+
+    result = await _run_stage_judge(
+        stage=stage,
+        artifacts={
+            "artifact": rewritten,
+            "original_draft": original_draft or {},
+            "qa_report": qa_report or {},
+            "atoms": atoms or {},
+            "cta_final_line": cta_final_line,
+            "proof_gap": bool(proof_gap),
+        },
+        rubric_text=rubric,
+        examples_text=examples,
+        openai=openai,
+        run_id=run_id,
+        payload_id=payload_id,
+    )
+
+    forced: list[tuple[str, str]] = []
+    last_line = _extract_last_nonempty_line(str(rewritten.get("body") or ""))
+    if last_line != str(cta_final_line or "").strip():
+        forced.append(("cta_exact", "rewritten final line does not exactly match locked CTA"))
+
+    for key in ("preset_id", "selected_angle_id"):
+        if str((rewritten or {}).get(key) or "") != str((original_draft or {}).get(key) or ""):
+            forced.append(("metadata_preserved", f"metadata mismatch for {key}"))
+            break
+
+    rewritten_hooks = [str(item or "") for item in (rewritten or {}).get("used_hook_ids") or []]
+    original_hooks = [str(item or "") for item in (original_draft or {}).get("used_hook_ids") or []]
+    if rewritten_hooks != original_hooks:
+        forced.append(("metadata_preserved", "used_hook_ids changed in rewritten draft"))
+
+    if proof_gap and str((atoms or {}).get("proof_line") or "").strip() == "" and "peer" in str(rewritten.get("body") or "").lower():
+        forced.append(("no_new_content", "proof sentence introduced despite proof_gap"))
+
+    return _apply_failures(result, forced_failures=forced)

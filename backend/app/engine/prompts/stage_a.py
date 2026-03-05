@@ -55,15 +55,15 @@ Additional Company Notes:
 {str(user_company.get("company_notes") or "").strip() or "None provided."}
 
 PROSPECT CONTEXT
-Name: {str(prospect.get("name") or "").strip() or "Unknown"}
-Title: {str(prospect.get("title") or "").strip() or "Unknown"}
-Company: {str(prospect.get("company") or "").strip() or "Unknown"}
-Industry: {str(prospect.get("industry") or "").strip() or "Unknown"}
+Name: {str(prospect.get("name") or "").strip() or "None provided."}
+Title: {str(prospect.get("title") or "").strip() or "None provided."}
+Company: {str(prospect.get("company") or "").strip() or "None provided."}
+Industry: {str(prospect.get("industry") or "").strip() or "None provided."}
 
-Prospect Notes:
+prospect_notes:
 {str(prospect.get("notes") or "").strip() or "None provided."}
 
-Research / Recent Activity:
+research_text:
 {str(prospect.get("research_text") or "").strip() or "None provided."}
 
 LOCKED CTA
@@ -75,8 +75,36 @@ YOUR INSTRUCTIONS
 STEP 1 - FACT EXTRACTION
 - Extract all hard facts from input.
 - Assign sequential fact_id values: fact_01, fact_02, ...
-- Record exact source_field (research_text, prospect_notes, proof_points, etc).
+- Record exact source_field from the strict allowlist below.
 - If info is not explicit in input, it is not a fact.
+
+CRITICAL source_field rule: you must use ONLY these exact strings as source_field values.
+No variations, no abbreviations, no invented names:
+  "name"
+  "title"
+  "company"
+  "industry"
+  "prospect_notes"
+  "research_text"
+  "product_summary"
+  "icp_description"
+  "differentiators"
+  "proof_points"
+  "do_not_say"
+  "company_notes"
+  "cta_type"
+  "cta_final_line"
+The value must be copied exactly, including underscores.
+Never add spaces inside a source_field token.
+If a fact comes from research text about the prospect, source_field must be "research_text".
+Never use "research", "research_activity", or any other variation.
+If a fact cannot be attributed to one of these exact strings, do not include it.
+
+EMPTY FIELD RULE:
+- If an input field says "None provided." or is blank, it contains zero facts.
+- Treat "Unknown" the same way as empty input (zero facts).
+- Do not extract facts from that field.
+- Do not create a fact with that field as source_field.
 
 CONTAINMENT CHECK (run this before finalizing facts_from_input):
 - For each fact ask: "If I removed every input field and only had this fact, could I identify which specific input field it came from?"

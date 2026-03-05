@@ -34,6 +34,7 @@ class OpenAIClient:
         model: str = ENFORCED_OPENAI_MODEL,
         messages: list[dict[str, Any]],
         reasoning_effort: str,
+        temperature: float | None = None,
         max_completion_tokens: int = 800,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
@@ -54,6 +55,8 @@ class OpenAIClient:
             ),
             "max_completion_tokens": max_completion_tokens,
         }
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
         if tools:
             payload["tools"] = tools
         if tool_choice is not None:

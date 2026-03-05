@@ -255,21 +255,38 @@ class AIOrchestrator:
             )
             return result.payload
         except StageError as exc:
+            validation_codes = list((exc.details or {}).get("codes") or [])
+            if validation_codes:
+                trace.add_validation_error(
+                    stage=config.stage,
+                    codes=validation_codes,
+                    details={"rejected_facts": list((exc.details or {}).get("rejected_facts") or [])},
+                )
             trace.fail_stage(stage=config.stage, model=ENFORCED_OPENAI_MODEL, error_code=exc.code, details=exc.details)
             raise
         except ValidationIssue as exc:
-            trace.add_validation_error(stage=config.stage, codes=exc.codes)
+            trace.add_validation_error(
+                stage=config.stage,
+                codes=exc.codes,
+                details={"rejected_facts": list(getattr(exc, "details", []) or [])},
+            )
             trace.fail_stage(
                 stage=config.stage,
                 model=ENFORCED_OPENAI_MODEL,
                 error_code="VALIDATION_FAILED",
-                details={"codes": exc.codes},
+                details={
+                    "codes": exc.codes,
+                    "rejected_facts": list(getattr(exc, "details", []) or []),
+                },
             )
             raise StageError(
                 stage=config.stage,
                 code="VALIDATION_FAILED",
                 message="Stage deterministic validation failed",
-                details={"codes": exc.codes},
+                details={
+                    "codes": exc.codes,
+                    "rejected_facts": list(getattr(exc, "details", []) or []),
+                },
             ) from exc
 
     async def _run_pipeline_single(

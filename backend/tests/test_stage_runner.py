@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from app.engine.stage_runner import StageConfig, StageError, run_stage
+from app.engine.validators import ValidationIssue
 
 
 class StubOpenAI:
@@ -190,3 +191,46 @@ async def test_run_stage_allows_empty_string_proof_line() -> None:
 
     assert result.attempts == 1
     assert result.payload["proof_line"] == ""
+
+
+@pytest.mark.asyncio
+async def test_run_stage_surfaces_validation_details_in_stage_error() -> None:
+    openai = StubOpenAI(
+        responses=[
+            {"version": "1", "subject": "Hello", "body": "World"},
+            {"version": "1", "subject": "Hello", "body": "World"},
+        ]
+    )
+
+    def _validator(_: dict[str, Any]) -> None:
+        raise ValidationIssue(
+            ["fact_source_field_not_allowed"],
+            details=[
+                {
+                    "code": "fact_source_field_not_allowed",
+                    "rejected_fact": {
+                        "fact_id": "fact_1",
+                        "source_field": "research_activity",
+                        "text_preview": "Example text",
+                    },
+                }
+            ],
+        )
+
+    with pytest.raises(StageError) as exc_info:
+        await run_stage(
+            openai=openai,  # type: ignore[arg-type]
+            config=StageConfig(
+                stage="CONTEXT_SYNTHESIS",
+                max_tokens=100,
+                reasoning_effort="low",
+                response_format=_response_format(),
+            ),
+            messages=[{"role": "system", "content": "Return JSON."}],
+            validator=_validator,
+        )
+
+    err = exc_info.value
+    assert err.code == "STAGE_JSON_OR_VALIDATION_FAILED"
+    assert err.details.get("codes") == ["fact_source_field_not_allowed"]
+    assert err.details.get("rejected_facts")

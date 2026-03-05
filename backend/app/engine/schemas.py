@@ -409,6 +409,46 @@ QA_REPORT_SCHEMA = {
     },
 }
 
+JUDGE_RESULT_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "stage",
+        "scores",
+        "total",
+        "pass",
+        "hard_fail_triggered",
+        "hard_fail_criteria",
+        "failures",
+        "warnings",
+    ],
+    "properties": {
+        "stage": {
+            "type": "string",
+            "enum": [
+                "CONTEXT_SYNTHESIS",
+                "FIT_REASONING",
+                "ANGLE_PICKER",
+                "ONE_LINER_COMPRESSOR",
+                "EMAIL_GENERATION",
+                "EMAIL_QA",
+                "EMAIL_REWRITE",
+            ],
+        },
+        "scores": {
+            "type": "object",
+            "additionalProperties": {"type": "integer", "enum": [0, 1]},
+        },
+        "total": {"type": "integer", "minimum": 0, "maximum": 32},
+        "pass": {"type": "boolean"},
+        "hard_fail_triggered": {"type": "boolean"},
+        "hard_fail_criteria": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 120}},
+        "failures": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 600}},
+        "warnings": {"type": "array", "items": {"type": "string", "maxLength": 600}},
+    },
+}
+
 ERROR_RESULT_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
@@ -464,6 +504,7 @@ RF_MESSAGE_ATOMS = response_format("MessageAtoms", MESSAGE_ATOMS_SCHEMA)
 RF_EMAIL_DRAFT = response_format("EmailDraft", EMAIL_DRAFT_SCHEMA)
 RF_BATCH_VARIANTS = response_format("BatchVariants", BATCH_VARIANTS_SCHEMA)
 RF_QA_REPORT = response_format("QAReport", QA_REPORT_SCHEMA)
+RF_JUDGE_RESULT = response_format("JudgeResult", JUDGE_RESULT_SCHEMA)
 
 STAGES = {
     "A": "CONTEXT_SYNTHESIS",
