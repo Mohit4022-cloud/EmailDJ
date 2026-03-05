@@ -1,0 +1,118 @@
+{
+  "trace_id": "4b1cf03c-de1e-4158-bfa1-0b4f34333ddc",
+  "app_env": "local",
+  "started_at": 1772748313.110136,
+  "finished_at": 1772748598.180224,
+  "duration_ms": 285070,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 6845,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2142,
+        "completion_tokens": 1061,
+        "total_tokens": 3203,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 4367,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2123,
+        "completion_tokens": 689,
+        "total_tokens": 2812,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 28027,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "",
+        "repair_codes": [
+          "angle_unknown_hook_id"
+        ]
+      }
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "95b108b2c76e393f18a5ffa3dc6e055eb51064a5d1acfdde8e6e59dfa1381c64",
+    "output:CONTEXT_SYNTHESIS": "c2b58e4ad41d1d384c2399ab7f5989a64ef65d9326eb45aa6f3909b2c6419b33",
+    "output:FIT_REASONING": "d279474469c177407a4ca2ec02976c9114ced3f4b65f2a5e7468f7af60b293bd"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "95b108b2c76e393f18a5ffa3dc6e055eb51064a5d1acfdde8e6e59dfa1381c64"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ANGLE_PICKER failed after repair attempt",
+    "stage": "ANGLE_PICKER"
+  }
+}

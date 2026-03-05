@@ -1,0 +1,36 @@
+{
+  "trace_id": "8335d1e3-ce42-491f-968b-1c23b6cfffc4",
+  "app_env": "local",
+  "started_at": 1772695719.5786471,
+  "finished_at": 1772695736.257163,
+  "duration_ms": 16679,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "a4fc30b41ea2455b2c12c96c0a91ca7cba695f4cf3376a14afd10ac9eccbc6c8"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed"
+      }
+    }
+  ]
+}

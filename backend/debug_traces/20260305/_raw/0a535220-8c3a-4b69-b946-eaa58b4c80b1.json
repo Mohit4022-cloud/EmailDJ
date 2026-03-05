@@ -1,0 +1,398 @@
+{
+  "trace_id": "0a535220-8c3a-4b69-b946-eaa58b4c80b1",
+  "app_env": "local",
+  "started_at": 1772695347.95808,
+  "finished_at": 1772695385.63785,
+  "duration_ms": 37680,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "2710e28dee520cbdb66bfebcfb940068d2bb093755c249be59108aee3b000c72"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB- Harborlight-OutboundQA",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "product_summary",
+            "text": "Outbound QA Studio"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "icp_description",
+            "text": "Improves consistency and coaching velocity for GTM ops teams."
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "differentiators",
+            "text": "- Call-quality benchmarking\n- Rep-level drift visibility\n- Coaching recommendation engine"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "proof_points",
+            "text": "- Call-quality benchmarking\n- Rep-level drift visibility\n- Coaching recommendation engine\n- Improves consistency and coaching velocity for GTM ops teams."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "company_notes",
+            "text": "Improves consistency and coaching velocity for GTM ops teams."
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "cta_final_line",
+            "text": "Open to a short call to compare how you are auditing outbound quality today?"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "name",
+            "text": "Talia Brooks"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "title",
+            "text": "Senior Manager, GTM Operations"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "company",
+            "text": "Harborlight Cloud"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "research_text",
+            "text": "Harborlight Cloud found inconsistent discovery messaging across outbound reps and launched a formal GTM operations audit to reduce meeting quality variance."
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "pain",
+            "hook_text": "Harborlight Cloud is actively auditing outbound quality to reduce meeting quality variance.",
+            "supported_by_fact_ids": [
+              "fact_12"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "priority",
+            "hook_text": "Your GTM ops focus is on improving coaching velocity and consistency for outbound outreach.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_04",
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Outbound QA Studio offers call-quality benchmarking and rep-level drift visibility that align with your audit goals.",
+            "supported_by_fact_ids": [
+              "fact_03",
+              "fact_04"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "meeting quality variance",
+            "coaching velocity",
+            "consistency across outbound reps"
+          ],
+          "likely_initiatives": [
+            "audit outbound messaging",
+            "standardize discovery messaging",
+            "measure call quality"
+          ],
+          "day_to_day": [
+            "manage GTM ops processes",
+            "coordinate coaching programs",
+            "analyze outbound performance"
+          ],
+          "tools_stack": [
+            "outbound QA tooling",
+            "coaching platforms",
+            "data/eng analytics"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "proof_points"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 12,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 1,
+            "selected_hook_id": "hook_02",
+            "pain": "GTM ops team faces friction ensuring outbound coaching velocity and consistency across reps.",
+            "impact": "Increased coaching cycles and content variance slow improvements, leading to missed targets on meeting quality variance.",
+            "value": "Improved coaching velocity and consistency across outbound reps, reducing meeting quality variance and lifting win-rate.",
+            "proof": "The brief cites that Harborlight Cloud launched an audit to reduce meeting quality variance and that the GTM ops focus is on coaching velocity and consistency.",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_04",
+              "fact_12",
+              "fact_06"
+            ],
+            "why_now": "Harborlight Cloud is actively auditing outbound quality to reduce meeting quality variance, signaling an imminent need to mature coaching workflows (see fact_12).",
+            "confidence": 0.82,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 2,
+            "selected_hook_id": "hook_03",
+            "pain": "Outbound QA gaps in call-quality benchmarking and drift visibility hinder ability to audit and improve outbound messaging.",
+            "impact": "Time wasted reconciling inconsistent call quality, delays in coaching, potential revenue leakage from poor discovery messaging.",
+            "value": "Concrete benchmarking and drift visibility to quickly identify and rectify gaps in outbound messaging.",
+            "proof": "Hook 03 aligns with fact 03 (call-quality benchmarking, drift visibility) and fact 04 (coaching engine and audit goals).",
+            "supporting_fact_ids": [
+              "fact_03",
+              "fact_04"
+            ],
+            "why_now": "Tooling capabilities that align with the audit initiative enable faster remediation cycles (fact_02, fact_04).",
+            "confidence": 0.78,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 3,
+            "selected_hook_id": "hook_01",
+            "pain": "Audit-driven initiative creates risk of misalignment between documented goals and actual outbound messaging quality.",
+            "impact": "Potential rework of messaging leading to temporary drop in response rates.",
+            "value": "Alignment between outbound messaging and audit findings to sustain quality improvements.",
+            "proof": "Fact 12 describes the audit to reduce meeting quality variance; fact 06 reinforces the coaching velocity & consistency objective.",
+            "supporting_fact_ids": [
+              "fact_12",
+              "fact_06"
+            ],
+            "why_now": "Existing audit activity provides a clear moment to introduce measurement and tooling to close gaps quickly.",
+            "confidence": 0.65,
+            "risk_flags": [
+              "assumption_heavy"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "GTM ops team faces friction ensuring outbound coaching velocity and consistency across reps.",
+            "impact": "Increased coaching cycles and content variance slow improvements, leading to missed targets on meeting quality variance.",
+            "value": "Improved coaching velocity and consistency across outbound reps, reducing meeting quality variance and lifting win-rate.",
+            "proof": "The brief cites that Harborlight Cloud launched an audit to reduce meeting quality variance and that the GTM ops focus is on coaching velocity and consistency.",
+            "cta_question_suggestion": "Open to a quick audit of your current coaching cadence to identify gaps and quick wins?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "outcome_led",
+            "rank": 2,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Outbound QA gaps in call-quality benchmarking and drift visibility hinder ability to audit and improve outbound messaging.",
+            "impact": "Time wasted reconciling inconsistent call quality, delays in coaching, potential revenue leakage from poor discovery messaging.",
+            "value": "Concrete benchmarking and drift visibility to quickly identify and rectify gaps in outbound messaging.",
+            "proof": "Hook 03 aligns with fact 03 (call-quality benchmarking, drift visibility) and fact 04 (coaching engine and audit goals).",
+            "cta_question_suggestion": "Would you like a 15-min session to see how benchmarking could map to your current audit timeline?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "proof_led",
+            "rank": 3,
+            "persona_fit_score": 0.76,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Audit-driven initiative creates risk of misalignment between documented goals and actual outbound messaging quality.",
+            "impact": "Potential rework of messaging leading to temporary drop in response rates.",
+            "value": "Alignment between outbound messaging and audit findings to sustain quality improvements.",
+            "proof": "Fact 12 describes the audit to reduce meeting quality variance; fact 06 reinforces the coaching velocity & consistency objective.",
+            "cta_question_suggestion": "Interested in a concise readout correlating audit findings with outbound messaging quality?",
+            "risk_flags": [
+              "assumption_heavy"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "opener_line": "Harborlight Cloud is actively auditing outbound quality to reduce meeting quality variance, and your team is focused on coaching velocity and consistency for outbound outreach.",
+        "value_line": "Outbound QA Studio helps GTM ops teams cut meeting quality variance.",
+        "proof_line": "A technical team at Harborlight Cloud launched a formal GTM operations audit to reduce meeting quality variance and improve coaching velocity and consistency.",
+        "cta_line": "Open to a short call to compare how you are auditing outbound quality today?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "subject": "Outbound QA Studio supports coaching velocity and consistency",
+        "body": "Harborlight Cloud is actively auditing outbound quality to reduce meeting quality variance. Outbound QA Studio helps GTM ops teams cut meeting quality variance. A technical team at Harborlight Cloud launched a formal GTM operations audit to reduce meeting quality variance and improve coaching velocity and consistency. Open to a short call to compare how you are auditing outbound quality today?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "low",
+            "evidence": [
+              "The provided JSON is invalid or missing required fields."
+            ],
+            "fix_instruction": "Provide a valid JSON object that includes required fields: version, issues, risk_flags, rewrite_plan, pass_rewrite_needed."
+          }
+        ],
+        "risk_flags": [],
+        "rewrite_plan": [
+          "Provide properly structured rewrite plan with steps to fix the JSON according to the schema."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "subject": "Outbound QA Studio supports coaching velocity and consistency",
+        "body": "Harborlight Cloud is actively auditing outbound quality to reduce meeting quality variance. Outbound QA Studio helps GTM ops teams cut meeting quality variance. A technical team at Harborlight Cloud launched a formal GTM operations audit to reduce meeting quality variance and improve coaching velocity and consistency.\n\nOpen to a short call to compare how you are auditing outbound quality today?"
+      }
+    }
+  ]
+}

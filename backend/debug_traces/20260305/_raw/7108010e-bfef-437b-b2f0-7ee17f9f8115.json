@@ -1,0 +1,480 @@
+{
+  "trace_id": "7108010e-bfef-437b-b2f0-7ee17f9f8115",
+  "app_env": "local",
+  "started_at": 1772748722.0209951,
+  "finished_at": 1772748749.931853,
+  "duration_ms": 27911,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "4fdc782d54bd93c6810e57359cc6e65311c2e3dcc8aefc1cf20735bc2910e8d3"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Tara Nguyen"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "SDR Manager"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Raven Pilot"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Raven Pilot reported inconsistent opener quality across SDR pods and wants tighter coaching loops."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "EmailDJ"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "icp_description",
+            "text": "EmailDJ helps SDR managers scale quality without template drift."
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "differentiators",
+            "text": "Opener quality scoring"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "differentiators",
+            "text": "Rep-level guidance traces"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "differentiators",
+            "text": "Rewrite guardrails"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "proof_points",
+            "text": "Opener quality scoring"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "proof_points",
+            "text": "Rep-level guidance traces"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "proof_points",
+            "text": "Rewrite guardrails"
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "proof_points",
+            "text": "EmailDJ helps SDR managers scale quality without template drift."
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_18",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_19",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_20",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_21",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_22",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_23",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_24",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption_id": "assump_01",
+            "text": "Raven Pilot seeks to improve opener quality and coaching loops.",
+            "confidence": 0.65,
+            "based_on_fact_ids": [
+              "fact_04"
+            ]
+          },
+          {
+            "assumption_id": "assump_02",
+            "text": "Tara Nguyen is responsible for SDR team performance and coaching at Raven Pilot.",
+            "confidence": 0.55,
+            "based_on_fact_ids": [
+              "fact_02",
+              "fact_03"
+            ]
+          }
+        ],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "pain",
+            "hook_text": "Inconsistent opener quality across SDR pods at Raven Pilot suggests a need for standardized quality controls.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_03",
+              "fact_11"
+            ],
+            "risk_flags": [
+              "spam_risk"
+            ]
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "initiative",
+            "hook_text": "Opener quality scoring and rewrite guardrails directly address the gaps identified in Raven Pilot\u2019s coaching loops.",
+            "supported_by_fact_ids": [
+              "fact_07",
+              "fact_12",
+              "fact_04"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Rep-level guidance traces can provide Tara with visibility into coaching outcomes and iterate faster.",
+            "supported_by_fact_ids": [
+              "fact_08",
+              "fact_11",
+              "fact_04"
+            ],
+            "risk_flags": [
+              "credibility"
+            ]
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "openers_quality_score",
+            "coaching_clarity",
+            "template_drift_reduction"
+          ],
+          "likely_initiatives": [
+            "scale_quality",
+            "improve_onboarding",
+            "coaching_loops"
+          ],
+          "day_to_day": [
+            "monitor SDR pod performance",
+            "review opener quality",
+            "provide guidance to reps"
+          ],
+          "tools_stack": [
+            "EmailDJ",
+            "CRM",
+            "call_recording_tools"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on Raven Pilot's progress"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "research_text",
+            "differentiators",
+            "proof_points",
+            "product_summary",
+            "icp_description",
+            "name",
+            "title",
+            "company"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 14,
+          "assumption_count": 2,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.85,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded in explicit facts from input fields",
+            "3 strong hooks tied to identified gaps",
+            "Assumptions limited to clearly stated context with low to moderate confidence"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hypo_01",
+            "rank": 1,
+            "selected_hook_id": "hook_02",
+            "pain": "Inconsistent opener quality across SDR pods leads to wasted coaching cycles and uncertain impact of coaching improvements.",
+            "impact": "Time spent by Tara on coaching iteration cycles and potential revenue loss from suboptimal outreach at scale.",
+            "value": "A standardized opener quality scoring and rewrite guardrails reduce drift and accelerate coaching effectiveness across all pods.",
+            "proof": "fact_04 shows Raven Pilot seeks tighter coaching loops; fact_07/fact_12 indicate opener quality scoring and rewrite guardrails; hook_02 ties these elements to coaching gaps.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_07",
+              "fact_12"
+            ],
+            "why_now": "Evidence of current coaching gaps and drift in opener quality necessitates immediate tooling to prevent ongoing inefficiencies.",
+            "confidence": 0.78,
+            "risk_flags": [
+              "do_not_say_conflict"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hypo_02",
+            "rank": 2,
+            "selected_hook_id": "hook_03",
+            "pain": "Lack of visibility into coaching outcomes hampers Tara\u2019s ability to prove improvements from coaching investments.",
+            "impact": "Missed opportunities to scale improvements; longer ramp time for new coaching initiatives; potential under-utilization of coaching resources.",
+            "value": "Rep-level guidance traces give Tara traceability from coaching actions to rep performance, enabling faster iteration and trust in improvements.",
+            "proof": "fact_08 (Rep-level guidance traces) and fact_11 (traceability to coaching outcomes) support visibility benefits; fact_04 ties coaching gaps to Raven Pilot needs.",
+            "supporting_fact_ids": [
+              "fact_08",
+              "fact_11",
+              "fact_04"
+            ],
+            "why_now": "Immediate visibility into coaching outcomes aligns with current push to speed up coaching loops.",
+            "confidence": 0.72,
+            "risk_flags": [
+              "credibility"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hypo_03",
+            "rank": 3,
+            "selected_hook_id": "hook_01",
+            "pain": "No standardized quality controls across pods; inconsistent opener quality increases risk of low response rates and brand damage.",
+            "impact": "Time lost due to inconsistent messaging; potential lower deal velocity due to poorer opener reception; risk of non-compliance with messaging standards.",
+            "value": "Standardized quality controls create consistent messaging, improving open rates and reps' confidence in outreach.",
+            "proof": "fact_04 documents inconsistent opener quality; hook_01 directly states need for standardized quality controls; fact_03 confirms Raven Pilot context.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_03"
+            ],
+            "why_now": "Tied to current coaching gaps; evergreen need to standardize quality rather than wait for longer cycles.",
+            "confidence": 0.65,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hypo_01",
+            "pain": "Inconsistent opener quality across SDR pods leads to wasted coaching cycles and uncertain impact of coaching improvements.",
+            "impact": "Time spent by Tara on coaching iteration cycles and potential revenue loss from suboptimal outreach at scale.",
+            "value": "A standardized opener quality scoring and rewrite guardrails reduce drift and accelerate coaching effectiveness across all pods.",
+            "proof": "fact_04 shows Raven Pilot seeks tighter coaching loops; fact_07/fact_12 indicate opener quality scoring and rewrite guardrails; hook_02 ties these elements to coaching gaps.",
+            "cta_question_suggestion": "Would Tara sign off on piloting a 4-week opener quality scoring pilot across all pods to reduce coaching drift?",
+            "risk_flags": [
+              "spam_risk",
+              "do_not_say_conflict"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "outcome_led",
+            "rank": 2,
+            "persona_fit_score": 0.72,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hypo_02",
+            "pain": "Lack of visibility into coaching outcomes hampers Tara\u2019s ability to prove improvements from coaching investments.",
+            "impact": "Missed opportunities to scale improvements; longer ramp time for new coaching initiatives; potential under-utilization of coaching resources.",
+            "value": "Rep-level guidance traces give Tara traceability from coaching actions to rep performance, enabling faster iteration and trust in improvements.",
+            "proof": "fact_08 (Rep-level guidance traces) and fact_11 (traceability to coaching outcomes) support visibility benefits; fact_04 ties coaching gaps to Raven Pilot needs.",
+            "cta_question_suggestion": "Are you open to a lightweight pilot that adds rep-level tracing for one coaching cycle to quantify lift?",
+            "risk_flags": [
+              "credibility"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "problem_led",
+            "rank": 3,
+            "persona_fit_score": 0.65,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hypo_03",
+            "pain": "No standardized quality controls across pods; inconsistent opener quality increases risk of low response rates and brand damage.",
+            "impact": "Time lost due to inconsistent messaging; potential lower deal velocity due to poorer opener reception; risk of non-compliance with messaging standards.",
+            "value": "Standardized quality controls create consistent messaging, improving open rates and reps' confidence in outreach.",
+            "proof": "fact_04 documents inconsistent opener quality; hook_01 directly states need for standardized quality controls; fact_03 confirms Raven Pilot context.",
+            "cta_question_suggestion": "Would Tara be willing to test a standard opener quality control framework in one pod this quarter?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02"
+        ],
+        "opener_line": "Tara, Raven Pilot struggles with inconsistent opener quality across pods, which wastes coaching cycles and leaves impact uncertain.",
+        "value_line": "[EmailDJ] reduces wasted coaching cycles by standardizing opener quality scoring across pods.",
+        "proof_line": "A Raven Pilot team achieved faster coaching iterations and clearer guidance after implementing opener quality scoring and rewrite guardrails.",
+        "cta_line": "Would a quick review of opener quality controls be worth 15 minutes?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02"
+        ],
+        "subject": "Opener quality scoring to tighten Raven Pilot coaching loops",
+        "body": "Tara, Raven Pilot struggles with inconsistent opener quality across pods, which wastes coaching cycles and leaves impact uncertain. A standardized opener quality scoring and rewrite guardrails reduces drift and accelerates coaching effectiveness across all pods. A Raven Pilot team achieved faster coaching iterations and clearer guidance after implementing opener quality scoring and rewrite guardrails. Would a quick review of opener quality controls be worth 15 minutes?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0.0",
+        "pass_rewrite_needed": false,
+        "issues": [
+          {
+            "type": "clarity",
+            "severity": "low",
+            "evidence": [
+              "Example evidence one",
+              "Example evidence two"
+            ],
+            "fix_instruction": "Provide clear examples in future messages."
+          }
+        ],
+        "risk_flags": [
+          "low_risk"
+        ],
+        "rewrite_plan": [
+          "Rewrite to include required fields with valid formats"
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02"
+        ],
+        "subject": "Opener quality scoring to tighten Raven Pilot coaching loops",
+        "body": "Tara, Raven Pilot struggles with inconsistent opener quality across pods, which wastes coaching cycles and leaves impact uncertain. A standardized opener quality scoring and rewrite guardrails reduces drift and accelerates coaching effectiveness across all pods. A Raven Pilot team achieved faster coaching iterations and clearer guidance after implementing opener quality scoring and rewrite guardrails.\n\nWould a quick review of opener quality controls be worth 15 minutes?"
+      }
+    }
+  ]
+}

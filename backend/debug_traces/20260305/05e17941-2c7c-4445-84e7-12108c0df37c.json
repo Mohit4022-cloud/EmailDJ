@@ -1,0 +1,93 @@
+{
+  "trace_id": "05e17941-2c7c-4445-84e7-12108c0df37c",
+  "app_env": "local",
+  "started_at": 1772748089.46128,
+  "finished_at": 1772748101.451993,
+  "duration_ms": 11991,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 11990,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fact_placeholder_text"
+        ],
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_id_04",
+              "source_field": "industry",
+              "text_preview": "None provided."
+            }
+          }
+        ],
+        "repair_rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "industry",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "codes": [
+        "fact_placeholder_text"
+      ],
+      "details": {
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_id_04",
+              "source_field": "industry",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "744274defceed13cab1cdb94dd2f0c3b781b964125633e62d1b52eac426ce24a"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "744274defceed13cab1cdb94dd2f0c3b781b964125633e62d1b52eac426ce24a"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

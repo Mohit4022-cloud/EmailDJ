@@ -1,0 +1,395 @@
+{
+  "trace_id": "0a072544-7b7b-45c3-978f-938e8d3bd759",
+  "app_env": "local",
+  "started_at": 1772748818.579967,
+  "finished_at": 1772748855.2252018,
+  "duration_ms": 36645,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "0f13032fe3cb20377c5b12b908cf395c1ebc14490f6f59370e9dc9c7a3b6e9ca"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Alex Quinn"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Sales"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Plainfield Tech"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Open to a quick chat to see if this is relevant?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "product_summary",
+            "text": "Outbound QA Toolkit"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "As VP of Sales at Plainfield Tech, you\u2019re likely focused on improving QA efficiency given the need to scale outbound efforts with the Outbound QA Toolkit.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Outbound QA tooling can reduce QA bottlenecks for high-velocity sales motion at a tech-focused organization like Plainfield Tech.",
+            "supported_by_fact_ids": [
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Leverage your current VP Sales perspective to evaluate if an external QA toolkit could shorten cycle times between lead capture and closed deals.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_06"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "quota attainment",
+            "time-to-first-sale",
+            "sales cycle length"
+          ],
+          "likely_initiatives": [
+            "scale outbound QA processes",
+            "reduce handoffs between teams"
+          ],
+          "day_to_day": [
+            "manage sales strategy",
+            "optimize outbound with tools"
+          ],
+          "tools_stack": [
+            "CRM",
+            "QA tooling",
+            "sales enablement"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "cta_type",
+            "cta_final_line",
+            "product_summary"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 13,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": false,
+          "confidence_ceiling": 0.0,
+          "signal_strength": "low",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "VP Sales at Plainfield Tech is likely focused on scaling outbound efforts, which creates pressure to improve QA efficiency in the outbound process.",
+            "impact": "High: bottlenecks in QA slow cycle times, reducing quota attainment and time-to-first-sale.",
+            "value": "Outsourced/assembled Outbound QA Toolkit reduces QA bottlenecks and accelerates lead-to-close cycles for high-velocity outbound motions.",
+            "proof": "Hook 01 ties VP Sales focus on QA efficiency to scaling outbound with the toolkit (fact_ids: fact_02, fact_06).",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_06"
+            ],
+            "why_now": "Trigger signals of scaling outbound QA and need to improve cycle times are inherent in the role and initiative described in Hook 01.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_02",
+            "pain": "Outbound QA tooling can reduce bottlenecks for a high-velocity, tech-focused sales motion at Plainfield Tech.",
+            "impact": "Medium-High: reduces manual QA handoffs and cycle time between steps in the outbound process.",
+            "value": "Deployed QA toolkit quickly lowers cycle times and improves hit rate in outbound outreach.",
+            "proof": "Hook 02 explicitly states QA tooling reduces bottlenecks in high-velocity sales motion; relies on product summary Outbound QA Toolkit (fact_06).",
+            "supporting_fact_ids": [
+              "fact_06"
+            ],
+            "why_now": "Evergreen capability, but aligned with ongoing need to speed outbound QA.",
+            "confidence": 0.7,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "Need to evaluate external QA toolkit within VP Sales perspective to shorten cycle times between lead capture and closed deals.",
+            "impact": "Medium: clearer decision path and faster evaluation could reduce time spent on QA process friction.",
+            "value": "External toolkit assessment could streamline QA integrations and shorten lead-to-deal cycle.",
+            "proof": "Hook 03 frames evaluation of external QA toolkit to shorten cycle times; supported by fact 02 and 06.",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_06"
+            ],
+            "why_now": "No explicit trigger beyond ongoing initiative; evergreen evaluation fit.",
+            "confidence": 0.65,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "VP Sales at Plainfield Tech is likely focused on scaling outbound efforts, which creates pressure to improve QA efficiency in the outbound process.",
+            "impact": "High: bottlenecks in QA slow cycle times, reducing quota attainment and time-to-first-sale.",
+            "value": "Outsourced/assembled Outbound QA Toolkit reduces QA bottlenecks and accelerates lead-to-close cycles for high-velocity outbound motions.",
+            "proof": "Hook 01 ties VP Sales focus on QA efficiency to scaling outbound with the toolkit (fact_ids: fact_02, fact_06).",
+            "cta_question_suggestion": "Alex, would you be open to a quick chat to see if the Outbound QA Toolkit could shorten your outbound cycle at Plainfield Tech?",
+            "risk_flags": []
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 8,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Outbound QA tooling can reduce bottlenecks for a high-velocity, tech-focused sales motion at Plainfield Tech.",
+            "impact": "Medium-High: reduces manual QA handoffs and cycle time between steps in the outbound process.",
+            "value": "Deployed QA toolkit quickly lowers cycle times and improves hit rate in outbound outreach.",
+            "proof": "Hook 02 explicitly states QA tooling reduces bottlenecks in high-velocity sales motion; relies on product summary Outbound QA Toolkit (fact_06).",
+            "cta_question_suggestion": "Would evaluating the toolkit with your team help trim cycle times from lead to close at Plainfield Tech?",
+            "risk_flags": []
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 7,
+            "persona_fit_score": 0.74,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Need to evaluate external QA toolkit within VP Sales perspective to shorten cycle times between lead capture and closed deals.",
+            "impact": "Medium: clearer decision path and faster evaluation could reduce time spent on QA process friction.",
+            "value": "External toolkit assessment could streamline QA integrations and shorten lead-to-deal cycle.",
+            "proof": "Hook 03 frames evaluation of external QA toolkit to shorten cycle times; supported by fact 02 and 06.",
+            "cta_question_suggestion": "If this feels relevant, shall we set a short session to explore potential fit for Plainfield Tech?",
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "As VP of Sales at Plainfield Tech, you\u2019re focused on scaling outbound and QA efficiency to hit quota.",
+        "value_line": "Plainfield Tech\u2019s sales team gains faster cycle times without added headcount.",
+        "proof_line": "A tech company team achieved faster lead-to-deal cycles after adopting an external QA toolkit.",
+        "cta_line": "Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Plainfield Tech: QA Toolkit to accelerate outbound without extra headc",
+        "body": "As VP of Sales at Plainfield Tech, you\u2019re focused on scaling outbound and QA efficiency to hit quota. Plainfield Tech\u2019s sales team gains faster cycle times without added headcount. A tech company team achieved faster lead-to-deal cycles after adopting an external QA toolkit. Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [],
+        "risk_flags": [],
+        "rewrite_plan": []
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Plainfield Tech: QA Toolkit to accelerate outbound without extra headc",
+        "body": "As VP of Sales at Plainfield Tech, you\u2019re focused on scaling outbound and QA efficiency to hit quota. Plainfield Tech\u2019s sales team gains faster cycle times without added headcount. A tech company team achieved faster lead-to-deal cycles after adopting an external QA toolkit.\n\nOpen to a quick chat to see if this is relevant?"
+      }
+    }
+  ]
+}

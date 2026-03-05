@@ -1,0 +1,439 @@
+{
+  "trace_id": "cdd5df13-8ed7-4b12-a249-17857a5f20b3",
+  "app_env": "local",
+  "started_at": 1772695587.850374,
+  "finished_at": 1772695633.24769,
+  "duration_ms": 45397,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "c3ca2da0cec27c29990b6097947357e3d1df9e783e373e608d67f420c051996c"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-0001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Ria Stone"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Revenue Programs Lead"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Signal Moss"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Could a quick quality baseline discussion be useful?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "product_summary",
+            "text": "Revenue Program QA"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "differentiators",
+            "text": "Program QA"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "proof_points",
+            "text": "Program QA"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_18",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_19",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          },
+          {
+            "fact_id": "fact_20",
+            "source_field": "industry",
+            "text": "Unknown"
+          },
+          {
+            "fact_id": "fact_21",
+            "source_field": "research_text",
+            "text": "Unknown"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "As Revenue Programs Lead at Signal Moss, you\u2019re focused on QA for revenue programs, and Program QA is a differentiator noted by your team.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_06",
+              "fact_07",
+              "fact_08"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "trigger_event",
+            "hook_text": "Given the locked CTA asking a question, a short baseline quality discussion could map to a concise alignment session.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "pain",
+            "hook_text": "Program QA is positioned as a differentiator; signaling a need to validate QA program effectiveness with a baseline.",
+            "supported_by_fact_ids": [
+              "fact_07",
+              "fact_08"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "revenue program efficiency",
+            "QA coverage",
+            "time-to-value for programs"
+          ],
+          "likely_initiatives": [
+            "formalizing QA checks in revenue workflows",
+            "baseline quality metrics"
+          ],
+          "day_to_day": [
+            "leading revenue program initiatives",
+            "assessing program QA outcomes"
+          ],
+          "tools_stack": [
+            "unknown"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "cta_type",
+            "cta_final_line",
+            "product_summary",
+            "differentiators",
+            "proof_points",
+            "do_not_say"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 21,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hypo_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "As Revenue Programs Lead, Ria Stone is evaluated on QA coverage and the effectiveness of revenue programs. Program QA is described as a differentiator, implying current gaps in QA that may limit credibility of revenue initiatives.",
+            "impact": "Low to medium: potential revenue program inefficiencies and slower time-to-value due to lacking QA benchmarks; risk of underperforming programs and missed optimization opportunities.",
+            "value": "Clear baseline QA metrics and a validated QA approach that differentiates Signal Moss\u2019s programs, accelerating time-to-value and credibility with stakeholders.",
+            "proof": "hook_01 explicitly cites that Program QA is a differentiator and a focus for revenue programs; supported by fact_ids fact_02, fact_06, fact_07, fact_08.",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_06",
+              "fact_07",
+              "fact_08"
+            ],
+            "why_now": "Triggers tie to the CTA that invites a short baseline QA discussion; the message explicitly frames a quick alignment session as next step.",
+            "confidence": 0.85,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hypo_02",
+            "rank": 8,
+            "selected_hook_id": "hook_02",
+            "pain": "The CTA is a question asking for alignment, suggesting time-sensitive need for a concise baseline discussion but current outreach may be too generic without a concrete plan.",
+            "impact": "Medium: risk of misalignment or delays if discussion lacks a defined scope or outcomes; potential rework of QA approach if insufficient early alignment.",
+            "value": "A focused baseline QA discussion could yield immediate alignment on metrics and next steps, reducing back-and-forth and accelerating program QA adoption.",
+            "proof": "hook_02 notes the locked CTA and relates to a short baseline quality discussion; supported by fact_ids fact_04, fact_05.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05"
+            ],
+            "why_now": "The CTA is structured as a question seeking alignment, indicating timely interest in a quick baselining session.",
+            "confidence": 0.8,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hypo_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "Program QA is positioned as a differentiator but may require concrete validation of QA program effectiveness through a baseline to prevent perception gaps.",
+            "impact": "Medium: without a baseline validation, differentiation claims may be unproven, slowing stakeholder buy-in and program investment.",
+            "value": "A validated baseline would turn differentiation into measurable credibility, enabling faster adoption and resource allocation.",
+            "proof": "hook_03 states Program QA as a differentiator and the need to validate QA program effectiveness with a baseline; supported by fact_ids fact_07, fact_08.",
+            "supporting_fact_ids": [
+              "fact_07",
+              "fact_08"
+            ],
+            "why_now": "Evergreen framing but grounded in ongoing need to prove QA effectiveness; no explicit time-bound trigger beyond ongoing differentiation effort.",
+            "confidence": 0.72,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hypo_01",
+            "pain": "As Revenue Programs Lead, Ria Stone is evaluated on QA coverage and the effectiveness of revenue programs. Program QA is described as a differentiator, implying current gaps in QA that may limit credibility of revenue initiatives.",
+            "impact": "Low to medium: potential revenue program inefficiencies and slower time-to-value due to lacking QA benchmarks; risk of underperforming programs and missed optimization opportunities.",
+            "value": "Clear baseline QA metrics and a validated QA approach that differentiates Signal Moss\u2019s programs, accelerating time-to-value and credibility with stakeholders.",
+            "proof": "hook_01 explicitly cites that Program QA is a differentiator and a focus for revenue programs; supported by fact_ids fact_02, fact_06, fact_07, fact_08.",
+            "cta_question_suggestion": "Ria, would a 20-minute baseline QA review help validate current revenue program effectiveness and set measurable benchmarks?",
+            "risk_flags": [
+              "risk_audit_required"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 8,
+            "persona_fit_score": 0.75,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hypo_02",
+            "pain": "The CTA is a question asking for alignment, suggesting time-sensitive need for a concise baseline discussion but current outreach may be too generic without a concrete plan.",
+            "impact": "Medium: risk of misalignment or delays if discussion lacks a defined scope or outcomes; potential rework of QA approach if insufficient early alignment.",
+            "value": "A focused baseline QA discussion could yield immediate alignment on metrics and next steps, reducing back-and-forth and accelerating program QA adoption.",
+            "proof": "hook_02 notes the locked CTA and relates to a short baseline quality discussion; supported by fact_ids fact_04, fact_05.",
+            "cta_question_suggestion": "Would you be open to a 15-minute prior-to-brief alignment to lock in the metrics and next steps for QA in Revenue Programs?",
+            "risk_flags": [
+              "risk_scope_misalignment"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 7,
+            "persona_fit_score": 0.72,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hypo_03",
+            "pain": "Program QA is positioned as a differentiator but may require concrete validation of QA program effectiveness through a baseline to prevent perception gaps.",
+            "impact": "Medium: without a baseline validation, differentiation claims may be unproven, slowing stakeholder buy-in and program investment.",
+            "value": "A validated baseline would turn differentiation into measurable credibility, enabling faster adoption and resource allocation.",
+            "proof": "hook_03 states Program QA as a differentiator and the need to validate QA program effectiveness with a baseline; supported by fact_ids fact_07, fact_08.",
+            "cta_question_suggestion": "Would a quick baseline QA review deliver measurable benchmarks to prove the differentiation in Signal Moss\u2019s revenue programs?",
+            "risk_flags": [
+              "risk_validation_needed"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "As Revenue Programs Lead at Signal Moss, you\u2019re focused on QA for revenue programs, and Program QA is a differentiator noted by your team.",
+        "value_line": "Signal Moss reduces revenue program QA risk and accelerates time-to-value.",
+        "proof_line": "A banking sector team achieved measurable QA coverage improvements within 6 weeks after implementing a baseline QA framework.",
+        "cta_line": "Could a quick quality baseline discussion be useful?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Baseline QA for Revenue Programs at Signal Moss",
+        "body": "As Revenue Programs Lead at Signal Moss, you\u2019re focused on QA for revenue programs, and Program QA is a differentiator noted by your team. Signal Moss reduces revenue program QA risk and accelerates time-to-value. A banking sector team achieved measurable QA coverage improvements within 6 weeks after implementing a baseline QA framework. Could a quick quality baseline discussion be useful?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "Missing required fields in top-level object"
+            ],
+            "fix_instruction": "Provide all required fields as defined by schema: version, issues, risk_flags, rewrite_plan, pass_rewrite_needed and ensure their structures match."
+          }
+        ],
+        "risk_flags": [],
+        "rewrite_plan": [
+          "Provide complete JSON that includes: version (non-empty string <=32 chars), issues (array of objects with type, severity, evidence, fix_instruction), risk_flags (array of strings), rewrite_plan (array of strings), pass_rewrite_needed (bool)"
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Baseline QA for Revenue Programs at Signal Moss",
+        "body": "As Revenue Programs Lead at Signal Moss, you\u2019re focused on QA for revenue programs, and Program QA is a differentiator noted by your team. Signal Moss reduces revenue program QA risk and accelerates time-to-value. A banking sector team achieved measurable QA coverage improvements within 6 weeks after implementing a baseline QA framework.\n\nCould a quick quality baseline discussion be useful?"
+      }
+    }
+  ]
+}

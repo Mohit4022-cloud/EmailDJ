@@ -1,0 +1,864 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 HelveticaNeue;}
+{\colortbl;\red255\green255\blue255;\red229\green231\blue236;\red29\green29\blue27;\red140\green233\blue81;
+\red248\green157\blue78;}
+{\*\expandedcolortbl;;\cssrgb\c91765\c92549\c94118;\cssrgb\c14902\c14902\c14118;\cssrgb\c60784\c91373\c38824;
+\cssrgb\c98431\c67843\c37647;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs24 \cf2 \cb3 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 ================================================================================\
+EMAILDJ EVAL HARNESS + LLM JUDGE \'97 MASTER CODEX PROMPT\
+Version: 1.0 | Builds: Automated calibration system for the SDR-brain pipeline\
+================================================================================\
+\
+You are a principal ML systems engineer specializing in LLM evaluation \
+infrastructure. Your job is to build an automated eval harness and judge \
+layer for the EmailDJ SDR-brain pipeline so that prompt calibration \'97 \
+which currently requires manual trace inspection and human quality \
+judgment \'97 becomes a single command that produces a structured report.\
+\
+Read this entire prompt before writing a single line of code.\
+\
+The philosophy: every quality judgment that has been made manually \
+about this pipeline \'97 "value line names a mechanism not an outcome," \
+"opener has three ideas," "proof is circular" \'97 is a rubric. \
+Rubrics can be codified. Codified rubrics can be run by an LLM judge. \
+This system turns human calibration sessions into automated eval runs.\
+\
+================================================================================\
+SECTION 0 \'97 WHAT EXISTS (REPO REALITY)\
+================================================================================\
+\
+Repo: emaildj-mvp-0.5\
+\
+Existing pipeline:\
+  backend/app/engine/ai_orchestrator.py   \uc0\u8592  main pipeline orchestrator\
+  backend/app/engine/stage_runner.py      \uc0\u8592  per-stage LLM call + repair\
+  backend/app/engine/prompts/stage_*.py   \uc0\u8592  A, B, B0, C0, C, D, E prompts\
+  backend/app/engine/schemas.py           \uc0\u8592  all JSON schemas\
+  backend/app/engine/validators.py        \uc0\u8592  deterministic validators\
+  backend/app/engine/postprocess.py       \uc0\u8592  mechanical postprocess\
+  backend/app/engine/tracer.py            \uc0\u8592  trace logging\
+  backend/debug_traces/                   \uc0\u8592  trace output directory\
+\
+Existing test infrastructure:\
+  backend/tests/test_stage_runner.py\
+  backend/tests/test_ai_orchestrator_fail_closed.py\
+  backend/tests/test_stage_prompt_contracts.py\
+  backend/tests/test_api_smoke.py\
+\
+Known quality failures from calibration runs:\
+  - Stage C0 value_line outputs mechanism descriptions not outcomes\
+  - Stage C0 proof_line can be circular (prospect facts used as seller proof)\
+  - Stage A drifts into generic industry knowledge on sparse inputs\
+  - Double CTA survived semantic dedup in early runs (now fixed)\
+  - [Persona's team] bracket token leaked literally into output (now fixed)\
+  - proof_gap boolean propagates deterministically through orchestrator\
+\
+DEBUG_TRACE_RAW=1 env flag writes full stage payloads to:\
+  backend/debug_traces/YYYYMMDD/_raw/<trace_id>.json\
+\
+================================================================================\
+SECTION 1 \'97 WHAT YOU ARE BUILDING\
+================================================================================\
+\
+Four components:\
+\
+  A) stage_judge.py        \uc0\u8592  LLM-powered rubric evaluator for each stage\
+  B) eval_payloads.py      \uc0\u8592  30 synthetic payloads covering input distribution\
+  C) eval_run.py           \uc0\u8592  harness that runs pipeline + judges all outputs\
+  D) eval_report.py        \uc0\u8592  structured report generator with pass rates + diffs\
+\
+Location for all new files:\
+  backend/evals/\
+    __init__.py\
+    stage_judge.py\
+    eval_payloads.py\
+    eval_run.py\
+    eval_report.py\
+    golden/                \uc0\u8592  locked golden outputs (populated after first clean run)\
+      .gitkeep\
+    reports/               \uc0\u8592  generated reports (gitignored except golden)\
+      .gitkeep\
+\
+================================================================================\
+SECTION 2 \'97 COMPONENT A: STAGE JUDGE\
+================================================================================\
+\
+File: backend/evals/stage_judge.py\
+\
+The judge is an external LLM evaluator that grades pipeline stage outputs \
+against explicit rubrics. It runs OUTSIDE the pipeline \'97 it never \
+modifies pipeline behavior, only observes and scores it.\
+\
+Use the same model as the pipeline (gpt-5-nano) for the judge.\
+Temperature: 0.1 (low \'97 scoring should be deterministic).\
+Use response_format json_schema strict on all judge calls.\
+\
+------------------------------------------------------------\
+JUDGE A \'97 grades MessagingBrief (Stage A output)\
+------------------------------------------------------------\
+\
+Function: judge_messaging_brief(brief: dict, raw_inputs: dict) -> JudgeResult\
+\
+Rubric (score each criterion 0 or 1, no partial credit):\
+\
+  containment_clean:\
+    All facts in facts_from_input can be traced to a specific \
+    input field. Zero facts sourced from generic industry \
+    knowledge or training data.\
+    Test: for each fact, does source_field exist and is \
+    the fact text plausibly derivable from that field alone?\
+\
+  assumptions_labeled:\
+    Every inference is in assumptions[], not facts_from_input.\
+    No facts_from_input entry contains words like \
+    "likely", "probably", "typically", "usually", "often".\
+\
+  hooks_grounded:\
+    Every hook references at least one fact_id that exists \
+    in facts_from_input. No hook stands alone.\
+\
+  confidence_calibrated:\
+    No assumption has confidence > 0.85.\
+    Assumptions with confidence > 0.75 have \
+    based_on_fact_ids.length >= 2.\
+\
+  signal_strength_honest:\
+    signal_strength matches fact_count and has_research \
+    rules:\
+      high: fact_count >= 6 AND has_research: true AND hook_count >= 3\
+      medium: fact_count >= 3 OR has_research: true\
+      low: fact_count < 3 AND has_research: false\
+\
+  no_prospect_as_proof:\
+    forbidden_claim_patterns is non-empty and contains \
+    at minimum: "saw your post", "noticed you", "congrats on".\
+\
+Output schema:\
+\{\
+  "stage": "CONTEXT_SYNTHESIS",\
+  "scores": \{\
+    "containment_clean": 0 | 1,\
+    "assumptions_labeled": 0 | 1,\
+    "hooks_grounded": 0 | 1,\
+    "confidence_calibrated": 0 | 1,\
+    "signal_strength_honest": 0 | 1,\
+    "no_prospect_as_proof": 0 | 1\
+  \},\
+  "total": 0-6,\
+  "pass": true | false,  // pass = total >= 5\
+  "failures": ["specific description of each failed criterion"],\
+  "warnings": ["non-blocking observations"]\
+\}\
+\
+------------------------------------------------------------\
+JUDGE B \'97 grades FitMap (Stage B output)\
+------------------------------------------------------------\
+\
+Function: judge_fit_map(fit_map: dict, brief: dict) -> JudgeResult\
+\
+Rubric:\
+\
+  hypotheses_grounded:\
+    Every hypothesis.supporting_fact_ids references at least \
+    one fact_id that exists in brief.facts_from_input.\
+\
+  hook_ids_valid:\
+    Every hypothesis.selected_hook_id exists in \
+    brief.hooks[].hook_id.\
+\
+  proof_specific:\
+    Every hypothesis.proof field either:\
+    (a) names a specific customer, metric, or case study result, OR\
+    (b) explicitly states "No directly applicable proof point"\
+    Fails if proof contains vague phrases like "our product helps" \
+    or "companies using this solution."\
+\
+  why_now_honest:\
+    Every hypothesis.why_now either:\
+    (a) cites a specific fact_id or assumption_id as the trigger, OR\
+    (b) explicitly states "No strong timing signal. Evergreen."\
+    Fails if why_now contains urgency language without a cited source.\
+\
+  ranking_justified:\
+    Hypothesis ranked #1 has the highest or joint-highest \
+    confidence score. If not, a rank_override flag exists.\
+\
+Output schema: same structure as Judge A, criteria names as above, \
+pass = total >= 4 out of 5.\
+\
+------------------------------------------------------------\
+JUDGE B0 \'97 grades AngleSet (Stage B0 output)\
+------------------------------------------------------------\
+\
+Function: judge_angle_set(angle_set: dict, brief: dict, fit_map: dict) -> JudgeResult\
+\
+Rubric:\
+\
+  angles_distinct:\
+    No two angles share the same angle_type.\
+    No two angles share the same selected_hook_id.\
+    Opener entry points are meaningfully different \
+    (judge uses LLM reasoning to assess \'97 not string match).\
+\
+  hook_ids_valid:\
+    Every angle.selected_hook_id exists in brief.hooks[].hook_id.\
+\
+  hypothesis_ids_valid:\
+    Every angle.selected_fit_hypothesis_id exists in \
+    fit_map.hypotheses[].fit_hypothesis_id.\
+\
+  why_you_why_now_earned:\
+    If any angle has angle_type "why_you_why_now", at least \
+    one FitMap hypothesis must have a non-evergreen why_now.\
+    Fails if why_you_why_now angle exists but all FitMap \
+    why_now fields are "No strong timing signal."\
+\
+  risk_flags_inherited:\
+    If a hypothesis used by an angle has risk_flags, those \
+    flags appear in the angle's risk_flags array.\
+\
+  cta_bridge_natural:\
+    Each angle's cta_question_suggestion is a question \
+    (ends with "?") and is <= 160 characters.\
+\
+Pass = total >= 5 out of 6.\
+\
+------------------------------------------------------------\
+JUDGE C0 \'97 grades MessageAtoms (Stage C0 output)\
+------------------------------------------------------------\
+\
+Function: judge_message_atoms(atoms: dict, brief: dict, angle: dict) -> JudgeResult\
+\
+This is the most critical judge. C0 failures propagate to every \
+downstream stage.\
+\
+Rubric:\
+\
+  opener_specific:\
+    The opener_line cannot be sent to a different person at a \
+    different company with only a name swap.\
+    Test: does the opener reference something specific to THIS \
+    prospect or THIS company? Generic observations about \
+    "companies like yours" fail this test.\
+\
+  opener_simple:\
+    The opener_line contains no more than one comma and no more \
+    than one connecting word (which, that, because, so, and).\
+    If it contains more: fail. The model packed multiple ideas \
+    into one sentence.\
+\
+  value_outcome_not_mechanism:\
+    The value_line names a concrete result (a number, a timeframe, \
+    a named capability gain) NOT a product feature, mechanism, \
+    or action the prospect should take.\
+    Explicit failures:\
+      - Contains product mechanism words: scoring, tracking, \
+        platform, tool, system, workflow, QA, process, cadence\
+        WITHOUT a concrete result following them\
+      - Is an imperative sentence (starts with a verb commanding \
+        the prospect to do something)\
+      - Contains bracket placeholders: [Persona's team], \
+        [specific verb], etc.\
+      - Uses abstract noun stacking: any three of these in \
+        sequence: hygiene, pipeline, cadence, process, alignment, \
+        SLA, methodology, framework, discipline, visibility\
+\
+  proof_not_circular:\
+    If proof_line is non-empty:\
+      - It must describe a result achieved by someone OTHER \
+        than the prospect\
+      - It must not restate prospect facts (opener facts) \
+        as seller proof\
+      - It must name a customer, a metric, or a case study result\
+    If proof_line is empty string: this criterion auto-passes \
+    (honest null is correct behavior).\
+\
+  cta_locked:\
+    atoms.cta_line is character-for-character identical to \
+    the locked CTA from the input payload.\
+\
+  hook_ids_valid:\
+    All hook_ids in used_hook_ids exist in brief.hooks[].hook_id.\
+\
+Pass = total >= 5 out of 6. \
+CRITICAL: if value_outcome_not_mechanism fails OR proof_not_circular \
+fails \uc0\u8594  force pass: false regardless of total score.\
+These two are hard-fail criteria.\
+\
+------------------------------------------------------------\
+JUDGE C \'97 grades EmailDraft (Stage C output)\
+------------------------------------------------------------\
+\
+Function: judge_email_draft(\
+  draft: dict, \
+  atoms: dict, \
+  brief: dict, \
+  cta_final_line: str,\
+  proof_gap: bool\
+) -> JudgeResult\
+\
+Rubric:\
+\
+  subject_specific:\
+    Subject line is specific to this prospect/angle.\
+    Cannot be sent to a different VP at a different company \
+    with only a name swap.\
+    Not a generic question ("Quick question for you").\
+\
+  subject_length:\
+    Subject line is <= 70 characters.\
+\
+  no_atoms_violation:\
+    Body does not introduce any claim, fact, or proof point \
+    not present in the atoms. \
+    Judge uses LLM reasoning: "Does this sentence in the body \
+    correspond to an atom? If not, it is a violation."\
+\
+  value_visible:\
+    The value_line atom is represented as a distinct sentence \
+    in the body. It is not merged into the opener or buried \
+    in a compound sentence.\
+\
+  proof_respected:\
+    If proof_gap is true: body contains no proof sentence.\
+    If proof_gap is false: body contains a sentence traceable \
+    to atoms.proof_line.\
+\
+  cta_exact:\
+    Final line of body is character-for-character identical \
+    to cta_final_line.\
+\
+  no_banned_phrases:\
+    Body and subject contain none of:\
+    touch base | circle back | synergy | leverage (verb) | \
+    game-changer | revolutionary | I hope this email finds you | \
+    I hope this finds you | I wanted to reach out | \
+    just checking in | quick question | I came across your profile | \
+    I know you're busy | I'll keep this brief | \
+    Does that make sense | Let me know your thoughts | \
+    Hope to hear from you\
+\
+  no_double_cta:\
+    Body contains exactly one interrogative sentence \
+    (sentence ending with "?"). That sentence is the locked CTA.\
+\
+Pass = total >= 6 out of 8.\
+CRITICAL: cta_exact and no_banned_phrases are hard-fail criteria.\
+\
+------------------------------------------------------------\
+JUDGE D \'97 grades QAReport (Stage D output)\
+------------------------------------------------------------\
+\
+Function: judge_qa_report(qa_report: dict, draft: dict) -> JudgeResult\
+\
+Rubric:\
+\
+  evidence_quoted:\
+    Every issue in issues[] has at least one evidence entry \
+    that is a quoted snippet from the email draft \
+    (not a description of the problem).\
+\
+  fix_instructions_surgical:\
+    Every fix_instruction names:\
+    (a) what to change, AND\
+    (b) where to find the replacement (fact_id, proof_point, atom field)\
+    Fails if any fix_instruction contains only directional \
+    language: "make it more specific", "improve the opener", \
+    "be more concrete."\
+\
+  severity_calibrated:\
+    No high-severity issue exists for style preferences.\
+    No medium-severity issue exists for hard structural failures \
+    (missing CTA, hallucinated proof \'97 these must be high).\
+\
+  rewrite_plan_actionable:\
+    If pass_rewrite_needed is true:\
+    rewrite_plan is non-empty and each item is independently \
+    executable without follow-up questions.\
+\
+Pass = total >= 3 out of 4.\
+\
+------------------------------------------------------------\
+JUDGE E \'97 grades final EmailDraft (Stage E output)\
+------------------------------------------------------------\
+\
+Function: judge_rewritten_draft(\
+  rewritten: dict,\
+  original_draft: dict,\
+  qa_report: dict,\
+  atoms: dict,\
+  cta_final_line: str,\
+  proof_gap: bool\
+) -> JudgeResult\
+\
+Rubric:\
+\
+  high_issues_resolved:\
+    Every high-severity issue in qa_report.issues[] has been \
+    addressed in the rewritten draft. Judge uses LLM reasoning \
+    to verify each issue's fix_instruction was executed.\
+\
+  no_new_content:\
+    Rewritten draft does not introduce claims not in atoms \
+    or original draft. \
+    (Stage E may only remove, replace, or tighten \'97 never add.)\
+\
+  untouched_sentences_preserved:\
+    Sentences not referenced in the rewrite plan are identical \
+    or near-identical to original draft.\
+    Fails if a sentence that passed QA was rewritten anyway.\
+\
+  cta_exact:\
+    Final line is character-for-character identical to \
+    cta_final_line.\
+\
+  metadata_preserved:\
+    preset_id, selected_angle_id, used_hook_ids match \
+    original draft exactly.\
+\
+Pass = total >= 4 out of 5.\
+CRITICAL: cta_exact is a hard-fail criterion.\
+\
+================================================================================\
+SECTION 3 \'97 COMPONENT B: EVAL PAYLOADS\
+================================================================================\
+\
+File: backend/evals/eval_payloads.py\
+\
+Build 30 synthetic payloads covering the full input distribution.\
+Each payload is a dict matching the WebGenerateRequest schema.\
+\
+Payload taxonomy (build at least 2 of each type):\
+\
+  TYPE 1 \'97 HIGH SIGNAL (5 payloads)\
+    Rich research_text, multiple proof points, clear ICP match.\
+    Expected outcome: all 7 stages pass, strong atoms, \
+    email is outbound-ready.\
+\
+  TYPE 2 \'97 MEDIUM SIGNAL (5 payloads)\
+    Some research_text, 1-2 proof points, reasonable ICP fit.\
+    Expected outcome: pipeline completes, atoms may have \
+    proof_gap, email is functional but not exceptional.\
+\
+  TYPE 3 \'97 THIN INPUT (5 payloads)\
+    No research_text, minimal prospect notes, sparse proof.\
+    Expected outcome: signal_strength = "low", pipeline \
+    may fail-closed or produce minimal email with proof_gap.\
+\
+  TYPE 4 \'97 EDGE CASES (5 payloads)\
+    Adversarial inputs designed to trigger known failure modes:\
+    - Prospect notes that sound like facts but are vague \
+      ("they care about efficiency") \uc0\u8594  tests containment\
+    - Proof points that are actually feature descriptions \
+      \uc0\u8594  tests proof specificity\
+    - Research text about a different company \
+      \uc0\u8594  tests fact attribution\
+    - CTA final line containing special characters \
+      \uc0\u8594  tests CTA lock\
+    - Very long research_text (>500 words) \
+      \uc0\u8594  tests fact extraction under volume\
+\
+  TYPE 5 \'97 DIVERSE PERSONAS (5 payloads)\
+    Different titles, industries, company sizes:\
+    - VP Sales at 50-person SaaS startup\
+    - RevOps Director at 500-person fintech\
+    - CMO at enterprise healthcare company\
+    - SDR Manager at mid-market logistics firm\
+    - Head of Growth at early-stage marketplace\
+    Tests that persona_cues and hook selection vary appropriately.\
+\
+  TYPE 6 \'97 EMAILDJ SELLING ITSELF (5 payloads)\
+    User company = EmailDJ (the canonical product).\
+    Varied prospects across different buyer personas.\
+    These are the most important payloads \'97 they represent \
+    the actual product use case.\
+\
+Payload structure for each:\
+\{\
+  "payload_id": "high_signal_01",\
+  "payload_type": "high_signal",\
+  "description": "one sentence describing the scenario",\
+  "expected_behavior": "passes_all_stages | fails_at_stage_X | proof_gap_expected",\
+  "request": \{\
+    // full WebGenerateRequest dict\
+    "user_company": \{...\},\
+    "prospect": \{...\},\
+    "cta": \{...\},\
+    "sliders": \{...\},\
+    "preset_id": "direct",\
+    "mode": "single"\
+  \}\
+\}\
+\
+Payload quality rules:\
+  - All payloads must use realistic but fictional company/person names\
+  - No real company names except as proof point examples \
+    (and even then, make them clearly fictional variants)\
+  - Each payload must have a non-trivial CTA final line \
+    (not just "reply to this email")\
+  - Thin input payloads must truly be thin \'97 \
+    do not add "light research" to make them pass easier\
+\
+================================================================================\
+SECTION 4 \'97 COMPONENT C: EVAL HARNESS\
+================================================================================\
+\
+File: backend/evals/eval_run.py\
+\
+Command: python -m backend.evals.eval_run [options]\
+\
+Options:\
+  --payloads    all | high_signal | thin | edge | emaildj | <payload_id>\
+  --stages      all | a | b | b0 | c0 | c | d | e (which judges to run)\
+  --golden      compare against golden set if it exists\
+  --raw         enable DEBUG_TRACE_RAW for this run\
+  --report      output path for report JSON (default: evals/reports/<timestamp>.json)\
+  --fail-fast   stop on first payload failure\
+\
+Harness behavior:\
+\
+  1. Load requested payloads from eval_payloads.py\
+  \
+  2. For each payload:\
+     a. Call ai_orchestrator.run_pipeline_single(payload.request)\
+     b. Capture: ok, trace_id, subject, body, stage_stats, error\
+     c. If DEBUG_TRACE_RAW, load raw trace from debug_traces/_raw/<trace_id>.json\
+     d. Extract per-stage artifacts from raw trace:\
+          messaging_brief, fit_map, angle_set, message_atoms, \
+          email_draft, qa_report, rewritten_draft\
+     e. Run each judge against its stage artifact\
+     f. Collect all JudgeResults into EvalResult for this payload\
+  \
+  3. Aggregate results across all payloads\
+  \
+  4. Write report via eval_report.py\
+  \
+  5. Print summary to stdout\
+\
+EvalResult schema per payload:\
+\{\
+  "payload_id": "...",\
+  "payload_type": "...",\
+  "pipeline_ok": true | false,\
+  "pipeline_error": null | \{code, stage, message\},\
+  "trace_id": "...",\
+  "final_subject": "...",\
+  "final_body": "...",\
+  "judge_results": \{\
+    "CONTEXT_SYNTHESIS": JudgeResult | null,\
+    "FIT_REASONING": JudgeResult | null,\
+    "ANGLE_PICKER": JudgeResult | null,\
+    "ONE_LINER_COMPRESSOR": JudgeResult | null,\
+    "EMAIL_GENERATION": JudgeResult | null,\
+    "EMAIL_QA": JudgeResult | null,\
+    "EMAIL_REWRITE": JudgeResult | null\
+  \},\
+  "overall_pass": true | false,\
+  "hard_fail_triggered": true | false,\
+  "hard_fail_criteria": []\
+\}\
+\
+overall_pass: true only if:\
+  - pipeline_ok is true AND\
+  - all run judges pass AND\
+  - no hard_fail_triggered\
+\
+================================================================================\
+SECTION 5 \'97 COMPONENT D: EVAL REPORT\
+================================================================================\
+\
+File: backend/evals/eval_report.py\
+\
+Produces two outputs: a JSON report file and a human-readable \
+stdout summary.\
+\
+JSON report structure:\
+\{\
+  "run_id": "<timestamp>",\
+  "run_timestamp": "ISO datetime",\
+  "payload_count": 30,\
+  "overall_pass_rate": 0.0-1.0,\
+  "stage_pass_rates": \{\
+    "CONTEXT_SYNTHESIS": 0.0-1.0,\
+    "FIT_REASONING": 0.0-1.0,\
+    "ANGLE_PICKER": 0.0-1.0,\
+    "ONE_LINER_COMPRESSOR": 0.0-1.0,\
+    "EMAIL_GENERATION": 0.0-1.0,\
+    "EMAIL_QA": 0.0-1.0,\
+    "EMAIL_REWRITE": 0.0-1.0\
+  \},\
+  "hard_fail_rate": 0.0-1.0,\
+  "failure_taxonomy": \{\
+    // count of each failure criterion across all payloads\
+    "containment_clean": \{"failures": N, "payloads": [...]\},\
+    "value_outcome_not_mechanism": \{"failures": N, "payloads": [...]\},\
+    "proof_not_circular": \{"failures": N, "payloads": [...]\},\
+    // ... all criteria\
+  \},\
+  "payload_results": [...EvalResult],\
+  "regression_vs_golden": null | \{\
+    "improved": [...payload_ids],\
+    "regressed": [...payload_ids],\
+    "unchanged": [...payload_ids],\
+    "net_delta": +N\
+  \},\
+  "calibration_memo": \{\
+    "top_failures": ["top 3 most common failure criteria"],\
+    "recommended_fixes": ["one sentence per failure describing where to look"],\
+    "stages_to_prioritize": ["stages with pass rate < 0.7"]\
+  \}\
+\}\
+\
+Stdout summary format:\
+  \uc0\u9556 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9559 \
+  \uc0\u9553   EmailDJ Eval Run \'97 <timestamp>          \u9553 \
+  \uc0\u9568 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9571 \
+  \uc0\u9553   Payloads: 30 | Pass: 21 | Fail: 9       \u9553 \
+  \uc0\u9553   Overall pass rate: 70%                  \u9553 \
+  \uc0\u9568 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9571 \
+  \uc0\u9553   Stage Pass Rates:                       \u9553 \
+  \uc0\u9553   CONTEXT_SYNTHESIS    \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617   85%    \u9553 \
+  \uc0\u9553   FIT_REASONING        \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617   90%    \u9553 \
+  \uc0\u9553   ANGLE_PICKER         \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617   83%    \u9553 \
+  \uc0\u9553   ONE_LINER_COMPRESSOR \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617 \u9617 \u9617 \u9617   53%  \u8592  \u9553 \
+  \uc0\u9553   EMAIL_GENERATION     \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617 \u9617   73%    \u9553 \
+  \uc0\u9553   EMAIL_QA             \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617   80%    \u9553 \
+  \uc0\u9553   EMAIL_REWRITE        \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9608 \u9617 \u9617 \u9617   70%    \u9553 \
+  \uc0\u9568 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9571 \
+  \uc0\u9553   Top failures:                           \u9553 \
+  \uc0\u9553   1. value_outcome_not_mechanism (12/30)  \u9553 \
+  \uc0\u9553   2. proof_not_circular (8/30)            \u9553 \
+  \uc0\u9553   3. containment_clean (5/30)             \u9553 \
+  \uc0\u9568 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9571 \
+  \uc0\u9553   Prioritize: ONE_LINER_COMPRESSOR (53%)  \u9553 \
+  \uc0\u9562 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9565 \
+\
+================================================================================\
+SECTION 6 \'97 GOLDEN SET MANAGEMENT\
+================================================================================\
+\
+File: backend/evals/eval_run.py (add --lock-golden flag)\
+\
+Golden set workflow:\
+\
+  python -m backend.evals.eval_run --payloads all --lock-golden\
+\
+This runs all 30 payloads, and for every payload where \
+overall_pass is true, writes the EvalResult to:\
+  backend/evals/golden/<payload_id>.json\
+\
+Future runs with --golden flag:\
+  - Load golden EvalResult for each payload\
+  - Compare current JudgeResults against golden JudgeResults\
+  - A criterion that passed in golden but fails now = REGRESSION\
+  - A criterion that failed in golden but passes now = IMPROVEMENT\
+  - Report includes regression_vs_golden summary\
+\
+Golden set rules:\
+  - Never auto-update golden set \'97 only --lock-golden flag does it\
+  - --lock-golden only writes golden for payloads that pass ALL judges\
+  - Regressed payloads block merge in CI (add to GitHub Actions if exists)\
+\
+================================================================================\
+SECTION 7 \'97 JUDGE PROMPT DESIGN RULES\
+================================================================================\
+\
+All judge LLM calls must follow these rules:\
+\
+1. System prompt establishes the judge role:\
+   "You are an automated QA evaluator for a cold email \
+   generation pipeline. You score outputs against explicit \
+   rubrics. You output only JSON. You never explain your \
+   scores in prose \'97 only in the failures[] and warnings[] \
+   arrays. You are strict: partial credit does not exist. \
+   A criterion either passes (1) or fails (0)."\
+\
+2. User prompt includes:\
+   - The artifact being judged (full JSON)\
+   - The reference artifacts needed for grounding checks\
+   - The rubric as a numbered list with explicit pass/fail conditions\
+   - The output schema\
+\
+3. For criteria requiring LLM reasoning (not just string matching):\
+   Include 2-3 examples of pass and fail in the prompt.\
+   Do not rely on the model's intuition \'97 show it the bar.\
+\
+4. All judge calls use response_format json_schema strict: true.\
+   Judge output schema must be registered in schemas.py as \
+   JUDGE_RESULT_SCHEMA.\
+\
+5. Judge calls have their own trace \'97 do not mix with pipeline traces.\
+   Judge traces write to: backend/debug_traces/evals/<run_id>/\
+\
+================================================================================\
+SECTION 8 \'97 CI INTEGRATION\
+================================================================================\
+\
+If the repo has .github/workflows/:\
+\
+Add: .github/workflows/eval_regression.yml\
+\
+Trigger: on pull_request targeting main\
+\
+Steps:\
+  1. Install deps\
+  2. Run eval harness on subset: --payloads emaildj (5 payloads only, \
+     for speed \'97 these are the most important)\
+  3. Run with --golden flag if golden set exists\
+  4. Fail CI if:\
+     - Any hard_fail_triggered on emaildj payloads\
+     - Any regression vs golden set\
+     - ONE_LINER_COMPRESSOR pass rate < 0.6 \
+       (current known weak point)\
+  5. Post summary as PR comment\
+\
+================================================================================\
+SECTION 9 \'97 FILE STRUCTURE\
+================================================================================\
+\
+NEW FILES:\
+  backend/evals/__init__.py\
+  backend/evals/stage_judge.py           \uc0\u8592  all 7 judge functions\
+  backend/evals/eval_payloads.py         \uc0\u8592  30 synthetic payloads\
+  backend/evals/eval_run.py              \uc0\u8592  harness entrypoint\
+  backend/evals/eval_report.py           \uc0\u8592  report generator\
+  backend/evals/golden/.gitkeep\
+  backend/evals/reports/.gitkeep\
+  backend/tests/test_stage_judge.py      \uc0\u8592  unit tests for judges\
+  .github/workflows/eval_regression.yml  \uc0\u8592  CI (if workflows dir exists)\
+\
+MODIFY:\
+  backend/app/engine/schemas.py          \uc0\u8592  add JUDGE_RESULT_SCHEMA\
+\
+DO NOT MODIFY:\
+  Any pipeline file (orchestrator, stage runners, prompts, validators)\
+  The eval harness observes the pipeline \'97 it does not change it.\
+\
+================================================================================\
+SECTION 10 \'97 IMPLEMENTATION STEPS\
+================================================================================\
+\
+Step 1: JUDGE_RESULT_SCHEMA\
+  Add to schemas.py:\
+  \{\
+    "stage": string,\
+    "scores": object (criterion_name: 0|1),\
+    "total": integer,\
+    "pass": boolean,\
+    "hard_fail_triggered": boolean,\
+    "hard_fail_criteria": array of strings,\
+    "failures": array of strings,\
+    "warnings": array of strings\
+  \}\
+\
+Step 2: stage_judge.py\
+  Implement all 7 judge functions.\
+  Each judge:\
+    - builds messages[] for the judge LLM call\
+    - calls gpt-5-nano with temperature 0.1\
+    - validates response against JUDGE_RESULT_SCHEMA\
+    - returns JudgeResult\
+  Include 2-3 pass/fail examples in each judge prompt \
+  for LLM-reasoning criteria.\
+\
+Step 3: eval_payloads.py\
+  Build all 30 payloads across 6 types.\
+  Expose: get_all_payloads(), get_payloads_by_type(type_name)\
+\
+Step 4: eval_run.py\
+  Implement harness with all CLI options.\
+  Wire to ai_orchestrator and stage_judge.\
+  Handle raw trace loading for artifact extraction.\
+  Implement golden set read/write logic.\
+\
+Step 5: eval_report.py\
+  Implement JSON report generation.\
+  Implement stdout summary with ASCII progress bars.\
+  Implement calibration_memo auto-generation:\
+    top_failures = sorted failure_taxonomy by count, top 3\
+    recommended_fixes = one sentence per failure pointing \
+    to the stage and prompt file to check\
+    stages_to_prioritize = stages with pass_rate < 0.7\
+\
+Step 6: test_stage_judge.py\
+  Tests:\
+    - judge_message_atoms returns hard_fail when \
+      value_line is "[Persona's team]..." (bracket leak)\
+    - judge_message_atoms returns hard_fail when \
+      proof_line uses prospect's own facts as proof\
+    - judge_email_draft returns hard_fail when \
+      CTA does not match locked CTA\
+    - judge_messaging_brief passes when signal_strength \
+      matches fact_count rules\
+    - judge_qa_report fails when fix_instruction says \
+      only "make it more specific"\
+    - All judges handle missing/empty artifacts gracefully \
+      (return pass: false with failure "artifact missing")\
+\
+Step 7: Run on EmailDJ payloads\
+  python -m backend.evals.eval_run --payloads emaildj --raw\
+  Capture first report. Identify top 3 failures.\
+  Do not fix anything yet \'97 capture baseline first.\
+\
+================================================================================\
+SECTION 11 \'97 ACCEPTANCE CRITERIA\
+================================================================================\
+\
+You are done when ALL are true:\
+\
+[ ] python -m backend.evals.eval_run --payloads all --raw \
+    completes without crashing on any payload type\
+\
+[ ] Report shows per-stage pass rates for all 7 stages\
+\
+[ ] failure_taxonomy populated with counts for all criteria\
+\
+[ ] At least one payload correctly triggers \
+    hard_fail on value_outcome_not_mechanism\
+\
+[ ] At least one thin_input payload results in \
+    pipeline_ok: false with graceful error \
+    (not a judge failure \'97 a pipeline fail-closed)\
+\
+[ ] Golden set locking works: \
+    --lock-golden writes files, --golden compares correctly\
+\
+[ ] test_stage_judge.py: all tests pass\
+\
+[ ] CI workflow runs eval on emaildj payloads on PR \
+    (or stub if no CI exists yet)\
+\
+[ ] eval_run --payloads emaildj produces a calibration_memo \
+    with at least one stages_to_prioritize entry \
+    (the known C0 weakness should show up)\
+\
+================================================================================\
+SECTION 12 \'97 OUTPUT REQUIRED FROM YOU (CODEX)\
+================================================================================\
+\
+After implementing:\
+\
+1. List all files created or modified\
+2. Show sample JudgeResult for ONE_LINER_COMPRESSOR \
+   on the known bad atoms \
+   (opener: "From Nimbus Health's January RevOps expansion...")\
+3. Show stdout summary from first emaildj payload run\
+4. Show calibration_memo from first full run\
+5. Command to run full eval suite\
+6. Command to lock golden set after first clean run\
+\
+================================================================================\
+NOW EXECUTE.\
+Read the repo first. Build in step order.\
+Do not modify any pipeline file.\
+The eval system observes \'97 it never changes what it observes.\
+================================================================================\
+\pard\pardeftab720\partightenfactor0
+\cf4 \strokec4 ENDOFPROMPT\cf2 \strokec2 \
+\pard\pardeftab720\partightenfactor0
+\cf5 \strokec5 echo\cf2 \strokec2  \cf4 \strokec4 "Done"}

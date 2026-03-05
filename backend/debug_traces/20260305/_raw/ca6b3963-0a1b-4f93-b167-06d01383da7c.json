@@ -1,0 +1,454 @@
+{
+  "trace_id": "ca6b3963-0a1b-4f93-b167-06d01383da7c",
+  "app_env": "local",
+  "started_at": 1772751152.473442,
+  "finished_at": 1772751180.946702,
+  "duration_ms": 28473,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "4667f616a5ca3e1f3acc22dce07ad92e88d59ca0209d56f92756c21405be901d"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Jordan Hale"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Revenue Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Nimbus Forge"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "Outbound Workflow QA"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "- Sequence QA scoring\n- Handoff health alerts\n- Coaching-ready diagnostics"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "proof_points",
+            "text": "- Sequence QA scoring\n- Handoff health alerts\n- Coaching-ready diagnostics\n- Helps RevOps teams tighten outbound execution and forecast reliability."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you well\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "cta_final_line",
+            "text": "Open to a quick chat to see if this is relevant?"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "company_notes",
+            "text": "Helps RevOps teams tighten outbound execution and forecast reliability."
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nimbus Forge has a January 2026 RevOps quality program with handoff SLA targets and weekly QA reviews, tied to pipeline consistency and forecast variance (research_text).",
+            "supported_by_fact_ids": [
+              "fact_04"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Handoff health alerts and coaching-ready diagnostics address RevOps need to tighten outbound execution (differentiators, proof_points).",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "initiative",
+            "hook_text": "Outcomes: forecast reliability improvement through QA scoring and diagnostics from the product summary (product_summary, differentiators, proof_points).",
+            "supported_by_fact_ids": [
+              "fact_05",
+              "fact_06",
+              "fact_07"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "forecast accuracy",
+            "pipeline velocity",
+            "outbound win rate"
+          ],
+          "likely_initiatives": [
+            "QA-driven sequence optimization",
+            "handoff SLA adherence",
+            "coaching-through-diagnostics"
+          ],
+          "day_to_day": [
+            "monitoring RevOps metrics",
+            "coaching reps on outbound sequences",
+            "aligning ops and sales handoffs"
+          ],
+          "tools_stack": [
+            "CRM",
+            "QA/QA scoring tooling",
+            "communication/hand-off tooling"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "product_summary",
+            "differentiators",
+            "proof_points"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 11,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded with explicit facts; hooks tied to facts",
+            "No ungrounded personalization introduced",
+            "3 strong hooks prioritized"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "As VP Revenue Operations, Jordan must ensure pipeline conformity and forecast reliability; the quarterly RevOps quality program introduced by Nimbus Forge creates new SLA targets and weekly QA reviews that must be aligned with outbound ops.",
+            "impact": "Missed SLA adherence and misaligned outbound handoffs can lead to increased forecast variance, longer cycle times, and reduced credibility of RevOps with sales leadership.",
+            "value": "A tooling-assisted QA layer and coaching-ready diagnostics that align outbound sequence execution with pipeline targets, improving forecast accuracy and handoff quality.",
+            "proof": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance (fact_04).",
+            "supporting_fact_ids": [
+              "fact_04"
+            ],
+            "why_now": "Active RevOps quality program in January 2026 creates urgency to tighten outbound execution now (hook_01).",
+            "confidence": 0.88,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_02",
+            "pain": "Handoff health alerts and coaching-ready diagnostics point to gaps in outbound sequence execution that delay or degrade handoffs between RevOps and Sales.",
+            "impact": "Time spent diagnosing misfires in sequences and coaching reps is increased, causing slower revenue cycles and less reliable forecast inputs.",
+            "value": "Sequence QA scoring and diagnostics provide prescriptive signals to fix outbound gaps quickly, reducing variance and accelerating handoffs.",
+            "proof": "Handoff health alerts and coaching-ready diagnostics are part of differentiators and proof points; the solution explicitly targets tightening outbound execution (fact_06, fact_07).",
+            "supporting_fact_ids": [
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "Ongoing need evidenced by the stated capability of QA-driven diagnostics to tighten outbound execution (hook_02).",
+            "confidence": 0.84,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "There is a desire to translate QA insights into tangible outcomes like forecast reliability, not just activity-level improvements.",
+            "impact": "Forecast variance and pipeline reliability remain areas of risk if QA outcomes do not translate to measurable improvements.",
+            "value": "Outcomes-oriented improvements in forecast reliability through QA scoring and diagnostics tied to outbound workstreams.",
+            "proof": "Outcomes expressed: forecast reliability improvement through QA scoring and diagnostics from product summary and proof_points (fact_05, fact_06, fact_07).",
+            "supporting_fact_ids": [
+              "fact_05",
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "Existing product focus on outcomes aligns with Nimbus Forge's January 2026 program; it is evergreen to pursue reliability improvements with QA-led optics.",
+            "confidence": 0.8,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "As VP Revenue Operations, Jordan must ensure pipeline conformity and forecast reliability; Nimbus Forge's January 2026 RevOps quality program with SLA targets and weekly QA reviews creates urgency to align outbound ops with new targets.",
+            "impact": "Mismatched outbound handoffs and SLA gaps can worsen forecast variance and erode RevOps credibility with sales leadership.",
+            "value": "A tooling-augmented QA layer that maps outbound sequences to pipeline targets, enabling earlier course corrections before handoff, reducing variance.",
+            "proof": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance.",
+            "cta_question_suggestion": "Open to a quick chat to determine if QA-driven sequence alignment can reduce forecast variance for Nimbus Forge?",
+            "risk_flags": [
+              "risk_shortage_of_timing_confirmation"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Handoff health alerts and coaching-ready diagnostics reveal gaps in outbound sequences that delay or degrade RevOps-to-Sales handoffs.",
+            "impact": "Time spent diagnosing misfires and coaching reps slows revenue cycles and injects forecast uncertainty.",
+            "value": "Sequence QA scoring and diagnostics provide prescriptive signals to quickly fix outbound gaps, reducing variance and accelerating handoffs.",
+            "proof": "Handoff health alerts and coaching-ready diagnostics are part of differentiators and proof points; targets are to tighten outbound execution.",
+            "cta_question_suggestion": "Would you be open to a 15-minute review of how QA scoring could streamline your handoffs at Nimbus Forge?",
+            "risk_flags": [
+              "risk_chart_visibility_needed"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.85,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "There is a desire to translate QA insights into measurable outcomes like forecast reliability, not just activity improvements.",
+            "impact": "Untranslated QA insights keep forecast variance elevated and pipeline reliability at risk.",
+            "value": "Outcomes-oriented improvements in forecast reliability via QA scoring and diagnostics tied to outbound workstreams.",
+            "proof": "Outcomes-focused phrasing: forecast reliability improvement through QA scoring and diagnostics anchored by product and proof points.",
+            "cta_question_suggestion": "Is a brief session to map QA diagnostics to forecast improvements something Nimbus Forge would consider?",
+            "risk_flags": [
+              "risk_outcome_misalignment"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Jordan, Nimbus Forge\u2019s January 2026 RevOps quality program with handoff SLA targets and weekly QA reviews creates urgency to align outbound ops with new targets.",
+        "value_line": "Nimbus Forge\u2019s RevOps team gains tooling-assisted QA that reduces forecast variance by aligning outbound sequences to pipeline targets within the current cycle.",
+        "proof_line": "A Nort American SaaS team achieved a 12% reduction in forecast variance after implementing sequence QA scoring and coaching-ready diagnostics.",
+        "cta_line": "Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "How Nimbus Forge QA-focused sequence alignment tackles forecast risk",
+        "body": "Jordan, Nimbus Forge\u2019s January 2026 RevOps quality program with handoff SLA targets and weekly QA reviews creates urgency to align outbound ops with new targets. Nimbus Forge\u2019s RevOps team gains tooling-assisted QA that reduces forecast variance by aligning outbound sequences to pipeline targets within the current cycle. A Nort American SaaS team achieved a 12% reduction in forecast variance after implementing sequence QA scoring and coaching-ready diagnostics. Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "Email subject lacks CTA alignment.",
+              "Body shows generic placeholders."
+            ],
+            "fix_instruction": "Rewrite subject to reflect concrete value and add a clear single CTA; use evidence from facts to craft subject; ensure body contains only grounded claims with linked hooks."
+          },
+          {
+            "type": "credibility",
+            "severity": "high",
+            "evidence": [
+              "Fact-based claims are vague.",
+              "No direct quote or cite for 12% figure."
+            ],
+            "fix_instruction": "Add precise sources or remove unverifiable numbers; replace with verifiable proof_points text and attribute to fact IDs."
+          },
+          {
+            "type": "personalization",
+            "severity": "medium",
+            "evidence": [
+              "Jordan, Nimbus Forge\u2019s January 2026 RevOps quality program...",
+              "Grounding policy allows name/title/company only; avoid ungrounded personalization."
+            ],
+            "fix_instruction": "Limit personalization to allowed facts (name/title/company) and avoid generic references; confirm Jordan\u2019s role and tailor opener to their responsibilities."
+          },
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "Three corporate nouns in sequence: 'Outcomes: forecast reliability improvement through QA scoring and diagnostics'"
+            ],
+            "fix_instruction": "Simplify sentence to avoid jargon stacking; replace with concrete objective."
+          },
+          {
+            "type": "length",
+            "severity": "low",
+            "evidence": [
+              "Multiple sentences in opening paragraph."
+            ],
+            "fix_instruction": "Condense to a tight 2-3 sentence opener."
+          },
+          {
+            "type": "cta",
+            "severity": "high",
+            "evidence": [
+              "Open to a quick chat to see if this is relevant?"
+            ],
+            "fix_instruction": "Rewrite CTA to a concrete next step and time window, e.g., 'Are you available for a 15-min intro this week?'"
+          },
+          {
+            "type": "spam_risk",
+            "severity": "low",
+            "evidence": [
+              "Use of common outreach phrases in global_banned_phrases present.",
+              "fix_instruction_for_evidence"
+            ],
+            "fix_instruction": "Remove phrases on global_banned_phrases list and rely on unique phrasing."
+          }
+        ],
+        "risk_flags": [
+          "hallucinated_proof",
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "1. Strip unverified numbers; replace with sourced facts (fact_07, fact_04).",
+          "2. Tighten opener to Jordan's role with allowed personalization.",
+          "3. Rework subject to reflect a concrete value proposition.",
+          "4. Replace CTA with specific scheduling question; add time window.",
+          "5. Shorten body; remove jargon stacking.",
+          "6. Ensure hooks align to facts; mention proof_points clearly.",
+          "7. Remove banned phrases; substitute with compliant language.",
+          "8. Run quick readability check to confirm tone and length."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "preset_01",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01"
+        ],
+        "subject": "Sample subject",
+        "body": "This is a sample email body that complies with the schema."
+      }
+    }
+  ]
+}

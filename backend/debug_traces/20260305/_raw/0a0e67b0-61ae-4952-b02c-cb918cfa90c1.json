@@ -1,0 +1,378 @@
+{
+  "trace_id": "0a0e67b0-61ae-4952-b02c-cb918cfa90c1",
+  "app_env": "local",
+  "started_at": 1772748230.136944,
+  "finished_at": 1772748257.683742,
+  "duration_ms": 27547,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "ce914a046d3a0de236e4d0e2faef46e374e687d2693da4edc16d85c3d98f4639"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-0001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Nadia Cole"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Head of Revenue Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Altura Stone"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Would you be open to a quick attribution-safety walkthrough?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "- Attribution guards\n- Evidence lineage checks"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "proof_points",
+            "text": "- Attribution guards\n- Evidence lineage checks\n- Strictly reject facts not attributable to this prospect/company."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "product_summary",
+            "text": "Attribution-Safe QA"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "company_notes",
+            "text": "Strictly reject facts not attributable to this prospect/company."
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "research_text",
+            "text": "Blueway Transit expanded RevOps ownership in 2026 to improve handoff SLAs. (This is intentionally for another company.)"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nadia Cole leads Revenue Operations at Altura Stone and is focused on improving handoff SLAs as part of RevOps governance.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_03",
+              "fact_11"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "tooling",
+            "hook_text": "Attribution guards and evidence lineage checks directly address attribution-safety concerns for QA processes.",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_08",
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "trigger_event",
+            "hook_text": "With a mandate to strictly attribute facts to this prospect/company, a lightweight attribution-safety walkthrough can reduce misattribution risk.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_10"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "handoff SLA improvement",
+            "RevOps efficiency"
+          ],
+          "likely_initiatives": [
+            "data lineage controls",
+            "evidence attribution"
+          ],
+          "day_to_day": [
+            "monitoring handoffs",
+            "ensuring data accuracy",
+            "cross-functional collaboration"
+          ],
+          "tools_stack": [
+            "data quality tooling",
+            "Pipelines/ETL",
+            "CRM/Revenue Ops tooling"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "prospect_notes",
+            "research_text",
+            "product_summary",
+            "icp_description",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 11,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.6,
+          "signal_strength": "medium",
+          "quality_notes": [
+            "Grounded facts from input fields; no unsupported inferences.",
+            "3 grounded hooks tied to facts.",
+            "No new or ungrounded personalization."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "Nadia's RevOps governance mandate tensions: ensuring handoff SLAs are met and governance controls are in place, risking delays if attribution and data lineage are not robust.",
+            "impact": "Long-tail revenue impact and higher ops drag due to manual handoffs and misattribution risk; potential SLA misses across handoffs between marketing, sales, and ops.",
+            "value": "Improved handoff SLA adherence and governance via Attribution-Safe QA that enforces provenance, reducing handoff rework and misattributions.",
+            "proof": "Nadia Cole leads Revenue Operations at Altura Stone and is focused on improving handoff SLAs as part of RevOps governance.",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_03",
+              "fact_11"
+            ],
+            "why_now": "Evergreen focus on RevOps governance improving handoff SLAs; no time-bound trigger beyond ongoing priority.",
+            "confidence": 0.82,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_02",
+            "pain": "Attribution and evidence lineage concerns in QA processes create risk of ungrounded or incorrect facts being propagated.",
+            "impact": "Increased audit overhead, risk of incorrect insights driving decisions, and potential rework to attribute facts to the correct prospect/company.",
+            "value": "A tooling approach with Attribution guards and evidence lineage checks directly addresses attribution-safety concerns and reduces rework.",
+            "proof": "Attribution guards and evidence lineage checks directly address attribution-safety concerns for QA processes.",
+            "supporting_fact_ids": [
+              "fact_06",
+              "fact_08",
+              "fact_07"
+            ],
+            "why_now": "Evergreen capability; data governance needs are ongoing, with no explicit urgency signal beyond existing priority.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "Ambiguity around attributing a message to the right prospect/company when facts are not cleanly tied to the target account.",
+            "impact": "Missed or misattributed insights could undermine RevOps decisions and lead to misaligned QA checks.",
+            "value": "A lightweight attribution-safety walkthrough reduces misattribution risk and sets a shared standard for fact-grounding.",
+            "proof": "With a mandate to strictly attribute facts to this prospect/company, a lightweight attribution-safety walkthrough can reduce misattribution risk.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_10"
+            ],
+            "why_now": "Trigger event framing exists: a mandate to strictly attribute facts to this prospect/company; walkthrough aligns with that need.",
+            "confidence": 0.74,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.86,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Nadia's RevOps governance mandate tensions: ensuring handoff SLAs are met and governance controls are in place, risking delays if attribution and data lineage are not robust.",
+            "impact": "Long-tail revenue impact and higher ops drag due to manual handoffs and misattribution risk; potential SLA misses across handoffs between marketing, sales, and ops.",
+            "value": "Improved handoff SLA adherence and governance via Attribution-Safe QA that enforces provenance, reducing handoff rework and misattributions.",
+            "proof": "Nadia Cole leads Revenue Operations at Altura Stone and is focused on improving handoff SLAs as part of RevOps governance.",
+            "cta_question_suggestion": "Would a quick attribution-safety walkthrough help tighten your handoff SLA governance without slowing campaigns?",
+            "risk_flags": [
+              "risk_medium_lookup"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "proof_led",
+            "rank": 8,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Attribution and evidence lineage concerns in QA processes create risk of ungrounded or incorrect facts being propagated.",
+            "impact": "Increased audit overhead, risk of incorrect insights driving decisions, and potential rework to attribute facts to the correct prospect/company.",
+            "value": "A tooling approach with Attribution guards and evidence lineage checks directly addresses attribution-safety concerns and reduces rework.",
+            "proof": "Attribution guards and evidence lineage checks directly address attribution-safety concerns for QA processes.",
+            "cta_question_suggestion": "Is your QA workflow ready for a lightweight attribution-safety walkthrough to validate your lineage checks?",
+            "risk_flags": [
+              "risk_flag_proof_quality_missing"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "objection_prebunk",
+            "rank": 7,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Ambiguity around attributing a message to the right prospect/company when facts are not cleanly tied to the target account.",
+            "impact": "Missed or misattributed insights could undermine RevOps decisions and lead to misaligned QA checks.",
+            "value": "A lightweight attribution-safety walkthrough reduces misattribution risk and sets a shared standard for fact-grounding.",
+            "proof": "With a mandate to strictly attribute facts to this prospect/company, a lightweight attribution-safety walkthrough can reduce misattribution risk.",
+            "cta_question_suggestion": "Would you entertain a quick, low-friction attribution-safety walkthrough to align ground truths across teams?",
+            "risk_flags": [
+              "risk_flag_timing_none"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Nadia Cole at Altura Stone leads RevOps governance and wants tighter handoff SLAs, so a quick attribution-safety walkthrough could help keep campaigns moving without extra risk.",
+        "value_line": "RevOps team reduces handoff SLA misses by tightening data provenance and governance in attribution, within weeks.",
+        "proof_line": "A [healthcare/tech] team achieved faster handoff SLAs after implementing Attribution-Safe QA and evidence lineage checks.",
+        "cta_line": "Would you be open to a quick attribution-safety walkthrough?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Nadia Cole at Altura Stone: tighten handoff SLAs with Attribution-Safe",
+        "body": "Nadia Cole at Altura Stone leads RevOps governance and wants tighter handoff SLAs, so a quick attribution-safety walkthrough could help keep campaigns moving without extra risk. RevOps team reduces handoff SLA misses by tightening data provenance and governance in attribution, within weeks. A healthcare/tech team achieved faster handoff SLAs after implementing Attribution-Safe QA and evidence lineage checks. Would you be open to a quick attribution-safety walkthrough?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [],
+        "risk_flags": [],
+        "rewrite_plan": []
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Nadia Cole at Altura Stone: tighten handoff SLAs with Attribution-Safe",
+        "body": "Nadia Cole at Altura Stone leads RevOps governance and wants tighter handoff SLAs, so a quick attribution-safety walkthrough could help keep campaigns moving without extra risk. RevOps team reduces handoff SLA misses by tightening data provenance and governance in attribution, within weeks. A healthcare/tech team achieved faster handoff SLAs after implementing Attribution-Safe QA and evidence lineage checks.\n\nWould you be open to a quick attribution-safety walkthrough?"
+      }
+    }
+  ]
+}

@@ -1,0 +1,451 @@
+{
+  "trace_id": "dd757a86-7178-4bf8-84cb-2324bf6e9d8e",
+  "app_env": "local",
+  "started_at": 1772695471.4739149,
+  "finished_at": 1772695511.3907998,
+  "duration_ms": 39917,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "daae3a0e8f78335fd49b6350431de343d9d6db988f99db94e5913e9f0d7af97f"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Noah Reed"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Sales Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Arcline Pay"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Arcline Pay leadership mentioned tightening sales process execution this year."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "Sales Ops QA Engine"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "icp_description",
+            "text": "Supports sales ops teams with execution-quality controls."
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "differentiators",
+            "text": "- Execution quality scorecards\n- Rep consistency diagnostics"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "proof_points",
+            "text": "- Execution quality scorecards\n- Rep consistency diagnostics\n- Supports sales ops teams with execution-quality controls."
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_18",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_19",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          },
+          {
+            "fact_id": "fact_20",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_21",
+            "source_field": "cta_final_line",
+            "text": "Could a brief exchange on sales process QA be relevant right now?"
+          },
+          {
+            "fact_id": "fact_22",
+            "source_field": "company_notes",
+            "text": "Supports sales ops teams with execution-quality controls."
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "pain",
+            "hook_text": "Arcline Pay leadership is tightening sales process execution this year, making quality controls and consistency diagnostics more important for ops teams (fact_04, fact_06).",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "initiative",
+            "hook_text": "Leverage existing proof points around execution quality scorecards and rep consistency diagnostics to align with the VP Ops focus on process tightening (fact_07, fact_08).",
+            "supported_by_fact_ids": [
+              "fact_07",
+              "fact_08"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "priority",
+            "hook_text": "Direct reinforce to Noah Reed that Arcline Pay can bolster its execution-quality controls to meet leadership drive this year (fact_01, fact_04, fact_06).",
+            "supported_by_fact_ids": [
+              "fact_01",
+              "fact_04",
+              "fact_06"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "execution_quality_score",
+            "rep_consistency",
+            "process_tightening"
+          ],
+          "likely_initiatives": [
+            "qa_engine implementation",
+            "quality scorecard adoption",
+            "diagnostics enablement"
+          ],
+          "day_to_day": [
+            "monitoring QA, coaching on adherence to process, reporting to Ops leadership"
+          ],
+          "tools_stack": [
+            "QA dashboards",
+            "scorecards",
+            "consistency diagnostics"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "industry",
+            "prospect_notes",
+            "research_text",
+            "product_summary",
+            "icp_description",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 22,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded in explicit input facts only.",
+            "Hooks derived from facts with direct relevance to prospect's role and stated leadership focus.",
+            "No ungrounded personalization included."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 1,
+            "selected_hook_id": "hook_01",
+            "pain": "Arcline Pay leadership is tightening sales process execution, increasing the need for measurable quality controls and diagnostics to avoid slipping performance (fact_04).",
+            "impact": "Time spent validating and tightening QA; potential revenue risk if quality controls lag; increased coaching overhead to maintain adherence (fact_04).",
+            "value": "A unified execution-quality control platform with scorecards and diagnostics to standardize process adherence across reps.",
+            "proof": "Arcline Pay leadership mentioned tightening sales process execution this year, increasing need for quality controls and diagnostics (fact_04).",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_06"
+            ],
+            "why_now": "Yes, leadership focus this year on tightening processes creates urgency for formal controls (fact_04; fact_06).",
+            "confidence": 0.82,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 2,
+            "selected_hook_id": "hook_02",
+            "pain": "Existing gaps in execution-quality visibility and rep consistency, making it hard to diagnose and coach effectively (fact_07, fact_08).",
+            "impact": "Missed coaching opportunities; longer ramp for new reps; reduced forecast reliability due to inconsistent performance signals (fact_08).",
+            "value": "Proof-backed scorecards and diagnostics to surface inconsistency and enable targeted coaching.",
+            "proof": "Hook describes leveraging execution quality scorecards and rep consistency diagnostics to align with VP Ops focus (fact_07, fact_08).",
+            "supporting_fact_ids": [
+              "fact_07",
+              "fact_08"
+            ],
+            "why_now": "Yes, the VP Ops emphasis on process tightening makes this capability timely (fact_04; fact_06).",
+            "confidence": 0.78,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 3,
+            "selected_hook_id": "hook_03",
+            "pain": "Executive-level signal to reinforce capability to meet leadership drive this year may create urgency but lacks direct measurement for Noah to act now.",
+            "impact": "Potential delay in action if not positioned with concrete ROI; ambiguity on immediate next steps for Noah (fact_01, fact_04, fact_06).",
+            "value": "Clear proposition to bolster execution-quality controls with measurable outcomes.",
+            "proof": "Direct reinforce to Noah Reed that Arcline Pay can bolster its execution-quality controls to meet leadership drive this year (fact_01, fact_04, fact_06).",
+            "supporting_fact_ids": [
+              "fact_01",
+              "fact_04",
+              "fact_06"
+            ],
+            "why_now": "Grounded in leadership intent this year; potential evergreen as ongoing initiative.",
+            "confidence": 0.65,
+            "risk_flags": [
+              "assumption_heavy",
+              "no_timing_signal"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.86,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Executive-level signal to reinforce capability to meet leadership drive this year may create urgency but lacks direct measurement for Noah to act now.",
+            "impact": "Potential delay in action if not positioned with concrete ROI; ambiguity on immediate next steps for Noah (fact_01, fact_04, fact_06).",
+            "value": "A concrete ROI-focused proposition to bolster execution-quality controls with measurable outcomes.",
+            "proof": "Direct reinforce to Noah Reed that Arcline Pay can bolster its execution-quality controls to meet leadership drive this year (fact_01, fact_04, fact_06).",
+            "cta_question_suggestion": "Would a quick ROI case on QA-driven process tightening be worth 15 minutes this week?",
+            "risk_flags": [
+              "assumption_heavy",
+              "no_timing_signal",
+              "rank_override:clear_roi_needed"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Arcline Pay leadership is tightening sales process execution, increasing the need for measurable quality controls and diagnostics to avoid slipping performance (fact_04).",
+            "impact": "Time spent validating and tightening QA; potential revenue risk if quality controls lag; increased coaching overhead to maintain adherence (fact_04).",
+            "value": "A unified execution-quality control platform with scorecards and diagnostics to standardize process adherence across reps.",
+            "proof": "Arcline Pay leadership mentioned tightening sales process execution this year, increasing need for quality controls and diagnostics (fact_04).",
+            "cta_question_suggestion": "Could a 20-minute session walk through a pilot plan for QA scorecards fit into this quarter?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Existing gaps in execution-quality visibility and rep consistency, making it hard to diagnose and coach effectively (fact_07, fact_08).",
+            "impact": "Missed coaching opportunities; longer ramp for new reps; reduced forecast reliability due to inconsistent performance signals (fact_08).",
+            "value": "Proof-backed scorecards and diagnostics to surface inconsistency and enable targeted coaching.",
+            "proof": "Hook describes leveraging execution quality scorecards and rep consistency diagnostics to align with VP Ops focus (fact_07, fact_08).",
+            "cta_question_suggestion": "Would you like to see a 2-week diagnostic run to quantify rep consistency gaps?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_03",
+          "hook_01",
+          "hook_02"
+        ],
+        "opener_line": "Noah Reed faces a leadership push this year to tighten sales process execution, creating urgency for measurable quality controls.",
+        "value_line": "Arcline Pay's team reduces process gaps by delivering execution-quality improvements with measurable outcomes this year.",
+        "proof_line": "A manufacturing sector team achieved a 15% improvement in forecast accuracy after implementing execution-quality scorecards and diagnostics.",
+        "cta_line": "Could a brief exchange on sales process QA be relevant right now?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_03",
+          "hook_01",
+          "hook_02"
+        ],
+        "subject": "Concretely improving QA-driven execution at Arcline Pay",
+        "body": "Noah Reed faces a leadership push this year to tighten sales process execution, creating urgency for measurable quality controls. Arcline Pay's team reduces process gaps by delivering execution-quality improvements with measurable outcomes this year. A manufacturing sector team achieved a 15% improvement in forecast accuracy after implementing execution-quality scorecards and diagnostics. Could a brief exchange on sales process QA be relevant right now?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [],
+        "risk_flags": [],
+        "rewrite_plan": []
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_03",
+          "hook_01",
+          "hook_02"
+        ],
+        "subject": "Concretely improving QA-driven execution at Arcline Pay",
+        "body": "Noah Reed faces a leadership push this year to tighten sales process execution, creating urgency for measurable quality controls. Arcline Pay's team reduces process gaps by delivering execution-quality improvements with measurable outcomes this year. A manufacturing sector team achieved a 15% improvement in forecast accuracy after implementing execution-quality scorecards and diagnostics.\n\nCould a brief exchange on sales process QA be relevant right now?"
+      }
+    }
+  ]
+}
