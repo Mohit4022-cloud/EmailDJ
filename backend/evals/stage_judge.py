@@ -12,9 +12,11 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.engine.brief_honesty import (
+    REQUIRED_FORBIDDEN_CLAIM_PATTERNS,
     compute_overreach_risk,
     fact_map_by_id,
     hook_is_prospect_as_proof,
+    normalize_text_key,
     signal_strength_matches as brief_signal_strength_matches,
 )
 from app.engine.schemas import JUDGE_RESULT_SCHEMA, RF_JUDGE_RESULT
@@ -541,9 +543,9 @@ async def judge_messaging_brief(
     if any(float((item or {}).get("confidence") or 0.0) > 0.85 for item in assumptions if isinstance(item, dict)):
         forced.append(("confidence_calibrated", "assumption confidence exceeds 0.85"))
 
-    forbidden = [str(item or "").lower() for item in (brief.get("forbidden_claim_patterns") or [])]
-    for required in ("saw your post", "noticed you", "congrats on"):
-        if not any(required in item for item in forbidden):
+    forbidden = {normalize_text_key(item) for item in (brief.get("forbidden_claim_patterns") or []) if str(item or "").strip()}
+    for required in REQUIRED_FORBIDDEN_CLAIM_PATTERNS:
+        if normalize_text_key(required) not in forbidden:
             forced.append(("no_prospect_as_proof", f"forbidden_claim_patterns missing '{required}'"))
             break
 

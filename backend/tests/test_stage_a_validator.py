@@ -49,7 +49,7 @@ def _base_brief() -> dict:
             "notes": "",
         },
         "do_not_say": [],
-        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
         "prohibited_overreach": [],
         "grounding_policy": {
             "no_new_facts": True,
@@ -137,14 +137,16 @@ def test_validate_messaging_brief_rejects_placeholder_persona_cues() -> None:
     assert "persona_placeholder_text" in exc_info.value.codes
 
 
-def test_validate_messaging_brief_rejects_unusable_personalization_source() -> None:
+def test_validate_messaging_brief_derives_allowed_personalization_sources_from_usable_input() -> None:
     brief = _base_brief()
     brief["grounding_policy"]["allowed_personalization_fact_sources"] = ["prospect_notes"]
 
-    with pytest.raises(ValidationIssue) as exc_info:
-        validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
+    validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
 
-    assert "grounding_policy_uses_unusable_source_field" in exc_info.value.codes
+    allowed = brief["grounding_policy"]["allowed_personalization_fact_sources"]
+    assert "prospect_notes" not in allowed
+    assert "research_text" in allowed
+    assert "proof_points" in allowed
 
 
 def test_validate_messaging_brief_rejects_prospect_as_proof_leakage() -> None:
@@ -169,16 +171,20 @@ def test_validate_messaging_brief_rejects_unsupported_initiative_hook() -> None:
     brief["hooks"][0]["grounded_observation"] = "As VP Revenue Operations, you are likely running a quality initiative."
     brief["hooks"][0]["supported_by_fact_ids"] = ["fact_1"]
     brief["hooks"][0]["hook_text"] = "Your quality initiative may make this timely."
-    brief["brief_quality"]["has_research"] = False
-    brief["brief_quality"]["signal_strength"] = "medium"
-    brief["brief_quality"]["prospect_context_fact_count"] = 1
-    brief["brief_quality"]["seller_proof_fact_count"] = 1
-    brief["brief_quality"]["grounded_fact_count"] = 2
 
     with pytest.raises(ValidationIssue) as exc_info:
         validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
 
     assert "hook_unsupported_recency_or_initiative" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_derives_fact_kind_from_source_field() -> None:
+    brief = _base_brief()
+    brief["facts_from_input"][1]["fact_kind"] = "seller_context"
+
+    validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
+
+    assert brief["facts_from_input"][1]["fact_kind"] == "seller_proof"
 
 
 def test_normalize_generate_request_classifies_placeholder_research_as_no_research() -> None:

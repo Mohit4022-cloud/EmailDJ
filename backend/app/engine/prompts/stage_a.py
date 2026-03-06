@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.engine.brief_honesty import DEFAULT_PROHIBITED_OVERREACH, REQUIRED_FORBIDDEN_CLAIM_PATTERNS
+
 
 def _list_lines(values: list[Any]) -> str:
     clean = [str(item).strip() for item in values if str(item).strip()]
@@ -32,7 +34,8 @@ def build_messages(payload: dict[str, Any], *, research_state: str = "grounded")
         "Any interpretation, priority guess, or business implication belongs in assumptions or inferred_relevance.\\n\\n"
         "LAW 4 - STRONG CLAIMS REQUIRE STRONG EVIDENCE.\\n"
         "High confidence and strong evidence_strength require explicit seller proof plus grounded prospect context.\\n\\n"
-        "Output strict JSON only. No markdown. No commentary. Match MessagingBrief schema exactly."
+        "Output strict JSON only. No markdown. No commentary. Match MessagingBrief schema exactly. "
+        "The system derives evidence-origin bookkeeping and summary rollups after validation."
     )
 
     user = f"""Build a MessagingBrief for this outbound campaign.
@@ -85,7 +88,9 @@ STEP 1 - FACT EXTRACTION
 - Extract all hard facts from input.
 - Assign sequential fact_id values: fact_01, fact_02, ...
 - Record exact source_field from the strict allowlist below.
-- Record fact_kind for every fact:
+- You must include fact_kind, but the system will canonicalize evidence origin from source_field.
+- source_field accuracy matters more than bookkeeping.
+- Evidence-origin mapping is deterministic:
   - prospect_context: name, title, company, industry, prospect_notes, research_text
   - seller_context: product_summary, icp_description, differentiators, company_notes, do_not_say
   - seller_proof: proof_points only
@@ -129,7 +134,6 @@ CONTAINMENT CHECK (run this before finalizing facts_from_input):
 - Do not include market trends, industry benchmarks, or sector norms unless explicitly stated in input fields.
 - If research_text is sparse or empty, facts_from_input about the prospect should be few.
 - Do not compensate for sparse input by importing training knowledge.
-- In sparse-input conditions, set signal_strength honestly (often low).
 - If research_state is no_research, prospect facts should come only from name/title/company and any non-empty prospect_notes.
 - A brief with three grounded facts is better than ten facts with hallucinated content.
 
@@ -172,53 +176,38 @@ STEP 4 - HOOK IDENTIFICATION
 - evidence_strength = weak | moderate | strong.
 - high confidence or strong evidence_strength require at least one seller_proof fact plus grounded prospect context.
 
-STEP 5 - PERSONA CUES
-- Infer likely_kpis, likely_initiatives, day_to_day, and tools_stack from title/industry/research.
-- Keep these as inferences, not facts.
-- Do not use placeholder entries like "unknown" or "none provided".
-- When research_state is no_research, keep persona cues generic to the role/title and avoid invented initiatives or tools.
-- persona_cues.notes must be included (empty string allowed).
+STEP 5 - OPTIONAL QUALITATIVE PROPOSALS
+- Your core job is facts_from_input, assumptions, and hooks.
+- persona_cues is optional. If you include it:
+  - keep it tentative and placeholder-free
+  - infer likely_kpis, likely_initiatives, day_to_day, and tools_stack from title/industry/research
+  - when research_state is no_research, keep persona cues generic to the role/title and avoid invented initiatives or tools
+- do_not_say is optional. Only add context-specific phrases beyond the supplied input list.
+- forbidden_claim_patterns is optional. If you include it, use these exact strings:
+{_list_lines(list(REQUIRED_FORBIDDEN_CLAIM_PATTERNS))}
+- prohibited_overreach is optional. If you include it, use exact strings such as:
+{_list_lines(list(DEFAULT_PROHIBITED_OVERREACH))}
+- grounding_policy defaults and final brief_quality rollups are system-derived. Do not spend tokens calculating counts, signal_strength, or overreach_risk.
+- For schema compliance, include grounding_policy with simple defaults and include brief_quality with quality_notes only.
 
-STEP 6 - FORBIDDEN CLAIM PATTERNS
-- Populate forbidden_claim_patterns with ungrounded personalization/performance claims to avoid.
-- Always include patterns like:
-  - saw your recent post
-  - noticed you recently
-  - congrats on [anything not in research_text]
-- Also populate prohibited_overreach with concrete internal warnings such as:
-  - unsupported_recency
-  - unsupported_initiative
-  - prospect_as_proof
-  - role_as_certainty
-  - placeholder_as_evidence
+STEP 6 - EXAMPLES
+Sparse no-research negative example:
+- Good fact: "VP Revenue Operations" from title.
+- Good hook: "As a RevOps leader, workflow consistency may be relevant."
+- Bad hook: "Since you launched a QA program recently..." when research_state=no_research.
 
-STEP 7 - COMPLETENESS SIGNAL
-- grounding_policy.no_new_facts = true
-- grounding_policy.no_ungrounded_personalization = true
-- grounding_policy.allowed_personalization_fact_sources should list only exact source_field values with usable non-placeholder signal.
-- Do not list fields that are blank, absent, or semantically no_research.
+Contamination negative example:
+- If research_text mentions another company, do not convert that into a hook for this prospect.
+- Fall back to honest role-based relevance instead of borrowed specificity.
 
-Also include top-level brief_quality:
-{{
-  "fact_count": <int>,
-  "assumption_count": <int>,
-  "hook_count": <int>,
-  "has_research": <true|false>,
-  "grounded_fact_count": <int>,
-  "prospect_context_fact_count": <int>,
-  "seller_context_fact_count": <int>,
-  "seller_proof_fact_count": <int>,
-  "cta_fact_count": <int>,
-  "confidence_ceiling": <float>,
-  "signal_strength": "high" | "medium" | "low",
-  "overreach_risk": "low" | "medium" | "high",
-  "quality_notes": [<string>, ...]
-}}
+Omission-not-placeholder example:
+- If industry is blank, omit the industry fact entirely.
+- Never emit facts or persona cues like "", "/", "unknown", "none provided", or "no research".
 
-signal_strength rules:
-- high: grounded prospect context + explicit seller proof + at least one strong hook
-- medium: either grounded research OR explicit seller proof exists, but the case is not strong enough for high
-- low: sparse role/company context with no grounded research and no explicit seller proof
+True seller-proof positive example:
+- Prospect fact: "Nimbus expanded RevOps ownership in January 2026."
+- Seller proof fact: "A SaaS team reduced handoff delays by 18% after sequence QA reviews."
+- Allowed strong hook: grounded prospect context + real seller proof + confidence/evidence calibrated to that proof.
 
 NON-NEGOTIABLE FORBIDDEN BEHAVIOR
 - Never use prospect context as proof that the seller works.
@@ -228,7 +217,20 @@ NON-NEGOTIABLE FORBIDDEN BEHAVIOR
 - Never invent urgency.
 - When research_state is no_research, prefer low-confidence, role-aware, generic relevance over fake specificity.
 
-Also include top-level brief_id as a non-empty string.
+Return a MessagingBrief whose required top-level shape is:
+- version
+- brief_id
+- facts_from_input
+- assumptions
+- hooks
+- persona_cues
+- do_not_say
+- forbidden_claim_patterns
+- prohibited_overreach
+- grounding_policy
+- brief_quality
+
+Use empty arrays, empty strings, or default booleans when an optional qualitative section has nothing useful to add. The system will backfill defaults and derived fields after validation.
 
 Now output complete MessagingBrief JSON only."""
 

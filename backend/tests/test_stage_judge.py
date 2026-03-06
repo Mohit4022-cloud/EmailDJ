@@ -206,7 +206,7 @@ async def test_judge_messaging_brief_passes_when_signal_strength_rules_match(mon
                 "risk_flags": [],
             },
         ],
-        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
         "prohibited_overreach": [],
         "brief_quality": {
             "fact_count": 2,
@@ -262,7 +262,7 @@ async def test_judge_messaging_brief_fails_when_prospect_context_is_used_as_proo
                 "risk_flags": [],
             }
         ],
-        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
         "prohibited_overreach": ["prospect_as_proof"],
         "brief_quality": {
             "fact_count": 1,

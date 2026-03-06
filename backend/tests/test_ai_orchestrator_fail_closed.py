@@ -109,7 +109,7 @@ def _brief() -> dict[str, Any]:
             "notes": "",
         },
         "do_not_say": [],
-        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
         "prohibited_overreach": [],
         "grounding_policy": {
             "no_new_facts": True,
@@ -117,18 +117,6 @@ def _brief() -> dict[str, Any]:
             "allowed_personalization_fact_sources": ["research_text"],
         },
         "brief_quality": {
-            "fact_count": 1,
-            "assumption_count": 1,
-            "hook_count": 1,
-            "has_research": True,
-            "grounded_fact_count": 1,
-            "prospect_context_fact_count": 1,
-            "seller_context_fact_count": 0,
-            "seller_proof_fact_count": 0,
-            "cta_fact_count": 0,
-            "confidence_ceiling": 0.6,
-            "signal_strength": "medium",
-            "overreach_risk": "low",
             "quality_notes": [],
         },
     }

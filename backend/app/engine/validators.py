@@ -9,11 +9,12 @@ from .brief_honesty import (
     HOOK_EVIDENCE_VALUES,
     OVERREACH_RISK_VALUES,
     canonical_fact_kind,
-    compute_overreach_risk,
-    fact_kind_counts,
+    derive_brief_quality,
     fact_map_by_id,
     hook_confidence_level,
     hook_evidence_strength,
+    normalize_forbidden_claim_patterns,
+    normalize_prohibited_overreach,
     hook_has_seller_proof,
     hook_has_strong_claim_language,
     hook_is_prospect_as_proof,
@@ -26,7 +27,7 @@ from .brief_honesty import (
     seller_fact_kinds,
     signal_strength_matches,
 )
-from .research_state import has_meaningful_research, is_placeholder_fact_text, is_semantic_no_research, normalize_placeholder_text
+from .research_state import is_placeholder_fact_text, is_semantic_no_research, normalize_placeholder_text
 from .schemas import ALLOWED_STAGE_A_SOURCE_FIELDS
 
 
@@ -149,6 +150,95 @@ def _source_field_value_map(source_payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _normalized_string_list(value: Any) -> list[str]:
+    raw_items = value if isinstance(value, list) else [value]
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_items:
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(text)
+    return out
+
+
+def _normalize_persona_cues(raw: Any) -> dict[str, Any]:
+    cues = dict(raw or {}) if isinstance(raw, dict) else {}
+    return {
+        "likely_kpis": _normalized_string_list(cues.get("likely_kpis") or []),
+        "likely_initiatives": _normalized_string_list(cues.get("likely_initiatives") or []),
+        "day_to_day": _normalized_string_list(cues.get("day_to_day") or []),
+        "tools_stack": _normalized_string_list(cues.get("tools_stack") or []),
+        "notes": str(cues.get("notes") or "").strip(),
+    }
+
+
+def _derived_allowed_personalization_fact_sources(
+    *,
+    source_payload: dict[str, Any] | None,
+    facts: list[dict[str, Any]],
+) -> list[str]:
+    if source_payload:
+        source_field_map = _source_field_value_map(source_payload)
+        return [
+            field
+            for field in ALLOWED_STAGE_A_SOURCE_FIELDS
+            if _field_has_usable_signal(source_field_map.get(field))
+        ]
+
+    seen: set[str] = set()
+    allowed: list[str] = []
+    for fact in facts:
+        field = str(fact.get("source_field") or "").strip().lower()
+        text = str(fact.get("text") or "").strip()
+        if not field or field not in ALLOWED_STAGE_A_SOURCE_FIELDS or _is_placeholder_input_text(text) or field in seen:
+            continue
+        seen.add(field)
+        allowed.append(field)
+    return allowed
+
+
+def _normalize_stage_a_brief_defaults(
+    brief: dict[str, Any],
+    *,
+    source_text: str,
+    source_payload: dict[str, Any] | None,
+    facts: list[dict[str, Any]],
+) -> None:
+    input_do_not_say: list[str] = []
+    if source_payload:
+        raw_do_not_say = _source_field_value_map(source_payload).get("do_not_say")
+        if isinstance(raw_do_not_say, list):
+            input_do_not_say = _normalized_string_list(raw_do_not_say)
+    existing_do_not_say = brief.get("do_not_say")
+    existing_do_not_say_items = (
+        existing_do_not_say
+        if isinstance(existing_do_not_say, list)
+        else ([existing_do_not_say] if existing_do_not_say else [])
+    )
+    brief["persona_cues"] = _normalize_persona_cues(brief.get("persona_cues"))
+    brief["do_not_say"] = _normalized_string_list([*input_do_not_say, *existing_do_not_say_items])
+    brief["forbidden_claim_patterns"] = normalize_forbidden_claim_patterns(
+        _normalized_string_list(brief.get("forbidden_claim_patterns") or [])
+    )
+    brief["prohibited_overreach"] = normalize_prohibited_overreach(
+        _normalized_string_list(brief.get("prohibited_overreach") or [])
+    )
+    brief["grounding_policy"] = {
+        "no_new_facts": True,
+        "no_ungrounded_personalization": True,
+        "allowed_personalization_fact_sources": _derived_allowed_personalization_fact_sources(
+            source_payload=source_payload,
+            facts=facts,
+        ),
+    }
+    brief["brief_quality"] = derive_brief_quality(brief, source_text=source_text)
+
+
 def _field_has_usable_signal(value: Any) -> bool:
     return bool(_flatten_input_text(value))
 
@@ -171,8 +261,6 @@ def validate_messaging_brief(
     facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
     assumptions = [item for item in (brief.get("assumptions") or []) if isinstance(item, dict)]
     hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
-    brief_quality = dict(brief.get("brief_quality") or {})
-    prohibited_overreach = [str(item or "").strip().lower() for item in (brief.get("prohibited_overreach") or [])]
     details: list[dict[str, Any]] = []
 
     if len(facts) < 1:
@@ -180,6 +268,21 @@ def validate_messaging_brief(
     if len(hooks) < 1:
         codes.append("brief_missing_hooks")
 
+    for fact in facts:
+        source_field = str(fact.get("source_field") or "").strip().lower()
+        if source_field:
+            fact["source_field"] = source_field
+            fact["fact_kind"] = canonical_fact_kind(source_field)
+
+    _normalize_stage_a_brief_defaults(
+        brief,
+        source_text=source_text,
+        source_payload=source_payload,
+        facts=facts,
+    )
+
+    brief_quality = dict(brief.get("brief_quality") or {})
+    prohibited_overreach = [str(item or "").strip().lower() for item in (brief.get("prohibited_overreach") or [])]
     fact_map = fact_map_by_id(facts)
     normalized_fact_keys: set[tuple[str, str]] = set()
 
@@ -187,8 +290,7 @@ def validate_messaging_brief(
         fact_id = str(fact.get("fact_id") or "").strip()
         fact_text = str(fact.get("text") or "").strip()
         source_field = str(fact.get("source_field") or "").strip().lower()
-        fact_kind = str(fact.get("fact_kind") or "").strip().lower()
-        expected_kind = canonical_fact_kind(source_field)
+        fact_kind = canonical_fact_kind(source_field)
 
         if _is_placeholder_input_text(fact_text):
             codes.append("fact_placeholder_text")
@@ -209,19 +311,6 @@ def validate_messaging_brief(
                 fact_id=fact_id,
                 source_field=source_field,
                 offending_text=fact_text[:160],
-            )
-            break
-
-        if fact_kind != expected_kind:
-            codes.append("fact_kind_mismatch")
-            _append_detail(
-                details,
-                "fact_kind_mismatch",
-                fact_id=fact_id,
-                source_field=source_field,
-                offending_text=fact_text[:160],
-                required_evidence_kind=expected_kind,
-                actual_evidence_kinds=[fact_kind] if fact_kind else [],
             )
             break
 
@@ -455,15 +544,6 @@ def validate_messaging_brief(
         if _has_placeholder_leakage(persona_values):
             codes.append("persona_placeholder_text")
 
-        allowed_sources = [str(item or "").strip() for item in (brief.get("grounding_policy", {}).get("allowed_personalization_fact_sources") or [])]
-        for source_field in allowed_sources:
-            if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
-                codes.append("grounding_policy_unknown_source_field")
-                break
-            if source_field and not _field_has_usable_signal(source_field_map.get(source_field)):
-                codes.append("grounding_policy_uses_unusable_source_field")
-                break
-
         if source_tokens:
             for fact in facts:
                 fact_text = str(fact.get("text") or "").strip()
@@ -480,43 +560,6 @@ def validate_messaging_brief(
                         offending_text=fact_text[:160],
                     )
                     break
-
-    if not brief_quality:
-        codes.append("brief_missing_brief_quality")
-    else:
-        confidence_ceiling = float(brief_quality.get("confidence_ceiling") or 0.0)
-        has_research = bool(brief_quality.get("has_research"))
-        overreach_risk = str(brief_quality.get("overreach_risk") or "").strip().lower()
-        kind_counts = fact_kind_counts(facts)
-        grounded_fact_count = kind_counts["prospect_context"] + kind_counts["seller_context"] + kind_counts["seller_proof"]
-
-        if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
-            codes.append("brief_quality_confidence_ceiling_out_of_range")
-
-        semantic_has_research = has_meaningful_research(source_text)
-        if semantic_has_research != has_research:
-            codes.append("brief_quality_has_research_mismatch")
-
-        if int(brief_quality.get("fact_count") or 0) != len(facts):
-            codes.append("brief_quality_fact_count_mismatch")
-        if int(brief_quality.get("grounded_fact_count") or 0) != grounded_fact_count:
-            codes.append("brief_quality_grounded_fact_count_mismatch")
-        if int(brief_quality.get("prospect_context_fact_count") or 0) != kind_counts["prospect_context"]:
-            codes.append("brief_quality_prospect_context_fact_count_mismatch")
-        if int(brief_quality.get("seller_context_fact_count") or 0) != kind_counts["seller_context"]:
-            codes.append("brief_quality_seller_context_fact_count_mismatch")
-        if int(brief_quality.get("seller_proof_fact_count") or 0) != kind_counts["seller_proof"]:
-            codes.append("brief_quality_seller_proof_fact_count_mismatch")
-        if int(brief_quality.get("cta_fact_count") or 0) != kind_counts["cta"]:
-            codes.append("brief_quality_cta_fact_count_mismatch")
-        if str(brief_quality.get("signal_strength") or "").strip().lower() not in {"low", "medium", "high"}:
-            codes.append("brief_quality_signal_strength_invalid")
-        elif not signal_strength_matches(brief, source_text=source_text):
-            codes.append("brief_quality_signal_strength_mismatch")
-        if overreach_risk not in OVERREACH_RISK_VALUES:
-            codes.append("brief_quality_overreach_risk_invalid")
-        elif overreach_risk != compute_overreach_risk(brief):
-            codes.append("brief_quality_overreach_risk_mismatch")
 
     unsupported_recency_present = any(
         hook_mentions_recency(hook)
@@ -535,6 +578,11 @@ def validate_messaging_brief(
         for hook in hooks
     )
 
+    overreach_risk = str(brief_quality.get("overreach_risk") or "").strip().lower()
+    if overreach_risk not in OVERREACH_RISK_VALUES:
+        codes.append("brief_quality_overreach_risk_invalid")
+    if not signal_strength_matches(brief, source_text=source_text):
+        codes.append("brief_quality_signal_strength_mismatch")
     if unsupported_recency_present and "unsupported_recency" not in prohibited_overreach:
         codes.append("prohibited_overreach_missing_recency")
     if unsupported_initiative_present and "unsupported_initiative" not in prohibited_overreach:

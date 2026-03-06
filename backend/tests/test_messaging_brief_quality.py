@@ -103,6 +103,7 @@ def _source_payload() -> dict:
 def test_validate_messaging_brief_accepts_low_signal_for_thin_input() -> None:
     brief = _base_brief(signal_strength="low")
     validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+    assert brief["brief_quality"]["signal_strength"] == "low"
 
 
 def test_validate_messaging_brief_accepts_medium_signal_with_seller_proof_but_no_research() -> None:
@@ -130,6 +131,7 @@ def test_validate_messaging_brief_accepts_medium_signal_with_seller_proof_but_no
     )
 
     validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+    assert brief["brief_quality"]["signal_strength"] == "medium"
 
 
 def test_validate_messaging_brief_accepts_high_signal_when_research_and_seller_proof_are_both_grounded() -> None:
@@ -179,14 +181,24 @@ def test_validate_messaging_brief_accepts_high_signal_when_research_and_seller_p
         source_text="Nimbus Health expanded RevOps ownership in January 2026.",
         source_payload=_source_payload(),
     )
+    assert brief["brief_quality"]["signal_strength"] == "high"
 
 
-def test_validate_messaging_brief_rejects_incorrect_signal_strength() -> None:
+def test_validate_messaging_brief_derives_signal_strength_and_counts() -> None:
     brief = _base_brief(signal_strength="medium")
-    with pytest.raises(ValidationIssue) as exc_info:
-        validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+    brief["brief_quality"].update(
+        {
+            "fact_count": 9,
+            "grounded_fact_count": 9,
+            "signal_strength": "high",
+        }
+    )
 
-    assert "brief_quality_signal_strength_mismatch" in exc_info.value.codes
+    validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+
+    assert brief["brief_quality"]["fact_count"] == 1
+    assert brief["brief_quality"]["grounded_fact_count"] == 1
+    assert brief["brief_quality"]["signal_strength"] == "low"
 
 
 def test_validate_messaging_brief_rejects_unknown_fact_source_field() -> None:
@@ -207,17 +219,16 @@ def test_validate_messaging_brief_rejects_fact_not_grounded_in_input() -> None:
     assert "fact_not_grounded_in_input" in exc_info.value.codes
 
 
-def test_validate_messaging_brief_rejects_has_research_mismatch() -> None:
+def test_validate_messaging_brief_derives_has_research_from_source_text() -> None:
     brief = _base_brief(signal_strength="low")
     brief["brief_quality"]["has_research"] = False
-    with pytest.raises(ValidationIssue) as exc_info:
-        validate_messaging_brief(
-            brief,
-            source_text="Nimbus Health expanded RevOps ownership in January 2026.",
-            source_payload=_source_payload(),
-        )
+    validate_messaging_brief(
+        brief,
+        source_text="Nimbus Health expanded RevOps ownership in January 2026.",
+        source_payload=_source_payload(),
+    )
 
-    assert "brief_quality_has_research_mismatch" in exc_info.value.codes
+    assert brief["brief_quality"]["has_research"] is True
 
 
 def test_validate_messaging_brief_accepts_placeholder_research_as_no_research() -> None:
@@ -228,6 +239,7 @@ def test_validate_messaging_brief_accepts_placeholder_research_as_no_research() 
         source_text="No verifiable external research provided.",
         source_payload=_source_payload(),
     )
+    assert brief["brief_quality"]["has_research"] is False
 
 
 @pytest.mark.parametrize(
@@ -248,3 +260,4 @@ def test_validate_messaging_brief_treats_research_placeholders_as_thin_input(pla
         source_text=placeholder_text,
         source_payload=_source_payload(),
     )
+    assert brief["brief_quality"]["has_research"] is False

@@ -64,6 +64,8 @@ PAYLOAD_TYPE_ALIASES = {
     "diverse_persona": "diverse_persona",
     "diverse": "diverse_persona",
     "emaildj": "emaildj",
+    "seller_proof_rich": "seller_proof_rich",
+    "seller_proof": "seller_proof_rich",
 }
 
 

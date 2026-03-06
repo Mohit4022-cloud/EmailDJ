@@ -16,11 +16,12 @@ def _request(
     sender_product: str,
     company_notes: str,
     seller_offerings: list[str],
+    sender_proof_points: list[str] | None = None,
     preset_id: str = "direct",
     style_profile: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     style = style_profile or {"formality": 0.1, "orientation": -0.1, "length": -0.3, "assertiveness": 0.2}
-    return {
+    request = {
         "prospect": {
             "name": prospect_name,
             "title": prospect_title,
@@ -48,6 +49,12 @@ def _request(
             "cta_type": "question",
         },
     }
+    if sender_proof_points:
+        request["sender_profile_override"] = {
+            "company_name": sender_company,
+            "proof_points": list(sender_proof_points),
+        }
+    return request
 
 
 def _payload(
@@ -179,6 +186,31 @@ PAYLOADS: list[dict[str, Any]] = [
             sender_product="Outbound QA Studio",
             company_notes="Improves consistency and coaching velocity for GTM ops teams.",
             seller_offerings=["Call-quality benchmarking", "Rep-level drift visibility", "Coaching recommendation engine"],
+        ),
+    ),
+    _payload(
+        "seller_proof_rich_01",
+        "seller_proof_rich",
+        "Grounded RevOps program plus explicit seller proof override for the earned-strong path.",
+        "passes_all_stages",
+        _request(
+            prospect_name="Naomi Voss",
+            prospect_title="VP Revenue Operations",
+            prospect_company="Pillar Circuit",
+            research_text=(
+                "Pillar Circuit launched a February 2026 revenue workflow audit covering handoff latency, "
+                "message consistency, and manager QA review cadence."
+            ),
+            offer_lock="Revenue Workflow Diagnostics",
+            cta_line="Would a quick comparison of workflow QA approaches be useful?",
+            sender_company="Signal Harbor",
+            sender_product="Revenue Workflow Diagnostics",
+            company_notes="Supports RevOps teams with measurable workflow QA controls and coaching visibility.",
+            seller_offerings=["Diagnostics scorecards", "Handoff latency alerts", "Coaching-ready QA reviews"],
+            sender_proof_points=[
+                "A SaaS RevOps team reduced handoff delays by 18% within six weeks after adding sequence QA reviews.",
+                "Another operations team cut manager QA review time by 27% after standardizing workflow diagnostics.",
+            ],
         ),
     ),
 

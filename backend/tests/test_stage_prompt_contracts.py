@@ -97,12 +97,17 @@ def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
     assert "research_state=no_research means research_text contributes zero facts" in user_prompt
     assert "Placeholder/null-ish text must never appear anywhere in output" in user_prompt
     assert "sparse or no_research input should usually produce 1-3 conservative hooks." in user_prompt
-    assert "Record fact_kind for every fact" in user_prompt
+    assert "the system will canonicalize evidence origin from source_field" in user_prompt.lower()
     assert "Prospect/company context must never appear as seller proof." in user_prompt
     assert "Every hook must separate four layers" in user_prompt
     assert "Do not imply specific initiatives without evidence." in user_prompt
     assert "Do not imply recent events without evidence." in user_prompt
     assert "high confidence or strong evidence_strength require at least one seller_proof fact" in user_prompt
+    assert "grounding_policy defaults and final brief_quality rollups are system-derived" in user_prompt
+    assert "Sparse no-research negative example:" in user_prompt
+    assert "Contamination negative example:" in user_prompt
+    assert "Omission-not-placeholder example:" in user_prompt
+    assert "True seller-proof positive example:" in user_prompt
 
 
 def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:

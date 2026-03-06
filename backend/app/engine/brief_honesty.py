@@ -11,6 +11,18 @@ FACT_KIND_VALUES = {"prospect_context", "seller_context", "seller_proof", "cta"}
 HOOK_CONFIDENCE_VALUES = {"low", "medium", "high"}
 HOOK_EVIDENCE_VALUES = {"weak", "moderate", "strong"}
 OVERREACH_RISK_VALUES = {"low", "medium", "high"}
+REQUIRED_FORBIDDEN_CLAIM_PATTERNS = (
+    "saw your recent post",
+    "noticed you recently",
+    "congrats on [anything not in research_text]",
+)
+DEFAULT_PROHIBITED_OVERREACH = (
+    "unsupported_recency",
+    "unsupported_initiative",
+    "prospect_as_proof",
+    "role_as_certainty",
+    "placeholder_as_evidence",
+)
 
 PROSPECT_SOURCE_FIELDS = {"name", "title", "company", "industry", "prospect_notes", "research_text"}
 SELLER_CONTEXT_SOURCE_FIELDS = {"product_summary", "icp_description", "differentiators", "company_notes"}
@@ -83,12 +95,19 @@ def canonical_fact_kind(source_field: str) -> str:
     return "seller_context"
 
 
+def fact_kind_from_fact(fact: dict[str, Any]) -> str:
+    source_field = str(fact.get("source_field") or "").strip().lower()
+    if source_field:
+        return canonical_fact_kind(source_field)
+    return canonical_fact_kind(str(fact.get("fact_kind") or ""))
+
+
 def fact_kind_counts(facts: list[dict[str, Any]]) -> dict[str, int]:
     counts: Counter[str] = Counter()
     for fact in facts:
         if not isinstance(fact, dict):
             continue
-        counts[canonical_fact_kind(str(fact.get("fact_kind") or fact.get("source_field") or ""))] += 1
+        counts[fact_kind_from_fact(fact)] += 1
     return {kind: int(counts.get(kind, 0)) for kind in FACT_KIND_VALUES}
 
 
@@ -151,7 +170,7 @@ def supported_fact_kinds(hook: dict[str, Any], fact_map: dict[str, dict[str, Any
     kinds: set[str] = set()
     for fact_id in hook_supported_fact_ids(hook):
         fact = fact_map.get(fact_id) or {}
-        kinds.add(canonical_fact_kind(str(fact.get("fact_kind") or fact.get("source_field") or "")))
+        kinds.add(fact_kind_from_fact(fact))
     return kinds
 
 
@@ -159,7 +178,7 @@ def seller_fact_kinds(hook: dict[str, Any], fact_map: dict[str, dict[str, Any]])
     kinds: set[str] = set()
     for fact_id in hook_seller_fact_ids(hook):
         fact = fact_map.get(fact_id) or {}
-        kinds.add(canonical_fact_kind(str(fact.get("fact_kind") or fact.get("source_field") or "")))
+        kinds.add(fact_kind_from_fact(fact))
     return kinds
 
 
@@ -206,7 +225,10 @@ def signal_strength_from_brief(brief: dict[str, Any], *, source_text: str = "") 
     hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
     fact_map = fact_map_by_id(facts)
     counts = fact_kind_counts(facts)
-    has_research = has_meaningful_research(source_text) if source_text else bool((brief.get("brief_quality") or {}).get("has_research"))
+    has_research = has_meaningful_research(source_text) if source_text else any(
+        str(fact.get("source_field") or "").strip().lower() == "research_text"
+        for fact in facts
+    )
     prospect_research_count = sum(1 for fact in facts if str(fact.get("source_field") or "").strip().lower() == "research_text")
     strong_hook_count = sum(
         1
@@ -224,7 +246,82 @@ def signal_strength_from_brief(brief: dict[str, Any], *, source_text: str = "") 
 def signal_strength_matches(brief: dict[str, Any], *, source_text: str = "") -> bool:
     quality = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
     signal_strength = str(quality.get("signal_strength") or "").strip().lower()
+    if not signal_strength:
+        return True
     return signal_strength == signal_strength_from_brief(brief, source_text=source_text)
+
+
+def normalize_forbidden_claim_patterns(patterns: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in list(patterns or []) + list(REQUIRED_FORBIDDEN_CLAIM_PATTERNS):
+        text = normalize_text_key(raw)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        normalized.append(text)
+    return normalized
+
+
+def normalize_prohibited_overreach(values: list[str] | None) -> list[str]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in list(values or []) + list(DEFAULT_PROHIBITED_OVERREACH):
+        text = normalize_text_key(raw)
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        normalized.append(text)
+    return normalized
+
+
+def derive_brief_quality(brief: dict[str, Any], *, source_text: str = "") -> dict[str, Any]:
+    facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    assumptions = [item for item in (brief.get("assumptions") or []) if isinstance(item, dict)]
+    hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
+    existing = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
+    quality_notes = [
+        str(item).strip()
+        for item in (existing.get("quality_notes") or [])
+        if str(item).strip()
+    ]
+    kind_counts = fact_kind_counts(facts)
+    assumption_confidences = [
+        max(0.0, min(1.0, float(item.get("confidence") or 0.0)))
+        for item in assumptions
+        if isinstance(item, dict)
+    ]
+    hook_confidence_ceiling = {
+        "low": 0.45,
+        "medium": 0.65,
+        "high": 0.85,
+    }
+    hook_confidences = [
+        hook_confidence_ceiling.get(hook_confidence_level(item), 0.0)
+        for item in hooks
+    ]
+    confidence_ceiling = 0.0
+    if assumption_confidences or hook_confidences:
+        confidence_ceiling = round(max([*assumption_confidences, *hook_confidences]), 2)
+
+    return {
+        "fact_count": len(facts),
+        "assumption_count": len(assumptions),
+        "hook_count": len(hooks),
+        "has_research": has_meaningful_research(source_text) if source_text else any(
+            str(fact.get("source_field") or "").strip().lower() == "research_text"
+            for fact in facts
+        ),
+        "grounded_fact_count": kind_counts["prospect_context"] + kind_counts["seller_context"] + kind_counts["seller_proof"],
+        "prospect_context_fact_count": kind_counts["prospect_context"],
+        "seller_context_fact_count": kind_counts["seller_context"],
+        "seller_proof_fact_count": kind_counts["seller_proof"],
+        "cta_fact_count": kind_counts["cta"],
+        "confidence_ceiling": confidence_ceiling,
+        "signal_strength": signal_strength_from_brief(brief, source_text=source_text),
+        "overreach_risk": compute_overreach_risk(brief),
+        "quality_notes": quality_notes,
+    }
 
 
 def normalize_text_key(text: Any) -> str:
