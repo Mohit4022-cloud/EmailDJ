@@ -11,6 +11,7 @@ from app.schemas import WebGenerateRequest
 from .brief_cache import BriefCache, compute_brief_cache_key
 from .normalize import normalize_generate_request
 from .postprocess import deterministic_postprocess_draft
+from .preset_contract import resolve_output_contract, sentence_count as preset_sentence_count, word_count as preset_word_count
 from .presets.registry import load_all_presets, load_preset
 from .prompts import stage_a, stage_b, stage_b0, stage_c, stage_c0, stage_d, stage_e
 from .schemas import (
@@ -24,11 +25,13 @@ from .schemas import (
 )
 from .stage_a_sanitizer import sanitize_stage_a_brief
 from .stage_runner import StageConfig, StageError, run_stage
-from .tracer import Trace
+from .tracer import Trace, hash_json
 from .types import EmailDraft as LegacyEmailDraft
 from .validators import (
     ValidationIssue,
+    dominant_validation_code,
     normalize_qa_report,
+    salvage_eligible_validation_codes,
     validate_angle_set,
     validate_email_draft,
     validate_fit_map,
@@ -40,6 +43,7 @@ from .validators import (
 DEFAULT_CTA = "Open to a quick chat to see if this is relevant?"
 TOTAL_PIPELINE_TIMEOUT_SECONDS = 90.0
 STAGE_TIMEOUT_SECONDS = 25.0
+SALVAGE_STAGE = "EMAIL_REWRITE_SALVAGE"
 
 
 @dataclass(slots=True)
@@ -451,12 +455,23 @@ class AIOrchestrator:
         validation_codes: list[str],
         mechanical_steps: list[str],
         final_validation_status: str,
+        preset_contract: dict[str, Any] | None = None,
+        stage_details: dict[str, Any] | None = None,
     ) -> None:
+        body = str(draft.get("body") or "").strip()
+        details = dict(stage_details or {})
+        details.setdefault("preset_id", str(draft.get("preset_id") or "").strip())
+        details.setdefault("body_word_count", preset_word_count(body))
+        details.setdefault("body_sentence_count", preset_sentence_count(body))
+        if preset_contract:
+            details.setdefault("preset_contract", dict(preset_contract))
+            details.setdefault("preset_contract_hash", hash_json(preset_contract))
         trace.annotate_stage(
             stage=stage_name,
             final_validation_status=final_validation_status,
             error_codes=list(validation_codes),
             mechanical_postprocess_applied=list(mechanical_steps),
+            details=details,
             output={
                 "subject": str(draft.get("subject") or "").strip(),
                 "body": str(draft.get("body") or "").strip(),
@@ -465,6 +480,111 @@ class AIOrchestrator:
                 "used_hook_ids": list(draft.get("used_hook_ids") or []),
             },
         )
+
+    def _resolved_preset_contract(self, *, preset: dict[str, Any], sliders: dict[str, Any]) -> dict[str, Any]:
+        return resolve_output_contract(preset, length=str(sliders.get("length") or "medium"))
+
+    def _remember_preset_contract(self, *, trace: Trace, preset_id: str, preset_contract: dict[str, Any]) -> None:
+        contracts = dict(trace.meta.get("preset_contracts") or {})
+        contracts[str(preset_id)] = {
+            "hash": hash_json(preset_contract),
+            "contract": dict(preset_contract),
+        }
+        trace.set_meta(preset_contracts=contracts)
+
+    def _annotate_qa_stage(
+        self,
+        *,
+        trace: Trace,
+        stage_name: str,
+        preset_id: str,
+        preset_contract: dict[str, Any],
+        draft: dict[str, Any],
+        qa_report: dict[str, Any],
+        generation_validation_codes: list[str],
+    ) -> None:
+        issues = [item for item in qa_report.get("issues") or [] if isinstance(item, dict)]
+        dominant_issue = next((str(item.get("type") or "").strip() for item in issues if str(item.get("type") or "").strip()), None)
+        trace.annotate_stage(
+            stage=stage_name,
+            details={
+                "preset_id": str(preset_id or ""),
+                "preset_contract": dict(preset_contract),
+                "preset_contract_hash": hash_json(preset_contract),
+                "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                "pre_rewrite_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
+                "dominant_failing_rule": dominant_issue or dominant_validation_code(generation_validation_codes),
+                "salvage_applied": False,
+                "salvage_result": "not_run",
+            },
+        )
+
+    async def _maybe_salvage_rewrite(
+        self,
+        *,
+        trace: Trace,
+        preset_id: str,
+        draft: dict[str, Any],
+        atoms: dict[str, Any],
+        messaging_brief: dict[str, Any],
+        cta_line: str,
+        slider_params: dict[str, Any],
+        preset_contract: dict[str, Any],
+        final_codes: list[str],
+    ) -> tuple[dict[str, Any], list[str], bool, str]:
+        if not salvage_eligible_validation_codes(final_codes):
+            return draft, final_codes, False, "not_run"
+
+        salvage_stage = self._trace_stage_name(SALVAGE_STAGE, preset_id=preset_id)
+        salvage_draft = await self._run_stage(
+            trace=trace,
+            config=StageConfig(
+                stage=STAGES["E"],
+                max_tokens=500,
+                reasoning_effort=self.settings.openai_reasoning_low,
+                response_format=RF_EMAIL_DRAFT,
+            ),
+            messages=stage_e.build_salvage_messages(
+                email_draft=draft,
+                message_atoms=atoms,
+                messaging_brief=messaging_brief,
+                cta_final_line=cta_line,
+                preset_contract=preset_contract,
+                failure_code=dominant_validation_code(final_codes) or "word_count_out_of_band",
+            ),
+            validator=None,
+            trace_stage=salvage_stage,
+        )
+        salvage_draft["preset_id"] = str(preset_id)
+        salvage_draft["selected_angle_id"] = str(draft.get("selected_angle_id") or atoms.get("selected_angle_id") or "")
+        salvage_draft["used_hook_ids"] = list(draft.get("used_hook_ids") or atoms.get("used_hook_ids") or [])
+        salvage_draft, salvage_steps = self._mechanical_postprocess(salvage_draft, slider_params, cta_line, trace)
+        salvage_codes = validate_email_draft(
+            salvage_draft,
+            brief=messaging_brief,
+            cta_final_line=cta_line,
+            sliders=slider_params,
+            preset_contract=preset_contract,
+        )
+        self._annotate_draft_stage(
+            trace=trace,
+            stage_name=salvage_stage,
+            draft=salvage_draft,
+            validation_codes=salvage_codes,
+            mechanical_steps=salvage_steps,
+            final_validation_status="failed" if salvage_codes else "passed",
+            preset_contract=preset_contract,
+            stage_details={
+                "dominant_failing_rule": dominant_validation_code(final_codes) or "word_count_out_of_band",
+                "salvage_applied": True,
+                "salvage_result": "failed" if salvage_codes else "passed",
+                "post_salvage_word_count": preset_word_count(str(salvage_draft.get("body") or "").strip()),
+            },
+        )
+        if salvage_codes:
+            trace.add_validation_error(stage=salvage_stage, codes=salvage_codes)
+            return salvage_draft, salvage_codes, True, "failed"
+        return salvage_draft, salvage_codes, True, "passed"
 
     async def _run_pipeline_single(
         self,
@@ -532,6 +652,8 @@ class AIOrchestrator:
             atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
 
             preset = load_preset(ctx.preset_id)
+            preset_contract = self._resolved_preset_contract(preset=preset, sliders=slider_params)
+            self._remember_preset_contract(trace=trace, preset_id=ctx.preset_id, preset_contract=preset_contract)
             generation_stage = self._trace_stage_name(STAGES["C"])
             draft = await self._run_stage(
                 trace=trace,
@@ -559,7 +681,13 @@ class AIOrchestrator:
 
             draft, generation_steps = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
 
-            validation_codes = validate_email_draft(draft, brief=messaging_brief, cta_final_line=cta_line, sliders=slider_params)
+            validation_codes = validate_email_draft(
+                draft,
+                brief=messaging_brief,
+                cta_final_line=cta_line,
+                sliders=slider_params,
+                preset_contract=preset_contract,
+            )
             if validation_codes:
                 trace.add_validation_error(stage=STAGES["C"], codes=validation_codes)
             self._annotate_draft_stage(
@@ -569,8 +697,15 @@ class AIOrchestrator:
                 validation_codes=validation_codes,
                 mechanical_steps=generation_steps,
                 final_validation_status="rewrite_required" if validation_codes else "passed",
+                preset_contract=preset_contract,
+                stage_details={
+                    "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                    "salvage_applied": False,
+                    "salvage_result": "not_run",
+                },
             )
 
+            qa_stage = self._trace_stage_name(STAGES["D"])
             qa = await self._run_stage(
                 trace=trace,
                 config=StageConfig(
@@ -579,10 +714,20 @@ class AIOrchestrator:
                     reasoning_effort=self.settings.openai_reasoning_high,
                     response_format=RF_QA_REPORT,
                 ),
-                messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line),
+                messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract),
                 validator=None,
+                trace_stage=qa_stage,
             )
             qa = normalize_qa_report(qa)
+            self._annotate_qa_stage(
+                trace=trace,
+                stage_name=qa_stage,
+                preset_id=ctx.preset_id,
+                preset_contract=preset_contract,
+                draft=draft,
+                qa_report=qa,
+                generation_validation_codes=validation_codes,
+            )
             self._annotate_draft_stage(
                 trace=trace,
                 stage_name=generation_stage,
@@ -590,6 +735,14 @@ class AIOrchestrator:
                 validation_codes=validation_codes,
                 mechanical_steps=generation_steps,
                 final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
+                preset_contract=preset_contract,
+                stage_details={
+                    "dominant_failing_rule": dominant_validation_code(validation_codes)
+                    or next(
+                        (str(item.get("type") or "").strip() for item in qa.get("issues") or [] if str(item.get("type") or "").strip()),
+                        None,
+                    ),
+                },
             )
 
             rewrite_applied = False
@@ -610,6 +763,7 @@ class AIOrchestrator:
                         messaging_brief=messaging_brief,
                         message_atoms=atoms,
                         cta_final_line=cta_line,
+                        preset_contract=preset_contract,
                         sliders=slider_params,
                     ),
                     validator=None,
@@ -624,6 +778,7 @@ class AIOrchestrator:
                     brief=messaging_brief,
                     cta_final_line=cta_line,
                     sliders=slider_params,
+                    preset_contract=preset_contract,
                 )
                 self._annotate_draft_stage(
                     trace=trace,
@@ -632,16 +787,45 @@ class AIOrchestrator:
                     validation_codes=final_codes,
                     mechanical_steps=rewrite_steps,
                     final_validation_status="failed" if final_codes else "passed",
+                    preset_contract=preset_contract,
+                    stage_details={
+                        "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                        "dominant_failing_rule": dominant_validation_code(final_codes),
+                        "salvage_applied": False,
+                        "salvage_result": "not_run",
+                    },
                 )
                 if final_codes:
-                    trace.add_validation_error(stage=STAGES["E"], codes=final_codes)
-                    return self._error_result(
+                    draft, final_codes, salvage_applied, salvage_result = await self._maybe_salvage_rewrite(
                         trace=trace,
-                        code="VALIDATION_FAILED",
-                        message="Final validation failed",
-                        stage="VALIDATION",
-                        details={"codes": final_codes},
+                        preset_id=ctx.preset_id,
+                        draft=draft,
+                        atoms=atoms,
+                        messaging_brief=messaging_brief,
+                        cta_line=cta_line,
+                        slider_params=slider_params,
+                        preset_contract=preset_contract,
+                        final_codes=final_codes,
                     )
+                    trace.annotate_stage(
+                        stage=rewrite_stage,
+                        details={
+                            "salvage_applied": salvage_applied,
+                            "salvage_result": salvage_result,
+                            "post_salvage_word_count": preset_word_count(str(draft.get("body") or "").strip())
+                            if salvage_applied
+                            else None,
+                        },
+                    )
+                    if final_codes:
+                        trace.add_validation_error(stage=STAGES["E"], codes=final_codes)
+                        return self._error_result(
+                            trace=trace,
+                            code="VALIDATION_FAILED",
+                            message="Final validation failed",
+                            stage="VALIDATION",
+                            details={"codes": final_codes},
+                        )
             elif validation_codes:
                 return self._error_result(
                     trace=trace,
@@ -828,6 +1012,8 @@ class AIOrchestrator:
                         ctx,
                         (preset_sliders or {}).get(str(requested_id)),
                     )
+                    preset_contract = self._resolved_preset_contract(preset=preset, sliders=variant_sliders)
+                    self._remember_preset_contract(trace=trace, preset_id=str(requested_id), preset_contract=preset_contract)
                     generation_stage = self._trace_stage_name(STAGES["C"], preset_id=requested_id)
                     qa_stage = self._trace_stage_name(STAGES["D"], preset_id=requested_id)
                     rewrite_stage = self._trace_stage_name(STAGES["E"], preset_id=requested_id)
@@ -862,6 +1048,7 @@ class AIOrchestrator:
                         brief=messaging_brief,
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
+                        preset_contract=preset_contract,
                     )
                     if validation_codes:
                         trace.add_validation_error(stage=generation_stage, codes=validation_codes)
@@ -872,6 +1059,12 @@ class AIOrchestrator:
                         validation_codes=validation_codes,
                         mechanical_steps=generation_steps,
                         final_validation_status="rewrite_required" if validation_codes else "passed",
+                        preset_contract=preset_contract,
+                        stage_details={
+                            "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                            "salvage_applied": False,
+                            "salvage_result": "not_run",
+                        },
                     )
 
                     qa = await self._run_stage(
@@ -882,11 +1075,20 @@ class AIOrchestrator:
                             reasoning_effort=self.settings.openai_reasoning_high,
                             response_format=RF_QA_REPORT,
                         ),
-                        messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line),
+                        messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract),
                         validator=None,
                         trace_stage=qa_stage,
                     )
                     qa = normalize_qa_report(qa)
+                    self._annotate_qa_stage(
+                        trace=trace,
+                        stage_name=qa_stage,
+                        preset_id=str(requested_id),
+                        preset_contract=preset_contract,
+                        draft=draft,
+                        qa_report=qa,
+                        generation_validation_codes=validation_codes,
+                    )
                     self._annotate_draft_stage(
                         trace=trace,
                         stage_name=generation_stage,
@@ -894,6 +1096,14 @@ class AIOrchestrator:
                         validation_codes=validation_codes,
                         mechanical_steps=generation_steps,
                         final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
+                        preset_contract=preset_contract,
+                        stage_details={
+                            "dominant_failing_rule": dominant_validation_code(validation_codes)
+                            or next(
+                                (str(item.get("type") or "").strip() for item in qa.get("issues") or [] if str(item.get("type") or "").strip()),
+                                None,
+                            ),
+                        },
                     )
 
                     rewrite_applied = False
@@ -913,6 +1123,7 @@ class AIOrchestrator:
                                 messaging_brief=messaging_brief,
                                 message_atoms=atoms,
                                 cta_final_line=cta_line,
+                                preset_contract=preset_contract,
                                 sliders=variant_sliders,
                             ),
                             validator=None,
@@ -928,6 +1139,7 @@ class AIOrchestrator:
                             brief=messaging_brief,
                             cta_final_line=cta_line,
                             sliders=variant_sliders,
+                            preset_contract=preset_contract,
                         )
                         self._annotate_draft_stage(
                             trace=trace,
@@ -936,25 +1148,55 @@ class AIOrchestrator:
                             validation_codes=final_codes,
                             mechanical_steps=rewrite_steps,
                             final_validation_status="failed" if final_codes else "passed",
+                            preset_contract=preset_contract,
+                            stage_details={
+                                "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                                "dominant_failing_rule": dominant_validation_code(final_codes),
+                                "salvage_applied": False,
+                                "salvage_result": "not_run",
+                            },
                         )
                         if final_codes:
-                            trace.add_validation_error(stage=rewrite_stage, codes=final_codes)
-                            output_variants.append(
-                                {
-                                    "preset_id": str(requested_id),
-                                    "error": {
-                                        "code": "VALIDATION_FAILED",
-                                        "message": f"Variant failed validation: {', '.join(final_codes)}",
-                                    },
-                                }
+                            draft, final_codes, salvage_applied, salvage_result = await self._maybe_salvage_rewrite(
+                                trace=trace,
+                                preset_id=str(requested_id),
+                                draft=draft,
+                                atoms=atoms,
+                                messaging_brief=messaging_brief,
+                                cta_line=cta_line,
+                                slider_params=variant_sliders,
+                                preset_contract=preset_contract,
+                                final_codes=final_codes,
                             )
-                            continue
+                            trace.annotate_stage(
+                                stage=rewrite_stage,
+                                details={
+                                    "salvage_applied": salvage_applied,
+                                    "salvage_result": salvage_result,
+                                    "post_salvage_word_count": preset_word_count(str(draft.get("body") or "").strip())
+                                    if salvage_applied
+                                    else None,
+                                },
+                            )
+                            if final_codes:
+                                trace.add_validation_error(stage=rewrite_stage, codes=final_codes)
+                                output_variants.append(
+                                    {
+                                        "preset_id": str(requested_id),
+                                        "error": {
+                                            "code": "VALIDATION_FAILED",
+                                            "message": f"Variant failed validation: {', '.join(final_codes)}",
+                                        },
+                                    }
+                                )
+                                continue
 
                     final_codes = validate_email_draft(
                         draft,
                         brief=messaging_brief,
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
+                        preset_contract=preset_contract,
                     )
                     if final_codes:
                         output_variants.append(

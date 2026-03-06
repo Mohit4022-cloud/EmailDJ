@@ -233,6 +233,23 @@ def _qa(pass_rewrite_needed: bool = False) -> dict[str, Any]:
     }
 
 
+def _qa_with_issue(issue_type: str, *, severity: str = "high") -> dict[str, Any]:
+    return {
+        "version": "1",
+        "pass_rewrite_needed": True,
+        "issues": [
+            {
+                "type": issue_type,
+                "severity": severity,
+                "evidence": ["Quoted evidence"],
+                "fix_instruction": "Adjust the draft to satisfy the preset contract without changing the CTA.",
+            }
+        ],
+        "risk_flags": [],
+        "rewrite_plan": ["Adjust the draft to satisfy the preset contract without changing the CTA."],
+    }
+
+
 def _orchestrator(responses: list[Any]) -> AIOrchestrator:
     settings = replace(load_settings(), app_env="test")
     return AIOrchestrator(openai=StubOpenAI(responses), settings=settings, brief_cache=BriefCache())
@@ -450,6 +467,8 @@ def test_preset_browse_applies_per_preset_slider_overrides_without_rebuilding_br
     assert second_context["slider_rules"]["length"] == "long"
     assert first_context["preset"]["preset_id"] == "direct"
     assert second_context["preset"]["preset_id"] == "challenger"
+    assert first_context["preset_contract"]["length"] == "short"
+    assert second_context["preset_contract"]["length"] == "long"
 
     stage_starts = [str(item.get("stage") or "") for item in result.stage_stats if item.get("status") == "started"]
     assert stage_starts.count("CONTEXT_SYNTHESIS") == 1
@@ -549,6 +568,160 @@ def test_qa_rewrite_tightens_weak_draft_and_marks_rewrite_applied() -> None:
     rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
     assert rewrite_entries
     assert rewrite_entries[-1]["final_validation_status"] == "passed"
+
+
+def test_challenger_salvage_rescues_slightly_over_band_and_preserves_metadata() -> None:
+    req = _request().model_copy(update={"preset_id": "challenger"})
+    over_band = _valid_draft("challenger")
+    over_band["body"] = (
+        "Hi Alex,\n\n"
+        "Most RevOps teams do not notice workflow drift until it starts cutting response quality across sequences. "
+        "That usually turns routine inspection into reactive cleanup and wasted manager time. "
+        "We help teams diagnose that drift earlier, keep the operating point visible, and tighten outbound QA before reply quality falls across reps and handoffs. "
+        "A focused workflow QA program gives ops leaders a cleaner way to challenge the status quo without adding extra review overhead or another dashboard to babysit.\n\n"
+        f"{CTA}"
+    )
+    salvaged = _valid_draft("challenger")
+    salvaged["body"] = (
+        "Hi Alex,\n\n"
+        "Most RevOps teams do not notice workflow drift until response quality starts slipping. "
+        "We help teams catch that drift earlier and tighten outbound QA before reply quality falls across handoffs. "
+        "That gives ops leaders a cleaner way to challenge the status quo without more review overhead.\n\n"
+        f"{CTA}"
+    )
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        over_band,
+        _qa_with_issue("word_count_out_of_band"),
+        over_band,
+        salvaged,
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="challenger", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert result.body != over_band["body"]
+    assert result.body.rstrip().endswith(CTA)
+    assert result.body.count(CTA) == 1
+    assert result.provenance == {
+        "preset_id": "challenger",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "rewrite_applied": True,
+    }
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert rewrite_entries[-1]["salvage_applied"] is False
+    assert rewrite_entries[-1]["salvage_result"] == "not_run"
+    assert rewrite_entries[-1]["preset_contract_hash"]
+    assert rewrite_entries[-1]["post_rewrite_word_count"] > 0
+
+
+def test_challenger_salvage_rescues_slightly_under_band() -> None:
+    req = _request().model_copy(update={"preset_id": "challenger"})
+    too_short = _valid_draft("challenger")
+    too_short["body"] = (
+        "Hi Alex,\n\n"
+        "Acme's RevOps initiative makes hidden workflow drift expensive. "
+        "We help teams catch it earlier.\n\n"
+        f"{CTA}"
+    )
+    salvaged = _valid_draft("challenger")
+    salvaged["body"] = (
+        "Hi Alex,\n\n"
+        "Acme's RevOps initiative makes hidden workflow drift expensive once reply quality starts to slide. "
+        "We help teams catch that drift earlier and tighten outbound QA before managers are forced into cleanup mode. "
+        "That gives RevOps a more defensible way to challenge the status quo without adding review drag.\n\n"
+        f"{CTA}"
+    )
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        too_short,
+        _qa_with_issue("word_count_out_of_band"),
+        too_short,
+        salvaged,
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="challenger", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert result.body != too_short["body"]
+    assert result.body.rstrip().endswith(CTA)
+    assert "cleanup mode" in result.body
+    qa_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_QA" and item.get("status") == "complete"]
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    salvage_entries = [
+        item
+        for item in result.stage_stats
+        if str(item.get("stage") or "").startswith("EMAIL_REWRITE_SALVAGE") and item.get("status") == "complete"
+    ]
+    assert qa_entries[-1]["pre_rewrite_word_count"] < 46
+    assert qa_entries[-1]["dominant_failing_rule"] == "word_count_out_of_band"
+    assert rewrite_entries[-1]["salvage_applied"] is True
+    assert rewrite_entries[-1]["salvage_result"] == "passed"
+    assert salvage_entries[-1]["post_salvage_word_count"] >= 46
+
+
+def test_salvage_does_not_run_on_semantic_failure() -> None:
+    req = _request().model_copy(update={"preset_id": "challenger"})
+    bad_rewrite = _valid_draft("challenger")
+    bad_rewrite["body"] = bad_rewrite["body"].replace("practical QA controls", "touch base on practical QA controls")
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        _valid_draft("challenger"),
+        _qa_with_issue("tone_mismatch_for_preset"),
+        bad_rewrite,
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="challenger", sliders=req.sliders.model_dump()))
+
+    assert result.ok is False
+    assert result.error
+    stage_names = [str(item.get("stage") or "") for item in result.stage_stats]
+    assert not any(name.startswith("EMAIL_REWRITE_SALVAGE") for name in stage_names)
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert rewrite_entries[-1]["salvage_applied"] is False
+    assert rewrite_entries[-1]["salvage_result"] == "not_run"
+
+
+def test_preset_trace_fields_capture_contract_and_word_counts() -> None:
+    req = _request().model_copy(update={"preset_id": "challenger"})
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        _valid_draft("challenger"),
+        _qa_with_issue("opener_too_soft_for_preset", severity="medium"),
+        _valid_draft("challenger"),
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="challenger", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    generation_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_GENERATION" and item.get("status") == "complete"]
+    qa_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_QA" and item.get("status") == "complete"]
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert generation_entries[-1]["preset_contract_hash"]
+    assert generation_entries[-1]["pre_rewrite_word_count"] > 0
+    assert qa_entries[-1]["preset_contract_hash"]
+    assert qa_entries[-1]["pre_rewrite_word_count"] > 0
+    assert rewrite_entries[-1]["post_rewrite_word_count"] > 0
 
 
 def run(awaitable):

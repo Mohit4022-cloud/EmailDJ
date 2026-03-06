@@ -7,6 +7,30 @@
     "Keep narrative grounded in provided facts only",
     "Avoid dramatic language"
   ],
+  "output_contract": {
+    "tone": "human and contextual",
+    "assertiveness": "medium",
+    "opener_directness": "balanced",
+    "cta_placement": "final_exact",
+    "proof_density": "broad",
+    "lengths": {
+      "short": {
+        "target_word_range": {"min": 52, "max": 76},
+        "hard_word_range": {"min": 46, "max": 86},
+        "sentence_count_guidance": {"target_min": 4, "target_max": 5, "hard_max": 6}
+      },
+      "medium": {
+        "target_word_range": {"min": 92, "max": 130},
+        "hard_word_range": {"min": 84, "max": 142},
+        "sentence_count_guidance": {"target_min": 5, "target_max": 6, "hard_max": 7}
+      },
+      "long": {
+        "target_word_range": {"min": 138, "max": 190},
+        "hard_word_range": {"min": 126, "max": 210},
+        "sentence_count_guidance": {"target_min": 6, "target_max": 7, "hard_max": 8}
+      }
+    }
+  },
   "structure_rules": [
     "context -> tension -> practical value -> proof -> CTA",
     "Short mode uses compressed narrative in 4-5 sentences"

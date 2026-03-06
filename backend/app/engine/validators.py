@@ -5,6 +5,8 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from .preset_contract import sentence_count as contract_sentence_count
+
 from .brief_honesty import (
     CONFIDENCE_LEVEL_ORDER,
     EVIDENCE_STRENGTH_ORDER,
@@ -53,6 +55,22 @@ UNGROUNDED_PERSONALIZATION_MARKERS = [
     "congrats on",
     "just came across",
 ]
+
+MECHANICAL_VALIDATION_CODES = {
+    "subject_too_long",
+    "cta_not_final_line",
+    "duplicate_cta_line",
+    "word_count_out_of_band",
+    "too_many_sentences_for_preset",
+}
+
+SEMANTIC_VALIDATION_CODES = {
+    "banned_phrase",
+    "ungrounded_personalization_claim",
+    "repetition_detected",
+    "personalization_missing_used_hook",
+    "personalization_generic_opener",
+}
 
 GROUNDING_STOPWORDS = {
     "about",
@@ -701,12 +719,29 @@ def _length_band(length: str) -> tuple[int, int]:
     return (80, 140)
 
 
+def validation_code_set(codes: list[str]) -> set[str]:
+    return {str(code or "").strip() for code in codes if str(code or "").strip()}
+
+
+def dominant_validation_code(codes: list[str]) -> str | None:
+    for code in codes:
+        token = str(code or "").strip()
+        if token:
+            return token
+    return None
+
+
+def salvage_eligible_validation_codes(codes: list[str]) -> bool:
+    return validation_code_set(codes) == {"word_count_out_of_band"}
+
+
 def validate_email_draft(
     draft: dict[str, Any],
     *,
     brief: dict[str, Any],
     cta_final_line: str,
     sliders: dict[str, Any],
+    preset_contract: dict[str, Any] | None = None,
     personalization_threshold: float = 0.65,
 ) -> list[str]:
     codes: list[str] = []
@@ -745,11 +780,22 @@ def validate_email_draft(
         if "repetition_detected" in codes:
             break
 
+    contract = dict(preset_contract or {})
+    hard_word_range = dict(contract.get("hard_word_range") or {})
+    sentence_guidance = dict(contract.get("sentence_count_guidance") or {})
+
     length = str(sliders.get("length") or "medium")
     min_words, max_words = _length_band(length)
+    if isinstance(hard_word_range.get("min"), int) and isinstance(hard_word_range.get("max"), int):
+        min_words = int(hard_word_range["min"])
+        max_words = int(hard_word_range["max"])
     wc = _word_count(body)
     if wc < min_words or wc > max_words:
         codes.append("word_count_out_of_band")
+
+    hard_sentence_max = sentence_guidance.get("hard_max")
+    if isinstance(hard_sentence_max, int) and contract_sentence_count(body) > hard_sentence_max:
+        codes.append("too_many_sentences_for_preset")
 
     tone_marker = float(sliders.get("framing", 0.5))
     if tone_marker >= personalization_threshold:
@@ -770,5 +816,12 @@ def normalize_qa_report(qa_report: dict[str, Any]) -> dict[str, Any]:
     report["pass_rewrite_needed"] = pass_rewrite_needed
 
     if pass_rewrite_needed and not report.get("rewrite_plan"):
-        report["rewrite_plan"] = ["Tighten opener specificity.", "Remove fluff and keep one core ask."]
+        issue_types = {str(item.get("type") or "").strip() for item in issues if isinstance(item, dict)}
+        if "word_count_out_of_band" in issue_types or "too_many_sentences_for_preset" in issue_types:
+            report["rewrite_plan"] = [
+                "Tighten the body to fit the preset contract word and sentence targets.",
+                "Keep the CTA exact and leave grounded claims intact.",
+            ]
+        else:
+            report["rewrite_plan"] = ["Tighten opener specificity.", "Remove fluff and keep one core ask."]
     return report

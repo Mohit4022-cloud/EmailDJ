@@ -27,9 +27,11 @@ def build_messages(
     messaging_brief: dict[str, Any],
     message_atoms: dict[str, Any],
     cta_final_line: str,
+    preset_contract: dict[str, Any] | None = None,
     sliders: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     slider_payload = dict(sliders or {})
+    contract = dict(preset_contract or {})
     tone = float(slider_payload.get("tone", 0.4))
     length = str(slider_payload.get("length", "medium"))
     min_words, max_words = _length_band(length)
@@ -51,8 +53,10 @@ def build_messages(
         "If sentence was not targeted by plan/issues, leave it unchanged.\\n\\n"
         "RULE 6 - HANDLE BLOCKED ACTIONS SAFELY.\\n"
         "If action conflicts with atoms boundary, do partial safe execution and keep grounding intact.\\n\\n"
-        "RULE 7 - VALIDATE BEFORE OUTPUT.\\n"
-        "Check schema, banned phrases, CTA lock, length, and unresolved high-severity failures.\\n\\n"
+        "RULE 7 - PRESET CONTRACT IS ACTIVE.\\n"
+        "Rewrite toward the preset contract for word band, sentence count, opener directness, proof density, and CTA placement.\\n\\n"
+        "RULE 8 - VALIDATE BEFORE OUTPUT.\\n"
+        "Check schema, banned phrases, CTA lock, preset contract, and unresolved high-severity failures.\\n\\n"
         f"Active settings: tone={_tone_instruction(tone)} body_words={min_words}-{max_words}.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
     )
@@ -64,6 +68,7 @@ def build_messages(
         "rewrite_plan": rewrite_plan,
         "message_atoms": message_atoms,
         "messaging_brief": messaging_brief,
+        "preset_contract": contract,
         "slider_rules": {
             "tone": _tone_instruction(tone),
             "length": length,
@@ -99,8 +104,62 @@ def build_messages(
         "3) Preserve preset_id, selected_angle_id, and used_hook_ids unless explicitly changed by plan.\\n"
         "4) Keep all untouched, non-flagged text identical.\\n"
         "5) Enforce exact locked CTA as final line; delete any trailing text after CTA.\\n"
-        "6) Validate final draft for credibility, personalization grounding, banned phrases, schema, and word band.\\n"
-        "7) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
+        "6) Make the revised draft satisfy preset_contract target_word_range and sentence_count_guidance.\\n"
+        "7) Validate final draft for credibility, personalization grounding, banned phrases, schema, and preset contract.\\n"
+        "8) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
+        f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
+        "Output complete EmailDraft JSON only."
+    )
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def build_salvage_messages(
+    *,
+    email_draft: dict[str, Any],
+    message_atoms: dict[str, Any],
+    messaging_brief: dict[str, Any],
+    cta_final_line: str,
+    preset_contract: dict[str, Any],
+    failure_code: str,
+) -> list[dict[str, str]]:
+    contract = dict(preset_contract or {})
+    system = (
+        "You are doing one bounded salvage edit on an already-written SDR email. "
+        "This is not a fresh rewrite. Adjust only enough to satisfy the preset contract.\\n\\n"
+        "RULE 1 - ONLY FIX THE MECHANICAL MISS.\\n"
+        "The only allowed target is the isolated mechanical failure provided.\\n\\n"
+        "RULE 2 - PRESERVE AUTHORSHIP.\\n"
+        "Keep the draft's angle, language, and structure intact unless a tiny edit is required for the band fix.\\n\\n"
+        "RULE 3 - NO NEW CLAIMS.\\n"
+        "Do not add facts, proof, hooks, or personalization beyond the existing draft and grounded atoms.\\n\\n"
+        "RULE 4 - CTA LOCK.\\n"
+        f"Final body line must remain exactly: {cta_final_line}\\n\\n"
+        "RULE 5 - PRESERVE METADATA.\\n"
+        "Keep preset_id, selected_angle_id, and used_hook_ids unchanged.\\n\\n"
+        "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
+    )
+
+    user_payload = {
+        "failure_code": failure_code,
+        "email_draft": email_draft,
+        "message_atoms": message_atoms,
+        "messaging_brief": messaging_brief,
+        "preset_contract": contract,
+        "locked_cta": cta_final_line,
+    }
+
+    user = (
+        "Make one narrow salvage edit.\\n"
+        "INSTRUCTIONS:\\n"
+        "1) If over the preset contract band, compress by shortening or removing the least essential narrative text only.\\n"
+        "2) If under the preset contract band, expand only slightly using grounded wording already present in the draft or atoms.\\n"
+        "3) Do not replace the draft with a new template or canned preset body.\\n"
+        "4) Preserve the selected angle, used_hook_ids, and exact CTA line.\\n"
+        "5) Self-audit for word band, sentence count, grounding, and CTA exactness before output.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete EmailDraft JSON only."
     )

@@ -4,11 +4,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+from ..preset_contract import merge_output_contracts, validate_output_contract_definition
+
 
 REQUIRED_FIELDS = {
     "preset_id",
     "name",
     "tone_descriptor",
+    "output_contract",
     "style_rules",
     "structure_rules",
     "banned_phrases_additions",
@@ -53,6 +56,11 @@ def _validate_preset(data: dict[str, Any], source: str) -> None:
         if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
             raise PresetError(f"preset_invalid_list:{source}:{key}")
 
+    try:
+        validate_output_contract_definition(data.get("output_contract"), source=source)
+    except ValueError as exc:
+        raise PresetError(str(exc)) from exc
+
     corpus = "\n".join(
         [
             str(data.get("tone_descriptor", "")),
@@ -85,6 +93,10 @@ def load_all_presets() -> dict[str, dict[str, Any]]:
             merged[preset_id] = {
                 **base,
                 **item,
+                "output_contract": merge_output_contracts(
+                    dict(base.get("output_contract") or {}),
+                    dict(item.get("output_contract") or {}),
+                ),
                 "style_rules": [*base.get("style_rules", []), *item.get("style_rules", [])],
                 "structure_rules": [*base.get("structure_rules", []), *item.get("structure_rules", [])],
                 "banned_phrases_additions": [

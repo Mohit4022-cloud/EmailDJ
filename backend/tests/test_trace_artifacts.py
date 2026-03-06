@@ -50,3 +50,26 @@ def test_trace_preserves_artifact_views_for_completed_stage() -> None:
     assert trace.raw_stage_payloads[-1]["artifact_views"]["sanitation_report"]["sanitation_action_counts"] == {
         "drop_fact_placeholder_text": 1
     }
+
+
+def test_trace_annotation_merges_details_into_completed_stage() -> None:
+    trace = Trace("trace-3", "test")
+    trace.start_stage(stage="EMAIL_REWRITE", model="gpt-5-nano")
+    trace.end_stage(
+        stage="EMAIL_REWRITE",
+        model="gpt-5-nano",
+        schema_ok=True,
+        output={"version": "1", "subject": "x", "body": "y"},
+        attempt_count=1,
+    )
+
+    trace.annotate_stage(
+        stage="EMAIL_REWRITE",
+        details={"preset_id": "challenger", "salvage_applied": True, "salvage_result": "passed"},
+    )
+
+    payload = trace.finalize(outcome={"ok": True}, write_debug=False)
+
+    assert payload["stage_stats"][-1]["preset_id"] == "challenger"
+    assert payload["stage_stats"][-1]["salvage_applied"] is True
+    assert payload["stage_stats"][-1]["salvage_result"] == "passed"

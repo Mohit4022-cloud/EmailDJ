@@ -7,6 +7,30 @@
     "Tie proof to one measurable or operational outcome",
     "Avoid unsupported superlatives"
   ],
+  "output_contract": {
+    "tone": "evidence-led and credible",
+    "assertiveness": "medium",
+    "opener_directness": "balanced",
+    "cta_placement": "final_exact",
+    "proof_density": "tight",
+    "lengths": {
+      "short": {
+        "target_word_range": {"min": 48, "max": 70},
+        "hard_word_range": {"min": 42, "max": 80},
+        "sentence_count_guidance": {"target_min": 3, "target_max": 4, "hard_max": 5}
+      },
+      "medium": {
+        "target_word_range": {"min": 82, "max": 112},
+        "hard_word_range": {"min": 74, "max": 124},
+        "sentence_count_guidance": {"target_min": 4, "target_max": 5, "hard_max": 6}
+      },
+      "long": {
+        "target_word_range": {"min": 122, "max": 168},
+        "hard_word_range": {"min": 112, "max": 184},
+        "sentence_count_guidance": {"target_min": 5, "target_max": 6, "hard_max": 7}
+      }
+    }
+  },
   "structure_rules": [
     "proof -> implication -> value -> CTA",
     "Keep CTA concise and final"

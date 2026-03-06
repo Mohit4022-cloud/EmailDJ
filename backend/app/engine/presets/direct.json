@@ -7,6 +7,30 @@
     "Avoid hedge words unless claim is explicitly labeled assumption",
     "Remove filler transitions"
   ],
+  "output_contract": {
+    "tone": "confident and concise",
+    "assertiveness": "high",
+    "opener_directness": "direct",
+    "cta_placement": "final_exact",
+    "proof_density": "balanced",
+    "lengths": {
+      "short": {
+        "target_word_range": {"min": 44, "max": 64},
+        "hard_word_range": {"min": 40, "max": 72},
+        "sentence_count_guidance": {"target_min": 3, "target_max": 4, "hard_max": 5}
+      },
+      "medium": {
+        "target_word_range": {"min": 76, "max": 100},
+        "hard_word_range": {"min": 70, "max": 112},
+        "sentence_count_guidance": {"target_min": 4, "target_max": 5, "hard_max": 6}
+      },
+      "long": {
+        "target_word_range": {"min": 110, "max": 145},
+        "hard_word_range": {"min": 102, "max": 160},
+        "sentence_count_guidance": {"target_min": 5, "target_max": 6, "hard_max": 7}
+      }
+    }
+  },
   "structure_rules": [
     "opener -> value -> proof -> CTA",
     "4-6 sentences for short/medium"

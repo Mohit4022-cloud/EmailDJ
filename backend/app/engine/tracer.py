@@ -218,6 +218,7 @@ class Trace:
         error_codes: list[str] | None = None,
         mechanical_postprocess_applied: list[str] | None = None,
         output: Any = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
         index = self._latest_stage_index(stage=stage, status=status)
         if index is None:
@@ -240,6 +241,8 @@ class Trace:
             output_hash = hash_json(output)
             entry["output_hash"] = output_hash
             self.hashes[f"output:{stage}"] = output_hash
+        if details:
+            entry.update(details)
 
     def put_hash(self, key: str, value: Any) -> None:
         self.hashes[key] = hash_json(value)
