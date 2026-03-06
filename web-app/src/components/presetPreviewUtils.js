@@ -327,7 +327,7 @@ export function parseGeneratedDraft(rawDraft, fallbackCompany = '') {
   const normalized = normalizeLineBreaks(rawDraft);
   if (!normalized) {
     return {
-      subject: `Quick idea for ${fallbackCompany || 'your team'}`,
+      subject: '',
       body: '',
     };
   }
@@ -336,7 +336,7 @@ export function parseGeneratedDraft(rawDraft, fallbackCompany = '') {
   const firstLineIndex = lines.findIndex((line) => normalizeText(line));
   if (firstLineIndex < 0) {
     return {
-      subject: `Quick idea for ${fallbackCompany || 'your team'}`,
+      subject: '',
       body: '',
     };
   }
@@ -347,7 +347,7 @@ export function parseGeneratedDraft(rawDraft, fallbackCompany = '') {
     const subject = subjectMatch[1].trim();
     const body = lines.slice(firstLineIndex + 1).join('\n').trim();
     return {
-      subject: subject || `Quick idea for ${fallbackCompany || 'your team'}`,
+      subject: subject || '',
       body,
     };
   }
@@ -364,7 +364,7 @@ export function parseGeneratedDraft(rawDraft, fallbackCompany = '') {
   }
 
   return {
-    subject: `Quick idea for ${fallbackCompany || 'your team'}`,
+    subject: '',
     body: normalized,
   };
 }
@@ -416,7 +416,7 @@ export function sanitizePreviewEmail(parts, context) {
     body = body.replace(/^hello\s+[^,\n]+,/i, 'Hello there,');
   }
   return {
-    subject: subject || `Quick idea for ${normalized.prospect.company || 'your team'}`,
+    subject,
     body,
   };
 }

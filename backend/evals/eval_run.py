@@ -164,9 +164,19 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
         raw_output_artifact = item.get("raw_output_artifact")
         artifact_views = item.get("artifact_views") if isinstance(item.get("artifact_views"), dict) else {}
         slot = artifacts[artifact_key]
+        stage_a_artifact = None
+        if artifact_key == "messaging_brief":
+            stage_a_artifact = artifact_views.get("sanitized_stage_a_artifact") or artifact_views.get("raw_stage_a_artifact")
 
-        if status == "complete" and isinstance(output, dict):
-            slot["artifact"] = output
+        if status == "complete":
+            completed_artifact = output if isinstance(output, dict) else None
+            if completed_artifact is None and isinstance(raw_output_artifact, dict):
+                completed_artifact = raw_output_artifact
+            if completed_artifact is None and isinstance(stage_a_artifact, dict):
+                completed_artifact = stage_a_artifact
+            if completed_artifact is None:
+                continue
+            slot["artifact"] = completed_artifact
             slot["status"] = "complete_artifact"
             slot["error_code"] = None
             slot["raw_output"] = raw_output
@@ -179,6 +189,10 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
 
         artifact_status = str(item.get("artifact_status") or "").strip() or "artifact_missing"
         failed_output = output if isinstance(output, dict) else None
+        if failed_output is None and isinstance(raw_output_artifact, dict):
+            failed_output = raw_output_artifact
+        if failed_output is None and isinstance(stage_a_artifact, dict):
+            failed_output = stage_a_artifact
         if failed_output is None and isinstance(raw_output, str):
             try:
                 parsed_raw = json.loads(raw_output)

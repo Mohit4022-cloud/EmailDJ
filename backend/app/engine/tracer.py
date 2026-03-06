@@ -34,6 +34,16 @@ class Trace:
         self.meta: dict[str, Any] = {}
         self.raw_stage_payloads: list[dict[str, Any]] = []
 
+    def _latest_stage_index(self, *, stage: str, status: str | None = None) -> int | None:
+        for index in range(len(self.stage_stats) - 1, -1, -1):
+            item = self.stage_stats[index]
+            if str(item.get("stage") or "") != stage:
+                continue
+            if status is not None and str(item.get("status") or "") != status:
+                continue
+            return index
+        return None
+
     def start_stage(self, *, stage: str, model: str) -> None:
         self._stage_started[stage] = time.perf_counter()
         self.stage_stats.append(
@@ -42,8 +52,11 @@ class Trace:
                 "status": "started",
                 "model": model,
                 "elapsed_ms": 0,
-                "schema_ok": False,
                 "attempt_count": 0,
+                "raw_validation_status": "pending",
+                "final_validation_status": "pending",
+                "error_codes": [],
+                "mechanical_postprocess_applied": [],
             }
         )
 
@@ -59,9 +72,14 @@ class Trace:
         raw_output: str | None = None,
         raw_output_artifact: Any = None,
         artifact_views: dict[str, Any] | None = None,
+        raw_validation_status: str = "passed",
+        final_validation_status: str = "passed",
+        error_codes: list[str] | None = None,
+        mechanical_postprocess_applied: list[str] | None = None,
     ) -> int:
         started = self._stage_started.get(stage, time.perf_counter())
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
+        output_hash = hash_json(output)
         self.stage_stats.append(
             {
                 "stage": stage,
@@ -70,16 +88,25 @@ class Trace:
                 "elapsed_ms": elapsed_ms,
                 "schema_ok": bool(schema_ok),
                 "attempt_count": int(attempt_count),
+                "raw_validation_status": str(raw_validation_status or "passed"),
+                "final_validation_status": str(final_validation_status or "passed"),
+                "error_codes": list(error_codes or []),
+                "mechanical_postprocess_applied": list(mechanical_postprocess_applied or []),
+                "output_hash": output_hash,
                 **(details or {}),
             }
         )
-        self.hashes[f"output:{stage}"] = hash_json(output)
+        self.hashes[f"output:{stage}"] = output_hash
         if self.debug_trace_raw:
             entry = {
                 "stage": stage,
                 "status": "complete",
                 "attempt_count": int(attempt_count),
                 "schema_ok": bool(schema_ok),
+                "raw_validation_status": str(raw_validation_status or "passed"),
+                "final_validation_status": str(final_validation_status or "passed"),
+                "error_codes": list(error_codes or []),
+                "mechanical_postprocess_applied": list(mechanical_postprocess_applied or []),
                 "output": output,
             }
             if raw_output:
@@ -116,6 +143,9 @@ class Trace:
         attempt_count: int | None = None,
         raw_output_artifact: Any = None,
         artifact_views: dict[str, Any] | None = None,
+        raw_validation_status: str = "failed",
+        final_validation_status: str = "failed",
+        error_codes: list[str] | None = None,
     ) -> int:
         started = self._stage_started.get(stage, time.perf_counter())
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
@@ -126,11 +156,17 @@ class Trace:
             "elapsed_ms": elapsed_ms,
             "error_code": error_code,
             "details": details or {},
+            "raw_validation_status": str(raw_validation_status or "failed"),
+            "final_validation_status": str(final_validation_status or "failed"),
+            "error_codes": list(error_codes or []),
+            "mechanical_postprocess_applied": [],
         }
         if artifact_status:
             stage_entry["artifact_status"] = artifact_status
         if attempt_count is not None:
             stage_entry["attempt_count"] = int(attempt_count)
+        if output is not None:
+            stage_entry["output_hash"] = hash_json(output)
         self.stage_stats.append(
             stage_entry
         )
@@ -140,6 +176,9 @@ class Trace:
                 "status": "failed",
                 "error_code": error_code,
                 "details": details or {},
+                "raw_validation_status": str(raw_validation_status or "failed"),
+                "final_validation_status": str(final_validation_status or "failed"),
+                "error_codes": list(error_codes or []),
             }
             if artifact_status:
                 raw_entry["artifact_status"] = artifact_status
@@ -168,6 +207,39 @@ class Trace:
     def add_postprocess_step(self, step: str) -> None:
         if step and step not in self.postprocess_steps:
             self.postprocess_steps.append(step)
+
+    def annotate_stage(
+        self,
+        *,
+        stage: str,
+        status: str = "complete",
+        raw_validation_status: str | None = None,
+        final_validation_status: str | None = None,
+        error_codes: list[str] | None = None,
+        mechanical_postprocess_applied: list[str] | None = None,
+        output: Any = None,
+    ) -> None:
+        index = self._latest_stage_index(stage=stage, status=status)
+        if index is None:
+            return
+        entry = self.stage_stats[index]
+        if raw_validation_status is not None:
+            entry["raw_validation_status"] = str(raw_validation_status)
+        if final_validation_status is not None:
+            entry["final_validation_status"] = str(final_validation_status)
+        if error_codes is not None:
+            entry["error_codes"] = list(error_codes)
+        if mechanical_postprocess_applied is not None:
+            existing = list(entry.get("mechanical_postprocess_applied") or [])
+            for step in mechanical_postprocess_applied:
+                step_text = str(step or "").strip()
+                if step_text and step_text not in existing:
+                    existing.append(step_text)
+            entry["mechanical_postprocess_applied"] = existing
+        if output is not None:
+            output_hash = hash_json(output)
+            entry["output_hash"] = output_hash
+            self.hashes[f"output:{stage}"] = output_hash
 
     def put_hash(self, key: str, value: Any) -> None:
         self.hashes[key] = hash_json(value)

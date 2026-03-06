@@ -24,6 +24,9 @@ class StageRunResult:
     raw_payload: dict[str, Any] | None = None
     raw_text: str = ""
     artifact_metadata: dict[str, Any] | None = None
+    raw_validation_status: str = "passed"
+    final_validation_status: str = "passed"
+    validation_codes: list[str] | None = None
 
 
 class StageError(RuntimeError):
@@ -253,6 +256,8 @@ async def run_stage(
     first_error = ""
     first_validation_codes: list[str] = []
     first_validation_details: list[dict[str, Any]] = []
+    raw_validation_status = "passed"
+    final_validation_status = "passed"
 
     async def _call(request_messages: list[dict[str, str]]) -> tuple[str, dict[str, Any]]:
         response = await openai.chat_completion(
@@ -299,6 +304,8 @@ async def run_stage(
                 first_artifact_metadata = artifact_metadata
             if validator is not None:
                 validator(processed_payload)
+            if is_repair and raw_validation_status == "failed":
+                final_validation_status = "passed_after_repair"
             return StageRunResult(
                 payload=processed_payload,
                 attempts=attempts,
@@ -306,12 +313,16 @@ async def run_stage(
                 raw_payload=payload,
                 raw_text=raw_text,
                 artifact_metadata=artifact_metadata,
+                raw_validation_status=raw_validation_status,
+                final_validation_status=final_validation_status,
+                validation_codes=list(first_validation_codes),
             )
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             validation_codes = list(getattr(exc, "codes", []) or [])
             validation_details = list(getattr(exc, "details", []) or [])
             if not is_repair:
+                raw_validation_status = "failed"
                 first_error = last_error
                 if validation_codes:
                     first_validation_codes = validation_codes
@@ -322,12 +333,15 @@ async def run_stage(
                 if not first_raw:
                     first_raw = last_raw
                 continue
+            final_validation_status = "failed"
             artifact_status = "failed_artifact_present" if (first_payload or repair_payload or first_raw or repair_raw) else "artifact_missing"
             error_details: dict[str, Any] = {
                 "error": str(exc),
                 "first_error": first_error,
                 "attempt_count": attempts,
                 "artifact_status": artifact_status,
+                "raw_validation_status": raw_validation_status,
+                "final_validation_status": final_validation_status,
             }
             if first_raw:
                 error_details["first_raw"] = first_raw
@@ -355,6 +369,9 @@ async def run_stage(
             if validation_details and validation_details != first_validation_details:
                 error_details["repair_validation_details"] = validation_details
                 error_details["repair_rejected_facts"] = validation_details
+            if raw_validation_status == "failed":
+                final_validation_status = "failed_after_repair"
+                error_details["final_validation_status"] = final_validation_status
             raise StageError(
                 stage=config.stage,
                 code="STAGE_JSON_OR_VALIDATION_FAILED",

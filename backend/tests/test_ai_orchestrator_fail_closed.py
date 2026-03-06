@@ -286,30 +286,15 @@ def test_stage_e_final_validation_failure_is_fail_closed() -> None:
 
 def test_preset_browse_returns_mixed_success_and_error_variants() -> None:
     req = _request().model_copy(update={"mode": "preset_browse", "preset_ids": ["direct", "challenger"]})
-    batch_output = {
-        "version": "1",
-        "variants": [
-            {
-                "preset_id": "direct",
-                "selected_angle_id": "angle_1",
-                "used_hook_ids": ["hook_1"],
-                "subject": "RevOps workflow consistency idea",
-                "body": _valid_draft("direct")["body"],
-            },
-            {
-                "preset_id": "challenger",
-                "error": {"code": "VALIDATION_FAILED", "message": "Body exceeded word budget after repair"},
-            },
-        ],
-    }
-
     orchestrator = _orchestrator([
         _brief(),
         _fit_map(),
         _angles(),
         _atoms(),
-        batch_output,
+        _valid_draft("direct"),
         _qa(pass_rewrite_needed=False),
+        {},
+        {},
     ])
 
     trace = Trace(str(uuid4()), "test")
@@ -327,6 +312,10 @@ def test_preset_browse_returns_mixed_success_and_error_variants() -> None:
     assert len(result.variants) == 2
     assert "subject" in result.variants[0]
     assert result.variants[1].get("error")
+    traced_stages = {str(item.get("stage") or "") for item in result.stage_stats}
+    assert "EMAIL_GENERATION:direct" in traced_stages
+    assert "EMAIL_GENERATION:challenger" in traced_stages
+    assert "EMAIL_QA:direct" in traced_stages
 
 
 def test_cta_lock_mechanical_postprocess_preserves_exact_final_line() -> None:
@@ -399,6 +388,7 @@ def test_brief_cache_hit_skips_stage_a_b_b0_on_second_request() -> None:
         _atoms(),
         _valid_draft(),
         _qa(pass_rewrite_needed=False),
+        _valid_draft(),
     ])
     orchestrator = AIOrchestrator(openai=stub, settings=settings, brief_cache=cache)
 
@@ -414,6 +404,151 @@ def test_brief_cache_hit_skips_stage_a_b_b0_on_second_request() -> None:
     assert "CONTEXT_SYNTHESIS" not in second_stages
     assert "FIT_REASONING" not in second_stages
     assert "ANGLE_PICKER" not in second_stages
+
+
+def test_preset_browse_applies_per_preset_slider_overrides_without_rebuilding_brief_stack() -> None:
+    req = _request().model_copy(update={"mode": "preset_browse", "preset_ids": ["direct", "challenger"]})
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        _valid_draft("direct"),
+        _qa(pass_rewrite_needed=False),
+        _valid_draft("challenger"),
+        _qa(pass_rewrite_needed=False),
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(
+        orchestrator.run_pipeline_presets(
+            request=req,
+            trace=trace,
+            preset_ids=["direct", "challenger"],
+            sliders=req.sliders.model_dump(),
+            preset_sliders={
+                "direct": {"tone": 0.45, "framing": 0.25, "length": "short", "stance": 0.35},
+                "challenger": {"tone": 0.65, "framing": 0.8, "length": "long", "stance": 0.9},
+            },
+        )
+    )
+
+    assert result.ok is True
+    assert isinstance(orchestrator.openai, StubOpenAI)
+    email_calls = [
+        call
+        for call in orchestrator.openai.calls
+        if call.get("response_format", {}).get("json_schema", {}).get("name") == "EmailDraft"
+        and "Senior SDR writing one outbound email" in str(call.get("messages", [{}])[0].get("content") or "")
+    ]
+    assert len(email_calls) == 2
+
+    first_context = _extract_context_json_from_user_prompt(email_calls[0]["messages"][1]["content"])
+    second_context = _extract_context_json_from_user_prompt(email_calls[1]["messages"][1]["content"])
+
+    assert first_context["slider_rules"]["length"] == "short"
+    assert second_context["slider_rules"]["length"] == "long"
+    assert first_context["preset"]["preset_id"] == "direct"
+    assert second_context["preset"]["preset_id"] == "challenger"
+
+    stage_starts = [str(item.get("stage") or "") for item in result.stage_stats if item.get("status") == "started"]
+    assert stage_starts.count("CONTEXT_SYNTHESIS") == 1
+    assert stage_starts.count("FIT_REASONING") == 1
+    assert stage_starts.count("ANGLE_PICKER") == 1
+    assert stage_starts.count("ONE_LINER_COMPRESSOR") == 1
+
+
+def test_slider_changes_keep_selected_angle_and_hook_ids_stable_on_cached_brief() -> None:
+    req = _request()
+    cache = BriefCache()
+    settings = replace(load_settings(), app_env="test")
+    stub = StubOpenAI([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        _valid_draft(),
+        _qa(pass_rewrite_needed=False),
+        _atoms(),
+        _valid_draft(),
+        _qa(pass_rewrite_needed=False),
+        _valid_draft(),
+    ])
+    orchestrator = AIOrchestrator(openai=stub, settings=settings, brief_cache=cache)
+
+    first_trace = Trace(str(uuid4()), "test")
+    first = run(
+        orchestrator.run_pipeline_single(
+            request=req,
+            trace=first_trace,
+            preset_id="direct",
+            sliders={"tone": 0.4, "framing": 0.25, "length": "short", "stance": 0.35},
+        )
+    )
+    assert first.ok is True
+    assert first.provenance == {
+        "preset_id": "direct",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "rewrite_applied": False,
+    }
+
+    second_trace = Trace(str(uuid4()), "test")
+    second = run(
+        orchestrator.run_pipeline_single(
+            request=req,
+            trace=second_trace,
+            preset_id="direct",
+            sliders={"tone": 0.65, "framing": 0.6, "length": "short", "stance": 0.85},
+        )
+    )
+    assert second.ok is True
+    assert second.provenance["selected_angle_id"] == first.provenance["selected_angle_id"]
+    assert second.provenance["used_hook_ids"] == first.provenance["used_hook_ids"]
+
+    second_stages = {str(item.get("stage")) for item in second.stage_stats if item.get("status") == "started"}
+    assert "CONTEXT_SYNTHESIS" not in second_stages
+    assert "FIT_REASONING" not in second_stages
+    assert "ANGLE_PICKER" not in second_stages
+
+
+def test_qa_rewrite_tightens_weak_draft_and_marks_rewrite_applied() -> None:
+    req = _request()
+    weak_draft = _valid_draft()
+    weak_draft["body"] = (
+        "Hi Alex,\n\n"
+        "Acme's RevOps initiative may matter. "
+        "We help teams improve things in a lot of ways and drive better workflows overall. "
+        "It can be very helpful for teams that want more consistency and results.\n\n"
+        f"{CTA}"
+    )
+    rewritten = _valid_draft()
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        weak_draft,
+        _qa(pass_rewrite_needed=True),
+        rewritten,
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert result.body != weak_draft["body"]
+    assert "practical QA controls" in result.body
+    assert result.provenance == {
+        "preset_id": "direct",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "rewrite_applied": True,
+    }
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert rewrite_entries
+    assert rewrite_entries[-1]["final_validation_status"] == "passed"
 
 
 def run(awaitable):

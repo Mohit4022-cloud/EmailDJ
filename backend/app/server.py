@@ -204,11 +204,14 @@ def _preview_request_to_generate(req: PresetPreviewRequest, *, sliders: dict[str
 
 
 def _sliders_from_batch_request(req: PresetPreviewBatchRequest) -> dict[str, Any]:
-    global_sliders = req.global_sliders.model_dump(mode="json")
-    formality = int(global_sliders.get("formality", 50))
-    personalization = int(global_sliders.get("personalization", 50))
-    directness = int(global_sliders.get("directness", 50))
-    brevity = int(global_sliders.get("brevity", 50))
+    return _sliders_from_batch_slider_values(req.global_sliders.model_dump(mode="json"))
+
+
+def _sliders_from_batch_slider_values(raw_sliders: dict[str, Any]) -> dict[str, Any]:
+    formality = int(raw_sliders.get("formality", 50))
+    personalization = int(raw_sliders.get("personalization", 50))
+    directness = int(raw_sliders.get("directness", 50))
+    brevity = int(raw_sliders.get("brevity", 50))
     if brevity >= 67:
         length = "short"
     elif brevity <= 33:
@@ -252,6 +255,22 @@ def _effective_batch_sliders(req: PresetPreviewBatchRequest, preset: Any) -> dic
         if key in (preset.slider_overrides or {}):
             base[key] = int(preset.slider_overrides[key])
     return base
+
+
+def _stage_stats_for_preset(stage_stats: list[dict[str, Any]], preset_id: str) -> list[dict[str, Any]]:
+    scoped: list[dict[str, Any]] = []
+    suffix = f":{preset_id}"
+    shared_stages = {
+        "CONTEXT_SYNTHESIS",
+        "FIT_REASONING",
+        "ANGLE_PICKER",
+        "ONE_LINER_COMPRESSOR",
+    }
+    for item in stage_stats:
+        stage_name = str(item.get("stage") or "")
+        if stage_name in shared_stages or stage_name.endswith(suffix):
+            scoped.append(item)
+    return scoped
 
 
 def _engine_debug_payload(result: Any, *, total_latency_ms: int | None = None) -> dict[str, Any]:
@@ -497,12 +516,17 @@ async def preset_previews_batch(
     sliders = _sliders_from_batch_request(req)
     generate_req = _batch_preview_to_generate(req, sliders=sliders)
     preset_ids = [str(item.preset_id) for item in req.presets]
+    preset_slider_map = {
+        str(preset.preset_id): _sliders_from_batch_slider_values(_effective_batch_sliders(req, preset))
+        for preset in req.presets
+    }
     trace = Trace(str(uuid4()), state.settings.app_env, debug_trace_raw=state.settings.debug_trace_raw)
     orchestrated = await state.orchestrator.run_pipeline_presets(
         request=generate_req,
         trace=trace,
         preset_ids=preset_ids,
         sliders=sliders,
+        preset_sliders=preset_slider_map,
     )
 
     previews: list[PresetPreviewBatchItem] = []
@@ -528,7 +552,7 @@ async def preset_previews_batch(
                 subject=(str(matched.get("subject") or "").strip() or None),
                 body=(str(matched.get("body") or "").strip() or None),
                 error=(dict(error_payload) if isinstance(error_payload, dict) else None),
-                debug={"stage_stats": orchestrated.stage_stats},
+                debug={"stage_stats": _stage_stats_for_preset(orchestrated.stage_stats, str(preset.preset_id))},
             )
         )
 

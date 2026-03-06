@@ -37,11 +37,6 @@ function statusLabel(status) {
   return '';
 }
 
-function previewFallbackSubject(context) {
-  const company = context?.prospect?.company || context?.company_context?.company_name || 'your team';
-  return `Quick idea for ${company}`;
-}
-
 export function presetToSliderState(preset) {
   const sliders = preset?.sliders || {};
   const formal = toNumber(sliders.formal);
@@ -397,11 +392,22 @@ export class SDRPresetLibrary {
         });
         continue;
       }
+      const subject = String(matched?.subject || '').trim();
+      const body = String(matched?.body || '').trim();
+      if (!subject || !body) {
+        this.previewEntries.set(presetId, {
+          ...base,
+          status: 'error',
+          errorMessage: 'AI preview returned incomplete email',
+          validationWarning: '',
+        });
+        continue;
+      }
 
       const preview = {
         ...base,
-        subject: String(matched?.subject || '').trim(),
-        body: String(matched?.body || '').trim(),
+        subject,
+        body,
         vibeLabel: String(matched?.vibeLabel || base.vibeLabel || ''),
         vibeTags:
           Array.isArray(matched?.vibeTags) && matched.vibeTags.length > 0
@@ -482,10 +488,15 @@ export class SDRPresetLibrary {
     if (contextHash !== this.activeContextHash) return;
 
     const warning = String(response?.validationWarning || '').trim();
+    const subject = String(response?.subject || '').trim();
+    const body = String(response?.body || '').trim();
+    if (!subject || !body) {
+      throw new Error('AI preview returned incomplete email');
+    }
     const preview = {
       ...base,
-      subject: String(response?.subject || '').trim() || previewFallbackSubject(context),
-      body: String(response?.body || '').trim(),
+      subject,
+      body,
       vibeLabel: String(response?.vibeLabel || base.vibeLabel || ''),
       vibeTags:
         Array.isArray(response?.vibeTags) && response.vibeTags.length > 0

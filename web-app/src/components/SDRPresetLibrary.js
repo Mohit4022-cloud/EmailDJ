@@ -39,11 +39,6 @@ function statusLabel(status) {
   return '';
 }
 
-function previewFallbackSubject(context) {
-  const company = context?.prospect?.company || context?.company_context?.company_name || 'your team';
-  return `Quick idea for ${company}`;
-}
-
 function buildSafeProspect(context) {
   return {
     name: context.prospect.name || 'there',
@@ -386,6 +381,14 @@ export class SDRPresetLibrary {
           this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
           continue;
         }
+        if (source.error) {
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: String(source.error.message || 'Generation failed'),
+          });
+          continue;
+        }
 
         const sanitized = sanitizePreviewEmail(
           {
@@ -394,10 +397,18 @@ export class SDRPresetLibrary {
           },
           context
         );
+        if (!sanitized.subject || !sanitized.body) {
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: 'AI preview returned incomplete email',
+          });
+          continue;
+        }
         const preview = {
           ...base,
-          subject: sanitized.subject || previewFallbackSubject(context),
-          body: sanitized.body || '',
+          subject: sanitized.subject,
+          body: sanitized.body,
           vibeLabel: String(source.vibeLabel || base.vibeLabel || ''),
           vibeTags:
             Array.isArray(source.vibeTags) && source.vibeTags.length > 0
@@ -458,10 +469,13 @@ export class SDRPresetLibrary {
         const draft = await this.generatePreviewDraft(payload);
         const parsed = parseGeneratedDraft(draft, context.prospect.company);
         const sanitized = sanitizePreviewEmail(parsed, context);
+        if (!sanitized.subject || !sanitized.body) {
+          throw new Error('AI preview returned incomplete email');
+        }
         const preview = {
           ...this.buildBasePreviewEntry(preset, context),
-          subject: sanitized.subject || previewFallbackSubject(context),
-          body: sanitized.body || '',
+          subject: sanitized.subject,
+          body: sanitized.body,
         };
         this.previewCache.set(key, preview);
         return preview;

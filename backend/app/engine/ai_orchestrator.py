@@ -15,7 +15,6 @@ from .presets.registry import load_all_presets, load_preset
 from .prompts import stage_a, stage_b, stage_b0, stage_c, stage_c0, stage_d, stage_e
 from .schemas import (
     RF_ANGLE_SET,
-    RF_BATCH_VARIANTS,
     RF_EMAIL_DRAFT,
     RF_FIT_MAP,
     RF_MESSAGING_BRIEF,
@@ -112,10 +111,17 @@ class AIOrchestrator:
         trace: Trace,
         preset_ids: list[str],
         sliders: dict[str, Any] | None = None,
+        preset_sliders: dict[str, dict[str, Any]] | None = None,
     ) -> PipelineResult:
         try:
             return await asyncio.wait_for(
-                self._run_pipeline_presets(request=request, trace=trace, preset_ids=preset_ids, sliders=sliders),
+                self._run_pipeline_presets(
+                    request=request,
+                    trace=trace,
+                    preset_ids=preset_ids,
+                    sliders=sliders,
+                    preset_sliders=preset_sliders,
+                ),
                 timeout=TOTAL_PIPELINE_TIMEOUT_SECONDS,
             )
         except asyncio.TimeoutError:
@@ -160,8 +166,13 @@ class AIOrchestrator:
     def _cta_lock(self, request: WebGenerateRequest, ctx: Any) -> str:
         return str(request.cta_offer_lock or request.company_context.cta_offer_lock or ctx.cta_lock or DEFAULT_CTA).strip()
 
+    def _trace_stage_name(self, stage: str, *, preset_id: str | None = None) -> str:
+        preset_key = str(preset_id or "").strip()
+        if not preset_key:
+            return stage
+        return f"{stage}:{preset_key}"
+
     def _stage_a_input(self, *, request: WebGenerateRequest, ctx: Any, cta_line: str) -> dict[str, Any]:
-        preset = load_preset(ctx.preset_id)
         icp_description = str(
             (
                 (request.sender_profile_override.structured_icp if request.sender_profile_override else "")
@@ -175,7 +186,7 @@ class AIOrchestrator:
                 "icp_description": icp_description,
                 "differentiators": list(ctx.seller_offerings[:6]),
                 "proof_points": list(ctx.seller_proof_points[:8]),
-                "do_not_say": list(dict.fromkeys([*preset.get("banned_phrases_additions", []), *BANNED_DO_NOT_SAY_DEFAULT])),
+                "do_not_say": list(BANNED_DO_NOT_SAY_DEFAULT),
                 "company_notes": ctx.company_notes,
             },
             "prospect": {
@@ -316,8 +327,10 @@ class AIOrchestrator:
         messages: list[dict[str, str]],
         validator,
         postprocess=None,
+        trace_stage: str | None = None,
     ) -> dict[str, Any]:
-        trace.start_stage(stage=config.stage, model=ENFORCED_OPENAI_MODEL)
+        trace_name = str(trace_stage or config.stage)
+        trace.start_stage(stage=trace_name, model=ENFORCED_OPENAI_MODEL)
         try:
             result = await run_stage(
                 openai=self.openai,
@@ -339,11 +352,11 @@ class AIOrchestrator:
                     sanitation_report.get("sanitation_changed_semantic_eligibility")
                 )
             if result.raw_payload is not None:
-                trace.put_hash(f"raw_output:{config.stage}", result.raw_payload)
+                trace.put_hash(f"raw_output:{trace_name}", result.raw_payload)
             if artifact_views.get("sanitized_stage_a_artifact") is not None:
-                trace.put_hash(f"sanitized_output:{config.stage}", artifact_views.get("sanitized_stage_a_artifact"))
+                trace.put_hash(f"sanitized_output:{trace_name}", artifact_views.get("sanitized_stage_a_artifact"))
             trace.end_stage(
-                stage=config.stage,
+                stage=trace_name,
                 model=ENFORCED_OPENAI_MODEL,
                 schema_ok=True,
                 output=result.payload,
@@ -352,6 +365,9 @@ class AIOrchestrator:
                 raw_output=result.raw_text,
                 raw_output_artifact=result.raw_payload,
                 artifact_views=artifact_views,
+                raw_validation_status=result.raw_validation_status,
+                final_validation_status=result.final_validation_status,
+                error_codes=result.validation_codes,
             )
             return result.payload
         except StageError as exc:
@@ -359,7 +375,7 @@ class AIOrchestrator:
             validation_details = list((exc.details or {}).get("validation_details") or (exc.details or {}).get("rejected_facts") or [])
             if validation_codes:
                 trace.add_validation_error(
-                    stage=config.stage,
+                    stage=trace_name,
                     codes=validation_codes,
                     details={
                         "validation_details": validation_details,
@@ -372,11 +388,11 @@ class AIOrchestrator:
                 )
             trace_details, artifact = self._split_failed_stage_details(exc.details)
             if artifact["raw_output_artifact"] is not None:
-                trace.put_hash(f"raw_output:{config.stage}", artifact["raw_output_artifact"])
+                trace.put_hash(f"raw_output:{trace_name}", artifact["raw_output_artifact"])
             if artifact["artifact_payload"] is not None:
-                trace.put_hash(f"sanitized_output:{config.stage}", artifact["artifact_payload"])
+                trace.put_hash(f"sanitized_output:{trace_name}", artifact["artifact_payload"])
             trace.fail_stage_with_artifact(
-                stage=config.stage,
+                stage=trace_name,
                 model=ENFORCED_OPENAI_MODEL,
                 error_code=exc.code,
                 details=trace_details,
@@ -386,12 +402,15 @@ class AIOrchestrator:
                 attempt_count=int(artifact["attempt_count"] or 0),
                 raw_output_artifact=artifact["raw_output_artifact"],
                 artifact_views=artifact["artifact_views"],
+                raw_validation_status=str((exc.details or {}).get("raw_validation_status") or "failed"),
+                final_validation_status=str((exc.details or {}).get("final_validation_status") or "failed"),
+                error_codes=validation_codes,
             )
             raise
         except ValidationIssue as exc:
             validation_details = list(getattr(exc, "details", []) or [])
             trace.add_validation_error(
-                stage=config.stage,
+                stage=trace_name,
                 codes=exc.codes,
                 details={
                     "validation_details": validation_details,
@@ -403,7 +422,7 @@ class AIOrchestrator:
                 },
             )
             trace.fail_stage(
-                stage=config.stage,
+                stage=trace_name,
                 model=ENFORCED_OPENAI_MODEL,
                 error_code="VALIDATION_FAILED",
                 details={
@@ -422,6 +441,30 @@ class AIOrchestrator:
                     "rejected_facts": validation_details,
                 },
             ) from exc
+
+    def _annotate_draft_stage(
+        self,
+        *,
+        trace: Trace,
+        stage_name: str,
+        draft: dict[str, Any],
+        validation_codes: list[str],
+        mechanical_steps: list[str],
+        final_validation_status: str,
+    ) -> None:
+        trace.annotate_stage(
+            stage=stage_name,
+            final_validation_status=final_validation_status,
+            error_codes=list(validation_codes),
+            mechanical_postprocess_applied=list(mechanical_steps),
+            output={
+                "subject": str(draft.get("subject") or "").strip(),
+                "body": str(draft.get("body") or "").strip(),
+                "preset_id": str(draft.get("preset_id") or "").strip(),
+                "selected_angle_id": str(draft.get("selected_angle_id") or "").strip(),
+                "used_hook_ids": list(draft.get("used_hook_ids") or []),
+            },
+        )
 
     async def _run_pipeline_single(
         self,
@@ -489,6 +532,7 @@ class AIOrchestrator:
             atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
 
             preset = load_preset(ctx.preset_id)
+            generation_stage = self._trace_stage_name(STAGES["C"])
             draft = await self._run_stage(
                 trace=trace,
                 config=StageConfig(
@@ -507,16 +551,25 @@ class AIOrchestrator:
                     cta_final_line=cta_line,
                 ),
                 validator=None,
+                trace_stage=generation_stage,
             )
             draft.setdefault("preset_id", ctx.preset_id)
             draft.setdefault("selected_angle_id", selected_angle_id)
             draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
 
-            draft = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
+            draft, generation_steps = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
 
             validation_codes = validate_email_draft(draft, brief=messaging_brief, cta_final_line=cta_line, sliders=slider_params)
             if validation_codes:
                 trace.add_validation_error(stage=STAGES["C"], codes=validation_codes)
+            self._annotate_draft_stage(
+                trace=trace,
+                stage_name=generation_stage,
+                draft=draft,
+                validation_codes=validation_codes,
+                mechanical_steps=generation_steps,
+                final_validation_status="rewrite_required" if validation_codes else "passed",
+            )
 
             qa = await self._run_stage(
                 trace=trace,
@@ -530,10 +583,19 @@ class AIOrchestrator:
                 validator=None,
             )
             qa = normalize_qa_report(qa)
+            self._annotate_draft_stage(
+                trace=trace,
+                stage_name=generation_stage,
+                draft=draft,
+                validation_codes=validation_codes,
+                mechanical_steps=generation_steps,
+                final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
+            )
 
             rewrite_applied = False
             if qa.get("pass_rewrite_needed") or validation_codes:
                 rewrite_applied = True
+                rewrite_stage = self._trace_stage_name(STAGES["E"])
                 draft = await self._run_stage(
                     trace=trace,
                     config=StageConfig(
@@ -551,16 +613,25 @@ class AIOrchestrator:
                         sliders=slider_params,
                     ),
                     validator=None,
+                    trace_stage=rewrite_stage,
                 )
                 draft.setdefault("preset_id", ctx.preset_id)
                 draft.setdefault("selected_angle_id", selected_angle_id)
                 draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
-                draft = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
+                draft, rewrite_steps = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
                 final_codes = validate_email_draft(
                     draft,
                     brief=messaging_brief,
                     cta_final_line=cta_line,
                     sliders=slider_params,
+                )
+                self._annotate_draft_stage(
+                    trace=trace,
+                    stage_name=rewrite_stage,
+                    draft=draft,
+                    validation_codes=final_codes,
+                    mechanical_steps=rewrite_steps,
+                    final_validation_status="failed" if final_codes else "passed",
                 )
                 if final_codes:
                     trace.add_validation_error(stage=STAGES["E"], codes=final_codes)
@@ -689,6 +760,7 @@ class AIOrchestrator:
         trace: Trace,
         preset_ids: list[str],
         sliders: dict[str, Any] | None,
+        preset_sliders: dict[str, dict[str, Any]] | None,
     ) -> PipelineResult:
         if not self.openai.enabled():
             return self._error_result(
@@ -704,7 +776,13 @@ class AIOrchestrator:
         slider_params = self._build_slider_params(request, ctx, sliders)
         cta_line = self._cta_lock(request, ctx)
 
-        trace.set_meta(mode="preset_browse", preset_ids=list(preset_ids), sliders=slider_params, research_state=ctx.research_state)
+        trace.set_meta(
+            mode="preset_browse",
+            preset_ids=list(preset_ids),
+            sliders=slider_params,
+            research_state=ctx.research_state,
+            preset_slider_overrides=sorted(list((preset_sliders or {}).keys())),
+        )
 
         try:
             messaging_brief, fit_map, angle_set = await self._build_or_load_brief_stack(
@@ -741,73 +819,61 @@ class AIOrchestrator:
             )
             atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
 
-            presets = [load_preset(pid) for pid in preset_ids]
-            batch = await self._run_stage(
-                trace=trace,
-                config=StageConfig(
-                    stage=STAGES["C"],
-                    max_tokens=2400,
-                    reasoning_effort=self.settings.openai_reasoning_low,
-                    response_format=RF_BATCH_VARIANTS,
-                ),
-                messages=stage_c.build_batch_messages(
-                    messaging_brief=messaging_brief,
-                    fit_map=fit_map,
-                    angle_set=angle_set,
-                    message_atoms=atoms,
-                    presets=presets,
-                    sliders=slider_params,
-                    cta_final_line=cta_line,
-                ),
-                validator=None,
-            )
-
             output_variants: list[dict[str, Any]] = []
             for requested_id in preset_ids:
-                matched = next(
-                    (item for item in (batch.get("variants") or []) if str(item.get("preset_id") or "") == str(requested_id)),
-                    None,
-                )
-                if matched is None:
-                    output_variants.append(
-                        {
-                            "preset_id": str(requested_id),
-                            "error": {"code": "VARIANT_MISSING", "message": "Variant missing from model output"},
-                        }
-                    )
-                    continue
-
-                if matched.get("error"):
-                    output_variants.append(
-                        {
-                            "preset_id": str(requested_id),
-                            "error": {
-                                "code": str(matched.get("error", {}).get("code") or "VARIANT_ERROR"),
-                                "message": str(matched.get("error", {}).get("message") or "Variant generation failed"),
-                            },
-                        }
-                    )
-                    continue
-
-                draft = {
-                    "preset_id": str(requested_id),
-                    "subject": str(matched.get("subject") or "").strip(),
-                    "body": str(matched.get("body") or "").strip(),
-                    "used_hook_ids": list(matched.get("used_hook_ids") or atoms.get("used_hook_ids") or []),
-                    "selected_angle_id": selected_angle_id,
-                }
-                draft = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
-
-                validation_codes = validate_email_draft(
-                    draft,
-                    brief=messaging_brief,
-                    cta_final_line=cta_line,
-                    sliders=slider_params,
-                )
-                if validation_codes:
-                    trace.add_validation_error(stage=f"{STAGES['C']}:{requested_id}", codes=validation_codes)
-
                 try:
+                    preset = load_preset(requested_id)
+                    variant_sliders = self._build_slider_params(
+                        request,
+                        ctx,
+                        (preset_sliders or {}).get(str(requested_id)),
+                    )
+                    generation_stage = self._trace_stage_name(STAGES["C"], preset_id=requested_id)
+                    qa_stage = self._trace_stage_name(STAGES["D"], preset_id=requested_id)
+                    rewrite_stage = self._trace_stage_name(STAGES["E"], preset_id=requested_id)
+
+                    draft = await self._run_stage(
+                        trace=trace,
+                        config=StageConfig(
+                            stage=STAGES["C"],
+                            max_tokens=800,
+                            reasoning_effort=self.settings.openai_reasoning_low,
+                            response_format=RF_EMAIL_DRAFT,
+                        ),
+                        messages=stage_c.build_single_messages(
+                            messaging_brief=messaging_brief,
+                            fit_map=fit_map,
+                            angle_set=angle_set,
+                            message_atoms=atoms,
+                            preset=preset,
+                            sliders=variant_sliders,
+                            cta_final_line=cta_line,
+                        ),
+                        validator=None,
+                        trace_stage=generation_stage,
+                    )
+                    draft.setdefault("preset_id", str(requested_id))
+                    draft.setdefault("selected_angle_id", selected_angle_id)
+                    draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+                    draft, generation_steps = self._mechanical_postprocess(draft, variant_sliders, cta_line, trace)
+
+                    validation_codes = validate_email_draft(
+                        draft,
+                        brief=messaging_brief,
+                        cta_final_line=cta_line,
+                        sliders=variant_sliders,
+                    )
+                    if validation_codes:
+                        trace.add_validation_error(stage=generation_stage, codes=validation_codes)
+                    self._annotate_draft_stage(
+                        trace=trace,
+                        stage_name=generation_stage,
+                        draft=draft,
+                        validation_codes=validation_codes,
+                        mechanical_steps=generation_steps,
+                        final_validation_status="rewrite_required" if validation_codes else "passed",
+                    )
+
                     qa = await self._run_stage(
                         trace=trace,
                         config=StageConfig(
@@ -818,10 +884,21 @@ class AIOrchestrator:
                         ),
                         messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line),
                         validator=None,
+                        trace_stage=qa_stage,
                     )
                     qa = normalize_qa_report(qa)
+                    self._annotate_draft_stage(
+                        trace=trace,
+                        stage_name=generation_stage,
+                        draft=draft,
+                        validation_codes=validation_codes,
+                        mechanical_steps=generation_steps,
+                        final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
+                    )
 
+                    rewrite_applied = False
                     if qa.get("pass_rewrite_needed") or validation_codes:
+                        rewrite_applied = True
                         draft = await self._run_stage(
                             trace=trace,
                             config=StageConfig(
@@ -836,20 +913,48 @@ class AIOrchestrator:
                                 messaging_brief=messaging_brief,
                                 message_atoms=atoms,
                                 cta_final_line=cta_line,
-                                sliders=slider_params,
+                                sliders=variant_sliders,
                             ),
                             validator=None,
+                            trace_stage=rewrite_stage,
                         )
                         draft["preset_id"] = str(requested_id)
                         draft["selected_angle_id"] = selected_angle_id
                         draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
-                        draft = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
+                        draft, rewrite_steps = self._mechanical_postprocess(draft, variant_sliders, cta_line, trace)
+
+                        final_codes = validate_email_draft(
+                            draft,
+                            brief=messaging_brief,
+                            cta_final_line=cta_line,
+                            sliders=variant_sliders,
+                        )
+                        self._annotate_draft_stage(
+                            trace=trace,
+                            stage_name=rewrite_stage,
+                            draft=draft,
+                            validation_codes=final_codes,
+                            mechanical_steps=rewrite_steps,
+                            final_validation_status="failed" if final_codes else "passed",
+                        )
+                        if final_codes:
+                            trace.add_validation_error(stage=rewrite_stage, codes=final_codes)
+                            output_variants.append(
+                                {
+                                    "preset_id": str(requested_id),
+                                    "error": {
+                                        "code": "VALIDATION_FAILED",
+                                        "message": f"Variant failed validation: {', '.join(final_codes)}",
+                                    },
+                                }
+                            )
+                            continue
 
                     final_codes = validate_email_draft(
                         draft,
                         brief=messaging_brief,
                         cta_final_line=cta_line,
-                        sliders=slider_params,
+                        sliders=variant_sliders,
                     )
                     if final_codes:
                         output_variants.append(
@@ -870,6 +975,7 @@ class AIOrchestrator:
                             "body": str(draft.get("body") or "").strip(),
                             "used_hook_ids": list(draft.get("used_hook_ids") or []),
                             "selected_angle_id": selected_angle_id,
+                            "rewrite_applied": rewrite_applied,
                         }
                     )
                 except StageError as exc:
@@ -920,7 +1026,13 @@ class AIOrchestrator:
                 details={"error": str(exc)},
             )
 
-    def _mechanical_postprocess(self, draft: dict[str, Any], sliders: dict[str, Any], cta_line: str, trace: Trace) -> dict[str, Any]:
+    def _mechanical_postprocess(
+        self,
+        draft: dict[str, Any],
+        sliders: dict[str, Any],
+        cta_line: str,
+        trace: Trace,
+    ) -> tuple[dict[str, Any], list[str]]:
         min_words, max_words = _length_band(str(sliders.get("length") or "medium"))
         del min_words
         legacy = LegacyEmailDraft(subject=str(draft.get("subject") or ""), body=str(draft.get("body") or ""))
@@ -935,7 +1047,7 @@ class AIOrchestrator:
         out = dict(draft)
         out["subject"] = result.draft.subject.strip()
         out["body"] = result.draft.body.strip()
-        return out
+        return out, list(result.applied)
 
     def _error_result(
         self,
@@ -955,6 +1067,10 @@ class AIOrchestrator:
                     "elapsed_ms": 0,
                     "error_code": code,
                     "details": details,
+                    "raw_validation_status": "failed",
+                    "final_validation_status": "failed",
+                    "error_codes": list((details or {}).get("codes") or []),
+                    "mechanical_postprocess_applied": [],
                 }
             )
         trace.finalize(
