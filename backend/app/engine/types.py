@@ -30,8 +30,11 @@ class NormalizedContext:
     research_text: str
     usable_research_text: str
     research_state: ResearchState
+    prospect_notes: str
     company_notes: str
     proof_points: list[str]
+    seller_proof_points: list[str]
+    seller_context_points: list[str]
     seller_offerings: list[str]
     internal_modules: list[str]
     product_category: ProductCategory

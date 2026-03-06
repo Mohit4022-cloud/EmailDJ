@@ -311,10 +311,12 @@ async def run_stage(
             if first_validation_codes:
                 error_details["codes"] = first_validation_codes
             if first_validation_details:
+                error_details["validation_details"] = first_validation_details
                 error_details["rejected_facts"] = first_validation_details
             if validation_codes and validation_codes != first_validation_codes:
                 error_details["repair_codes"] = validation_codes
             if validation_details and validation_details != first_validation_details:
+                error_details["repair_validation_details"] = validation_details
                 error_details["repair_rejected_facts"] = validation_details
             raise StageError(
                 stage=config.stage,

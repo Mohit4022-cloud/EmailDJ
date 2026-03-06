@@ -161,13 +161,19 @@ class AIOrchestrator:
 
     def _stage_a_input(self, *, request: WebGenerateRequest, ctx: Any, cta_line: str) -> dict[str, Any]:
         preset = load_preset(ctx.preset_id)
+        icp_description = str(
+            (
+                (request.sender_profile_override.structured_icp if request.sender_profile_override else "")
+                or ""
+            )
+        ).strip()
         return {
             "user_company": {
                 "name": ctx.sender_company_name,
                 "product_summary": ctx.current_product or ctx.offer_lock,
-                "icp_description": ctx.company_notes,
+                "icp_description": icp_description,
                 "differentiators": list(ctx.seller_offerings[:6]),
-                "proof_points": list(ctx.proof_points[:8]),
+                "proof_points": list(ctx.seller_proof_points[:8]),
                 "do_not_say": list(dict.fromkeys([*preset.get("banned_phrases_additions", []), *BANNED_DO_NOT_SAY_DEFAULT])),
                 "company_notes": ctx.company_notes,
             },
@@ -176,7 +182,7 @@ class AIOrchestrator:
                 "title": ctx.prospect_title,
                 "company": ctx.prospect_company,
                 "industry": "",
-                "notes": "",
+                "notes": ctx.prospect_notes,
                 "research_text": ctx.usable_research_text,
             },
             "cta": {
@@ -192,14 +198,14 @@ class AIOrchestrator:
                 "product_summary": ctx.current_product,
                 "icp": ctx.company_notes,
                 "differentiators": list(ctx.seller_offerings),
-                "proof_points": list(ctx.proof_points),
+                "proof_points": list(ctx.seller_proof_points),
             },
             "prospect": {
                 "name": ctx.prospect_name,
                 "title": ctx.prospect_title,
                 "company": ctx.prospect_company,
                 "industry": "",
-                "notes": "",
+                "notes": ctx.prospect_notes,
                 "research_text": ctx.usable_research_text,
             },
             "cta": {"cta_final_line": cta_line},
@@ -276,11 +282,19 @@ class AIOrchestrator:
             return result.payload
         except StageError as exc:
             validation_codes = list((exc.details or {}).get("codes") or [])
+            validation_details = list((exc.details or {}).get("validation_details") or (exc.details or {}).get("rejected_facts") or [])
             if validation_codes:
                 trace.add_validation_error(
                     stage=config.stage,
                     codes=validation_codes,
-                    details={"rejected_facts": list((exc.details or {}).get("rejected_facts") or [])},
+                    details={
+                        "validation_details": validation_details,
+                        "overreach_claims": [
+                            str(item.get("claim_type") or "").strip()
+                            for item in validation_details
+                            if isinstance(item, dict) and str(item.get("claim_type") or "").strip()
+                        ],
+                    },
                 )
             trace_details, artifact = self._split_failed_stage_details(exc.details)
             trace.fail_stage_with_artifact(
@@ -295,10 +309,18 @@ class AIOrchestrator:
             )
             raise
         except ValidationIssue as exc:
+            validation_details = list(getattr(exc, "details", []) or [])
             trace.add_validation_error(
                 stage=config.stage,
                 codes=exc.codes,
-                details={"rejected_facts": list(getattr(exc, "details", []) or [])},
+                details={
+                    "validation_details": validation_details,
+                    "overreach_claims": [
+                        str(item.get("claim_type") or "").strip()
+                        for item in validation_details
+                        if isinstance(item, dict) and str(item.get("claim_type") or "").strip()
+                    ],
+                },
             )
             trace.fail_stage(
                 stage=config.stage,
@@ -306,7 +328,8 @@ class AIOrchestrator:
                 error_code="VALIDATION_FAILED",
                 details={
                     "codes": exc.codes,
-                    "rejected_facts": list(getattr(exc, "details", []) or []),
+                    "validation_details": validation_details,
+                    "rejected_facts": validation_details,
                 },
             )
             raise StageError(
@@ -315,7 +338,8 @@ class AIOrchestrator:
                 message="Stage deterministic validation failed",
                 details={
                     "codes": exc.codes,
-                    "rejected_facts": list(getattr(exc, "details", []) or []),
+                    "validation_details": validation_details,
+                    "rejected_facts": validation_details,
                 },
             ) from exc
 

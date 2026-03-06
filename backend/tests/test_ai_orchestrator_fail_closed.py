@@ -69,13 +69,20 @@ def _brief() -> dict[str, Any]:
         "version": "1",
         "brief_id": "brief_1",
         "facts_from_input": [
-            {"fact_id": "fact_1", "source_field": "research_text", "text": "Acme announced a RevOps initiative."},
+            {
+                "fact_id": "fact_1",
+                "source_field": "research_text",
+                "fact_kind": "prospect_context",
+                "text": "Acme announced a RevOps initiative.",
+            },
         ],
         "assumptions": [
             {
                 "assumption_id": "assump_1",
+                "assumption_kind": "inferred_hypothesis",
                 "text": "Ops leadership may want consistency",
                 "confidence": 0.6,
+                "confidence_label": "medium",
                 "based_on_fact_ids": ["fact_1"],
             }
         ],
@@ -83,9 +90,15 @@ def _brief() -> dict[str, Any]:
             {
                 "hook_id": "hook_1",
                 "hook_type": "initiative",
-                "hook_text": "RevOps initiative suggests consistency focus",
+                "grounded_observation": "Acme announced a RevOps initiative.",
+                "inferred_relevance": "That may mean workflow consistency is being reviewed.",
+                "seller_support": "",
+                "hook_text": "Acme's RevOps initiative may make consistency conversations timely.",
                 "supported_by_fact_ids": ["fact_1"],
-                "risk_flags": [],
+                "seller_fact_ids": [],
+                "confidence_level": "medium",
+                "evidence_strength": "weak",
+                "risk_flags": ["seller_proof_gap"],
             }
         ],
         "persona_cues": {
@@ -96,7 +109,8 @@ def _brief() -> dict[str, Any]:
             "notes": "",
         },
         "do_not_say": [],
-        "forbidden_claim_patterns": ["saw your post"],
+        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "prohibited_overreach": [],
         "grounding_policy": {
             "no_new_facts": True,
             "no_ungrounded_personalization": True,
@@ -107,8 +121,14 @@ def _brief() -> dict[str, Any]:
             "assumption_count": 1,
             "hook_count": 1,
             "has_research": True,
+            "grounded_fact_count": 1,
+            "prospect_context_fact_count": 1,
+            "seller_context_fact_count": 0,
+            "seller_proof_fact_count": 0,
+            "cta_fact_count": 0,
             "confidence_ceiling": 0.6,
             "signal_strength": "medium",
+            "overreach_risk": "low",
             "quality_notes": [],
         },
     }

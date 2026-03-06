@@ -4,6 +4,28 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from .brief_honesty import (
+    HOOK_CONFIDENCE_VALUES,
+    HOOK_EVIDENCE_VALUES,
+    OVERREACH_RISK_VALUES,
+    canonical_fact_kind,
+    compute_overreach_risk,
+    fact_kind_counts,
+    fact_map_by_id,
+    hook_confidence_level,
+    hook_evidence_strength,
+    hook_has_seller_proof,
+    hook_has_strong_claim_language,
+    hook_is_prospect_as_proof,
+    hook_mentions_initiative,
+    hook_mentions_recency,
+    hook_requires_grounded_research,
+    hook_seller_fact_ids,
+    hook_supported_fact_ids,
+    normalize_text_key,
+    seller_fact_kinds,
+    signal_strength_matches,
+)
 from .research_state import has_meaningful_research, is_placeholder_fact_text, is_semantic_no_research, normalize_placeholder_text
 from .schemas import ALLOWED_STAGE_A_SOURCE_FIELDS
 
@@ -135,6 +157,10 @@ def _has_placeholder_leakage(values: list[Any]) -> bool:
     return any(_normalize_placeholder_text(item) and _is_placeholder_input_text(item) for item in values)
 
 
+def _append_detail(details: list[dict[str, Any]], code: str, **kwargs: Any) -> None:
+    details.append({"code": code, **kwargs})
+
+
 def validate_messaging_brief(
     brief: dict[str, Any],
     *,
@@ -142,21 +168,121 @@ def validate_messaging_brief(
     source_payload: dict[str, Any] | None = None,
 ) -> None:
     codes: list[str] = []
-    facts = list(brief.get("facts_from_input") or [])
-    assumptions = list(brief.get("assumptions") or [])
-    hooks = list(brief.get("hooks") or [])
+    facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    assumptions = [item for item in (brief.get("assumptions") or []) if isinstance(item, dict)]
+    hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
     brief_quality = dict(brief.get("brief_quality") or {})
+    prohibited_overreach = [str(item or "").strip().lower() for item in (brief.get("prohibited_overreach") or [])]
+    details: list[dict[str, Any]] = []
 
     if len(facts) < 1:
         codes.append("brief_missing_facts")
     if len(hooks) < 1:
         codes.append("brief_missing_hooks")
 
+    fact_map = fact_map_by_id(facts)
+    normalized_fact_keys: set[tuple[str, str]] = set()
+
+    for fact in facts:
+        fact_id = str(fact.get("fact_id") or "").strip()
+        fact_text = str(fact.get("text") or "").strip()
+        source_field = str(fact.get("source_field") or "").strip().lower()
+        fact_kind = str(fact.get("fact_kind") or "").strip().lower()
+        expected_kind = canonical_fact_kind(source_field)
+
+        if _is_placeholder_input_text(fact_text):
+            codes.append("fact_placeholder_text")
+            _append_detail(
+                details,
+                "fact_placeholder_text",
+                fact_id=fact_id,
+                source_field=source_field,
+                offending_text=fact_text[:160],
+            )
+            break
+
+        if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
+            codes.append("fact_source_field_not_allowed")
+            _append_detail(
+                details,
+                "fact_source_field_not_allowed",
+                fact_id=fact_id,
+                source_field=source_field,
+                offending_text=fact_text[:160],
+            )
+            break
+
+        if fact_kind != expected_kind:
+            codes.append("fact_kind_mismatch")
+            _append_detail(
+                details,
+                "fact_kind_mismatch",
+                fact_id=fact_id,
+                source_field=source_field,
+                offending_text=fact_text[:160],
+                required_evidence_kind=expected_kind,
+                actual_evidence_kinds=[fact_kind] if fact_kind else [],
+            )
+            break
+
+        fact_key = (fact_kind, normalize_text_key(fact_text))
+        if fact_key in normalized_fact_keys and fact_kind != "cta":
+            codes.append("fact_duplicate_text")
+            _append_detail(
+                details,
+                "fact_duplicate_text",
+                fact_id=fact_id,
+                source_field=source_field,
+                offending_text=fact_text[:160],
+            )
+            break
+        normalized_fact_keys.add(fact_key)
+
     for item in assumptions:
         conf = float(item.get("confidence") or 0.0)
         based = list(item.get("based_on_fact_ids") or [])
+        confidence_label = str(item.get("confidence_label") or "").strip().lower()
+        if str(item.get("assumption_kind") or "").strip() != "inferred_hypothesis":
+            codes.append("assumption_kind_invalid")
+            _append_detail(
+                details,
+                "assumption_kind_invalid",
+                offending_text=str(item.get("text") or "")[:160],
+            )
+            break
+        if confidence_label not in HOOK_CONFIDENCE_VALUES:
+            codes.append("assumption_confidence_label_invalid")
+            _append_detail(
+                details,
+                "assumption_confidence_label_invalid",
+                offending_text=str(item.get("text") or "")[:160],
+            )
+            break
         if conf > 0.8 and len(based) == 0:
             codes.append("assumption_high_confidence_no_grounding")
+            _append_detail(
+                details,
+                "assumption_high_confidence_no_grounding",
+                offending_text=str(item.get("text") or "")[:160],
+                available_fact_ids=based,
+            )
+            break
+        if confidence_label == "high" and len(based) < 2:
+            codes.append("assumption_high_confidence_insufficient_facts")
+            _append_detail(
+                details,
+                "assumption_high_confidence_insufficient_facts",
+                offending_text=str(item.get("text") or "")[:160],
+                available_fact_ids=based,
+            )
+            break
+        if _is_placeholder_input_text(item.get("text")):
+            codes.append("assumption_placeholder_text")
+            _append_detail(
+                details,
+                "assumption_placeholder_text",
+                offending_text=str(item.get("text") or "")[:160],
+            )
             break
 
     source_lower = source_text.lower()
@@ -164,63 +290,162 @@ def validate_messaging_brief(
         text = str(fact.get("text") or "").lower()
         if any(marker in text for marker in UNGROUNDED_PERSONALIZATION_MARKERS) and text not in source_lower:
             codes.append("fact_contains_ungrounded_behavior_claim")
+            _append_detail(
+                details,
+                "fact_contains_ungrounded_behavior_claim",
+                fact_id=str(fact.get("fact_id") or ""),
+                offending_text=str(fact.get("text") or "")[:160],
+            )
             break
-
-    details: list[dict[str, Any]] = []
 
     if source_payload:
         source_field_map = _source_field_value_map(source_payload)
         source_tokens: set[str] = set()
         for fragment in _flatten_input_text(list(source_field_map.values())):
             source_tokens.update(_grounding_tokens(fragment))
-
-        for fact in facts:
-            fact_text = str(fact.get("text") or "").strip()
-            source_field = str(fact.get("source_field") or "").strip().lower()
-
-            # Placeholder text is never a valid grounded fact.
-            if _is_placeholder_input_text(fact_text):
-                codes.append("fact_placeholder_text")
-                details.append(
-                    {
-                        "code": "fact_placeholder_text",
-                        "rejected_fact": {
-                            "fact_id": str(fact.get("fact_id") or ""),
-                            "source_field": source_field,
-                            "text_preview": fact_text[:80],
-                        },
-                    }
-                )
-                break
-
-            if source_field and source_field not in ALLOWED_STAGE_A_SOURCE_FIELDS:
-                codes.append("fact_source_field_not_allowed")
-                details.append(
-                    {
-                        "code": "fact_source_field_not_allowed",
-                        "rejected_fact": {
-                            "fact_id": str(fact.get("fact_id") or ""),
-                            "source_field": source_field,
-                            "text_preview": fact_text[:80],
-                        },
-                    }
-                )
-                break
-
-        fact_ids = {str(fact.get("fact_id") or "").strip() for fact in facts if isinstance(fact, dict)}
+        fact_ids = {str(fact.get("fact_id") or "").strip() for fact in facts}
         for hook in hooks:
             hook_text = str(hook.get("hook_text") or "").strip()
-            if _is_placeholder_input_text(hook_text):
+            hook_id = str(hook.get("hook_id") or "").strip()
+            supported = hook_supported_fact_ids(hook)
+            seller_ids = hook_seller_fact_ids(hook)
+
+            if any(
+                _is_placeholder_input_text(hook.get(field))
+                for field in ("grounded_observation", "inferred_relevance", "hook_text")
+            ) or (_is_placeholder_input_text(hook.get("seller_support")) and str(hook.get("seller_support") or "").strip()):
                 codes.append("hook_placeholder_text")
+                _append_detail(
+                    details,
+                    "hook_placeholder_text",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                )
                 break
-            supported = [str(item or "").strip() for item in (hook.get("supported_by_fact_ids") or [])]
             if not supported or any(item not in fact_ids for item in supported):
                 codes.append("hook_unknown_fact_id")
+                _append_detail(
+                    details,
+                    "hook_unknown_fact_id",
+                    hook_id=hook_id,
+                    available_fact_ids=supported,
+                    offending_text=hook_text[:160],
+                )
                 break
-
-        for item in assumptions:
-            if _is_placeholder_input_text(item.get("text")):
-                codes.append("assumption_placeholder_text")
+            if any(item not in fact_ids for item in seller_ids):
+                codes.append("hook_unknown_seller_fact_id")
+                _append_detail(
+                    details,
+                    "hook_unknown_seller_fact_id",
+                    hook_id=hook_id,
+                    available_fact_ids=seller_ids,
+                    offending_text=hook_text[:160],
+                )
+                break
+            if str(hook.get("confidence_level") or "").strip().lower() not in HOOK_CONFIDENCE_VALUES:
+                codes.append("hook_confidence_level_invalid")
+                _append_detail(
+                    details,
+                    "hook_confidence_level_invalid",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                )
+                break
+            if str(hook.get("evidence_strength") or "").strip().lower() not in HOOK_EVIDENCE_VALUES:
+                codes.append("hook_evidence_strength_invalid")
+                _append_detail(
+                    details,
+                    "hook_evidence_strength_invalid",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                )
+                break
+            if str(hook.get("seller_support") or "").strip() and not seller_ids:
+                codes.append("hook_seller_support_missing_fact_id")
+                _append_detail(
+                    details,
+                    "hook_seller_support_missing_fact_id",
+                    hook_id=hook_id,
+                    offending_text=str(hook.get("seller_support") or "")[:160],
+                )
+                break
+            if seller_fact_kinds(hook, fact_map) - {"seller_context", "seller_proof"}:
+                codes.append("hook_seller_fact_id_not_seller_side")
+                _append_detail(
+                    details,
+                    "hook_seller_fact_id_not_seller_side",
+                    hook_id=hook_id,
+                    available_fact_ids=seller_ids,
+                    offending_text=str(hook.get("seller_support") or hook_text)[:160],
+                )
+                break
+            if hook_is_prospect_as_proof(hook, fact_map):
+                codes.append("hook_prospect_as_proof")
+                _append_detail(
+                    details,
+                    "hook_prospect_as_proof",
+                    claim_type="prospect_as_proof",
+                    hook_id=hook_id,
+                    offending_text=str(hook.get("seller_support") or hook_text)[:160],
+                    available_fact_ids=supported,
+                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map) or {"prospect_context"}),
+                    required_evidence_kind="seller_context_or_seller_proof",
+                )
+                break
+            if hook_confidence_level(hook) == "high" and not hook_has_seller_proof(hook, fact_map):
+                codes.append("hook_high_confidence_without_seller_proof")
+                _append_detail(
+                    details,
+                    "hook_high_confidence_without_seller_proof",
+                    claim_type="signal_strength_honest",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                    available_fact_ids=supported + seller_ids,
+                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map)),
+                    required_evidence_kind="seller_proof",
+                )
+                break
+            if hook_evidence_strength(hook) == "strong" and not hook_has_seller_proof(hook, fact_map):
+                codes.append("hook_strong_evidence_without_seller_proof")
+                _append_detail(
+                    details,
+                    "hook_strong_evidence_without_seller_proof",
+                    claim_type="signal_strength_honest",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                    available_fact_ids=supported + seller_ids,
+                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map)),
+                    required_evidence_kind="seller_proof",
+                )
+                break
+            if hook_requires_grounded_research(hook) and not any(
+                str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
+                for fid in supported
+            ):
+                codes.append("hook_unsupported_recency_or_initiative")
+                _append_detail(
+                    details,
+                    "hook_unsupported_recency_or_initiative",
+                    claim_type="unsupported_initiative" if hook_mentions_initiative(hook) else "unsupported_recency",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                    available_fact_ids=supported,
+                    actual_evidence_kinds=[],
+                    required_evidence_kind="research_text",
+                )
+                break
+            if hook_has_strong_claim_language(hook) and not hook_has_seller_proof(hook, fact_map):
+                codes.append("hook_claim_too_strong_for_evidence")
+                _append_detail(
+                    details,
+                    "hook_claim_too_strong_for_evidence",
+                    claim_type="signal_strength_honest",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                    available_fact_ids=supported + seller_ids,
+                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map) or {"prospect_context"}),
+                    required_evidence_kind="seller_proof",
+                )
                 break
 
         persona_cues = dict(brief.get("persona_cues") or {})
@@ -247,25 +472,23 @@ def validate_messaging_brief(
                 tokens = _grounding_tokens(fact_text)
                 if tokens and tokens.isdisjoint(source_tokens):
                     codes.append("fact_not_grounded_in_input")
-                    details.append(
-                        {
-                            "code": "fact_not_grounded_in_input",
-                            "rejected_fact": {
-                                "fact_id": str(fact.get("fact_id") or ""),
-                                "source_field": str(fact.get("source_field") or "").strip().lower(),
-                                "text_preview": fact_text[:80],
-                            },
-                        }
+                    _append_detail(
+                        details,
+                        "fact_not_grounded_in_input",
+                        fact_id=str(fact.get("fact_id") or ""),
+                        source_field=str(fact.get("source_field") or "").strip().lower(),
+                        offending_text=fact_text[:160],
                     )
                     break
 
     if not brief_quality:
         codes.append("brief_missing_brief_quality")
     else:
-        fact_count = int(brief_quality.get("fact_count") or 0)
-        signal_strength = str(brief_quality.get("signal_strength") or "").strip().lower()
         confidence_ceiling = float(brief_quality.get("confidence_ceiling") or 0.0)
         has_research = bool(brief_quality.get("has_research"))
+        overreach_risk = str(brief_quality.get("overreach_risk") or "").strip().lower()
+        kind_counts = fact_kind_counts(facts)
+        grounded_fact_count = kind_counts["prospect_context"] + kind_counts["seller_context"] + kind_counts["seller_proof"]
 
         if confidence_ceiling < 0.0 or confidence_ceiling > 1.0:
             codes.append("brief_quality_confidence_ceiling_out_of_range")
@@ -274,9 +497,50 @@ def validate_messaging_brief(
         if semantic_has_research != has_research:
             codes.append("brief_quality_has_research_mismatch")
 
-        is_thin_input = not semantic_has_research and fact_count < 3
-        if is_thin_input and signal_strength != "low":
+        if int(brief_quality.get("fact_count") or 0) != len(facts):
+            codes.append("brief_quality_fact_count_mismatch")
+        if int(brief_quality.get("grounded_fact_count") or 0) != grounded_fact_count:
+            codes.append("brief_quality_grounded_fact_count_mismatch")
+        if int(brief_quality.get("prospect_context_fact_count") or 0) != kind_counts["prospect_context"]:
+            codes.append("brief_quality_prospect_context_fact_count_mismatch")
+        if int(brief_quality.get("seller_context_fact_count") or 0) != kind_counts["seller_context"]:
+            codes.append("brief_quality_seller_context_fact_count_mismatch")
+        if int(brief_quality.get("seller_proof_fact_count") or 0) != kind_counts["seller_proof"]:
+            codes.append("brief_quality_seller_proof_fact_count_mismatch")
+        if int(brief_quality.get("cta_fact_count") or 0) != kind_counts["cta"]:
+            codes.append("brief_quality_cta_fact_count_mismatch")
+        if str(brief_quality.get("signal_strength") or "").strip().lower() not in {"low", "medium", "high"}:
+            codes.append("brief_quality_signal_strength_invalid")
+        elif not signal_strength_matches(brief, source_text=source_text):
             codes.append("brief_quality_signal_strength_mismatch")
+        if overreach_risk not in OVERREACH_RISK_VALUES:
+            codes.append("brief_quality_overreach_risk_invalid")
+        elif overreach_risk != compute_overreach_risk(brief):
+            codes.append("brief_quality_overreach_risk_mismatch")
+
+    unsupported_recency_present = any(
+        hook_mentions_recency(hook)
+        and not any(
+            str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
+            for fid in hook_supported_fact_ids(hook)
+        )
+        for hook in hooks
+    )
+    unsupported_initiative_present = any(
+        hook_mentions_initiative(hook)
+        and not any(
+            str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
+            for fid in hook_supported_fact_ids(hook)
+        )
+        for hook in hooks
+    )
+
+    if unsupported_recency_present and "unsupported_recency" not in prohibited_overreach:
+        codes.append("prohibited_overreach_missing_recency")
+    if unsupported_initiative_present and "unsupported_initiative" not in prohibited_overreach:
+        codes.append("prohibited_overreach_missing_initiative")
+    if any(hook_is_prospect_as_proof(hook, fact_map) for hook in hooks) and "prospect_as_proof" not in prohibited_overreach:
+        codes.append("prohibited_overreach_missing_prospect_as_proof")
 
     _codes_or_raise(codes, details=details)
 

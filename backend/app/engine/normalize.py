@@ -132,6 +132,38 @@ def _proof_points(*groups: Iterable[str]) -> list[str]:
     return out
 
 
+def _prospect_notes_from_generate_request(req: WebGenerateRequest) -> str:
+    lines: list[str] = []
+
+    target = req.target_profile_override
+    if target is not None:
+        for item in _first_sentences(_text(target.summary), limit=2):
+            lines.append(item)
+        lines.extend(_proof_points(target.proof_points))
+        for news in list(target.recent_news or [])[:2]:
+            headline = _text(getattr(news, "headline", ""))
+            why_it_matters = _text(getattr(news, "why_it_matters", ""))
+            if headline and why_it_matters:
+                lines.append(f"{headline} {why_it_matters}")
+            elif headline:
+                lines.append(headline)
+
+    contact = req.contact_profile_override
+    if contact is not None:
+        for item in _first_sentences(_text(contact.role_summary), limit=2):
+            lines.append(item)
+        lines.extend(_proof_points(contact.talking_points, contact.inferred_kpis_or_priorities))
+        for news in list(contact.related_news or [])[:2]:
+            headline = _text(getattr(news, "headline", ""))
+            why_it_matters = _text(getattr(news, "why_it_matters", ""))
+            if headline and why_it_matters:
+                lines.append(f"{headline} {why_it_matters}")
+            elif headline:
+                lines.append(headline)
+
+    return "\n".join(_proof_points(lines))
+
+
 def _detect_signal(research_text: str) -> bool:
     return has_grounded_research_signal(research_text)
 
@@ -217,9 +249,10 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
     )
     note_points = _first_sentences(company_notes, limit=3)
     sender_override_points = list((req.sender_profile_override.proof_points if req.sender_profile_override else []) or [])
-    target_override_points = list((req.target_profile_override.proof_points if req.target_profile_override else []) or [])
-    contact_override_points = list((req.contact_profile_override.talking_points if req.contact_profile_override else []) or [])
-    proof_points = _proof_points(seller_offerings, sender_override_points, target_override_points, contact_override_points, note_points)
+    seller_proof_points = _proof_points(sender_override_points)
+    seller_context_points = _proof_points(seller_offerings, note_points)
+    proof_points = _proof_points(seller_context_points, seller_proof_points)
+    prospect_notes = _prospect_notes_from_generate_request(req)
 
     cta_lock = _text(req.cta_offer_lock) or _text(company_context.cta_offer_lock) or "Open to a quick chat to see if this is relevant?"
 
@@ -247,8 +280,11 @@ def normalize_generate_request(req: WebGenerateRequest, *, preset_id: str | None
         research_text=raw_research_text,
         usable_research_text=cleaned_research_text,
         research_state=research_state,
+        prospect_notes=prospect_notes,
         company_notes=company_notes,
         proof_points=proof_points,
+        seller_proof_points=seller_proof_points,
+        seller_context_points=seller_context_points,
         seller_offerings=seller_offerings,
         internal_modules=internal_modules,
         product_category=category,
@@ -275,7 +311,9 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
         seller_offerings=req.company_context.seller_offerings,
         internal_modules=req.company_context.internal_modules,
     )
-    proof_points = _proof_points(seller_offerings, _first_sentences(company_notes, limit=3))
+    seller_proof_points: list[str] = []
+    seller_context_points = _proof_points(seller_offerings, _first_sentences(company_notes, limit=3))
+    proof_points = _proof_points(seller_context_points, seller_proof_points)
 
     prospect_name = _text(req.prospect.name)
     cta_lock = _text(req.cta_offer_lock) or _text(req.company_context.cta_offer_lock) or "Open to a quick chat to see if this is relevant?"
@@ -303,8 +341,11 @@ def normalize_single_preview_request(req: PresetPreviewRequest) -> NormalizedCon
         research_text=raw_research_text,
         usable_research_text=cleaned_research_text,
         research_state=research_state,
+        prospect_notes="",
         company_notes=company_notes,
         proof_points=proof_points,
+        seller_proof_points=seller_proof_points,
+        seller_context_points=seller_context_points,
         seller_offerings=seller_offerings,
         internal_modules=internal_modules,
         product_category=category,
@@ -336,7 +377,9 @@ def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: Pres
     company_notes = _text(req.raw_research.company_notes)
 
     seller_offerings = _proof_points(req.product_context.proof_points)
-    proof_points = _proof_points(seller_offerings, _parse_items(company_notes), _first_sentences(company_notes, limit=2))
+    seller_proof_points = _proof_points(req.product_context.proof_points)
+    seller_context_points = _proof_points(_parse_items(company_notes), _first_sentences(company_notes, limit=2))
+    proof_points = _proof_points(seller_context_points, seller_proof_points)
     cta_lock = _text(req.cta_lock) or _text(req.cta_lock_text) or "Open to a quick chat to see if this is relevant?"
     prospect_name = _text(req.prospect.name)
     current_product = _text(req.product_context.product_name)
@@ -363,8 +406,11 @@ def normalize_batch_preview_request(req: PresetPreviewBatchRequest, preset: Pres
         research_text=raw_research_text,
         usable_research_text=cleaned_research_text,
         research_state=research_state,
+        prospect_notes="",
         company_notes=company_notes,
         proof_points=proof_points,
+        seller_proof_points=seller_proof_points,
+        seller_context_points=seller_context_points,
         seller_offerings=seller_offerings,
         internal_modules=[],
         product_category=category,

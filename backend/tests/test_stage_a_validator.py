@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from app.engine.normalize import normalize_generate_request
-from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
+from app.schemas import ContactProfile, TargetAccountProfile, WebCompanyContext, WebGenerateRequest, WebProspectInput, WebStyleProfile
 from app.engine.validators import ValidationIssue, validate_messaging_brief
 
 
@@ -15,17 +15,30 @@ def _base_brief() -> dict:
             {
                 "fact_id": "fact_1",
                 "source_field": "research_text",
+                "fact_kind": "prospect_context",
                 "text": "Nimbus expanded RevOps ownership in January 2026.",
-            }
+            },
+            {
+                "fact_id": "fact_2",
+                "source_field": "proof_points",
+                "fact_kind": "seller_proof",
+                "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+            },
         ],
         "assumptions": [],
         "hooks": [
             {
                 "hook_id": "hook_1",
                 "hook_type": "initiative",
-                "hook_text": "RevOps ownership expansion indicates timing signal.",
+                "grounded_observation": "Nimbus expanded RevOps ownership in January 2026.",
+                "inferred_relevance": "That may signal active workflow scrutiny.",
+                "seller_support": "",
+                "hook_text": "RevOps ownership expansion may make workflow consistency conversations timely.",
                 "supported_by_fact_ids": ["fact_1"],
-                "risk_flags": [],
+                "seller_fact_ids": [],
+                "confidence_level": "medium",
+                "evidence_strength": "weak",
+                "risk_flags": ["seller_proof_gap"],
             }
         ],
         "persona_cues": {
@@ -37,18 +50,25 @@ def _base_brief() -> dict:
         },
         "do_not_say": [],
         "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "prohibited_overreach": [],
         "grounding_policy": {
             "no_new_facts": True,
             "no_ungrounded_personalization": True,
             "allowed_personalization_fact_sources": ["research_text"],
         },
         "brief_quality": {
-            "fact_count": 1,
+            "fact_count": 2,
             "assumption_count": 0,
             "hook_count": 1,
             "has_research": True,
+            "grounded_fact_count": 2,
+            "prospect_context_fact_count": 1,
+            "seller_context_fact_count": 0,
+            "seller_proof_fact_count": 1,
+            "cta_fact_count": 0,
             "confidence_ceiling": 0.75,
             "signal_strength": "medium",
+            "overreach_risk": "low",
             "quality_notes": [],
         },
     }
@@ -60,7 +80,7 @@ def _source_payload() -> dict:
             "product_summary": "Outbound Workflow QA",
             "icp_description": "RevOps teams",
             "differentiators": ["Sequence QA scoring"],
-            "proof_points": ["Handoff health alerts"],
+            "proof_points": ["A SaaS team reduced handoff delays by 18% after sequence QA reviews."],
             "do_not_say": [],
             "company_notes": "Helps teams tighten outbound consistency.",
         },
@@ -89,12 +109,13 @@ def test_validate_messaging_brief_rejects_unknown_source_field_with_detail() -> 
     err = exc_info.value
     assert "fact_source_field_not_allowed" in err.codes
     assert err.details
-    assert err.details[0]["rejected_fact"]["source_field"] == "research_activity"
+    assert err.details[0]["source_field"] == "research_activity"
 
 
 def test_validate_messaging_brief_rejects_placeholder_fact_text_with_detail() -> None:
     brief = _base_brief()
     brief["facts_from_input"][0]["source_field"] = "prospect_notes"
+    brief["facts_from_input"][0]["fact_kind"] = "prospect_context"
     brief["facts_from_input"][0]["text"] = "None provided."
 
     with pytest.raises(ValidationIssue) as exc_info:
@@ -103,7 +124,7 @@ def test_validate_messaging_brief_rejects_placeholder_fact_text_with_detail() ->
     err = exc_info.value
     assert "fact_placeholder_text" in err.codes
     assert err.details
-    assert err.details[0]["rejected_fact"]["text_preview"] == "None provided."
+    assert err.details[0]["offending_text"] == "None provided."
 
 
 def test_validate_messaging_brief_rejects_placeholder_persona_cues() -> None:
@@ -124,6 +145,40 @@ def test_validate_messaging_brief_rejects_unusable_personalization_source() -> N
         validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
 
     assert "grounding_policy_uses_unusable_source_field" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_prospect_as_proof_leakage() -> None:
+    brief = _base_brief()
+    brief["hooks"][0]["seller_support"] = "Nimbus's expansion proves our workflow QA is relevant."
+    brief["hooks"][0]["seller_fact_ids"] = ["fact_1"]
+    brief["prohibited_overreach"] = ["prospect_as_proof"]
+    brief["brief_quality"]["overreach_risk"] = "high"
+    brief["brief_quality"]["signal_strength"] = "medium"
+
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
+
+    assert "hook_seller_fact_id_not_seller_side" in exc_info.value.codes or "hook_prospect_as_proof" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_unsupported_initiative_hook() -> None:
+    brief = _base_brief()
+    brief["facts_from_input"][0]["source_field"] = "title"
+    brief["facts_from_input"][0]["fact_kind"] = "prospect_context"
+    brief["facts_from_input"][0]["text"] = "VP Revenue Operations"
+    brief["hooks"][0]["grounded_observation"] = "As VP Revenue Operations, you are likely running a quality initiative."
+    brief["hooks"][0]["supported_by_fact_ids"] = ["fact_1"]
+    brief["hooks"][0]["hook_text"] = "Your quality initiative may make this timely."
+    brief["brief_quality"]["has_research"] = False
+    brief["brief_quality"]["signal_strength"] = "medium"
+    brief["brief_quality"]["prospect_context_fact_count"] = 1
+    brief["brief_quality"]["seller_proof_fact_count"] = 1
+    brief["brief_quality"]["grounded_fact_count"] = 2
+
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="", source_payload=_source_payload())
+
+    assert "hook_unsupported_recency_or_initiative" in exc_info.value.codes
 
 
 def test_normalize_generate_request_classifies_placeholder_research_as_no_research() -> None:
@@ -156,3 +211,53 @@ def test_normalize_generate_request_classifies_placeholder_research_as_no_resear
     assert ctx.research_state == "no_research"
     assert ctx.usable_research_text == ""
     assert ctx.signal_available is False
+
+
+def test_normalize_generate_request_keeps_prospect_context_out_of_seller_proof() -> None:
+    req = WebGenerateRequest(
+        prospect=WebProspectInput(
+            name="Jordan Hale",
+            title="VP Revenue Operations",
+            company="Nimbus Forge",
+            company_url="https://nimbus.example",
+            linkedin_url="https://linkedin.com/in/jordan",
+        ),
+        prospect_first_name="Jordan",
+        research_text="No verifiable external research provided.",
+        offer_lock="Outbound Workflow QA",
+        cta_offer_lock="Open to a quick chat to see if this is relevant?",
+        response_contract="email_json_v1",
+        style_profile=WebStyleProfile(),
+        company_context=WebCompanyContext(
+            company_name="Signal Harbor",
+            current_product="Outbound Workflow QA",
+            seller_offerings=["Sequence QA scoring"],
+            company_notes="Helps teams tighten outbound consistency.",
+            cta_offer_lock="Open to a quick chat to see if this is relevant?",
+            cta_type="question",
+        ),
+        sender_profile_override=None,
+        target_profile_override=None,
+    )
+
+    ctx = normalize_generate_request(
+        req.model_copy(
+            update={
+                "target_profile_override": TargetAccountProfile(
+                    official_domain="nimbus.example",
+                    summary="RevOps team is tightening handoffs.",
+                    proof_points=["Nimbus cut delays after ownership changes."],
+                ),
+                "contact_profile_override": ContactProfile(
+                    name="Jordan Hale",
+                    current_title="VP Revenue Operations",
+                    company="Nimbus Forge",
+                    role_summary="Owns RevOps systems.",
+                    talking_points=["Working on forecast consistency."],
+                ),
+            }
+        )
+    )
+
+    assert "Nimbus cut delays after ownership changes." not in ctx.seller_proof_points
+    assert "Working on forecast consistency." not in ctx.seller_proof_points

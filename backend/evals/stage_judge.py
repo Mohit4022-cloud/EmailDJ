@@ -11,6 +11,12 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
+from app.engine.brief_honesty import (
+    compute_overreach_risk,
+    fact_map_by_id,
+    hook_is_prospect_as_proof,
+    signal_strength_matches as brief_signal_strength_matches,
+)
 from app.engine.schemas import JUDGE_RESULT_SCHEMA, RF_JUDGE_RESULT
 from app.engine.stage_runner import _extract_message_text, _parse_message_content, _validate_schema
 from app.openai_client import ENFORCED_OPENAI_MODEL, OpenAIClient
@@ -94,7 +100,7 @@ PASS_THRESHOLD_BY_STAGE = {
 }
 
 HARD_FAIL_BY_STAGE = {
-    "CONTEXT_SYNTHESIS": set(),
+    "CONTEXT_SYNTHESIS": {"signal_strength_honest", "no_prospect_as_proof"},
     "FIT_REASONING": set(),
     "ANGLE_PICKER": set(),
     "ONE_LINER_COMPRESSOR": {"value_outcome_not_mechanism", "proof_not_circular"},
@@ -334,19 +340,8 @@ def _judge_user_prompt(
     return "\n\n".join(parts)
 
 
-def _signal_strength_matches(brief: dict[str, Any]) -> bool:
-    quality = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
-    fact_count = int(quality.get("fact_count") or 0)
-    hook_count = int(quality.get("hook_count") or 0)
-    has_research = bool(quality.get("has_research"))
-    signal_strength = str(quality.get("signal_strength") or "").strip().lower()
-    if signal_strength == "high":
-        return fact_count >= 6 and has_research and hook_count >= 3
-    if signal_strength == "medium":
-        return fact_count >= 3 or has_research
-    if signal_strength == "low":
-        return fact_count < 3 and not has_research
-    return False
+def _signal_strength_matches(brief: dict[str, Any], *, source_text: str = "") -> bool:
+    return brief_signal_strength_matches(brief, source_text=source_text)
 
 
 def _check_bracket_placeholder(text: str) -> bool:
@@ -523,9 +518,9 @@ async def judge_messaging_brief(
 1) containment_clean: facts must be traceable to explicit source fields.
 2) assumptions_labeled: uncertain language belongs in assumptions, not facts.
 3) hooks_grounded: every hook references valid fact ids.
-4) confidence_calibrated: assumptions > 0.75 must cite >=2 facts; none > 0.85.
-5) signal_strength_honest: low/medium/high must follow fact_count + has_research rules.
-6) no_prospect_as_proof: forbidden_claim_patterns includes at least saw your post / noticed you / congrats on.
+4) confidence_calibrated: high-confidence reasoning requires multiple supporting facts and honest labels.
+5) signal_strength_honest: signal strength must match evidence origin and hook evidence_strength, not just volume.
+6) no_prospect_as_proof: seller support/proof may not rely on prospect-only context.
 """.strip()
 
     result = await _run_stage_judge(
@@ -539,7 +534,7 @@ async def judge_messaging_brief(
     )
 
     forced: list[tuple[str, str]] = []
-    if not _signal_strength_matches(brief):
+    if not _signal_strength_matches(brief, source_text=str((raw_inputs or {}).get("research_text") or "")):
         forced.append(("signal_strength_honest", "signal_strength_honest failed deterministic quality rule"))
 
     assumptions = brief.get("assumptions") if isinstance(brief.get("assumptions"), list) else []
@@ -551,6 +546,18 @@ async def judge_messaging_brief(
         if not any(required in item for item in forbidden):
             forced.append(("no_prospect_as_proof", f"forbidden_claim_patterns missing '{required}'"))
             break
+
+    facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
+    fact_map = fact_map_by_id(facts)
+    if any(hook_is_prospect_as_proof(hook, fact_map) for hook in hooks):
+        forced.append(("no_prospect_as_proof", "hook uses prospect context as seller proof"))
+
+    brief_quality = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
+    reported_overreach = str(brief_quality.get("overreach_risk") or "").strip().lower()
+    computed_overreach = compute_overreach_risk(brief)
+    if reported_overreach and reported_overreach != computed_overreach:
+        forced.append(("signal_strength_honest", "brief_quality.overreach_risk does not match deterministic honesty rule"))
 
     return _apply_failures(result, forced_failures=forced)
 

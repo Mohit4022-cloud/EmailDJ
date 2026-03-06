@@ -40,8 +40,14 @@ def test_internal_modules_are_excluded_from_assembled_payload_plan_and_draft() -
 
     assert ctx.internal_modules == ["Prospect Enrichment", "Sequence QA", "Persona Research"]
     assert "Prospect Enrichment" not in ctx.proof_points
+    assert "Prospect Enrichment" not in ctx.seller_proof_points
+    assert "Prospect Enrichment" not in ctx.seller_context_points
     assert "Sequence QA" not in ctx.proof_points
+    assert "Sequence QA" not in ctx.seller_proof_points
+    assert "Sequence QA" not in ctx.seller_context_points
     assert "Persona Research" not in ctx.proof_points
+    assert "Persona Research" not in ctx.seller_proof_points
+    assert "Persona Research" not in ctx.seller_context_points
 
     serialized_messages = str(messages)
     assert "Prospect Enrichment" not in serialized_messages

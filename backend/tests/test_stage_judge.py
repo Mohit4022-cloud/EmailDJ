@@ -68,7 +68,7 @@ async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch:
 
     brief = {
         "hooks": [{"hook_id": "hook_1"}],
-        "facts_from_input": [{"source_field": "prospect_context", "text": "Company: Nimbus Health"}],
+        "facts_from_input": [{"source_field": "research_text", "fact_kind": "prospect_context", "text": "Company: Nimbus Health"}],
     }
     atoms = {
         "selected_angle_id": "angle_1",
@@ -103,6 +103,7 @@ async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pyte
         "facts_from_input": [
             {
                 "source_field": "research_text",
+                "fact_kind": "prospect_context",
                 "text": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
             }
         ],
@@ -159,15 +160,68 @@ async def test_judge_messaging_brief_passes_when_signal_strength_rules_match(mon
     monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
 
     brief = {
-        "facts_from_input": [{"fact_id": f"fact_{idx}", "source_field": "research_text", "text": f"fact {idx}"} for idx in range(1, 7)],
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "research_text", "fact_kind": "prospect_context", "text": "Nimbus launched a RevOps quality program in January 2026."},
+            {"fact_id": "fact_2", "source_field": "proof_points", "fact_kind": "seller_proof", "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews."},
+        ],
         "assumptions": [{"confidence": 0.75}],
-        "hooks": [{"hook_id": "h1"}, {"hook_id": "h2"}, {"hook_id": "h3"}],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "initiative",
+                "grounded_observation": "Nimbus launched a RevOps quality program in January 2026.",
+                "inferred_relevance": "That likely means workflow consistency is under review.",
+                "seller_support": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+                "hook_text": "Nimbus's January 2026 RevOps quality program may make consistency improvement timely.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": ["fact_2"],
+                "confidence_level": "high",
+                "evidence_strength": "strong",
+                "risk_flags": [],
+            },
+            {
+                "hook_id": "h2",
+                "hook_type": "pain",
+                "grounded_observation": "Nimbus launched a RevOps quality program in January 2026.",
+                "inferred_relevance": "That may mean process drift is under scrutiny.",
+                "seller_support": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+                "hook_text": "Quality program work may make process-drift reduction relevant.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": ["fact_2"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            },
+            {
+                "hook_id": "h3",
+                "hook_type": "priority",
+                "grounded_observation": "Nimbus launched a RevOps quality program in January 2026.",
+                "inferred_relevance": "That may mean forecast consistency is a priority.",
+                "seller_support": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+                "hook_text": "Forecast consistency may be a live priority during this program.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": ["fact_2"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            },
+        ],
         "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "prohibited_overreach": [],
         "brief_quality": {
-            "fact_count": 6,
+            "fact_count": 2,
+            "assumption_count": 1,
             "hook_count": 3,
             "has_research": True,
+            "grounded_fact_count": 2,
+            "prospect_context_fact_count": 1,
+            "seller_context_fact_count": 0,
+            "seller_proof_fact_count": 1,
+            "cta_fact_count": 0,
+            "confidence_ceiling": 0.75,
             "signal_strength": "high",
+            "overreach_risk": "low",
+            "quality_notes": [],
         },
     }
 
@@ -179,6 +233,62 @@ async def test_judge_messaging_brief_passes_when_signal_strength_rules_match(mon
 
     assert result["pass"] is True
     assert result["scores"]["signal_strength_honest"] == 1
+
+
+@pytest.mark.asyncio
+async def test_judge_messaging_brief_fails_when_prospect_context_is_used_as_proof(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("CONTEXT_SYNTHESIS"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "research_text", "fact_kind": "prospect_context", "text": "Nimbus expanded RevOps ownership in January 2026."},
+        ],
+        "assumptions": [{"confidence": 0.6}],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "initiative",
+                "grounded_observation": "Nimbus expanded RevOps ownership in January 2026.",
+                "inferred_relevance": "That may mean consistency matters more.",
+                "seller_support": "Nimbus's expansion proves our QA controls are the right fit.",
+                "hook_text": "Nimbus's expansion proves our QA controls are the right fit.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": ["fact_1"],
+                "confidence_level": "high",
+                "evidence_strength": "strong",
+                "risk_flags": [],
+            }
+        ],
+        "forbidden_claim_patterns": ["saw your post", "noticed you", "congrats on"],
+        "prohibited_overreach": ["prospect_as_proof"],
+        "brief_quality": {
+            "fact_count": 1,
+            "assumption_count": 1,
+            "hook_count": 1,
+            "has_research": True,
+            "grounded_fact_count": 1,
+            "prospect_context_fact_count": 1,
+            "seller_context_fact_count": 0,
+            "seller_proof_fact_count": 0,
+            "cta_fact_count": 0,
+            "confidence_ceiling": 0.6,
+            "signal_strength": "medium",
+            "overreach_risk": "high",
+            "quality_notes": [],
+        },
+    }
+
+    result = await stage_judge.judge_messaging_brief(
+        brief,
+        {"research_text": "Nimbus expanded RevOps ownership in January 2026."},
+        openai=DummyOpenAI(),
+    )
+
+    assert result["pass"] is False
+    assert result["scores"]["no_prospect_as_proof"] == 0
 
 
 @pytest.mark.asyncio

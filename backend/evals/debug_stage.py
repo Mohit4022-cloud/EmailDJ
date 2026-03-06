@@ -59,7 +59,7 @@ async def _run_stage_a(*, payload_id: str, raw: bool) -> int:
     ctx = normalize_generate_request(request, preset_id=request.preset_id)
     cta_line = orchestrator._cta_lock(request, ctx)
     stage_a_input = orchestrator._stage_a_input(request=request, ctx=ctx, cta_line=cta_line)
-    messages = stage_a.build_messages(stage_a_input)
+    messages = stage_a.build_messages(stage_a_input, research_state=ctx.research_state)
 
     response = await openai.chat_completion(
         model=ENFORCED_OPENAI_MODEL,
