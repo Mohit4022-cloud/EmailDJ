@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 import re
 import sys
@@ -12,15 +13,14 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 from app.engine.brief_honesty import (
-    REQUIRED_FORBIDDEN_CLAIM_PATTERNS,
-    compute_overreach_risk,
+    contaminated_research_fact_ids,
     fact_map_by_id,
     hook_is_prospect_as_proof,
-    normalize_text_key,
-    signal_strength_matches as brief_signal_strength_matches,
+    hook_support_posture,
 )
 from app.engine.schemas import JUDGE_RESULT_SCHEMA, RF_JUDGE_RESULT
 from app.engine.stage_runner import _extract_message_text, _parse_message_content, _validate_schema
+from app.engine.validators import ValidationIssue, validate_messaging_brief
 from app.openai_client import ENFORCED_OPENAI_MODEL, OpenAIClient
 
 
@@ -131,6 +131,34 @@ BANNED_PHRASES = [
     "hope to hear from you",
 ]
 
+_STAGE_A_CRITERIA_BY_VALIDATION_CODE = {
+    "brief_missing_facts": ("containment_clean",),
+    "fact_placeholder_text": ("containment_clean",),
+    "fact_source_field_not_allowed": ("containment_clean",),
+    "fact_contains_ungrounded_behavior_claim": ("containment_clean",),
+    "fact_not_grounded_in_input": ("containment_clean",),
+    "assumption_kind_invalid": ("assumptions_labeled",),
+    "assumption_confidence_label_invalid": ("assumptions_labeled",),
+    "assumption_high_confidence_no_grounding": ("assumptions_labeled", "confidence_calibrated"),
+    "assumption_high_confidence_insufficient_facts": ("assumptions_labeled", "confidence_calibrated"),
+    "assumption_placeholder_text": ("assumptions_labeled",),
+    "brief_missing_hooks": ("hooks_grounded",),
+    "hook_placeholder_text": ("hooks_grounded",),
+    "hook_unknown_fact_id": ("hooks_grounded",),
+    "hook_unknown_seller_fact_id": ("hooks_grounded",),
+    "hook_seller_support_missing_fact_id": ("confidence_calibrated",),
+    "hook_seller_fact_id_not_seller_side": ("no_prospect_as_proof",),
+    "hook_missing_seller_proof_gap": ("confidence_calibrated",),
+    "hook_prospect_as_proof": ("no_prospect_as_proof",),
+    "hook_contaminated_research": ("hooks_grounded", "signal_strength_honest"),
+    "hook_high_confidence_without_seller_proof": ("confidence_calibrated", "signal_strength_honest"),
+    "hook_strong_evidence_without_seller_proof": ("signal_strength_honest",),
+    "hook_unsupported_recency_or_initiative": ("hooks_grounded", "signal_strength_honest"),
+    "hook_claim_too_strong_for_evidence": ("signal_strength_honest",),
+    "brief_quality_overreach_risk_invalid": ("signal_strength_honest",),
+    "brief_quality_signal_strength_mismatch": ("signal_strength_honest",),
+}
+
 
 def _as_list_of_strings(value: Any) -> list[str]:
     if not isinstance(value, list):
@@ -152,10 +180,16 @@ def _append_unique(items: list[str], value: str) -> None:
 def _coerce_bool(value: Any) -> Any:
     if isinstance(value, bool):
         return value
+    if isinstance(value, int) and value in {0, 1}:
+        return bool(value)
     lowered = str(value or "").strip().lower()
     if lowered == "true":
         return True
     if lowered == "false":
+        return False
+    if lowered == "1":
+        return True
+    if lowered == "0":
         return False
     return value
 
@@ -245,6 +279,112 @@ def _apply_failures(result: dict[str, Any], *, forced_failures: list[tuple[str, 
             scores[criterion] = 0
             _append_unique(result["failures"], failure_text)
     return _finalize_result(str(result.get("stage") or ""), result)
+
+
+def _stage_a_source_text(raw_inputs: dict[str, Any] | None) -> str:
+    payload = raw_inputs if isinstance(raw_inputs, dict) else {}
+    prospect = payload.get("prospect")
+    if isinstance(prospect, dict):
+        text = str(prospect.get("research_text") or "").strip()
+        if text:
+            return text
+    return str(payload.get("research_text") or "").strip()
+
+
+def _has_full_stage_a_source_payload(raw_inputs: dict[str, Any] | None) -> bool:
+    payload = raw_inputs if isinstance(raw_inputs, dict) else {}
+    return (
+        isinstance(payload.get("prospect"), dict)
+        and isinstance(payload.get("user_company"), dict)
+        and isinstance(payload.get("cta"), dict)
+    )
+
+
+def _stage_a_validation_source_payload(raw_inputs: dict[str, Any] | None) -> dict[str, Any]:
+    payload = raw_inputs if isinstance(raw_inputs, dict) else {}
+    if _has_full_stage_a_source_payload(payload):
+        return payload
+    return {
+        "prospect": dict(payload.get("prospect") or {}),
+        "user_company": dict(payload.get("user_company") or {}),
+        "cta": dict(payload.get("cta") or {}),
+    }
+
+
+def _stage_a_failure_message(detail: dict[str, Any]) -> str:
+    code = str(detail.get("code") or "").strip()
+    hook_id = str(detail.get("hook_id") or "").strip()
+    fact_id = str(detail.get("fact_id") or "").strip()
+    offending_text = str(detail.get("offending_text") or "").strip()
+    location = hook_id or fact_id or "brief"
+    if offending_text:
+        return f"{code}: {location}: {offending_text}"
+    return f"{code}: {location}"
+
+
+def _deterministic_stage_a_result(
+    brief: dict[str, Any],
+    *,
+    raw_inputs: dict[str, Any] | None,
+    artifact_views: dict[str, Any] | None,
+) -> dict[str, Any]:
+    stage = "CONTEXT_SYNTHESIS"
+    payload = {
+        "stage": stage,
+        "scores": {criterion: 1 for criterion in CRITERIA_BY_STAGE[stage]},
+        "total": len(CRITERIA_BY_STAGE[stage]),
+        "pass": True,
+        "hard_fail_triggered": False,
+        "hard_fail_criteria": [],
+        "failures": [],
+        "warnings": [],
+    }
+
+    try:
+        validate_messaging_brief(
+            deepcopy(brief),
+            source_text=_stage_a_source_text(raw_inputs),
+            source_payload=_stage_a_validation_source_payload(raw_inputs),
+        )
+    except ValidationIssue as exc:
+        criteria_to_fail: set[str] = set()
+        for code in exc.codes:
+            criteria_to_fail.update(_STAGE_A_CRITERIA_BY_VALIDATION_CODE.get(code, ("signal_strength_honest",)))
+        for criterion in criteria_to_fail:
+            payload["scores"][criterion] = 0
+        if exc.details:
+            for detail in exc.details:
+                _append_unique(payload["failures"], _stage_a_failure_message(detail))
+        else:
+            for code in exc.codes:
+                _append_unique(payload["failures"], code)
+
+    facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
+    fact_map = fact_map_by_id(facts)
+    prospect_company = str(((raw_inputs or {}).get("prospect") or {}).get("company") or "").strip()
+    contaminated_fact_ids = contaminated_research_fact_ids(facts, prospect_company=prospect_company or None)
+
+    if any(hook_is_prospect_as_proof(hook, fact_map) for hook in hooks):
+        payload["scores"]["no_prospect_as_proof"] = 0
+        _append_unique(payload["failures"], "hook_prospect_as_proof: hook uses prospect context as seller proof")
+
+    if any(
+        hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["has_contamination_tainted_support"]
+        for hook in hooks
+    ):
+        payload["scores"]["hooks_grounded"] = 0
+        payload["scores"]["signal_strength_honest"] = 0
+        _append_unique(payload["failures"], "hook_contaminated_research: hook uses contaminated research about another company")
+
+    raw_hygiene_issue_count = int(dict((artifact_views or {}).get("raw_artifact_quality") or {}).get("issue_count") or 0)
+    if raw_hygiene_issue_count:
+        _append_unique(payload["warnings"], f"raw_hygiene_issues_present:{raw_hygiene_issue_count}")
+
+    finalized = _finalize_result(stage, payload)
+    if payload["failures"]:
+        finalized["pass"] = False
+    return finalized
 
 
 def _write_judge_trace(
@@ -340,11 +480,6 @@ def _judge_user_prompt(
         ]
     )
     return "\n\n".join(parts)
-
-
-def _signal_strength_matches(brief: dict[str, Any], *, source_text: str = "") -> bool:
-    return brief_signal_strength_matches(brief, source_text=source_text)
-
 
 def _check_bracket_placeholder(text: str) -> bool:
     return bool(re.search(r"\[[^\]]+\]", str(text or "")))
@@ -507,13 +642,15 @@ async def _run_stage_judge(
 async def judge_messaging_brief(
     brief: dict[str, Any] | None,
     raw_inputs: dict[str, Any] | None,
+    artifact_views: dict[str, Any] | None = None,
     *,
     openai: OpenAIClient,
     run_id: str | None = None,
     payload_id: str | None = None,
 ) -> dict[str, Any]:
     stage = "CONTEXT_SYNTHESIS"
-    if not brief:
+    semantic_brief = dict((artifact_views or {}).get("sanitized_stage_a_artifact") or brief or {})
+    if not semantic_brief:
         return missing_artifact_result(stage, "artifact")
 
     rubric = """
@@ -525,43 +662,33 @@ async def judge_messaging_brief(
 6) no_prospect_as_proof: seller support/proof may not rely on prospect-only context.
 """.strip()
 
-    result = await _run_stage_judge(
+    llm_result = await _run_stage_judge(
         stage=stage,
-        artifacts={"artifact": brief, "raw_inputs": raw_inputs or {}},
+        artifacts={
+            "artifact": semantic_brief,
+            "raw_inputs": raw_inputs or {},
+            "raw_hygiene": {
+                "raw_hygiene_issues": list((artifact_views or {}).get("raw_hygiene_issues") or []),
+                "raw_artifact_quality": dict((artifact_views or {}).get("raw_artifact_quality") or {}),
+            },
+            "sanitation_report": dict((artifact_views or {}).get("sanitation_report") or {}),
+        },
         rubric_text=rubric,
         examples_text=None,
         openai=openai,
         run_id=run_id,
         payload_id=payload_id,
     )
-
-    forced: list[tuple[str, str]] = []
-    if not _signal_strength_matches(brief, source_text=str((raw_inputs or {}).get("research_text") or "")):
-        forced.append(("signal_strength_honest", "signal_strength_honest failed deterministic quality rule"))
-
-    assumptions = brief.get("assumptions") if isinstance(brief.get("assumptions"), list) else []
-    if any(float((item or {}).get("confidence") or 0.0) > 0.85 for item in assumptions if isinstance(item, dict)):
-        forced.append(("confidence_calibrated", "assumption confidence exceeds 0.85"))
-
-    forbidden = {normalize_text_key(item) for item in (brief.get("forbidden_claim_patterns") or []) if str(item or "").strip()}
-    for required in REQUIRED_FORBIDDEN_CLAIM_PATTERNS:
-        if normalize_text_key(required) not in forbidden:
-            forced.append(("no_prospect_as_proof", f"forbidden_claim_patterns missing '{required}'"))
-            break
-
-    facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
-    hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
-    fact_map = fact_map_by_id(facts)
-    if any(hook_is_prospect_as_proof(hook, fact_map) for hook in hooks):
-        forced.append(("no_prospect_as_proof", "hook uses prospect context as seller proof"))
-
-    brief_quality = brief.get("brief_quality") if isinstance(brief.get("brief_quality"), dict) else {}
-    reported_overreach = str(brief_quality.get("overreach_risk") or "").strip().lower()
-    computed_overreach = compute_overreach_risk(brief)
-    if reported_overreach and reported_overreach != computed_overreach:
-        forced.append(("signal_strength_honest", "brief_quality.overreach_risk does not match deterministic honesty rule"))
-
-    return _apply_failures(result, forced_failures=forced)
+    finalized = _deterministic_stage_a_result(
+        semantic_brief,
+        raw_inputs=raw_inputs,
+        artifact_views=artifact_views,
+    )
+    for warning in _as_list_of_strings(llm_result.get("warnings")):
+        if warning.startswith("raw_hygiene_issues_present:"):
+            continue
+        _append_unique(finalized["warnings"], warning)
+    return finalized
 
 
 async def judge_fit_map(

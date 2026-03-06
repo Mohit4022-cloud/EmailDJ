@@ -267,3 +267,77 @@ def test_normalize_generate_request_keeps_prospect_context_out_of_seller_proof()
 
     assert "Nimbus cut delays after ownership changes." not in ctx.seller_proof_points
     assert "Working on forecast consistency." not in ctx.seller_proof_points
+
+
+def test_validate_messaging_brief_requires_seller_proof_gap_for_empty_support() -> None:
+    brief = _base_brief()
+    brief["hooks"][0]["risk_flags"] = []
+
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
+
+    assert "hook_missing_seller_proof_gap" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_high_confidence_seller_context_only_hook() -> None:
+    brief = _base_brief()
+    brief["facts_from_input"].append(
+        {
+            "fact_id": "fact_3",
+            "source_field": "product_summary",
+            "fact_kind": "seller_context",
+            "text": "Outbound Workflow QA",
+        }
+    )
+    brief["hooks"][0]["seller_support"] = "Outbound Workflow QA can support tighter handoff quality."
+    brief["hooks"][0]["seller_fact_ids"] = ["fact_3"]
+    brief["hooks"][0]["confidence_level"] = "high"
+    brief["hooks"][0]["evidence_strength"] = "strong"
+    brief["hooks"][0]["risk_flags"] = []
+
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=_source_payload())
+
+    assert "hook_high_confidence_without_seller_proof" in exc_info.value.codes or "hook_strong_evidence_without_seller_proof" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_rejects_contaminated_research_hook() -> None:
+    brief = _base_brief()
+    brief["facts_from_input"][0]["text"] = "Blueway Transit expanded RevOps ownership in January 2026."
+    brief["facts_from_input"].append(
+        {
+            "fact_id": "fact_3",
+            "source_field": "proof_points",
+            "fact_kind": "seller_proof",
+            "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+        }
+    )
+    brief["hooks"][0]["seller_support"] = "A SaaS team reduced handoff delays by 18% after sequence QA reviews."
+    brief["hooks"][0]["seller_fact_ids"] = ["fact_3"]
+    brief["hooks"][0]["supported_by_fact_ids"] = ["fact_1"]
+    brief["hooks"][0]["risk_flags"] = []
+
+    source_payload = _source_payload()
+    source_payload["prospect"]["company"] = "Altura Stone"
+    source_payload["prospect"]["research_text"] = "Blueway Transit expanded RevOps ownership in January 2026."
+
+    with pytest.raises(ValidationIssue) as exc_info:
+        validate_messaging_brief(brief, source_text="Blueway Transit expanded RevOps ownership in January 2026.", source_payload=source_payload)
+
+    assert "hook_contaminated_research" in exc_info.value.codes
+
+
+def test_validate_messaging_brief_allows_duplicate_fact_text_when_input_duplicates_it() -> None:
+    brief = _base_brief()
+    brief["facts_from_input"].append(
+        {
+            "fact_id": "fact_3",
+            "source_field": "prospect_notes",
+            "fact_kind": "prospect_context",
+            "text": "Nimbus expanded RevOps ownership in January 2026.",
+        }
+    )
+    source_payload = _source_payload()
+    source_payload["prospect"]["notes"] = "Nimbus expanded RevOps ownership in January 2026."
+
+    validate_messaging_brief(brief, source_text="Nimbus expanded RevOps ownership in January 2026.", source_payload=source_payload)

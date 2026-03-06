@@ -249,6 +249,7 @@ def test_validate_messaging_brief_accepts_placeholder_research_as_no_research() 
         "No specific research available for this account.",
         "Unknown",
         "No research.",
+        "no_research",
         "No verifiable research available.",
     ],
 )

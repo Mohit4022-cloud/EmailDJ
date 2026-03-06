@@ -142,6 +142,8 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
             "status": "artifact_missing",
             "error_code": None,
             "raw_output": None,
+            "raw_output_artifact": None,
+            "artifact_views": {},
         }
         for key in ARTIFACT_KEY_BY_STAGE.values()
     }
@@ -159,6 +161,8 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
         status = str(item.get("status") or "")
         output = item.get("output")
         raw_output = item.get("raw_output")
+        raw_output_artifact = item.get("raw_output_artifact")
+        artifact_views = item.get("artifact_views") if isinstance(item.get("artifact_views"), dict) else {}
         slot = artifacts[artifact_key]
 
         if status == "complete" and isinstance(output, dict):
@@ -166,6 +170,8 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
             slot["status"] = "complete_artifact"
             slot["error_code"] = None
             slot["raw_output"] = raw_output
+            slot["raw_output_artifact"] = raw_output_artifact if isinstance(raw_output_artifact, dict) else None
+            slot["artifact_views"] = artifact_views
             continue
 
         if status != "failed" or slot["status"] == "complete_artifact":
@@ -183,6 +189,8 @@ def _extract_stage_artifacts(raw_trace: dict[str, Any] | None) -> dict[str, Any]
         slot["status"] = artifact_status
         slot["error_code"] = str(item.get("error_code") or "").strip() or None
         slot["raw_output"] = raw_output if isinstance(raw_output, str) else None
+        slot["raw_output_artifact"] = raw_output_artifact if isinstance(raw_output_artifact, dict) else None
+        slot["artifact_views"] = artifact_views
         if failed_output is not None:
             slot["artifact"] = failed_output
 
@@ -382,6 +390,7 @@ async def _evaluate_payload(
             judge_results[stage] = await judge_messaging_brief(
                 brief,
                 payload.get("request") if isinstance(payload.get("request"), dict) else {},
+                artifact_views=artifacts["messaging_brief"].get("artifact_views"),
                 openai=openai,
                 run_id=run_id,
                 payload_id=str(payload.get("payload_id") or ""),

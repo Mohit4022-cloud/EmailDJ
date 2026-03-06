@@ -51,3 +51,26 @@ def test_extract_stage_artifacts_parses_failed_raw_json_when_output_missing() ->
 
     assert artifacts["email_draft"]["status"] == "failed_artifact_present"
     assert artifacts["email_draft"]["artifact"]["subject"] == "RevOps workflow note"
+
+
+def test_extract_stage_artifacts_preserves_stage_a_artifact_views() -> None:
+    raw_trace = {
+        "stage_payloads": [
+            {
+                "stage": "CONTEXT_SYNTHESIS",
+                "status": "complete",
+                "output": {"version": "1", "brief_id": "brief_1"},
+                "raw_output_artifact": {"version": "1", "brief_id": "brief_1"},
+                "artifact_views": {
+                    "raw_stage_a_artifact": {"version": "1", "brief_id": "brief_1"},
+                    "sanitized_stage_a_artifact": {"version": "1", "brief_id": "brief_1"},
+                    "raw_artifact_quality": {"issue_count": 2},
+                },
+            }
+        ]
+    }
+
+    artifacts = _extract_stage_artifacts(raw_trace)
+
+    assert artifacts["messaging_brief"]["artifact_views"]["raw_artifact_quality"]["issue_count"] == 2
+    assert artifacts["messaging_brief"]["raw_output_artifact"]["brief_id"] == "brief_1"

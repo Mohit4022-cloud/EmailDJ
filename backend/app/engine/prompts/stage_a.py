@@ -96,6 +96,7 @@ STEP 1 - FACT EXTRACTION
   - seller_proof: proof_points only
   - cta: cta_type, cta_final_line
 - If info is not explicit in input, it is not a fact.
+- If proof_points contains usable signal, extract at least one proof_points fact instead of replacing that field with filler or omission.
 
 CRITICAL source_field rule: you must use ONLY these exact strings as source_field values.
 No variations, no abbreviations, no invented names:
@@ -122,6 +123,7 @@ If a fact cannot be attributed to one of these exact strings, do not include it.
 EMPTY FIELD RULE:
 - Blank field bodies and blank list sections contain zero facts.
 - If a field has no usable signal, do not create a fact with that field as source_field.
+- If a potential row would be blank, placeholder, or unsupported, omit it instead of padding it.
 - Placeholder/null-ish text must never appear anywhere in output, including hooks, assumptions, persona_cues, or allowed_personalization_fact_sources.
 - Do not extract CTA lines or banned-phrase lists as evidence for signal strength unless needed for policy tracking.
 - Do not duplicate the same seller sentence across multiple facts just because similar input fields overlap.
@@ -160,6 +162,7 @@ STEP 3 - INFERENCE LAYER
 STEP 4 - HOOK IDENTIFICATION
 - Grounded input may produce 3-5 hooks.
 - sparse or no_research input should usually produce 1-3 conservative hooks.
+- Without grounded research, prefer pain/priority hooks over initiative/trigger_event hooks.
 - Every hook must separate four layers:
   - grounded_observation = explicit prospect-side fact only
   - inferred_relevance = why that observation may matter, written as a hypothesis when needed
@@ -172,6 +175,8 @@ STEP 4 - HOOK IDENTIFICATION
 - Do not turn possible relevance into clear business need.
 - seller_fact_ids may cite seller_context or seller_proof facts only.
 - If seller_support is empty, add risk flag seller_proof_gap.
+- seller_context may support relevance framing but does not count as seller proof.
+- Only hooks whose seller_fact_ids include proof_points may be high confidence or strong evidence.
 - confidence_level = low | medium | high.
 - evidence_strength = weak | moderate | strong.
 - high confidence or strong evidence_strength require at least one seller_proof fact plus grounded prospect context.
@@ -199,6 +204,7 @@ Sparse no-research negative example:
 Contamination negative example:
 - If research_text mentions another company, do not convert that into a hook for this prospect.
 - Fall back to honest role-based relevance instead of borrowed specificity.
+- Do not let foreign-company research create seller proof, urgency, or why-now framing for this prospect.
 
 Omission-not-placeholder example:
 - If industry is blank, omit the industry fact entirely.

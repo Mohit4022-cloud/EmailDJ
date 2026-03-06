@@ -56,6 +56,9 @@ class Trace:
         output: Any,
         attempt_count: int,
         details: dict[str, Any] | None = None,
+        raw_output: str | None = None,
+        raw_output_artifact: Any = None,
+        artifact_views: dict[str, Any] | None = None,
     ) -> int:
         started = self._stage_started.get(stage, time.perf_counter())
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
@@ -72,15 +75,20 @@ class Trace:
         )
         self.hashes[f"output:{stage}"] = hash_json(output)
         if self.debug_trace_raw:
-            self.raw_stage_payloads.append(
-                {
-                    "stage": stage,
-                    "status": "complete",
-                    "attempt_count": int(attempt_count),
-                    "schema_ok": bool(schema_ok),
-                    "output": output,
-                }
-            )
+            entry = {
+                "stage": stage,
+                "status": "complete",
+                "attempt_count": int(attempt_count),
+                "schema_ok": bool(schema_ok),
+                "output": output,
+            }
+            if raw_output:
+                entry["raw_output"] = raw_output
+            if raw_output_artifact is not None:
+                entry["raw_output_artifact"] = raw_output_artifact
+            if artifact_views:
+                entry["artifact_views"] = artifact_views
+            self.raw_stage_payloads.append(entry)
         return elapsed_ms
 
     def fail_stage(self, *, stage: str, model: str, error_code: str, details: dict[str, Any] | None = None) -> int:
@@ -106,6 +114,8 @@ class Trace:
         output: Any = None,
         raw_output: str | None = None,
         attempt_count: int | None = None,
+        raw_output_artifact: Any = None,
+        artifact_views: dict[str, Any] | None = None,
     ) -> int:
         started = self._stage_started.get(stage, time.perf_counter())
         elapsed_ms = int(round((time.perf_counter() - started) * 1000))
@@ -139,6 +149,10 @@ class Trace:
                 raw_entry["output"] = output
             if raw_output:
                 raw_entry["raw_output"] = raw_output
+            if raw_output_artifact is not None:
+                raw_entry["raw_output_artifact"] = raw_output_artifact
+            if artifact_views:
+                raw_entry["artifact_views"] = artifact_views
             self.raw_stage_payloads.append(raw_entry)
         return elapsed_ms
 

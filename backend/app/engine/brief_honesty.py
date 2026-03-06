@@ -70,8 +70,6 @@ INITIATIVE_MARKERS = (
 )
 
 STRONG_CLAIM_MARKERS = (
-    "will",
-    "would",
     "clearly",
     "definitely",
     "specific need",
@@ -79,6 +77,50 @@ STRONG_CLAIM_MARKERS = (
     "must be",
     "is focused on",
     "is prioritizing",
+)
+
+CONFIDENCE_LEVEL_ORDER = {"low": 0, "medium": 1, "high": 2}
+EVIDENCE_STRENGTH_ORDER = {"weak": 0, "moderate": 1, "strong": 2}
+COMPANY_TOKEN_STOPWORDS = {
+    "and",
+    "co",
+    "company",
+    "corp",
+    "corporation",
+    "group",
+    "holdings",
+    "inc",
+    "incorporated",
+    "llc",
+    "ltd",
+    "limited",
+    "solutions",
+    "systems",
+    "technologies",
+    "technology",
+    "the",
+}
+COMPANY_EVENT_VERBS = (
+    "expanded",
+    "launched",
+    "announced",
+    "hired",
+    "posted",
+    "published",
+    "rolled out",
+    "centralized",
+    "opened",
+    "acquired",
+    "merged",
+    "introduced",
+    "started",
+    "began",
+    "is",
+    "was",
+)
+COMPANY_MENTION_RE = re.compile(
+    r"\b([A-Z][A-Za-z0-9&'.-]+(?:\s+[A-Z][A-Za-z0-9&'.-]+){0,3})\s+"
+    r"(?:expanded|launched|announced|hired|posted|published|rolled out|centralized|opened|acquired|merged|introduced|started|began|is|was)\b"
 )
 
 
@@ -186,6 +228,107 @@ def hook_has_seller_proof(hook: dict[str, Any], fact_map: dict[str, dict[str, An
     return "seller_proof" in seller_fact_kinds(hook, fact_map)
 
 
+def prospect_company_from_facts(facts: list[dict[str, Any]]) -> str:
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        if str(fact.get("source_field") or "").strip().lower() == "company":
+            text = str(fact.get("text") or "").strip()
+            if text:
+                return text
+    return ""
+
+
+def _company_tokens(text: Any) -> set[str]:
+    return {
+        token
+        for token in re.findall(r"[a-z0-9&']+", str(text or "").lower())
+        if len(token) >= 3 and token not in COMPANY_TOKEN_STOPWORDS
+    }
+
+
+def research_mentions_foreign_company(research_text: Any, prospect_company: str) -> bool:
+    prospect_tokens = _company_tokens(prospect_company)
+    if not prospect_tokens:
+        return False
+    text = str(research_text or "").strip()
+    if not text:
+        return False
+
+    for match in COMPANY_MENTION_RE.findall(text):
+        candidate_tokens = _company_tokens(match)
+        if candidate_tokens and candidate_tokens.isdisjoint(prospect_tokens):
+            return True
+    return False
+
+
+def contaminated_research_fact_ids(
+    facts: list[dict[str, Any]],
+    *,
+    prospect_company: str | None = None,
+) -> set[str]:
+    company = str(prospect_company or prospect_company_from_facts(facts) or "").strip()
+    if not company:
+        return set()
+
+    contaminated: set[str] = set()
+    for fact in facts:
+        if not isinstance(fact, dict):
+            continue
+        if str(fact.get("source_field") or "").strip().lower() != "research_text":
+            continue
+        fact_id = str(fact.get("fact_id") or "").strip()
+        if fact_id and research_mentions_foreign_company(fact.get("text"), company):
+            contaminated.add(fact_id)
+    return contaminated
+
+
+def hook_support_posture(
+    hook: dict[str, Any],
+    fact_map: dict[str, dict[str, Any]],
+    *,
+    contaminated_fact_ids: set[str] | None = None,
+) -> dict[str, Any]:
+    supported_ids = hook_supported_fact_ids(hook)
+    seller_ids = hook_seller_fact_ids(hook)
+    seller_support = str(hook.get("seller_support") or "").strip()
+    supported_kinds = supported_fact_kinds(hook, fact_map)
+    seller_kinds = seller_fact_kinds(hook, fact_map)
+    contaminated_ids = set(contaminated_fact_ids or set())
+    research_support_ids = {
+        fact_id
+        for fact_id in supported_ids
+        if str((fact_map.get(fact_id) or {}).get("source_field") or "").strip().lower() == "research_text"
+    }
+    clean_research_support_ids = research_support_ids - contaminated_ids
+    has_explicit_seller_proof = "seller_proof" in seller_kinds
+    has_seller_context_only = bool(seller_kinds) and seller_kinds <= {"seller_context"} and not has_explicit_seller_proof
+    has_invalid_or_empty_seller_support = not seller_support or (seller_support and not seller_ids)
+    has_contamination_tainted_support = bool(research_support_ids & contaminated_ids)
+    requires_grounded_research = hook_requires_grounded_research(hook)
+
+    max_confidence_level = "high" if has_explicit_seller_proof else "medium"
+    max_evidence_strength = "strong" if has_explicit_seller_proof else "moderate"
+
+    return {
+        "supported_fact_ids": supported_ids,
+        "seller_fact_ids": seller_ids,
+        "supported_kinds": supported_kinds,
+        "seller_kinds": seller_kinds,
+        "has_grounded_prospect_research": bool(clean_research_support_ids),
+        "has_prospect_context_only": bool(supported_kinds) and supported_kinds <= {"prospect_context"} and not seller_ids,
+        "has_seller_context_only": has_seller_context_only,
+        "has_explicit_seller_proof": has_explicit_seller_proof,
+        "has_invalid_or_empty_seller_support": has_invalid_or_empty_seller_support,
+        "has_contamination_tainted_support": has_contamination_tainted_support,
+        "requires_grounded_research": requires_grounded_research,
+        "supports_initiative_or_trigger": not requires_grounded_research or bool(clean_research_support_ids),
+        "required_risk_flags": ["seller_proof_gap"] if has_invalid_or_empty_seller_support else [],
+        "max_confidence_level": max_confidence_level,
+        "max_evidence_strength": max_evidence_strength,
+    }
+
+
 def hook_requires_grounded_research(hook: dict[str, Any]) -> bool:
     return str(hook.get("hook_type") or "").strip().lower() in {"initiative", "trigger_event"} or hook_mentions_recency(hook) or hook_mentions_initiative(hook)
 
@@ -207,15 +350,25 @@ def compute_overreach_risk(brief: dict[str, Any]) -> str:
     hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
     facts = [item for item in (brief.get("facts_from_input") or []) if isinstance(item, dict)]
     fact_map = fact_map_by_id(facts)
+    contaminated_fact_ids = contaminated_research_fact_ids(facts)
 
     if any(hook_is_prospect_as_proof(hook, fact_map) for hook in hooks):
         return "high"
+    if any(hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["has_contamination_tainted_support"] for hook in hooks):
+        return "high"
     if any(
-        hook_confidence_level(hook) == "high" and not hook_has_seller_proof(hook, fact_map)
+        CONFIDENCE_LEVEL_ORDER.get(hook_confidence_level(hook), 0)
+        > CONFIDENCE_LEVEL_ORDER.get(
+            hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["max_confidence_level"],
+            0,
+        )
         for hook in hooks
     ):
         return "high"
-    if any(hook_requires_grounded_research(hook) and not any((fact_map.get(fid) or {}).get("source_field") == "research_text" for fid in hook_supported_fact_ids(hook)) for hook in hooks):
+    if any(
+        not hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["supports_initiative_or_trigger"]
+        for hook in hooks
+    ):
         return "medium"
     return "low"
 
@@ -225,15 +378,19 @@ def signal_strength_from_brief(brief: dict[str, Any], *, source_text: str = "") 
     hooks = [item for item in (brief.get("hooks") or []) if isinstance(item, dict)]
     fact_map = fact_map_by_id(facts)
     counts = fact_kind_counts(facts)
-    has_research = has_meaningful_research(source_text) if source_text else any(
-        str(fact.get("source_field") or "").strip().lower() == "research_text"
+    contaminated_fact_ids = contaminated_research_fact_ids(facts)
+    prospect_research_count = sum(
+        1
         for fact in facts
+        if str(fact.get("source_field") or "").strip().lower() == "research_text"
+        and str(fact.get("fact_id") or "").strip() not in contaminated_fact_ids
     )
-    prospect_research_count = sum(1 for fact in facts if str(fact.get("source_field") or "").strip().lower() == "research_text")
+    has_research = prospect_research_count >= 1 if facts else (has_meaningful_research(source_text) if source_text else False)
     strong_hook_count = sum(
         1
         for hook in hooks
-        if hook_evidence_strength(hook) == "strong" and hook_has_seller_proof(hook, fact_map)
+        if hook_evidence_strength(hook) == "strong"
+        and hook_has_seller_proof(hook, fact_map)
     )
 
     if has_research and prospect_research_count >= 1 and counts["seller_proof"] >= 1 and strong_hook_count >= 1:

@@ -238,4 +238,41 @@ async def test_run_stage_surfaces_validation_details_in_stage_error() -> None:
     assert err.details["artifact_status"] == "failed_artifact_present"
     assert err.details.get("codes") == ["fact_source_field_not_allowed"]
     assert err.details.get("first_payload") == {"version": "1", "subject": "Hello", "body": "World"}
+
+
+@pytest.mark.asyncio
+async def test_run_stage_preserves_raw_and_processed_payload_metadata() -> None:
+    openai = StubOpenAI(
+        responses=[
+            {"version": "1", "subject": "Hello", "body": "World"},
+            {"version": "1", "subject": "Hello", "body": "World"},
+        ]
+    )
+
+    def _postprocess(payload: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+        processed = dict(payload)
+        processed["body"] = "World sanitized"
+        return processed, {"raw_stage_a_artifact": payload, "sanitized_stage_a_artifact": processed}
+
+    def _validator(_: dict[str, Any]) -> None:
+        raise ValidationIssue(["semantic_failure"], details=[{"code": "semantic_failure"}])
+
+    with pytest.raises(StageError) as exc_info:
+        await run_stage(
+            openai=openai,  # type: ignore[arg-type]
+            config=StageConfig(
+                stage="CONTEXT_SYNTHESIS",
+                max_tokens=100,
+                reasoning_effort="low",
+                response_format=_response_format(),
+            ),
+            messages=[{"role": "system", "content": "Return JSON."}],
+            validator=_validator,
+            postprocess=_postprocess,
+        )
+
+    err = exc_info.value
+    assert err.details["first_payload"] == {"version": "1", "subject": "Hello", "body": "World"}
+    assert err.details["first_processed_payload"] == {"version": "1", "subject": "Hello", "body": "World sanitized"}
+    assert err.details["first_artifact_metadata"]["sanitized_stage_a_artifact"]["body"] == "World sanitized"
     assert err.details.get("rejected_facts")

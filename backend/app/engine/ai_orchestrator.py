@@ -23,6 +23,7 @@ from .schemas import (
     RF_QA_REPORT,
     STAGES,
 )
+from .stage_a_sanitizer import sanitize_stage_a_brief
 from .stage_runner import StageConfig, StageError, run_stage
 from .tracer import Trace
 from .types import EmailDraft as LegacyEmailDraft
@@ -237,12 +238,42 @@ class AIOrchestrator:
     def _split_failed_stage_details(self, details: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
         raw_details = dict(details or {})
         trace_details = dict(raw_details)
-        for key in ("first_raw", "repair_raw", "first_payload", "repair_payload"):
+        for key in (
+            "first_raw",
+            "repair_raw",
+            "first_payload",
+            "repair_payload",
+            "first_processed_payload",
+            "repair_processed_payload",
+            "first_artifact_metadata",
+            "repair_artifact_metadata",
+        ):
             trace_details.pop(key, None)
 
-        artifact_payload = raw_details.get("first_payload")
+        artifact_payload = raw_details.get("first_processed_payload")
+        if artifact_payload is None:
+            artifact_payload = raw_details.get("repair_processed_payload")
+        if artifact_payload is None:
+            artifact_payload = raw_details.get("first_payload")
         if artifact_payload is None:
             artifact_payload = raw_details.get("repair_payload")
+        raw_output_artifact = raw_details.get("first_payload")
+        if raw_output_artifact is None:
+            raw_output_artifact = raw_details.get("repair_payload")
+        artifact_views = raw_details.get("first_artifact_metadata")
+        if artifact_views is None:
+            artifact_views = raw_details.get("repair_artifact_metadata")
+        if isinstance(artifact_views, dict):
+            sanitation_report = dict(artifact_views.get("sanitation_report") or {})
+            raw_artifact_quality = dict(artifact_views.get("raw_artifact_quality") or {})
+            if raw_artifact_quality:
+                trace_details["raw_hygiene_issue_count"] = int(raw_artifact_quality.get("issue_count") or 0)
+                trace_details["raw_artifact_quality"] = raw_artifact_quality
+            if sanitation_report:
+                trace_details["sanitation_action_counts"] = dict(sanitation_report.get("sanitation_action_counts") or {})
+                trace_details["sanitation_changed_semantic_eligibility"] = bool(
+                    sanitation_report.get("sanitation_changed_semantic_eligibility")
+                )
         artifact_raw = str(raw_details.get("first_raw") or raw_details.get("repair_raw") or "").strip() or None
         artifact_status = str(raw_details.get("artifact_status") or "").strip()
         if not artifact_status:
@@ -252,7 +283,30 @@ class AIOrchestrator:
             "artifact_raw": artifact_raw,
             "artifact_status": artifact_status,
             "attempt_count": int(raw_details.get("attempt_count") or 0),
+            "raw_output_artifact": raw_output_artifact,
+            "artifact_views": artifact_views if isinstance(artifact_views, dict) else {},
         }
+
+    def _sanitize_stage_a_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        source_text: str,
+        source_payload: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        raw_artifact = dict(payload)
+        sanitized_brief, sanitation_report, raw_hygiene_flags = sanitize_stage_a_brief(
+            payload,
+            source_text=source_text,
+            source_payload=source_payload,
+        )
+        artifact_views = {
+            "raw_stage_a_artifact": raw_artifact,
+            "sanitized_stage_a_artifact": sanitized_brief,
+            "sanitation_report": sanitation_report,
+            **raw_hygiene_flags,
+        }
+        return sanitized_brief, artifact_views
 
     async def _run_stage(
         self,
@@ -261,6 +315,7 @@ class AIOrchestrator:
         config: StageConfig,
         messages: list[dict[str, str]],
         validator,
+        postprocess=None,
     ) -> dict[str, Any]:
         trace.start_stage(stage=config.stage, model=ENFORCED_OPENAI_MODEL)
         try:
@@ -269,15 +324,34 @@ class AIOrchestrator:
                 config=config,
                 messages=messages,
                 validator=validator,
+                postprocess=postprocess,
                 timeout_seconds=STAGE_TIMEOUT_SECONDS,
             )
+            artifact_views = dict(result.artifact_metadata or {})
+            details = {"usage": result.usage}
+            if artifact_views:
+                sanitation_report = dict(artifact_views.get("sanitation_report") or {})
+                raw_artifact_quality = dict(artifact_views.get("raw_artifact_quality") or {})
+                details["raw_hygiene_issue_count"] = int(raw_artifact_quality.get("issue_count") or 0)
+                details["raw_artifact_quality"] = raw_artifact_quality
+                details["sanitation_action_counts"] = dict(sanitation_report.get("sanitation_action_counts") or {})
+                details["sanitation_changed_semantic_eligibility"] = bool(
+                    sanitation_report.get("sanitation_changed_semantic_eligibility")
+                )
+            if result.raw_payload is not None:
+                trace.put_hash(f"raw_output:{config.stage}", result.raw_payload)
+            if artifact_views.get("sanitized_stage_a_artifact") is not None:
+                trace.put_hash(f"sanitized_output:{config.stage}", artifact_views.get("sanitized_stage_a_artifact"))
             trace.end_stage(
                 stage=config.stage,
                 model=ENFORCED_OPENAI_MODEL,
                 schema_ok=True,
                 output=result.payload,
                 attempt_count=result.attempts,
-                details={"usage": result.usage},
+                details=details,
+                raw_output=result.raw_text,
+                raw_output_artifact=result.raw_payload,
+                artifact_views=artifact_views,
             )
             return result.payload
         except StageError as exc:
@@ -297,6 +371,10 @@ class AIOrchestrator:
                     },
                 )
             trace_details, artifact = self._split_failed_stage_details(exc.details)
+            if artifact["raw_output_artifact"] is not None:
+                trace.put_hash(f"raw_output:{config.stage}", artifact["raw_output_artifact"])
+            if artifact["artifact_payload"] is not None:
+                trace.put_hash(f"sanitized_output:{config.stage}", artifact["artifact_payload"])
             trace.fail_stage_with_artifact(
                 stage=config.stage,
                 model=ENFORCED_OPENAI_MODEL,
@@ -306,6 +384,8 @@ class AIOrchestrator:
                 output=artifact["artifact_payload"],
                 raw_output=artifact["artifact_raw"],
                 attempt_count=int(artifact["attempt_count"] or 0),
+                raw_output_artifact=artifact["raw_output_artifact"],
+                artifact_views=artifact["artifact_views"],
             )
             raise
         except ValidationIssue as exc:
@@ -557,6 +637,11 @@ class AIOrchestrator:
             ),
             messages=stage_a.build_messages(stage_a_input, research_state=ctx.research_state),
             validator=lambda payload: validate_messaging_brief(
+                payload,
+                source_text=ctx.research_text,
+                source_payload=stage_a_input,
+            ),
+            postprocess=lambda payload: self._sanitize_stage_a_payload(
                 payload,
                 source_text=ctx.research_text,
                 source_payload=stage_a_input,

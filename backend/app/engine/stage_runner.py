@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -20,6 +21,9 @@ class StageRunResult:
     payload: dict[str, Any]
     attempts: int
     usage: dict[str, Any]
+    raw_payload: dict[str, Any] | None = None
+    raw_text: str = ""
+    artifact_metadata: dict[str, Any] | None = None
 
 
 class StageError(RuntimeError):
@@ -231,6 +235,7 @@ async def run_stage(
     config: StageConfig,
     messages: list[dict[str, str]],
     validator: Callable[[dict[str, Any]], None] | None = None,
+    postprocess: Callable[[dict[str, Any]], tuple[dict[str, Any], dict[str, Any]]] | None = None,
     timeout_seconds: float = 25.0,
 ) -> StageRunResult:
     attempts = 0
@@ -240,6 +245,10 @@ async def run_stage(
     repair_raw = ""
     first_payload: dict[str, Any] | None = None
     repair_payload: dict[str, Any] | None = None
+    first_processed_payload: dict[str, Any] | None = None
+    repair_processed_payload: dict[str, Any] | None = None
+    first_artifact_metadata: dict[str, Any] | None = None
+    repair_artifact_metadata: dict[str, Any] | None = None
     last_error = ""
     first_error = ""
     first_validation_codes: list[str] = []
@@ -275,9 +284,29 @@ async def run_stage(
             else:
                 first_payload = payload
             _validate_schema(payload, config.response_format)
+            processed_payload = deepcopy(payload)
+            artifact_metadata: dict[str, Any] = {}
+            if postprocess is not None:
+                processed_payload, artifact_metadata = postprocess(processed_payload)
+                if not isinstance(processed_payload, dict):
+                    raise ValueError("postprocess_payload_invalid")
+                artifact_metadata = dict(artifact_metadata or {})
+            if is_repair:
+                repair_processed_payload = processed_payload
+                repair_artifact_metadata = artifact_metadata
+            else:
+                first_processed_payload = processed_payload
+                first_artifact_metadata = artifact_metadata
             if validator is not None:
-                validator(payload)
-            return StageRunResult(payload=payload, attempts=attempts, usage=usage)
+                validator(processed_payload)
+            return StageRunResult(
+                payload=processed_payload,
+                attempts=attempts,
+                usage=usage,
+                raw_payload=payload,
+                raw_text=raw_text,
+                artifact_metadata=artifact_metadata,
+            )
         except Exception as exc:  # noqa: BLE001
             last_error = str(exc)
             validation_codes = list(getattr(exc, "codes", []) or [])
@@ -308,6 +337,14 @@ async def run_stage(
                 error_details["first_payload"] = first_payload
             if repair_payload is not None:
                 error_details["repair_payload"] = repair_payload
+            if first_processed_payload is not None:
+                error_details["first_processed_payload"] = first_processed_payload
+            if repair_processed_payload is not None:
+                error_details["repair_processed_payload"] = repair_processed_payload
+            if first_artifact_metadata is not None:
+                error_details["first_artifact_metadata"] = first_artifact_metadata
+            if repair_artifact_metadata is not None:
+                error_details["repair_artifact_metadata"] = repair_artifact_metadata
             if first_validation_codes:
                 error_details["codes"] = first_validation_codes
             if first_validation_details:

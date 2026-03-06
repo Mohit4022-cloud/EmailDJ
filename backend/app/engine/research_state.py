@@ -8,12 +8,25 @@ ResearchState = Literal["no_research", "sparse", "grounded"]
 
 PLACEHOLDER_FACT_TEXTS = {
     "",
+    "/",
+    "-",
+    "(blank)",
+    "blank",
     "n/a",
     "na",
+    "no_research",
+    "null",
+    "nil",
     "none",
+    "none provided",
     "none provided.",
+    "not provided",
+    "not available",
     "unknown",
 }
+_FIELD_LABEL_PLACEHOLDER_RE = re.compile(
+    r"^(name|title|company|industry|prospect_notes|research_text|product_summary|icp_description|differentiators|proof_points|do_not_say|company_notes|cta_type|cta_final_line)\s*:$"
+)
 
 PLACEHOLDER_RESEARCH_TEXTS = {
     *PLACEHOLDER_FACT_TEXTS,
@@ -35,7 +48,14 @@ def normalize_placeholder_text(text: object) -> str:
 
 
 def is_placeholder_fact_text(text: object) -> bool:
-    return normalize_placeholder_text(text) in PLACEHOLDER_FACT_TEXTS
+    normalized = normalize_placeholder_text(text)
+    if normalized in PLACEHOLDER_FACT_TEXTS:
+        return True
+    if "placeholder" in normalized and re.search(r"(?:^|[\s_])placeholder$|placeholder$", normalized):
+        return True
+    if normalized and _FIELD_LABEL_PLACEHOLDER_RE.fullmatch(normalized):
+        return True
+    return bool(normalized) and not re.search(r"[a-z0-9]", normalized)
 
 
 def is_semantic_no_research(text: object) -> bool:

@@ -1,26 +1,30 @@
 from __future__ import annotations
 
+from collections import Counter
 import re
 from difflib import SequenceMatcher
 from typing import Any
 
 from .brief_honesty import (
+    CONFIDENCE_LEVEL_ORDER,
+    EVIDENCE_STRENGTH_ORDER,
     HOOK_CONFIDENCE_VALUES,
     HOOK_EVIDENCE_VALUES,
     OVERREACH_RISK_VALUES,
     canonical_fact_kind,
+    contaminated_research_fact_ids,
     derive_brief_quality,
     fact_map_by_id,
     hook_confidence_level,
     hook_evidence_strength,
     normalize_forbidden_claim_patterns,
     normalize_prohibited_overreach,
-    hook_has_seller_proof,
     hook_has_strong_claim_language,
     hook_is_prospect_as_proof,
     hook_mentions_initiative,
     hook_mentions_recency,
     hook_requires_grounded_research,
+    hook_support_posture,
     hook_seller_fact_ids,
     hook_supported_fact_ids,
     normalize_text_key,
@@ -284,6 +288,17 @@ def validate_messaging_brief(
     brief_quality = dict(brief.get("brief_quality") or {})
     prohibited_overreach = [str(item or "").strip().lower() for item in (brief.get("prohibited_overreach") or [])]
     fact_map = fact_map_by_id(facts)
+    prospect_company = ""
+    source_text_occurrences: Counter[str] = Counter()
+    if source_payload:
+        source_field_map = _source_field_value_map(source_payload)
+        prospect_company = str(source_field_map.get("company") or "").strip()
+        source_text_occurrences = Counter(
+            normalize_text_key(fragment)
+            for fragment in _flatten_input_text(list(source_field_map.values()))
+            if normalize_text_key(fragment)
+        )
+    contaminated_fact_ids = contaminated_research_fact_ids(facts, prospect_company=prospect_company or None)
     normalized_fact_keys: set[tuple[str, str]] = set()
 
     for fact in facts:
@@ -316,15 +331,16 @@ def validate_messaging_brief(
 
         fact_key = (fact_kind, normalize_text_key(fact_text))
         if fact_key in normalized_fact_keys and fact_kind != "cta":
-            codes.append("fact_duplicate_text")
-            _append_detail(
-                details,
-                "fact_duplicate_text",
-                fact_id=fact_id,
-                source_field=source_field,
-                offending_text=fact_text[:160],
-            )
-            break
+            if source_text_occurrences.get(normalize_text_key(fact_text), 0) <= 1:
+                codes.append("fact_duplicate_text")
+                _append_detail(
+                    details,
+                    "fact_duplicate_text",
+                    fact_id=fact_id,
+                    source_field=source_field,
+                    offending_text=fact_text[:160],
+                )
+                break
         normalized_fact_keys.add(fact_key)
 
     for item in assumptions:
@@ -468,6 +484,17 @@ def validate_messaging_brief(
                     offending_text=str(hook.get("seller_support") or hook_text)[:160],
                 )
                 break
+            posture = hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)
+            risk_flags = [str(item or "").strip() for item in (hook.get("risk_flags") or []) if str(item or "").strip()]
+            if any(flag not in risk_flags for flag in posture["required_risk_flags"]):
+                codes.append("hook_missing_seller_proof_gap")
+                _append_detail(
+                    details,
+                    "hook_missing_seller_proof_gap",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                )
+                break
             if hook_is_prospect_as_proof(hook, fact_map):
                 codes.append("hook_prospect_as_proof")
                 _append_detail(
@@ -481,7 +508,17 @@ def validate_messaging_brief(
                     required_evidence_kind="seller_context_or_seller_proof",
                 )
                 break
-            if hook_confidence_level(hook) == "high" and not hook_has_seller_proof(hook, fact_map):
+            if posture["has_contamination_tainted_support"]:
+                codes.append("hook_contaminated_research")
+                _append_detail(
+                    details,
+                    "hook_contaminated_research",
+                    hook_id=hook_id,
+                    offending_text=hook_text[:160],
+                    available_fact_ids=supported,
+                )
+                break
+            if CONFIDENCE_LEVEL_ORDER.get(hook_confidence_level(hook), 0) > CONFIDENCE_LEVEL_ORDER.get(posture["max_confidence_level"], 0):
                 codes.append("hook_high_confidence_without_seller_proof")
                 _append_detail(
                     details,
@@ -490,11 +527,11 @@ def validate_messaging_brief(
                     hook_id=hook_id,
                     offending_text=hook_text[:160],
                     available_fact_ids=supported + seller_ids,
-                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map)),
+                    actual_evidence_kinds=sorted(posture["seller_kinds"]),
                     required_evidence_kind="seller_proof",
                 )
                 break
-            if hook_evidence_strength(hook) == "strong" and not hook_has_seller_proof(hook, fact_map):
+            if EVIDENCE_STRENGTH_ORDER.get(hook_evidence_strength(hook), 0) > EVIDENCE_STRENGTH_ORDER.get(posture["max_evidence_strength"], 0):
                 codes.append("hook_strong_evidence_without_seller_proof")
                 _append_detail(
                     details,
@@ -503,14 +540,11 @@ def validate_messaging_brief(
                     hook_id=hook_id,
                     offending_text=hook_text[:160],
                     available_fact_ids=supported + seller_ids,
-                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map)),
+                    actual_evidence_kinds=sorted(posture["seller_kinds"]),
                     required_evidence_kind="seller_proof",
                 )
                 break
-            if hook_requires_grounded_research(hook) and not any(
-                str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
-                for fid in supported
-            ):
+            if hook_requires_grounded_research(hook) and not posture["supports_initiative_or_trigger"]:
                 codes.append("hook_unsupported_recency_or_initiative")
                 _append_detail(
                     details,
@@ -519,11 +553,11 @@ def validate_messaging_brief(
                     hook_id=hook_id,
                     offending_text=hook_text[:160],
                     available_fact_ids=supported,
-                    actual_evidence_kinds=[],
+                    actual_evidence_kinds=["research_text"] if posture["has_contamination_tainted_support"] else [],
                     required_evidence_kind="research_text",
                 )
                 break
-            if hook_has_strong_claim_language(hook) and not hook_has_seller_proof(hook, fact_map):
+            if hook_has_strong_claim_language(hook) and not posture["has_explicit_seller_proof"]:
                 codes.append("hook_claim_too_strong_for_evidence")
                 _append_detail(
                     details,
@@ -532,7 +566,7 @@ def validate_messaging_brief(
                     hook_id=hook_id,
                     offending_text=hook_text[:160],
                     available_fact_ids=supported + seller_ids,
-                    actual_evidence_kinds=sorted(seller_fact_kinds(hook, fact_map) or {"prospect_context"}),
+                    actual_evidence_kinds=sorted(posture["seller_kinds"] or {"prospect_context"}),
                     required_evidence_kind="seller_proof",
                 )
                 break
@@ -562,19 +596,11 @@ def validate_messaging_brief(
                     break
 
     unsupported_recency_present = any(
-        hook_mentions_recency(hook)
-        and not any(
-            str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
-            for fid in hook_supported_fact_ids(hook)
-        )
+        hook_mentions_recency(hook) and not hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["supports_initiative_or_trigger"]
         for hook in hooks
     )
     unsupported_initiative_present = any(
-        hook_mentions_initiative(hook)
-        and not any(
-            str((fact_map.get(fid) or {}).get("source_field") or "").strip().lower() == "research_text"
-            for fid in hook_supported_fact_ids(hook)
-        )
+        hook_mentions_initiative(hook) and not hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)["supports_initiative_or_trigger"]
         for hook in hooks
     )
 

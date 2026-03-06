@@ -59,6 +59,24 @@ def test_normalize_judge_payload_types_coerces_string_bools_and_ints() -> None:
     assert payload["hard_fail_triggered"] is True
 
 
+def test_normalize_judge_payload_types_coerces_numeric_bools() -> None:
+    payload = stage_judge._normalize_judge_payload_types(
+        {
+            "stage": "CONTEXT_SYNTHESIS",
+            "scores": {"containment_clean": 1},
+            "total": 1,
+            "pass": 1,
+            "hard_fail_triggered": 0,
+            "hard_fail_criteria": [],
+            "failures": [],
+            "warnings": [],
+        }
+    )
+
+    assert payload["pass"] is True
+    assert payload["hard_fail_triggered"] is False
+
+
 @pytest.mark.asyncio
 async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
@@ -164,7 +182,16 @@ async def test_judge_messaging_brief_passes_when_signal_strength_rules_match(mon
             {"fact_id": "fact_1", "source_field": "research_text", "fact_kind": "prospect_context", "text": "Nimbus launched a RevOps quality program in January 2026."},
             {"fact_id": "fact_2", "source_field": "proof_points", "fact_kind": "seller_proof", "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews."},
         ],
-        "assumptions": [{"confidence": 0.75}],
+        "assumptions": [
+            {
+                "assumption_id": "assump_1",
+                "assumption_kind": "inferred_hypothesis",
+                "text": "Nimbus may be reviewing workflow consistency during this program.",
+                "confidence": 0.75,
+                "confidence_label": "medium",
+                "based_on_fact_ids": ["fact_1", "fact_2"],
+            }
+        ],
         "hooks": [
             {
                 "hook_id": "h1",
@@ -227,12 +254,83 @@ async def test_judge_messaging_brief_passes_when_signal_strength_rules_match(mon
 
     result = await stage_judge.judge_messaging_brief(
         brief,
-        {"research_text": "facts"},
+        {
+            "user_company": {
+                "proof_points": ["A SaaS team reduced handoff delays by 18% after sequence QA reviews."],
+            },
+            "prospect": {"research_text": "Nimbus launched a RevOps quality program in January 2026."},
+        },
         openai=DummyOpenAI(),
     )
 
     assert result["pass"] is True
     assert result["scores"]["signal_strength_honest"] == 1
+
+
+@pytest.mark.asyncio
+async def test_judge_messaging_brief_overrides_llm_false_fail_when_validator_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return {
+            "stage": "CONTEXT_SYNTHESIS",
+            "scores": {
+                "containment_clean": 0,
+                "assumptions_labeled": 0,
+                "hooks_grounded": 0,
+                "confidence_calibrated": 0,
+                "signal_strength_honest": 0,
+                "no_prospect_as_proof": 0,
+            },
+            "total": 0,
+            "pass": False,
+            "hard_fail_triggered": True,
+            "hard_fail_criteria": ["signal_strength_honest"],
+            "failures": ["llm false fail"],
+            "warnings": ["llm warning"],
+        }, {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "company", "fact_kind": "prospect_context", "text": "Nimbus"},
+            {"fact_id": "fact_2", "source_field": "research_text", "fact_kind": "prospect_context", "text": "Nimbus launched a RevOps quality program in January 2026."},
+            {"fact_id": "fact_3", "source_field": "proof_points", "fact_kind": "seller_proof", "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews."},
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "initiative",
+                "grounded_observation": "Nimbus launched a RevOps quality program in January 2026.",
+                "inferred_relevance": "That may make consistency work timely.",
+                "seller_support": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+                "hook_text": "Nimbus's January 2026 RevOps quality program may make consistency improvement timely.",
+                "supported_by_fact_ids": ["fact_2"],
+                "seller_fact_ids": ["fact_3"],
+                "confidence_level": "high",
+                "evidence_strength": "strong",
+                "risk_flags": [],
+            }
+        ],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
+        "brief_quality": {"signal_strength": "high", "overreach_risk": "low"},
+    }
+
+    result = await stage_judge.judge_messaging_brief(
+        brief,
+        {
+            "user_company": {
+                "proof_points": ["A SaaS team reduced handoff delays by 18% after sequence QA reviews."],
+            },
+            "prospect": {"company": "Nimbus", "research_text": "Nimbus launched a RevOps quality program in January 2026."},
+        },
+        openai=DummyOpenAI(),
+    )
+
+    assert result["pass"] is True
+    assert result["scores"]["containment_clean"] == 1
+    assert result["scores"]["signal_strength_honest"] == 1
+    assert "llm warning" in result["warnings"]
 
 
 @pytest.mark.asyncio
@@ -342,3 +440,138 @@ async def test_all_judges_handle_missing_artifacts() -> None:
     for result in results:
         assert result["pass"] is False
         assert any("artifact missing" in str(item).lower() for item in result["failures"])
+
+
+@pytest.mark.asyncio
+async def test_judge_messaging_brief_warns_on_raw_hygiene_issues(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("CONTEXT_SYNTHESIS"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "company", "fact_kind": "prospect_context", "text": "Altura Stone"},
+        ],
+        "assumptions": [],
+        "hooks": [],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
+        "brief_quality": {"signal_strength": "low", "overreach_risk": "low"},
+    }
+
+    result = await stage_judge.judge_messaging_brief(
+        brief,
+        {"prospect": {"company": "Altura Stone"}},
+        artifact_views={"raw_artifact_quality": {"issue_count": 3}},
+        openai=DummyOpenAI(),
+    )
+
+    assert "raw_hygiene_issues_present:3" in result["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_judge_messaging_brief_fails_on_contaminated_research(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("CONTEXT_SYNTHESIS"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "company", "fact_kind": "prospect_context", "text": "Altura Stone"},
+            {"fact_id": "fact_2", "source_field": "research_text", "fact_kind": "prospect_context", "text": "Blueway Transit expanded RevOps ownership in 2026 to improve handoff SLAs."},
+            {"fact_id": "fact_3", "source_field": "proof_points", "fact_kind": "seller_proof", "text": "A SaaS team reduced handoff delays by 18% after sequence QA reviews."},
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "initiative",
+                "grounded_observation": "Blueway Transit expanded RevOps ownership in 2026 to improve handoff SLAs.",
+                "inferred_relevance": "That may make attribution safety relevant.",
+                "seller_support": "A SaaS team reduced handoff delays by 18% after sequence QA reviews.",
+                "hook_text": "Attribution safety may be relevant while RevOps ownership is expanding.",
+                "supported_by_fact_ids": ["fact_2"],
+                "seller_fact_ids": ["fact_3"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            }
+        ],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
+        "brief_quality": {"signal_strength": "medium", "overreach_risk": "low"},
+    }
+
+    result = await stage_judge.judge_messaging_brief(
+        brief,
+        {"prospect": {"company": "Altura Stone"}},
+        openai=DummyOpenAI(),
+    )
+
+    assert result["pass"] is False
+    assert result["scores"]["hooks_grounded"] == 0
+
+
+@pytest.mark.asyncio
+async def test_judge_messaging_brief_prefers_sanitized_artifact_view_for_alignment(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("CONTEXT_SYNTHESIS"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    passing_brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "company", "fact_kind": "prospect_context", "text": "Nimbus"},
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "pain",
+                "grounded_observation": "Nimbus.",
+                "inferred_relevance": "Role fit.",
+                "seller_support": "",
+                "hook_text": "Workflow QA may matter.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": [],
+                "confidence_level": "low",
+                "evidence_strength": "weak",
+                "risk_flags": ["seller_proof_gap"],
+            }
+        ],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
+        "brief_quality": {"signal_strength": "low", "overreach_risk": "low"},
+    }
+    failing_sanitized_brief = {
+        "facts_from_input": [
+            {"fact_id": "fact_1", "source_field": "company", "fact_kind": "prospect_context", "text": "Nimbus"},
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "h1",
+                "hook_type": "initiative",
+                "grounded_observation": "Nimbus launched a program.",
+                "inferred_relevance": "That makes timing urgent.",
+                "seller_support": "",
+                "hook_text": "This initiative is timely.",
+                "supported_by_fact_ids": ["fact_1"],
+                "seller_fact_ids": [],
+                "confidence_level": "low",
+                "evidence_strength": "weak",
+                "risk_flags": ["seller_proof_gap"],
+            }
+        ],
+        "forbidden_claim_patterns": ["saw your recent post", "noticed you recently", "congrats on [anything not in research_text]"],
+        "brief_quality": {"signal_strength": "low", "overreach_risk": "medium"},
+    }
+
+    result = await stage_judge.judge_messaging_brief(
+        passing_brief,
+        {"prospect": {"company": "Nimbus"}},
+        artifact_views={"sanitized_stage_a_artifact": failing_sanitized_brief},
+        openai=DummyOpenAI(),
+    )
+
+    assert result["pass"] is False
+    assert result["scores"]["signal_strength_honest"] == 0
