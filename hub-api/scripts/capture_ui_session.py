@@ -41,6 +41,16 @@ _ALLOWED_PRESETS = [
 ]
 
 
+def _required_external_provider_env() -> tuple[str, str]:
+    provider = (os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai")
+    required_key = {
+        "openai": "OPENAI_API_KEY",
+        "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+    }.get(provider, "OPENAI_API_KEY")
+    return provider, required_key
+
+
 def _ui_generate_payload(*, title: str = "CEO", preset_id: str = "straight_shooter", length: float = -0.2) -> dict[str, Any]:
     return {
         "prospect": {
@@ -285,14 +295,11 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
             if provider_path == "provider_shim":
                 remix_engine._real_generate = _fake_real_generate  # type: ignore[assignment]
             else:
-                provider = (os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai")
-                required_key = {
-                    "openai": "OPENAI_API_KEY",
-                    "anthropic": "ANTHROPIC_API_KEY",
-                    "groq": "GROQ_API_KEY",
-                }.get(provider, "OPENAI_API_KEY")
+                provider, required_key = _required_external_provider_env()
                 if not os.environ.get(required_key):
-                    raise RuntimeError(f"external_provider_capture_requires:{required_key}")
+                    raise RuntimeError(
+                        f"external_provider_capture_requires provider={provider} env_var={required_key}"
+                    )
 
             with _temporary_env("USE_PROVIDER_STUB", "0"):
                 shim_key_ctx = _temporary_env("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "shim-key")) if provider_path == "provider_shim" else nullcontext()
@@ -397,6 +404,7 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Capture five UI-path requests and debug artifacts.")
     parser.add_argument("--output-root", default="debug_runs/ui_sessions", help="Output root relative to hub-api/")
+    parser.add_argument("--out", default="", help="Explicit output directory. If omitted, a timestamped directory is created under --output-root.")
     parser.add_argument(
         "--provider-path",
         choices=("provider_shim", "external_provider"),
@@ -405,7 +413,7 @@ def main() -> int:
     )
     args = parser.parse_args()
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output_dir = (ROOT / args.output_root / timestamp).resolve()
+    output_dir = Path(args.out).resolve() if args.out.strip() else (ROOT / args.output_root / timestamp).resolve()
     asyncio.run(_run_capture(output_dir, provider_path=args.provider_path))
     print(json.dumps({"ok": True, "output_dir": str(output_dir), "provider_source": args.provider_path}, indent=2))
     return 0

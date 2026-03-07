@@ -92,6 +92,14 @@ def _env_defaults(real: bool) -> str:
     return "mock"
 
 
+def _resolved_report_dir(raw_report_dir: str, *, mode: str) -> Path:
+    report_dir = Path(raw_report_dir)
+    if report_dir.name == "reports":
+        suffix = "external_provider" if mode == "real" else "provider_stub"
+        return report_dir / suffix
+    return report_dir
+
+
 def _select_cases(args: argparse.Namespace, all_cases: list[Any]) -> list[Any]:
     selected = list(all_cases)
     if args.mode == "smoke":
@@ -202,6 +210,7 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
     failure_count_by_code: Counter[str] = Counter()
     route_counts: Counter[tuple[str, str]] = Counter()
     preset_counts: Counter[tuple[str, str]] = Counter()
+    claims_policy_intervention_count = 0
     for result in results:
         route = str((result.generation_meta or {}).get("route") or "generate")
         state = "pass" if result.passed else "fail"
@@ -209,6 +218,7 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
         preset = str((result.generation_meta or {}).get("preset_id") or "unknown")
         if preset != "unknown":
             preset_counts[(preset, state)] += 1
+        claims_policy_intervention_count += int((result.generation_meta or {}).get("claims_policy_intervention_count") or 0)
         for violation in result.violations:
             if violation.code in REQUIRED_VIOLATION_CODES:
                 failure_count_by_code[violation.code] += 1
@@ -267,6 +277,7 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
             )
         ),
         under_length_miss_count=int(failure_count_by_code.get("LENGTH_OUT_OF_RANGE", 0)),
+        claims_policy_intervention_count=claims_policy_intervention_count,
     )
 
     top_failures: list[dict[str, Any]] = []
@@ -280,6 +291,7 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
 async def _amain() -> int:
     args = _parse_args()
     mode = _env_defaults(real=args.real)
+    report_dir = _resolved_report_dir(args.report_dir, mode=mode)
 
     cases = load_cases(Path(args.dataset), min_cases=max(0, args.min_cases))
     selected = _select_cases(args, cases)
@@ -421,7 +433,7 @@ async def _amain() -> int:
 
     summary, top_failures = _compute_summary(results)
     latest_json, latest_md = write_reports(
-        Path(args.report_dir),
+        report_dir,
         mode=mode,
         selection_mode=args.mode,
         selected_tags=[tag for tag in args.tag if tag.strip()],
@@ -434,7 +446,7 @@ async def _amain() -> int:
     )
 
     if args.judge and judge_summary is not None:
-        artifact_root = Path(args.report_dir) / "judge" / "artifacts" / _safe_path_component(args.judge_candidate_id)
+        artifact_root = report_dir / "judge" / "artifacts" / _safe_path_component(args.judge_candidate_id)
         artifact_root.mkdir(parents=True, exist_ok=True)
         artifact_json = artifact_root / f"{args.mode}.json"
         artifact_md = artifact_root / f"{args.mode}.md"

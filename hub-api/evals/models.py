@@ -89,6 +89,7 @@ class ScorecardSummary:
     top_violation_codes: dict[str, int] = field(default_factory=dict)
     required_field_miss_count: int = 0
     under_length_miss_count: int = 0
+    claims_policy_intervention_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

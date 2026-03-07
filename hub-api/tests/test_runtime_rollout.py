@@ -56,3 +56,44 @@ def test_runtime_mode_requires_explicit_stub_for_mock(monkeypatch):
     assert rp.resolve_runtime_policies().quick_generate_mode == "real"
     monkeypatch.setenv("USE_PROVIDER_STUB", "1")
     assert rp.resolve_runtime_policies().quick_generate_mode == "mock"
+
+
+def test_launch_mode_defaults_and_route_gates(monkeypatch):
+    import email_generation.runtime_policies as rp
+
+    monkeypatch.setenv("APP_ENV", "test")
+    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    monkeypatch.delenv("EMAILDJ_ROUTE_GENERATE_ENABLED", raising=False)
+    monkeypatch.delenv("EMAILDJ_ROUTE_REMIX_ENABLED", raising=False)
+    monkeypatch.delenv("EMAILDJ_ROUTE_PREVIEW_ENABLED", raising=False)
+    policies = rp.resolve_runtime_policies()
+    assert policies.launch_mode == "dev"
+    assert policies.route_gates == {"generate": True, "remix": True, "preview": True}
+    assert policies.route_gate_sources["preview"] == "launch_mode:dev"
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    policies = rp.resolve_runtime_policies()
+    assert policies.launch_mode == "limited_rollout"
+    assert policies.route_gates == {"generate": True, "remix": True, "preview": False}
+    assert policies.route_gate_sources["preview"] == "launch_mode:limited_rollout"
+
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "broad_launch")
+    policies = rp.resolve_runtime_policies()
+    assert policies.launch_mode == "broad_launch"
+    assert policies.route_gates == {"generate": True, "remix": True, "preview": True}
+
+
+def test_route_gate_explicit_env_override_wins(monkeypatch):
+    import email_generation.runtime_policies as rp
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("EMAILDJ_ROUTE_PREVIEW_ENABLED", "1")
+    monkeypatch.setenv("EMAILDJ_ROUTE_GENERATE_ENABLED", "0")
+    policies = rp.resolve_runtime_policies()
+
+    assert policies.route_gates["preview"] is True
+    assert policies.route_gates["generate"] is False
+    assert policies.route_gate_sources["preview"] == "explicit_env"
+    assert policies.route_gate_sources["generate"] == "explicit_env"

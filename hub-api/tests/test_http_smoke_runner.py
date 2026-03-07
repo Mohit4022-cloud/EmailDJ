@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 
-from devtools.http_smoke_runner import _build_scorecard, _build_summary, _extract_stream, _load_pack
+import pytest
+
+from devtools.http_smoke_runner import _assert_server_ready, _build_scorecard, _build_summary, _extract_stream, _load_pack
 
 
 def _case() -> dict:
@@ -124,3 +126,20 @@ def test_build_summary_reports_provider_sources_and_remix_gates():
     assert summary["claims_policy_intervention_count"] == 1
     assert summary["launch_gates"]["provider_green"] == "red"
     assert summary["launch_gates"]["remix_green"] == "red"
+
+
+@pytest.mark.asyncio
+async def test_assert_server_ready_rejects_unhealthy_payload():
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"status": "degraded"}
+
+    class FakeClient:
+        async def get(self, url, timeout):  # noqa: ARG002
+            return FakeResponse()
+
+    with pytest.raises(RuntimeError, match="localhost_smoke_server_unhealthy"):
+        await _assert_server_ready(client=FakeClient(), base_url="http://localhost:8000", timeout=5.0)

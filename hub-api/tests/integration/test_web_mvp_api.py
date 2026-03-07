@@ -648,6 +648,82 @@ async def test_web_preview_batch_endpoint_disabled_returns_503():
 
 
 @pytest.mark.asyncio
+async def test_web_route_kill_switches_return_503():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+    os.environ["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
+    os.environ["EMAILDJ_ROUTE_GENERATE_ENABLED"] = "0"
+    os.environ["EMAILDJ_ROUTE_REMIX_ENABLED"] = "0"
+    os.environ["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "0"
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        generate = await client.post("/web/v1/generate", json=_generate_payload(), headers=_headers())
+        assert generate.status_code == 503
+        assert generate.json()["detail"] == {
+            "error": "route_disabled",
+            "route": "generate",
+            "launch_mode": "limited_rollout",
+            "route_enabled": False,
+        }
+
+        remix = await client.post(
+            "/web/v1/remix",
+            json={
+                "session_id": "missing-session",
+                "style_profile": {
+                    "formality": 0.0,
+                    "orientation": 0.0,
+                    "length": 0.0,
+                    "assertiveness": 0.0,
+                },
+            },
+            headers=_headers(),
+        )
+        assert remix.status_code == 503
+        assert remix.json()["detail"]["route"] == "remix"
+
+        preview = await client.post("/web/v1/preset-previews/batch", json=_preview_batch_payload(), headers=_headers())
+        assert preview.status_code == 503
+        assert preview.json()["detail"]["route"] == "preview"
+
+
+@pytest.mark.asyncio
+async def test_web_debug_config_surfaces_launch_mode_and_route_gates():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+    os.environ["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
+    os.environ["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "1"
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.get("/web/v1/debug/config?endpoint=preview&bucket_key=test-bucket", headers=_headers())
+        assert res.status_code == 200
+        payload = res.json()
+        assert payload["launch_mode"] == "limited_rollout"
+        assert payload["route_gates"]["preview"] is True
+        assert payload["route_gate_sources"]["preview"] == "explicit_env"
+
+
+@pytest.mark.asyncio
 async def test_web_preview_batch_endpoint_mock_contract():
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")

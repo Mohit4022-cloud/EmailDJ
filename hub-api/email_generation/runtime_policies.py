@@ -12,9 +12,11 @@ from typing import Mapping
 ALLOWED_ENFORCEMENT_LEVELS = ("warn", "repair", "block")
 ALLOWED_QUICK_GENERATE_MODES = ("mock", "real")
 ALLOWED_REAL_PROVIDERS = ("openai", "anthropic", "groq")
+ALLOWED_LAUNCH_MODES = ("dev", "limited_rollout", "broad_launch")
 
 DEV_ENVIRONMENTS = {"local", "dev", "development"}
 PROD_ENVIRONMENTS = {"staging", "prod", "production"}
+TEST_ENVIRONMENTS = {"test"}
 
 P0_FEATURE_FLAGS = (
     "FEATURE_PERSONA_ROUTER",
@@ -61,6 +63,9 @@ class RuntimePolicies:
     quick_generate_mode: str
     provider_stub_enabled: bool
     real_provider_preference: str
+    launch_mode: str
+    route_gates: dict[str, bool]
+    route_gate_sources: dict[str, str]
     preview_pipeline_enabled: bool
     feature_defaults: dict[str, bool]
     dev_allow_p0_off: bool
@@ -140,6 +145,37 @@ def _feature_defaults_for_env(app_env: str) -> dict[str, bool]:
     return dict(_FEATURE_DEFAULTS)
 
 
+def _default_launch_mode(app_env: str) -> str:
+    if app_env in DEV_ENVIRONMENTS | TEST_ENVIRONMENTS:
+        return "dev"
+    return "limited_rollout"
+
+
+def _route_gate_default(launch_mode: str, route: str) -> bool:
+    if launch_mode == "limited_rollout" and route == "preview":
+        return False
+    return True
+
+
+def _resolve_route_gates(env: Mapping[str, str], *, launch_mode: str) -> tuple[dict[str, bool], dict[str, str]]:
+    route_env_names = {
+        "generate": "EMAILDJ_ROUTE_GENERATE_ENABLED",
+        "remix": "EMAILDJ_ROUTE_REMIX_ENABLED",
+        "preview": "EMAILDJ_ROUTE_PREVIEW_ENABLED",
+    }
+    route_gates: dict[str, bool] = {}
+    route_sources: dict[str, str] = {}
+    for route, env_name in route_env_names.items():
+        default_enabled = _route_gate_default(launch_mode, route)
+        if env_name in env:
+            route_gates[route] = _bool_from_mapping(env, env_name, default_enabled)
+            route_sources[route] = "explicit_env"
+        else:
+            route_gates[route] = default_enabled
+            route_sources[route] = f"launch_mode:{launch_mode}"
+    return route_gates, route_sources
+
+
 def resolve_runtime_policies(
     env: str | None = None,
     raw_env_vars: Mapping[str, str] | None = None,
@@ -154,6 +190,12 @@ def resolve_runtime_policies(
     provider = (raw_env.get("EMAILDJ_REAL_PROVIDER") or "openai").strip().lower() or "openai"
     if provider not in ALLOWED_REAL_PROVIDERS:
         provider = "openai"
+
+    launch_mode = (raw_env.get("EMAILDJ_LAUNCH_MODE") or _default_launch_mode(app_env)).strip().lower() or _default_launch_mode(app_env)
+    if launch_mode not in ALLOWED_LAUNCH_MODES:
+        launch_mode = _default_launch_mode(app_env)
+
+    route_gates, route_gate_sources = _resolve_route_gates(raw_env, launch_mode=launch_mode)
 
     preview_pipeline_default = app_env in DEV_ENVIRONMENTS
     preview_pipeline_enabled = _bool_from_mapping(raw_env, "EMAILDJ_PRESET_PREVIEW_PIPELINE", preview_pipeline_default)
@@ -178,6 +220,9 @@ def resolve_runtime_policies(
         quick_generate_mode=quick_generate_mode,
         provider_stub_enabled=provider_stub_enabled,
         real_provider_preference=provider,
+        launch_mode=launch_mode,
+        route_gates=route_gates,
+        route_gate_sources=route_gate_sources,
         preview_pipeline_enabled=preview_pipeline_enabled,
         feature_defaults=feature_defaults,
         dev_allow_p0_off=dev_allow_p0_off,
@@ -200,6 +245,23 @@ def real_provider_preference() -> str:
 
 def preview_pipeline_enabled() -> bool:
     return resolve_runtime_policies().preview_pipeline_enabled
+
+
+def launch_mode() -> str:
+    return resolve_runtime_policies().launch_mode
+
+
+def route_gates() -> dict[str, bool]:
+    return dict(resolve_runtime_policies().route_gates)
+
+
+def route_gate_sources() -> dict[str, str]:
+    return dict(resolve_runtime_policies().route_gate_sources)
+
+
+def route_enabled(route: str) -> bool:
+    normalized = (route or "").strip().lower()
+    return bool(resolve_runtime_policies().route_gates.get(normalized, True))
 
 
 def repair_loop_enabled() -> bool:

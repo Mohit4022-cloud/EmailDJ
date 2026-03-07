@@ -164,6 +164,7 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"| Provider source | `{provider_source}` |")
     lines.append(f"| Required-field misses | {summary.get('required_field_miss_count', 0)} |")
     lines.append(f"| Under-length misses | {summary.get('under_length_miss_count', 0)} |")
+    lines.append(f"| Claims-policy interventions | {summary.get('claims_policy_intervention_count', 0)} |")
     lines.append("")
 
     route_counts = summary.get("route_pass_fail_counts") or {}

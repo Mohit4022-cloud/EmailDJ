@@ -1,6 +1,6 @@
 # Lock Compliance Scorecard
 
-- Generated at: `2026-03-07T22:00:01.564388Z`
+- Generated at: `2026-03-07T22:01:10.112801Z`
 - Mode: `mock`
 - Provider source: `provider_stub`
 - Selection: `full`
@@ -43,7 +43,7 @@
 - Judge status: `disabled`
 
 ### lc_002 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_single, cta_send_deck, offer_remix_studio`
 - Judge status: `disabled`
 
@@ -148,7 +148,7 @@
 - Judge status: `disabled`
 
 ### lc_023 - PASS
-- Duration: `4ms`
+- Duration: `5ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_conflicting_injection, name_hyphen, cta_referral_intro, offer_sequence_governance`
 - Judge status: `disabled`
 
@@ -208,12 +208,12 @@
 - Judge status: `disabled`
 
 ### lc_035 - PASS
-- Duration: `4ms`
+- Duration: `5ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_referral_intro, offer_compliance_qa`
 - Judge status: `disabled`
 
 ### lc_036 - PASS
-- Duration: `4ms`
+- Duration: `5ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_apostrophe, cta_event_invite, offer_domain_reputation_shield`
 - Judge status: `disabled`
 
@@ -228,7 +228,7 @@
 - Judge status: `disabled`
 
 ### lc_039 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_dr_prefix, cta_10_min_call, offer_sequence_governance`
 - Judge status: `disabled`
 
@@ -238,7 +238,7 @@
 - Judge status: `disabled`
 
 ### lc_041 - PASS
-- Duration: `4ms`
+- Duration: `5ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_empty, name_hyphen, cta_referral_intro, offer_brand_protection`
 - Judge status: `disabled`
 
@@ -293,7 +293,7 @@
 - Judge status: `disabled`
 
 ### lc_052 - PASS
-- Duration: `4ms`
+- Duration: `5ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_multipart, cta_try_pilot, offer_domain_reputation_shield`
 - Judge status: `disabled`
 
@@ -368,7 +368,7 @@
 - Judge status: `disabled`
 
 ### lc_067 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_first_last, cta_15_min_chat, offer_compliance_qa`
 - Judge status: `disabled`
 
@@ -428,7 +428,7 @@
 - Judge status: `disabled`
 
 ### lc_079 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_first_last, cta_15_min_chat, offer_sequence_governance`
 - Judge status: `disabled`
 
@@ -443,7 +443,7 @@
 - Judge status: `disabled`
 
 ### lc_082 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_neutral, name_multipart, cta_try_pilot, offer_remix_studio`
 - Judge status: `disabled`
 
@@ -483,7 +483,7 @@
 - Judge status: `disabled`
 
 ### lc_090 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_apostrophe, cta_event_invite, offer_remix_studio`
 - Judge status: `disabled`
 
@@ -503,12 +503,12 @@
 - Judge status: `disabled`
 
 ### lc_094 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_long_noisy, name_multipart, cta_try_pilot, offer_message_risk_scoring`
 - Judge status: `disabled`
 
 ### lc_095 - PASS
-- Duration: `5ms`
+- Duration: `4ms`
 - Tags: `offer_binding, cta_binding, greeting, research_containment, internal_leakage, claim_safety, research_taboo_claims, name_hyphen, cta_referral_intro, offer_sequence_governance`
 - Judge status: `disabled`
 

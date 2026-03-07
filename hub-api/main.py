@@ -31,6 +31,7 @@ from email_generation.model_cascade import get_cascade_sequence
 from email_generation.runtime_policies import (
     ALLOWED_QUICK_GENERATE_MODES,
     ALLOWED_REAL_PROVIDERS,
+    ALLOWED_LAUNCH_MODES,
     ALLOWED_ENFORCEMENT_LEVELS,
     DEV_ALLOW_P0_OFF_ENV_VAR,
     P0_FEATURE_FLAGS,
@@ -45,6 +46,8 @@ from email_generation.runtime_policies import (
     real_provider_preference,
     repair_loop_enabled,
     resolve_runtime_policies,
+    route_gate_sources,
+    route_gates,
     rollout_context,
     strict_lock_enforcement_level,
 )
@@ -86,6 +89,9 @@ def _generation_attestation() -> dict[str, object]:
         "quick_generate_mode": mode,
         "real_provider_preference": provider,
         "provider_stub_enabled": policies.provider_stub_enabled,
+        "launch_mode": policies.launch_mode,
+        "route_gates": dict(policies.route_gates),
+        "route_gate_sources": dict(policies.route_gate_sources),
         "quick_generate_cascade": cascade_models,
         "strict_lock_enforcement_level": strict_lock_enforcement_level(),
         "repair_loop_enabled": repair_loop_enabled(),
@@ -119,6 +125,13 @@ def _validate_env() -> None:
         raise RuntimeError(
             "Invalid EMAILDJ_REAL_PROVIDER. Expected one of: "
             + ", ".join(sorted(ALLOWED_REAL_PROVIDERS))
+        )
+
+    configured_launch_mode = (os.environ.get("EMAILDJ_LAUNCH_MODE") or "").strip().lower()
+    if configured_launch_mode and configured_launch_mode not in ALLOWED_LAUNCH_MODES:
+        raise RuntimeError(
+            "Invalid EMAILDJ_LAUNCH_MODE. Expected one of: "
+            + ", ".join(sorted(ALLOWED_LAUNCH_MODES))
         )
 
     policies = resolve_runtime_policies()
@@ -273,6 +286,9 @@ async def debug_config(
         "runtime_mode": policies.quick_generate_mode,
         "provider_stub_enabled": policies.provider_stub_enabled,
         "real_provider_preference": policies.real_provider_preference,
+        "launch_mode": policies.launch_mode,
+        "route_gates": route_gates(),
+        "route_gate_sources": route_gate_sources(),
         "preview_pipeline_enabled": policies.preview_pipeline_enabled,
         "p0_flags_effective": policies.p0_flags_effective,
         "p0_all_enabled": policies.p0_all_enabled,

@@ -141,6 +141,21 @@ async def _request_with_retries(
     raise RuntimeError(f"request_failed:{method}:{url}")
 
 
+async def _assert_server_ready(*, client: Any, base_url: str, timeout: float) -> None:
+    try:
+        response = await client.get("/", timeout=timeout)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(
+            f"localhost_smoke_requires_live_server base_url={base_url} error={exc}"
+        ) from exc
+    if str((payload or {}).get("status") or "").strip().lower() != "ok":
+        raise RuntimeError(
+            f"localhost_smoke_server_unhealthy base_url={base_url} payload={payload}"
+        )
+
+
 def _load_pack(pack_path: Path) -> dict[str, Any]:
     return json.loads(pack_path.read_text(encoding="utf-8"))
 
@@ -936,6 +951,7 @@ async def _run_all(
     t_start = time.perf_counter()
 
     async with httpx.AsyncClient(base_url=base_url, timeout=timeout) as client:
+        await _assert_server_ready(client=client, base_url=base_url, timeout=timeout)
         if flow == "generate":
             runner = _run_generate_case
         elif flow == "preview":

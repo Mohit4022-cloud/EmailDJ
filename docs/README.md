@@ -9,6 +9,10 @@
 - `adr/`: architecture decisions
 - `_meta/`: glossary + path-to-doc coverage map
 
+## Operator Entry Points
+- Launch operations: [`ops/launch_operator.md`](/Users/mohit/EmailDJ/docs/ops/launch_operator.md)
+- Runbooks: [`ops/runbooks.md`](/Users/mohit/EmailDJ/docs/ops/runbooks.md)
+
 Use shared terminology from `docs/_meta/glossary.md` when adding or editing docs.
 
 ## Generated Docs
