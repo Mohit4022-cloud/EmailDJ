@@ -60,7 +60,7 @@ from email_generation.output_enforcement import (
 )
 from email_generation.offer_domain import infer_offer_domain, offer_keywords_from_lock
 from email_generation.preset_strategies import get_preset_strategy
-from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled
+from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -1586,7 +1586,7 @@ async def _generate_raw_preview_items(
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:
     started = time.perf_counter()
     mode = _quick_mode()
-    enforcement_level = os.environ.get(_PREVIEW_ENFORCEMENT_LEVEL_ENV, "warn").strip().lower() or "warn"
+    enforcement_level = os.environ.get(_PREVIEW_ENFORCEMENT_LEVEL_ENV, strict_lock_enforcement_level()).strip().lower() or strict_lock_enforcement_level()
     repair_enabled = repair_loop_enabled()
     cache_hit = False
     provider = "mock"

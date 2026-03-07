@@ -653,17 +653,20 @@ def build_generation_plan(
     proof_points = [item["text"] for item in proof_points_meta]
 
     wedge_problem, wedge_outcome = _preset_wedge_copy(strategy.preset_id, company, offer_lock)
-    if not preset_true_rewrite:
+    if hook_fact:
         wedge_problem = _banded_problem_statement(
             company=company,
             evidence_band=str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
             source_text=str((hook_fact or {}).get("text") or first_fact),
             fact_type=str((hook_fact or {}).get("type") or "other"),
             fallback=(
-                first_fact
+                wedge_problem
+                if preset_true_rewrite
+                else first_fact
                 or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
             ),
         )
+    if not preset_true_rewrite:
         wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
 
     wedge_outcome = _apply_offer_lock_sentence_case(wedge_outcome, offer_lock)
@@ -1085,8 +1088,16 @@ def apply_generation_plan(
     lines = [line.strip() for line in rendered_body.splitlines() if line.strip()]
     if lines:
         cta_tail = lines[-1]
-        narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
-        if narrative:
-            narrative = _apply_offer_lock_sentence_case(narrative, offer_lock)
-            rendered_body = f"{narrative}\n\n{cta_tail}"
+        if feature_preset_true_rewrite_enabled():
+            narrative_lines = [
+                _apply_offer_lock_sentence_case(line, offer_lock)
+                for line in lines[:-1]
+                if _compact(line)
+            ]
+            rendered_body = "\n".join(narrative_lines) + f"\n\n{cta_tail}" if narrative_lines else cta_tail
+        else:
+            narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
+            if narrative:
+                narrative = _apply_offer_lock_sentence_case(narrative, offer_lock)
+                rendered_body = f"{narrative}\n\n{cta_tail}"
     return next_subject, rendered_body
