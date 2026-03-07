@@ -216,6 +216,7 @@ def _sanitize_fact_hint(
     prospect_name: str,
     company: str,
     first_name: str,
+    soften_company_reference: bool = True,
 ) -> str:
     text = _compact(fact_hint)
     if not text:
@@ -224,7 +225,7 @@ def _sanitize_fact_hint(
     first_name_key = _compact(first_name).lower()
     if full_name:
         text = re.sub(re.escape(full_name), first_name or "you", text, flags=re.IGNORECASE)
-    if company:
+    if company and soften_company_reference:
         text = re.sub(re.escape(company), "your team", text, flags=re.IGNORECASE)
     # Remove unrelated full names that can trigger proof-dump heuristics.
     def _replace_non_prospect_name(match: re.Match[str]) -> str:
@@ -476,6 +477,7 @@ def _fact_entries_for_plan(
     company: str,
     first_name: str,
     prospect_name: str,
+    soften_company_reference: bool,
 ) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for raw in session.get("allowed_facts_structured") or []:
@@ -484,6 +486,7 @@ def _fact_entries_for_plan(
             prospect_name=prospect_name,
             company=company,
             first_name=first_name,
+            soften_company_reference=soften_company_reference,
         )
         if not source_text:
             continue
@@ -547,6 +550,9 @@ class GenerationPlan:
     hook_source_text: str = ""
     hook_lineage: dict[str, Any] = field(default_factory=dict)
     proof_points_meta: list[dict[str, str]] = field(default_factory=list)
+    required_fields: list[str] = field(default_factory=list)
+    minimum_body_sections: list[str] = field(default_factory=list)
+    optional_style_sections: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -595,6 +601,9 @@ class GenerationPlan:
                 hook_source_text=str(raw.get("hook_source_text") or ""),
                 hook_lineage=dict(raw.get("hook_lineage") or {}),
                 proof_points_meta=_normalize_proof_points_meta(raw.get("proof_points_meta"), [str(item) for item in list(raw.get("proof_points_used") or [])]),
+                required_fields=[str(item) for item in list(raw.get("required_fields") or []) if str(item).strip()],
+                minimum_body_sections=[str(item) for item in list(raw.get("minimum_body_sections") or []) if str(item).strip()],
+                optional_style_sections=[str(item) for item in list(raw.get("optional_style_sections") or []) if str(item).strip()],
             )
         except Exception:
             return None
@@ -624,6 +633,7 @@ def build_generation_plan(
         company=company,
         first_name=first_name or "you",
         prospect_name=prospect_name,
+        soften_company_reference=persona_route != "exec",
     )
     hook_fact = _select_hook_fact(fact_entries)
     high_conf_facts = [entry["text"] for entry in fact_entries if str(entry.get("confidence") or "").lower() == "high"]
@@ -633,6 +643,7 @@ def build_generation_plan(
             prospect_name=prospect_name,
             company=company,
             first_name=first_name or "you",
+            soften_company_reference=persona_route != "exec",
         )
         if allowed_facts
         else ""
@@ -643,6 +654,7 @@ def build_generation_plan(
             prospect_name=prospect_name,
             company=company,
             first_name=first_name or "you",
+            soften_company_reference=persona_route != "exec",
         )
         if len(allowed_facts) > 1
         else ""
@@ -653,17 +665,20 @@ def build_generation_plan(
     proof_points = [item["text"] for item in proof_points_meta]
 
     wedge_problem, wedge_outcome = _preset_wedge_copy(strategy.preset_id, company, offer_lock)
-    if not preset_true_rewrite:
+    if hook_fact:
         wedge_problem = _banded_problem_statement(
             company=company,
             evidence_band=str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
             source_text=str((hook_fact or {}).get("text") or first_fact),
             fact_type=str((hook_fact or {}).get("type") or "other"),
             fallback=(
-                first_fact
+                wedge_problem
+                if preset_true_rewrite
+                else first_fact
                 or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
             ),
         )
+    if not preset_true_rewrite:
         wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
 
     wedge_outcome = _apply_offer_lock_sentence_case(wedge_outcome, offer_lock)
@@ -673,7 +688,7 @@ def build_generation_plan(
     framing = style_sliders.get("framing_problem_outcome", 50)
     min_words, max_words, sentence_budget = _length_target(style_sliders.get("length_short_long", 50))
     if strategy.preset_id == "c_suite_sniper" or persona_route == "exec":
-        sentence_budget = 2
+        sentence_budget = 3
     elif preset_true_rewrite and sentence_budget < 3:
         sentence_budget = 3
     if persona_route == "exec":
@@ -713,7 +728,15 @@ def build_generation_plan(
     if preset_true_rewrite:
         structure_template = list(_PRESET_STRUCTURE_REWRITE.get(strategy.preset_id, structure_template))
     if persona_route == "exec":
-        structure_template = ["outcome", "problem", "cta"]
+        structure_template = ["outcome", "problem", "hook", "cta"]
+
+    required_fields = ["prospect_first_name", "prospect_company", "offer_lock", "cta"]
+    if persona_route == "exec":
+        minimum_body_sections = ["outcome", "problem", "hook"]
+        optional_style_sections = ["proof"]
+    else:
+        minimum_body_sections = ["problem", "outcome"]
+        optional_style_sections = ["hook", "proof"]
 
     return GenerationPlan(
         greeting=greeting,
@@ -744,6 +767,9 @@ def build_generation_plan(
             "evidence_band": str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
         },
         proof_points_meta=proof_points_meta[: (1 if persona_route == "exec" else 3)],
+        required_fields=required_fields,
+        minimum_body_sections=minimum_body_sections,
+        optional_style_sections=optional_style_sections,
     )
 
 
@@ -814,6 +840,33 @@ def _is_cta_like_sentence(sentence: str, canonical_cta: str) -> bool:
     return _CTA_LINE_PATTERN.search(line_norm) is not None
 
 
+def _contains_text(text: str, token: str) -> bool:
+    token_key = _compact(token).lower()
+    if not token_key:
+        return False
+    return token_key in _compact(text).lower()
+
+
+def _append_exec_support_line(
+    sentence_lines: list[str],
+    candidate: str,
+    *,
+    cta_line: str,
+    max_words: int,
+) -> bool:
+    normalized = _normalize_sentence(candidate)
+    if not normalized:
+        return False
+    if normalized.lower() in {entry.lower() for entry in sentence_lines}:
+        return False
+    candidate_lines = [*sentence_lines, normalized]
+    candidate_body = "\n".join(candidate_lines) + f"\n\n{cta_line}"
+    if _word_count(candidate_body) > max_words:
+        return False
+    sentence_lines.append(normalized)
+    return True
+
+
 def apply_generation_plan(
     *,
     subject: str,
@@ -858,6 +911,7 @@ def apply_generation_plan(
         prospect_name=str(prospect.get("name") or ""),
         company=company,
         first_name=first_name,
+        soften_company_reference=plan.persona_route != "exec",
     )
 
     blocks: dict[str, str] = {
@@ -1064,7 +1118,37 @@ def apply_generation_plan(
                             break
             if sentence_lines:
                 if plan.persona_route == "exec":
-                    sentence_lines = sentence_lines[:3]
+                    support_candidates: list[str] = []
+                    for key in ("hook", "proof", "problem", "outcome"):
+                        candidate = _normalize_sentence(blocks.get(key))
+                        if candidate:
+                            support_candidates.append(candidate)
+                    support_candidates.extend(_normalize_sentence(section) for section in extra_sections if _compact(section))
+                    support_candidates.extend(_normalize_sentence(sentence) for sentence in base_sentences if _compact(sentence))
+                    if company and not any(_contains_text(line, company) for line in sentence_lines):
+                        for candidate in support_candidates:
+                            if _contains_text(candidate, company):
+                                _append_exec_support_line(
+                                    sentence_lines,
+                                    candidate,
+                                    cta_line=cta_line,
+                                    max_words=max_words,
+                                )
+                                break
+                    while _word_count("\n".join(sentence_lines) + f"\n\n{cta_line}") < min_words and len(sentence_lines) < 4:
+                        appended = False
+                        for candidate in support_candidates:
+                            if _append_exec_support_line(
+                                sentence_lines,
+                                candidate,
+                                cta_line=cta_line,
+                                max_words=max_words,
+                            ):
+                                appended = True
+                                break
+                        if not appended:
+                            break
+                    sentence_lines = sentence_lines[:4]
                 rendered_body = "\n".join(sentence_lines) + f"\n\n{cta_line}"
 
     strategy = get_preset_strategy(plan.preset_id)
@@ -1085,8 +1169,16 @@ def apply_generation_plan(
     lines = [line.strip() for line in rendered_body.splitlines() if line.strip()]
     if lines:
         cta_tail = lines[-1]
-        narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
-        if narrative:
-            narrative = _apply_offer_lock_sentence_case(narrative, offer_lock)
-            rendered_body = f"{narrative}\n\n{cta_tail}"
+        if feature_preset_true_rewrite_enabled():
+            narrative_lines = [
+                _apply_offer_lock_sentence_case(line, offer_lock)
+                for line in lines[:-1]
+                if _compact(line)
+            ]
+            rendered_body = "\n".join(narrative_lines) + f"\n\n{cta_tail}" if narrative_lines else cta_tail
+        else:
+            narrative = " ".join(lines[:-1]).strip() if len(lines) > 1 else ""
+            if narrative:
+                narrative = _apply_offer_lock_sentence_case(narrative, offer_lock)
+                rendered_body = f"{narrative}\n\n{cta_tail}"
     return next_subject, rendered_body

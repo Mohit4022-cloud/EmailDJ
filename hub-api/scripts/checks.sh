@@ -5,6 +5,30 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export PYTHONPATH="$ROOT:${PYTHONPATH:-}"
 export REDIS_FORCE_INMEMORY=1
 
+write_backend_artifact() {
+  local status="$1"
+  local error_message="${2:-}"
+  python3 - "$ROOT" "$status" "$error_message" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+root = Path(sys.argv[1])
+status = sys.argv[2]
+error_message = sys.argv[3]
+path = root / "reports" / "launch" / "backend_suite.json"
+path.parent.mkdir(parents=True, exist_ok=True)
+payload = {
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+    "backend_green": status,
+    "ok": status == "green",
+    "error": error_message or None,
+}
+path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+PY
+}
+
 if ! command -v pytest >/dev/null 2>&1; then
   echo "pytest not found. Activate venv and install requirements first."
   exit 127
@@ -19,7 +43,12 @@ echo "[1/11] python compile"
 python3 -m py_compile $(find "$ROOT" -name '*.py' -type f)
 
 echo "[2/11] pytest"
-pytest -q "$ROOT/tests"
+if pytest -q "$ROOT/tests"; then
+  write_backend_artifact "green"
+else
+  write_backend_artifact "red" "pytest_failed"
+  exit 1
+fi
 
 echo "[3/11] generate openapi"
 python3 "$ROOT/scripts/generate_openapi.py"
@@ -62,8 +91,12 @@ python3 "$ROOT/scripts/real_mode_failfast_smoke.py"
 if [ "${EMAILDJ_RUN_REAL_MODE_SMOKE:-0}" = "1" ]; then
   echo "${STEP_REAL_SMOKE} real mode smoke"
   python3 "$ROOT/scripts/real_mode_smoke.py"
+  PROVIDER_GREEN="green"
 else
   echo "${STEP_REAL_SMOKE} real mode smoke (skipped; set EMAILDJ_RUN_REAL_MODE_SMOKE=1 to enable)"
+  PROVIDER_GREEN="not_run"
 fi
 
+echo "launch check"
+python3 "$ROOT/scripts/launch_check.py" --from-artifacts
 echo "all checks passed"

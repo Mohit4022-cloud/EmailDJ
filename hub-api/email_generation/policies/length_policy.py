@@ -42,6 +42,37 @@ def _sanitize_proof_candidate(value: str) -> str:
     return normalized[0].upper() + normalized[1:]
 
 
+def _count_words(value: str) -> int:
+    return len(re.findall(r"[A-Za-z0-9']+", value))
+
+
+def _insert_after(sentences: list[str], index: int, sentence: str) -> list[str]:
+    updated = list(sentences)
+    updated.insert(index + 1, sentence)
+    return updated
+
+
+def _replace(sentences: list[str], index: int, sentence: str) -> list[str]:
+    updated = list(sentences)
+    updated[index] = sentence
+    return updated
+
+
+def _delete(sentences: list[str], index: int) -> list[str]:
+    updated = list(sentences)
+    del updated[index]
+    return updated
+
+
+def _normalize_sentence_ops(sentences: list[str]) -> list[str]:
+    deduped = dedupe_sentence_list(sentences)
+    return cap_repeated_ngrams(deduped, max_count=1, min_n=3, max_n=5)
+
+
+def _render_sentences(sentences: list[str]) -> str:
+    return " ".join(sentence for sentence in sentences if compact(sentence)).strip()
+
+
 def body_word_range(length_short_long: int) -> tuple[int, int]:
     """Return (min_words, max_words) for the given length slider value (0–100)."""
     if length_short_long <= 33:
@@ -70,10 +101,9 @@ def long_mode_section_pool(
 ) -> list[str]:
     """Build proof lines, mechanism, deliverable, and risk statements for long-mode bodies."""
     note_sentences = split_sentences(company_notes)
-    fact_sentences = split_sentences(" ".join(allowed_facts or []))
     proof_candidates = [
         _sanitize_proof_candidate(sentence)
-        for sentence in dedupe_sentence_list(note_sentences + fact_sentences)
+        for sentence in dedupe_sentence_list(note_sentences)
     ]
     proof_candidates = [sentence for sentence in proof_candidates if sentence]
     proof_line = ""
@@ -88,7 +118,7 @@ def long_mode_section_pool(
         "In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier."
     )
     risk_line = (
-        f"That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for {company}."
+        f"That gives {company} a clearer review path and a tighter escalation workflow without slowing follow-up."
     )
 
     pool = [
@@ -135,9 +165,6 @@ def compose_body_without_padding_loops(
     max_words: int,
 ) -> str:
     """Compose email body with deduplication and word limits, without padding loops."""
-    def _count_words(value: str) -> int:
-        return len(re.findall(r"[A-Za-z0-9']+", value))
-
     cta = compact(cta_line)
     cta_words = _count_words(cta)
     min_main = max(20, min_words - cta_words)
@@ -166,23 +193,34 @@ def compose_body_without_padding_loops(
     else:
         main_text = " ".join(selected)
 
-    # Add finite unique sections only once (no loops) when below minimum.
+    sentences = split_sentences(main_text)
+    if not sentences and filtered:
+        sentences = filtered[:1]
+
     if _count_words(main_text) < min_main:
-        existing = set(sentence_key(line) for line in split_sentences(main_text))
-        additions: list[str] = []
+        existing = {sentence_key(line) for line in sentences}
+        candidate_sections: list[str] = []
         for section in extra_sections:
             key = sentence_key(section)
             if not key or key in existing:
                 continue
             existing.add(key)
-            additions.append(section)
-            candidate = " ".join([main_text, *additions]).strip()
-            if _count_words(candidate) >= min_main:
-                main_text = candidate
+            candidate_sections.append(section)
+
+        inserted = 0
+        for section in candidate_sections:
+            if inserted >= 2:
                 break
-        else:
-            if additions:
-                main_text = " ".join([main_text, *additions]).strip()
+            insert_at = 0 if sentences else -1
+            candidate_sentences = _insert_after(sentences, insert_at, section) if sentences else [section]
+            candidate_text = _render_sentences(candidate_sentences)
+            if _count_words(candidate_text) > max_main:
+                continue
+            sentences = candidate_sentences
+            inserted += 1
+            if _count_words(candidate_text) >= min_main:
+                break
+        main_text = _render_sentences(sentences)
 
     # Final trim to max in case additions pushed over.
     words_list = re.findall(r"\S+", main_text)
@@ -190,14 +228,14 @@ def compose_body_without_padding_loops(
         main_text = " ".join(words_list[:max_main]).strip()
 
     # Post-composition dedup: remove sentence-level duplicates and re-cap n-grams
-    post_sentences = dedupe_sentence_list(split_sentences(main_text))
-    capped_post_sentences = cap_repeated_ngrams(post_sentences, max_count=1, min_n=3, max_n=5)
+    post_sentences = _normalize_sentence_ops(split_sentences(main_text))
+    capped_post_sentences = post_sentences
     capped_text = " ".join(capped_post_sentences).strip()
     if _count_words(capped_text) >= min_main:
         main_text = capped_text
     else:
         # Preserve min-length guarantees when n-gram capping trims too aggressively.
-        main_text = " ".join(post_sentences).strip()
+        main_text = " ".join(split_sentences(main_text)).strip()
 
     if _count_words(main_text) < min_main:
         existing = set(sentence_key(line) for line in split_sentences(main_text))
@@ -216,7 +254,6 @@ def compose_body_without_padding_loops(
             filler_sentences = [
                 "The approach stays practical for weekly execution across teams.",
                 "It keeps quality controls clear without adding extra workflow burden.",
-                "That helps maintain consistent outbound standards as volume grows.",
             ]
             for filler in filler_sentences:
                 key = sentence_key(filler)

@@ -144,6 +144,9 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"- Generated at: `{payload['generated_at']}`")
     lines.append(f"- Mode: `{payload['mode']}`")
+    provider_source = payload["summary"].get("provider_source")
+    if provider_source:
+        lines.append(f"- Provider source: `{provider_source}`")
     lines.append(f"- Selection: `{payload['selection']['selection_mode']}`")
     tags = payload["selection"].get("tags") or []
     lines.append(f"- Tags: `{', '.join(tags) if tags else '(none)'}`")
@@ -157,7 +160,22 @@ def _to_markdown(payload: dict[str, Any]) -> str:
     lines.append(f"| Failed | {summary['failed_cases']} |")
     lines.append(f"| Pass rate | {summary['pass_rate']:.2%} |")
     lines.append(f"| Total violations | {summary['violation_count']} |")
+    if provider_source:
+        lines.append(f"| Provider source | `{provider_source}` |")
+    lines.append(f"| Required-field misses | {summary.get('required_field_miss_count', 0)} |")
+    lines.append(f"| Under-length misses | {summary.get('under_length_miss_count', 0)} |")
+    lines.append(f"| Claims-policy interventions | {summary.get('claims_policy_intervention_count', 0)} |")
     lines.append("")
+
+    route_counts = summary.get("route_pass_fail_counts") or {}
+    if route_counts:
+        lines.append("## Route Counts")
+        lines.append("")
+        lines.append("| Route | Pass | Fail |")
+        lines.append("|---|---:|---:|")
+        for route, counts in route_counts.items():
+            lines.append(f"| {route} | {counts.get('pass', 0)} | {counts.get('fail', 0)} |")
+        lines.append("")
 
     lines.append("## Failure Counts")
     lines.append("")

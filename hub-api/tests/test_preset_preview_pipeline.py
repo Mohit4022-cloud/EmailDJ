@@ -105,6 +105,7 @@ async def test_make_response_hides_or_shows_summary_pack_by_flag():
     assert hidden.summary_pack is None
     assert hidden.meta.request_id == "preview-req-1"
     assert hidden.meta.session_id is None
+    assert hidden.meta.provider_source == "provider_stub"
     assert hidden.meta.enforcement_level in {"warn", "repair", "block"}
 
     os.environ["EMAILDJ_PREVIEW_INCLUDE_SUMMARY_PACK"] = "1"
@@ -200,7 +201,7 @@ def test_preview_normalization_exec_caps_length_and_repairs_greeting_and_ownersh
     assert "Hi Sarah, Chen," not in body
     assert "your trademark" not in body.lower()
     assert "brands like" not in body.lower()
-    assert "Acme Consumer Brands" not in body
+    assert "acme consumer brands" in body.lower()
     assert "Trademark Search, Screening, and Brand Protection" not in body
     assert body.splitlines()[-1].strip() == req.cta_lock_text
 

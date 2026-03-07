@@ -86,7 +86,9 @@ def test_persona_router_exec_vs_standard(monkeypatch):
         )
     assert exec_plan.persona_route == "exec"
     assert exec_plan.length_target["max_words"] <= 90
-    assert exec_plan.structure_template == ["outcome", "problem", "cta"]
+    assert exec_plan.structure_template == ["outcome", "problem", "hook", "cta"]
+    assert exec_plan.minimum_body_sections == ["outcome", "problem", "hook"]
+    assert exec_plan.required_fields == ["prospect_first_name", "prospect_company", "offer_lock", "cta"]
 
     director_session = _base_session("Director Brand Protection", "headliner")
     with rollout_context(endpoint="generate", bucket_key="director"):
@@ -116,7 +118,8 @@ def test_exec_route_applies_even_when_persona_flag_off(monkeypatch):
         )
     assert exec_plan.persona_route == "exec"
     assert exec_plan.length_target["max_words"] <= 90
-    assert exec_plan.structure_template == ["outcome", "problem", "cta"]
+    assert exec_plan.structure_template == ["outcome", "problem", "hook", "cta"]
+    assert exec_plan.minimum_body_sections == ["outcome", "problem", "hook"]
 
 
 def test_build_generation_plan_sanitizes_named_fact_hint(monkeypatch):
@@ -136,6 +139,25 @@ def test_build_generation_plan_sanitizes_named_fact_hint(monkeypatch):
 
     assert "Marcus Williams" not in plan.wedge_problem
     assert "Acme Consumer Brands" not in plan.wedge_problem
+
+
+def test_build_generation_plan_exec_route_preserves_grounded_company(monkeypatch):
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_ROLLOUT_PERCENT", "100")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_ROLLOUT_PERCENT", "100")
+
+    session = _base_session("CEO", "c_suite_sniper")
+    with rollout_context(endpoint="generate", bucket_key="exec-company-anchor"):
+        plan = build_generation_plan(
+            session=session,
+            style_sliders={"tone_formal_casual": 45, "framing_problem_outcome": 50, "length_short_long": 20, "stance_bold_diplomatic": 45},
+            preset_id="c_suite_sniper",
+            cta_type=None,
+        )
+
+    assert plan.persona_route == "exec"
+    assert "SignalForge" in plan.hook_source_text or "SignalForge" in plan.wedge_problem
 
 
 def test_sanitize_fact_hint_redacts_non_prospect_full_names():
@@ -185,6 +207,61 @@ def test_apply_generation_plan_softens_offer_lock_casing_in_body(monkeypatch):
     normalized = offer_lock[0].upper() + offer_lock[1:].lower()
     assert offer_lock not in narrative
     assert normalized in narrative
+
+
+def test_apply_generation_plan_keeps_weak_signal_hook_hedged(monkeypatch):
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_ROLLOUT_PERCENT", "100")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_GLOBAL", "0")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_ROLLOUT_PERCENT", "0")
+
+    with rollout_context(endpoint="generate", bucket_key="weak-hook"):
+        session = create_session_payload(
+            prospect={
+                "name": "Alex Doe",
+                "title": "VP Revenue Operations",
+                "company": "SignalForge",
+                "linkedin_url": "https://linkedin.com/in/alex-doe",
+            },
+            prospect_first_name="Alex",
+            research_text=(
+                "Leadership commentary suggests message consistency may matter more this year. "
+                "The team appears to be reviewing reply quality more closely."
+            ),
+            initial_style={"formality": 0.1, "orientation": 0.2, "length": -0.2, "assertiveness": 0.2},
+            offer_lock="Remix Studio",
+            cta_offer_lock="Open to a quick chat to see if this is relevant?",
+            cta_type="question",
+            company_context={
+                "company_name": "Corsearch",
+                "company_url": "https://corsearch.com",
+                "current_product": "Remix Studio",
+                "company_notes": "Customers use structured guardrails to reduce message drift while preserving rep autonomy.",
+            },
+            preset_id="headliner",
+            response_contract="legacy_text",
+        )
+        style_sliders = {"tone_formal_casual": 45, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 45}
+        plan = build_generation_plan(
+            session=session,
+            style_sliders=style_sliders,
+            preset_id="headliner",
+            cta_type="question",
+        )
+
+    _, body = apply_generation_plan(
+        subject="Test subject",
+        body="Hi Alex, Acme is actively prioritizing a new outbound initiative across the org.",
+        session=session,
+        style_sliders=style_sliders,
+        plan=plan,
+    )
+    first_line = body.splitlines()[0]
+
+    assert plan.hook_evidence_band in {"weak_signal", "contextual_inference"}
+    assert "initiative" not in first_line.lower()
+    assert "priority" not in first_line.lower()
+    assert "may be worth" in first_line.lower() or "worth pressure-testing" in first_line.lower()
 
 
 @pytest.mark.asyncio

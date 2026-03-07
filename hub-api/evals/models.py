@@ -83,6 +83,13 @@ class ScorecardSummary:
     research_containment_pass_rate: float
     internal_leakage_pass_rate: float
     claim_safety_pass_rate: float
+    provider_source: str = "provider_stub"
+    route_pass_fail_counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    preset_pass_fail_counts: dict[str, dict[str, int]] = field(default_factory=dict)
+    top_violation_codes: dict[str, int] = field(default_factory=dict)
+    required_field_miss_count: int = 0
+    under_length_miss_count: int = 0
+    claims_policy_intervention_count: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

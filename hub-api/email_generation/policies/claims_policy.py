@@ -82,6 +82,19 @@ def _is_allowed(match_text: str, allowed_claim_source: str) -> bool:
     return claim in allowed_claim_source
 
 
+def _is_allowed_numeric_span(match_text: str, allowed_claim_source: str) -> bool:
+    snippet = _compact(match_text).lower()
+    if not snippet:
+        return True
+    if re.search(
+        r"%|roi|compliance|accuracy|\bx\b|\btimes\b|improvement|increase|lift|gain|boost|growth|reduction|decrease|rate",
+        snippet,
+        re.IGNORECASE,
+    ):
+        return False
+    return snippet in (allowed_claim_source or "").lower()
+
+
 def _is_allowed_numeric_claim(match_text: str, allowed_numeric_claims: set[str] | None) -> bool:
     if allowed_numeric_claims is None:
         return True
@@ -128,6 +141,8 @@ def find_unverified_claims(
                 continue
             if _is_non_claim_numeric(snippet):
                 continue
+            if _is_allowed_numeric_span(snippet, allowed):
+                continue
             if _is_allowed_numeric_claim(snippet, allowed_numeric_claims):
                 continue
             _append_once(violations, snippet)
@@ -139,6 +154,8 @@ def find_unverified_claims(
         if not re.search(r"[a-zA-Z]", snippet):
             continue
         if _is_non_claim_numeric(snippet):
+            continue
+        if _is_allowed_numeric_span(snippet, allowed):
             continue
         if _is_allowed_numeric_claim(snippet, allowed_numeric_claims):
             continue
@@ -246,13 +263,21 @@ def rewrite_unverified_claims(
 
     rewritten = _PERCENT_PATTERN.sub(
         lambda m: m.group(0)
-        if (_is_non_claim_numeric(m.group(0)) or _is_allowed_numeric_claim(m.group(0), allowed_numeric_claims))
+        if (
+            _is_non_claim_numeric(m.group(0))
+            or _is_allowed_numeric_span(m.group(0), allowed)
+            or _is_allowed_numeric_claim(m.group(0), allowed_numeric_claims)
+        )
         else "meaningful",
         normalized,
     )
     rewritten = _NUMERIC_METRIC_PATTERN.sub(
         lambda m: m.group(0)
-        if (_is_non_claim_numeric(m.group(0)) or _is_allowed_numeric_claim(m.group(0), allowed_numeric_claims))
+        if (
+            _is_non_claim_numeric(m.group(0))
+            or _is_allowed_numeric_span(m.group(0), allowed)
+            or _is_allowed_numeric_claim(m.group(0), allowed_numeric_claims)
+        )
         else _rewrite_numeric_metric(m),
         rewritten,
     )
@@ -260,6 +285,7 @@ def rewrite_unverified_claims(
         lambda m: m.group(0)
         if (
             _is_non_claim_numeric(m.group(0))
+            or _is_allowed_numeric_span(m.group(0), allowed)
             or _is_allowed_numeric_claim(m.group(0), allowed_numeric_claims)
             or not re.search(r"[a-zA-Z]", m.group(0))
         )

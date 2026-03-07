@@ -60,7 +60,7 @@ from email_generation.output_enforcement import (
 )
 from email_generation.offer_domain import infer_offer_domain, offer_keywords_from_lock
 from email_generation.preset_strategies import get_preset_strategy
-from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled
+from email_generation.runtime_policies import quick_generate_mode, repair_loop_enabled, strict_lock_enforcement_level
 from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
@@ -660,6 +660,24 @@ def _ensure_preview_greeting(main_text: str, first_name: str) -> str:
     return enforce_first_name_greeting(text, expected)
 
 
+def _ensure_company_anchor(text: str, company: str, fallback_fact: str) -> str:
+    body = _compact(text)
+    company_clean = _compact(company)
+    if not body or not company_clean:
+        return body
+    if company_clean.lower() in body.lower():
+        return body
+    anchor = _compact(fallback_fact)
+    if not anchor or company_clean.lower() not in anchor.lower():
+        anchor = f"{company_clean} is tightening outbound quality."
+    greeting_match = re.match(r"^((?:Hi|Hello|Hey)\s+[^,\n]+,\s*)(.*)$", body)
+    if greeting_match:
+        greeting = greeting_match.group(1)
+        remainder = greeting_match.group(2).strip()
+        return f"{greeting}{anchor} {remainder}".strip()
+    return f"{anchor} {body}".strip()
+
+
 def _remove_banned_positioning(text: str) -> str:
     output = text
     for phrase in _BANNED_POSITIONING_PHRASES:
@@ -1240,6 +1258,7 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
     min_words, max_words = _body_word_targets(req)
 
     offer_lock_lower = _collapse_ws(req.offer_lock).lower()
+    prospect_company_lower = _collapse_ws(req.prospect.company).lower()
     approved_claim_source = merge_claim_sources(
         [
             req.raw_research.deep_research_paste,
@@ -1302,6 +1321,9 @@ def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBat
                     violations.append(f"{item.preset_id}: greeting_first_name_mismatch")
                 if " " in greeted_name:
                     violations.append(f"{item.preset_id}: greeting_not_first_name_only")
+
+        if prospect_company_lower and prospect_company_lower not in body_lower:
+            violations.append(f"{item.preset_id}: missing_required_field:prospect_company")
 
         # Offer lock must appear in body
         if offer_lock_lower and offer_lock_lower not in body_lower:
@@ -1462,6 +1484,11 @@ def _normalize_preview_items(
             claim_source,
             allowed_numeric_claims=allowed_numeric_claims,
         )
+        draft_body = _ensure_company_anchor(
+            draft_body,
+            req.prospect.company,
+            summary_pack.facts[0] if summary_pack.facts else "",
+        )
         draft_body = remove_generic_closers(draft_body)  # strip signoffs before CTA append
         draft_body = _strip_cta_lines_from_draft(draft_body, cta)  # prevent double CTA
         section_pool = long_mode_section_pool(
@@ -1586,7 +1613,7 @@ async def _generate_raw_preview_items(
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:
     started = time.perf_counter()
     mode = _quick_mode()
-    enforcement_level = os.environ.get(_PREVIEW_ENFORCEMENT_LEVEL_ENV, "warn").strip().lower() or "warn"
+    enforcement_level = os.environ.get(_PREVIEW_ENFORCEMENT_LEVEL_ENV, strict_lock_enforcement_level()).strip().lower() or strict_lock_enforcement_level()
     repair_enabled = repair_loop_enabled()
     cache_hit = False
     provider = "mock"
@@ -1760,6 +1787,7 @@ def make_response(
             session_id=session_id,
             pipeline_version=PIPELINE_VERSION,
             generation_mode=result.mode,
+            provider_source=("external_provider" if result.mode == "real" else "provider_stub"),
             provider=result.provider,
             model=result.model_name,
             provider_attempt_count=result.provider_attempt_count,

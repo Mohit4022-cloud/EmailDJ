@@ -97,6 +97,18 @@ def test_long_mode_section_pool_sanitizes_trusted_by_proof_dump_patterns():
     assert "two proof points from your notes" not in joined
 
 
+def test_long_mode_section_pool_keeps_proof_on_seller_notes_not_prospect_facts():
+    sections = long_mode_section_pool(
+        company_notes="Managers get a clearer review path and tighter escalation workflow.",
+        allowed_facts=["Acme launched a new enforcement initiative this quarter."],
+        offer_lock="Remix Studio",
+        company="Acme",
+    )
+
+    assert sections[0].lower().startswith("managers get a clearer review path")
+    assert "launched a new enforcement initiative" not in " ".join(sections).lower()
+
+
 def test_enforce_cta_last_line_removes_signoff_and_duplicate_ctas():
     cta = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
     body = (
@@ -137,3 +149,27 @@ def test_compose_body_without_padding_loops_preserves_min_after_ngram_cap():
 
     words = len(re.findall(r"[A-Za-z0-9']+", body))
     assert 75 <= words <= 110
+
+
+def test_compose_body_without_padding_loops_preserves_opener_and_cta_while_inserting_middle():
+    cta = "Open to a quick 15-minute chat next week?"
+    body = compose_body_without_padding_loops(
+        base_sentences=[
+            "Hi Jordan, Remix Studio helps revenue teams keep outreach specific while raising quality from first touch.",
+            "Managers still need a clean way to review risky messaging before it ships.",
+        ],
+        extra_sections=[
+            "Customers use structured guardrails to reduce message drift while preserving rep autonomy.",
+            "In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.",
+        ],
+        cta_line=cta,
+        min_words=75,
+        max_words=110,
+    )
+
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    narrative = " ".join(lines[:-1])
+
+    assert narrative.startswith("Hi Jordan, Remix Studio helps revenue teams keep outreach specific")
+    assert "structured guardrails" in narrative.lower()
+    assert lines[-1] == cta

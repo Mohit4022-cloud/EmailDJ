@@ -66,6 +66,17 @@ def test_validate_env_rejects_invalid_provider(monkeypatch):
         _validate_env()
 
 
+def test_validate_env_rejects_invalid_launch_mode(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["EMAILDJ_LAUNCH_MODE"] = "ship_it"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="Invalid EMAILDJ_LAUNCH_MODE"):
+        _validate_env()
+
+
 def test_validate_env_rejects_invalid_enforcement_level(monkeypatch):
     from main import _validate_env
 

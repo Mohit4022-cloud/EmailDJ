@@ -48,11 +48,15 @@ from email_generation.runtime_policies import (
     debug_success_sample_rate,
     feature_flags_effective,
     feature_lossless_streaming_enabled,
+    launch_mode,
     feature_rollout_snapshot,
     preview_pipeline_enabled,
     quick_generate_mode,
     real_provider_preference,
     resolve_runtime_policies,
+    route_enabled,
+    route_gate_sources,
+    route_gates,
     rollout_context,
     web_mvp_stream_chunk_size,
 )
@@ -79,6 +83,21 @@ _REQUESTS: dict[str, RequestRecord] = {}
 
 def _preview_pipeline_enabled() -> bool:
     return preview_pipeline_enabled()
+
+
+def _require_route_enabled(route: str) -> None:
+    normalized = (route or "").strip().lower()
+    if route_enabled(normalized):
+        return
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": "route_disabled",
+            "route": normalized,
+            "launch_mode": launch_mode(),
+            "route_enabled": False,
+        },
+    )
 
 
 def _cleanup_expired() -> None:
@@ -272,6 +291,9 @@ async def debug_config(
         "provider_stub_enabled": policies.provider_stub_enabled,
         "quick_generate_mode": policies.quick_generate_mode,
         "real_provider_preference": policies.real_provider_preference,
+        "launch_mode": policies.launch_mode,
+        "route_gates": route_gates(),
+        "route_gate_sources": route_gate_sources(),
         "preview_pipeline_enabled": policies.preview_pipeline_enabled,
         "p0_flags_effective": policies.p0_flags_effective,
         "p0_all_enabled": policies.p0_all_enabled,
@@ -283,6 +305,7 @@ async def debug_config(
 
 @router.post("/generate", response_model=WebGenerateAccepted)
 async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
+    _require_route_enabled("generate")
     _cleanup_expired()
     await _emit_metric("web_generate_started")
 
@@ -358,6 +381,7 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
 
 @router.post("/remix", response_model=WebRemixAccepted)
 async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
+    _require_route_enabled("remix")
     _cleanup_expired()
     session = await load_session(req.session_id)
     if session is None:
@@ -409,6 +433,7 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
     response_model=WebPresetPreviewBatchResponse,
 )
 async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: Request) -> WebPresetPreviewBatchResponse:
+    _require_route_enabled("preview")
     if not _preview_pipeline_enabled():
         raise HTTPException(status_code=503, detail={"error": "preview_pipeline_disabled"})
 
@@ -444,6 +469,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
             "web_preview_batch_done",
             extra={
                 "generation_mode": result.mode,
+                "provider_source": ("external_provider" if result.mode == "real" else "provider_stub"),
                 "provider": result.provider,
                 "model": result.model_name,
                 "latency_ms": result.latency_ms,
@@ -473,6 +499,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
                 "session_id": None,
                 "mode": "preview",
                 "generation_mode": result.mode,
+                "provider_source": ("external_provider" if result.mode == "real" else "provider_stub"),
                 "provider": result.provider,
                 "model": result.model_name,
                 "violation_codes": result.violation_codes,
@@ -588,6 +615,7 @@ async def web_stream(request_id: str, request: Request):
                         session_id=rec.session_id,
                     )
                 mode_info["mode"] = result.mode
+                mode_info["provider_source"] = "external_provider" if result.mode == "real" else "provider_stub"
                 mode_info["provider"] = result.provider
                 mode_info["model"] = result.model_name
                 mode_info["cascade_reason"] = result.cascade_reason
@@ -602,6 +630,7 @@ async def web_stream(request_id: str, request: Request):
                 mode_info["repair_loop_enabled"] = result.repair_loop_enabled
                 mode_info["generation_status"] = result.generation_status
                 mode_info["fallback_reason"] = result.fallback_reason
+                mode_info["claims_policy_intervention_count"] = result.claims_policy_intervention_count
                 mode_info["policy_versions"] = result.policy_version_snapshot
                 mode_info["response_contract"] = result.response_contract
                 final_subject, final_body = _final_subject_body(result.draft, response_contract=result.response_contract)
@@ -652,6 +681,7 @@ async def web_stream(request_id: str, request: Request):
                     extra={
                         "mode": rec.mode,
                         "generation_mode": result.mode,
+                        "provider_source": mode_info.get("provider_source"),
                         "provider": result.provider,
                         "model": result.model_name,
                         "cascade_reason": result.cascade_reason,
@@ -666,6 +696,7 @@ async def web_stream(request_id: str, request: Request):
                         "repair_loop_enabled": result.repair_loop_enabled,
                         "generation_status": result.generation_status,
                         "fallback_reason": result.fallback_reason,
+                        "claims_policy_intervention_count": result.claims_policy_intervention_count,
                         "session_id": rec.session_id,
                         "request_id": request_id,
                         "latency_ms": session["metrics"]["last_latency_ms"],
@@ -685,6 +716,7 @@ async def web_stream(request_id: str, request: Request):
                         "request_id": request_id,
                         "session_id": rec.session_id,
                         "mode": result.mode,
+                        "provider_source": mode_info.get("provider_source"),
                         "provider": result.provider,
                         "model": result.model_name,
                         "violation_codes": result.violation_codes,
@@ -698,6 +730,7 @@ async def web_stream(request_id: str, request: Request):
                         "repair_loop_enabled": result.repair_loop_enabled,
                         "generation_status": result.generation_status,
                         "fallback_reason": result.fallback_reason,
+                        "claims_policy_intervention_count": result.claims_policy_intervention_count,
                         "stream_chunk_mode": mode_info.get("stream_chunk_mode"),
                         "stream_total_chunks": mode_info.get("total_chunks"),
                         "stream_total_chars": mode_info.get("total_chars"),

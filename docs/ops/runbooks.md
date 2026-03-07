@@ -2,6 +2,9 @@
 
 Runbooks for known failure modes. Each entry: symptoms → diagnosis → remediation → prevention.
 
+Launch command and artifact reference:
+- [`docs/ops/launch_operator.md`](/Users/mohit/EmailDJ/docs/ops/launch_operator.md)
+
 ---
 
 ## RB-01: LLM Provider Outage / All Tiers Failing
