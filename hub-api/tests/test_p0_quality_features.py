@@ -187,6 +187,61 @@ def test_apply_generation_plan_softens_offer_lock_casing_in_body(monkeypatch):
     assert normalized in narrative
 
 
+def test_apply_generation_plan_keeps_weak_signal_hook_hedged(monkeypatch):
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_ROLLOUT_PERCENT", "100")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_GLOBAL", "0")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_ROLLOUT_PERCENT", "0")
+
+    with rollout_context(endpoint="generate", bucket_key="weak-hook"):
+        session = create_session_payload(
+            prospect={
+                "name": "Alex Doe",
+                "title": "VP Revenue Operations",
+                "company": "SignalForge",
+                "linkedin_url": "https://linkedin.com/in/alex-doe",
+            },
+            prospect_first_name="Alex",
+            research_text=(
+                "Leadership commentary suggests message consistency may matter more this year. "
+                "The team appears to be reviewing reply quality more closely."
+            ),
+            initial_style={"formality": 0.1, "orientation": 0.2, "length": -0.2, "assertiveness": 0.2},
+            offer_lock="Remix Studio",
+            cta_offer_lock="Open to a quick chat to see if this is relevant?",
+            cta_type="question",
+            company_context={
+                "company_name": "Corsearch",
+                "company_url": "https://corsearch.com",
+                "current_product": "Remix Studio",
+                "company_notes": "Customers use structured guardrails to reduce message drift while preserving rep autonomy.",
+            },
+            preset_id="headliner",
+            response_contract="legacy_text",
+        )
+        style_sliders = {"tone_formal_casual": 45, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 45}
+        plan = build_generation_plan(
+            session=session,
+            style_sliders=style_sliders,
+            preset_id="headliner",
+            cta_type="question",
+        )
+
+    _, body = apply_generation_plan(
+        subject="Test subject",
+        body="Hi Alex, Acme is actively prioritizing a new outbound initiative across the org.",
+        session=session,
+        style_sliders=style_sliders,
+        plan=plan,
+    )
+    first_line = body.splitlines()[0]
+
+    assert plan.hook_evidence_band in {"weak_signal", "contextual_inference"}
+    assert "initiative" not in first_line.lower()
+    assert "priority" not in first_line.lower()
+    assert "may be worth" in first_line.lower() or "worth pressure-testing" in first_line.lower()
+
+
 @pytest.mark.asyncio
 async def test_preset_true_rewrite_generates_semantically_distinct_outputs(monkeypatch):
     monkeypatch.setenv("REDIS_FORCE_INMEMORY", "1")

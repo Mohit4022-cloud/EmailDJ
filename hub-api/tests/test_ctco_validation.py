@@ -158,6 +158,31 @@ def test_create_session_payload_extracts_allowed_facts_and_strips_instructions()
     assert "propose a pilot" not in session["research_text_sanitized"].lower()
 
 
+def test_create_session_payload_tracks_evidence_bands_and_assertability():
+    from email_generation.remix_engine import create_session_payload
+
+    session = create_session_payload(
+        prospect={
+            "name": "Alex Doe",
+            "title": "SDR Manager",
+            "company": "Acme",
+            "linkedin_url": "https://linkedin.com/in/alex-doe",
+        },
+        research_text=(
+            "Acme announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. "
+            "Alex likely cares about message consistency this year."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Remix Studio",
+        cta_offer_lock="Open to a quick chat to see if this is relevant?",
+        cta_type="question",
+    )
+
+    entries = session["allowed_facts_structured"]
+    assert any(entry.get("evidence_band") == "direct_evidence" and entry.get("assertable") for entry in entries)
+    assert any(entry.get("evidence_band") == "weak_signal" and not entry.get("assertable") for entry in entries)
+
+
 def test_create_session_payload_derives_first_name_from_honorific():
     from email_generation.remix_engine import create_session_payload
 
@@ -246,6 +271,57 @@ def test_validate_ctco_output_blocks_banned_phrases():
 
     violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
     assert "banned_phrase:pipeline outcomes" in violations
+
+
+def test_validate_ctco_output_flags_specific_sounding_vagueness():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme is tightening outbound quality controls this quarter. "
+        "Remix Studio improves visibility and reduces risk for the team.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "specific_sounding_vagueness" in violations
+
+
+def test_validate_ctco_output_flags_hook_strength_mismatch_and_repair_preserves_middle():
+    from email_generation.remix_engine import (
+        _deterministic_compliance_repair,
+        style_profile_to_ctco_sliders,
+        validate_ctco_output,
+    )
+
+    session = _session_payload(
+        research_text=(
+            "Leadership commentary suggests message consistency may matter more this year. "
+            "The team appears to be reviewing reply quality more closely."
+        )
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: Remix Studio for Acme\n"
+        "Body:\n"
+        "Hi Alex, Acme is actively prioritizing a new outbound initiative across the org. "
+        "Managers still need a clean way to review risky messaging before it ships. "
+        "Remix Studio helps teams keep outreach specific while preserving control.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "hook_strength_mismatch" in violations
+
+    repaired = _deterministic_compliance_repair(draft, session=session, style_sliders=sliders)
+    repaired_body = _extract_body_text(repaired)
+
+    assert "actively prioritizing a new outbound initiative" not in repaired_body.lower()
+    assert "Managers still need a clean way to review risky messaging before it ships." in repaired_body
+    assert repaired_body.splitlines()[-1].strip() == "Open to a quick chat to see if this is relevant?"
 
 
 def test_validate_ctco_output_forbidden_product_uses_word_boundaries():

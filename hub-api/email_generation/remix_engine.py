@@ -14,7 +14,9 @@ from typing import Any
 from email_generation.claim_verifier import (
     extract_allowed_numeric_claims,
     find_unverified_claims,
+    find_specific_sounding_vagueness,
     merge_claim_sources,
+    rewrite_specific_sounding_vagueness,
     rewrite_unverified_claims,
 )
 from email_generation.compliance_rules import (
@@ -31,7 +33,7 @@ from email_generation.compliance_rules import (
     _word_count,
 )
 from email_generation.cta_templates import resolve_cta_lock
-from email_generation.generation_plan import GenerationPlan, apply_generation_plan, build_generation_plan
+from email_generation.generation_plan import GenerationPlan, _hook_sentence, apply_generation_plan, build_generation_plan
 from email_generation.output_enforcement import (
     _GENERIC_CLOSER_PATTERNS,
     compose_body_without_padding_loops,
@@ -178,6 +180,67 @@ _RESEARCH_TRIGGER_TOKENS = (
     "partnership",
     "pilot",
     "rollout",
+)
+_HEDGE_TOKENS = (
+    "likely",
+    "may",
+    "might",
+    "could",
+    "appears",
+    "seems",
+    "suggests",
+    "suggested",
+    "possibly",
+    "potentially",
+    "my read is",
+)
+_DIRECT_EVIDENCE_TOKENS = (
+    "announced",
+    "launched",
+    "opened",
+    "filed",
+    "published",
+    "reported",
+    "press release",
+    "earnings call",
+    "earnings",
+    "job posting",
+    "roles",
+)
+_STRONG_SIGNAL_TOKENS = (
+    "hiring",
+    "hired",
+    "headcount",
+    "team",
+    "workflow",
+    "playbook",
+    "process",
+    "governance",
+    "qa",
+    "quality",
+    "review",
+    "discipline",
+)
+_HOOK_EVIDENCE_BAND_ORDER = {
+    "contextual_inference": 0,
+    "weak_signal": 1,
+    "strong_signal": 2,
+    "direct_evidence": 3,
+}
+_OVERSTRONG_HOOK_TOKENS = (
+    "initiative",
+    "initiatives",
+    "priority",
+    "priorities",
+    "urgent",
+    "urgency",
+    "owner",
+    "ownership",
+    "program",
+    "programs",
+    "mature",
+    "maturity",
+    "actively",
 )
 
 _STAT_CLAIM_PATTERNS = (
@@ -625,22 +688,46 @@ def _fact_type(sentence: str) -> str:
 
 
 def _fact_confidence(sentence: str) -> str:
-    lower = _collapse_ws(sentence.lower())
-    has_numeric_or_date = bool(re.search(r"\b(?:\d{1,4}|q[1-4]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b", lower))
-    has_signal = _contains_factual_signal(sentence)
-    has_hedge = any(token in lower for token in ("likely", "may", "might", "could", "appears", "seems"))
-    if has_signal and not has_hedge and has_numeric_or_date:
+    band = _fact_evidence_band(sentence)
+    if band == "direct_evidence":
         return "high"
-    if has_signal and not has_hedge:
+    if band == "strong_signal":
         return "high"
-    if len(re.findall(r"[A-Za-z0-9']+", lower)) >= 8:
+    if band == "weak_signal":
         return "medium"
     return "low"
 
 
-def _extract_allowed_facts_structured(research_text: str, target_items: int = 8) -> list[dict[str, str]]:
+def _fact_evidence_band(sentence: str) -> str:
+    lower = _collapse_ws(sentence.lower())
+    has_numeric_or_date = bool(re.search(r"\b(?:\d{1,4}|q[1-4]|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b", lower))
+    has_signal = _contains_factual_signal(sentence) or any(token in lower for token in _STRONG_SIGNAL_TOKENS)
+    has_hedge = any(token in lower for token in _HEDGE_TOKENS)
+    has_direct_artifact = any(token in lower for token in _DIRECT_EVIDENCE_TOKENS)
+    fact_type = _fact_type(sentence)
+    if has_direct_artifact and not has_hedge:
+        return "direct_evidence"
+    if has_signal and not has_hedge and (has_numeric_or_date or fact_type in {"hiring", "ops", "timeline"}):
+        return "strong_signal"
+    if has_signal or len(re.findall(r"[A-Za-z0-9']+", lower)) >= 8:
+        return "weak_signal"
+    return "contextual_inference"
+
+
+def _fact_assertable(sentence: str, *, evidence_band: str, fact_type: str) -> bool:
+    lower = _collapse_ws(sentence.lower())
+    if evidence_band == "direct_evidence":
+        return True
+    if evidence_band != "strong_signal":
+        return False
+    if any(token in lower for token in _OVERSTRONG_HOOK_TOKENS):
+        return False
+    return fact_type in {"hiring", "ops", "timeline", "other"}
+
+
+def _extract_allowed_facts_structured(research_text: str, target_items: int = 8) -> list[dict[str, Any]]:
     sanitized = _strip_instructional_phrases(research_text)
-    facts: list[dict[str, str]] = []
+    facts: list[dict[str, Any]] = []
     seen: set[str] = set()
 
     for sentence in _split_research_sentences(sanitized):
@@ -651,11 +738,15 @@ def _extract_allowed_facts_structured(research_text: str, target_items: int = 8)
         if len(re.findall(r"[A-Za-z0-9']+", cleaned)) < 6:
             continue
         seen.add(key)
+        fact_type = _fact_type(cleaned)
+        evidence_band = _fact_evidence_band(cleaned)
         facts.append(
             {
                 "text": cleaned,
-                "type": _fact_type(cleaned),
+                "type": fact_type,
                 "confidence": _fact_confidence(cleaned),
+                "evidence_band": evidence_band,
+                "assertable": _fact_assertable(cleaned, evidence_band=evidence_band, fact_type=fact_type),
             }
         )
         if len(facts) >= target_items:
@@ -675,11 +766,15 @@ def _extract_allowed_facts_structured(research_text: str, target_items: int = 8)
                 if len(re.findall(r"[A-Za-z0-9']+", part)) < 6:
                     continue
                 seen.add(part_key)
+                fact_type = _fact_type(part)
+                evidence_band = _fact_evidence_band(part)
                 facts.append(
                     {
                         "text": part,
-                        "type": _fact_type(part),
+                        "type": fact_type,
                         "confidence": _fact_confidence(part),
+                        "evidence_band": evidence_band,
+                        "assertable": _fact_assertable(part, evidence_band=evidence_band, fact_type=fact_type),
                     }
                 )
                 if len(facts) >= target_items:
@@ -694,7 +789,17 @@ def _extract_allowed_facts_structured(research_text: str, target_items: int = 8)
             if not cleaned or key in seen:
                 continue
             seen.add(key)
-            facts.append({"text": cleaned, "type": _fact_type(cleaned), "confidence": "low"})
+            fact_type = _fact_type(cleaned)
+            evidence_band = _fact_evidence_band(cleaned)
+            facts.append(
+                {
+                    "text": cleaned,
+                    "type": fact_type,
+                    "confidence": _fact_confidence(cleaned),
+                    "evidence_band": evidence_band,
+                    "assertable": _fact_assertable(cleaned, evidence_band=evidence_band, fact_type=fact_type),
+                }
+            )
             if len(facts) >= target_items:
                 break
 
@@ -703,7 +808,16 @@ def _extract_allowed_facts_structured(research_text: str, target_items: int = 8)
 
     compact = _collapse_ws(sanitized)
     if compact:
-        return [{"text": compact[:220].rstrip(), "type": "other", "confidence": "low"}]
+        truncated = compact[:220].rstrip()
+        return [
+            {
+                "text": truncated,
+                "type": "other",
+                "confidence": _fact_confidence(truncated),
+                "evidence_band": _fact_evidence_band(truncated),
+                "assertable": False,
+            }
+        ]
     return []
 
 
@@ -979,8 +1093,134 @@ def _trim_hanging_connectors(text: str) -> str:
 
 def _high_confidence_fact_text(session: dict[str, Any]) -> str:
     entries = session.get("allowed_facts_structured") or []
-    high = [entry.get("text", "") for entry in entries if str(entry.get("confidence", "")).lower() == "high"]
+    high = [
+        entry.get("text", "")
+        for entry in entries
+        if str(entry.get("confidence", "")).lower() == "high" and bool(entry.get("assertable"))
+    ]
     return " ".join([_collapse_ws(text) for text in high if _collapse_ws(text)])
+
+
+def _hook_band_rank(value: str | None) -> int:
+    return _HOOK_EVIDENCE_BAND_ORDER.get(_collapse_ws(str(value or "")), 0)
+
+
+def _opener_without_greeting(line: str) -> str:
+    text = _collapse_ws(line)
+    if not text:
+        return ""
+    return re.sub(r"^(Hi|Hello)\s+[^,\n]+,\s*", "", text, flags=re.IGNORECASE).strip()
+
+
+def _hook_strength_mismatch(first_body_line: str, plan: GenerationPlan | None) -> bool:
+    if plan is None:
+        return False
+    opener = _opener_without_greeting(first_body_line)
+    if not opener:
+        return False
+    band = _collapse_ws(plan.hook_evidence_band) or "contextual_inference"
+    if _hook_band_rank(band) >= _hook_band_rank("direct_evidence"):
+        return False
+    source = " ".join(
+        [
+            _collapse_ws(plan.hook_source_text),
+            _collapse_ws(plan.wedge_problem),
+            _collapse_ws((plan.hook_lineage or {}).get("source_text")),
+        ]
+    ).lower()
+    opener_lower = opener.lower()
+    strong_terms = list(_OVERSTRONG_HOOK_TOKENS)
+    if _hook_band_rank(band) < _hook_band_rank("strong_signal"):
+        strong_terms.extend(_DIRECT_EVIDENCE_TOKENS)
+    for term in strong_terms:
+        if term in opener_lower and term not in source:
+            return True
+    if _hook_band_rank(band) <= _hook_band_rank("weak_signal"):
+        if any(phrase in opener_lower for phrase in ("your team is", "you are leading", "you own", "the team is actively")):
+            return True
+    return False
+
+
+def _rewrite_claim_language_candidate(candidate: str, session: dict[str, Any]) -> tuple[str, bool]:
+    subject, body = _extract_subject_and_body(candidate)
+    if not body:
+        return candidate, False
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    narrative_lines: list[str] = []
+    cta_line = expected_cta
+    cta_removed = False
+    for line in lines:
+        if not cta_removed and line == expected_cta:
+            cta_removed = True
+            cta_line = line
+            continue
+        narrative_lines.append(line)
+    narrative = " ".join(narrative_lines).strip()
+    if not narrative:
+        return candidate, False
+
+    claim_source = merge_claim_sources(
+        [
+            session.get("research_text_raw"),
+            session.get("research_text"),
+            (session.get("company_context") or {}).get("company_notes"),
+            " ".join(session.get("allowed_facts") or []),
+        ]
+    )
+    allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
+    rewritten_narrative = rewrite_unverified_claims(
+        narrative,
+        claim_source,
+        allowed_numeric_claims=allowed_numeric_claims,
+    )
+    rewritten_narrative = rewrite_specific_sounding_vagueness(rewritten_narrative)
+    rewritten_subject = rewrite_specific_sounding_vagueness(
+        rewrite_unverified_claims(subject, claim_source, allowed_numeric_claims=allowed_numeric_claims)
+    )
+    repaired_body = f"{rewritten_narrative}\n\n{cta_line}".strip()
+    repaired_candidate = _format_draft(rewritten_subject, repaired_body)
+    return repaired_candidate, repaired_candidate != candidate
+
+
+def _repair_hook_strength_candidate(
+    candidate: str,
+    *,
+    session: dict[str, Any],
+    style_sliders: dict[str, int],
+) -> tuple[str, bool]:
+    subject, body = _extract_subject_and_body(candidate)
+    if not body:
+        return candidate, False
+    plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
+        session=session,
+        style_sliders=style_sliders,
+        preset_id=session.get("preset_id"),
+        cta_type=session.get("cta_type"),
+    )
+    body_lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if not body_lines:
+        return candidate, False
+    first_body_line = body_lines[0]
+    if not _hook_strength_mismatch(first_body_line, plan):
+        return candidate, False
+
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    cta_line = expected_cta if expected_cta else body_lines[-1]
+    narrative = _body_without_cta(body, expected_cta)
+    sentences = split_sentences(narrative)
+    if not sentences:
+        return candidate, False
+    company = _collapse_ws(str((session.get("prospect") or {}).get("company") or "")) or "your team"
+    opener = _hook_sentence(plan, company, plan.hook_source_text or plan.wedge_problem)
+    opener = enforce_first_name_greeting(
+        opener,
+        session.get("prospect_first_name") or (session.get("prospect") or {}).get("name"),
+    )
+    sentences[0] = opener
+    repaired_body = f"{' '.join(sentences).strip()}\n\n{cta_line}".strip()
+    repaired_candidate = _format_draft(subject, repaired_body)
+    return repaired_candidate, repaired_candidate != candidate
 
 
 def _extract_entities(text: str) -> set[str]:
@@ -1092,6 +1332,7 @@ def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> lis
 
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
     violations: list[str] = []
+    plan = GenerationPlan.from_dict(session.get("generation_plan"))
 
     subject, body = _extract_subject_and_body(draft)
     if not subject:
@@ -1228,6 +1469,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
         research_has_ai_phrase and hook_strategy == "research_anchored"
     ):
         violations.append("banned_generic_ai_opener")
+    if _hook_strength_mismatch(first_body_line, plan):
+        violations.append("hook_strength_mismatch")
 
     unverified_claims = find_unverified_claims(
         draft,
@@ -1239,6 +1482,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
             violations.append("unsubstantiated_statistical_claim")
         else:
             violations.append(f"unsubstantiated_claim:{claim[:60]}")
+    if find_specific_sounding_vagueness(_body_without_cta(body, expected_cta)):
+        violations.append("specific_sounding_vagueness")
 
     # Cash-equivalent CTA: gift cards, prepaid cards, cash rewards (Batch 3 P4)
     if _CASH_CTA_PATTERN.search(draft_lower):
@@ -1293,6 +1538,14 @@ def _validation_feedback(violations: list[str]) -> str:
     if claim_violations:
         notes.append(
             "Claims policy: keep claims qualitative unless the exact quantified claim is in approved proof text."
+        )
+    if "specific_sounding_vagueness" in violations:
+        notes.append(
+            "Specificity policy: remove pseudo-specific claims like 'improves visibility' or 'reduces risk' unless the copy names a concrete mechanism or object."
+        )
+    if "hook_strength_mismatch" in violations:
+        notes.append(
+            "Hook policy: keep the opener aligned to the evidence band in GENERATION_PLAN_IR_JSON. Do not upgrade weak/contextual signals into confirmed initiatives, priorities, urgency, or ownership."
         )
     if any(v.startswith("fluency_") for v in violations):
         notes.append(
@@ -1364,6 +1617,66 @@ def _fit_body_range(
     )
 
 
+def _close_under_budget_candidate(
+    candidate: str,
+    *,
+    session: dict[str, Any],
+    style_sliders: dict[str, int],
+) -> tuple[str, bool]:
+    subject, body = _extract_subject_and_body(candidate)
+    if not body:
+        return candidate, False
+    min_words, max_words = _effective_body_word_range(session=session, style_sliders=style_sliders)
+    if _word_count(body) >= min_words:
+        return candidate, False
+
+    expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
+    narrative = _body_without_cta(body, expected_cta)
+    base_sentences = split_sentences(narrative)
+    if not base_sentences:
+        return candidate, False
+
+    offer_lock = _collapse_ws(session.get("offer_lock") or "")
+    company = _collapse_ws(str((session.get("prospect") or {}).get("company") or "")) or "your team"
+    forbidden_terms = _offer_lock_forbidden_items(session)
+    claim_source = merge_claim_sources(
+        [
+            session.get("research_text_raw"),
+            session.get("research_text"),
+            (session.get("company_context") or {}).get("company_notes"),
+        ]
+    )
+    allowed_numeric_claims = extract_allowed_numeric_claims((session.get("company_context") or {}).get("company_notes"))
+    section_pool = long_mode_section_pool(
+        company_notes=(session.get("company_context") or {}).get("company_notes"),
+        allowed_facts=session.get("allowed_facts") or [],
+        offer_lock=offer_lock,
+        company=company,
+        forbidden_terms=forbidden_terms,
+    )
+    extra_sections: list[str] = []
+    for index, section in enumerate(section_pool):
+        rewritten = rewrite_unverified_claims(
+            section,
+            claim_source,
+            allowed_numeric_claims=allowed_numeric_claims,
+        )
+        rewritten = rewrite_specific_sounding_vagueness(rewritten)
+        rewritten = _remove_forbidden_product_terms(rewritten, forbidden_terms)
+        if rewritten:
+            extra_sections.append(rewritten)
+
+    repaired_body = compose_body_without_padding_loops(
+        base_sentences=base_sentences,
+        extra_sections=extra_sections,
+        cta_line=expected_cta,
+        min_words=min_words,
+        max_words=max_words,
+    )
+    repaired_candidate = _format_draft(subject, repaired_body)
+    return repaired_candidate, repaired_candidate != candidate
+
+
 def _sanitize_prior_draft(text: str | None) -> str | None:
     """Strip duplicate sentences and meta-commentary from prior_draft before repair re-injection.
 
@@ -1402,6 +1715,45 @@ def _deterministic_compliance_repair(
     session: dict[str, Any],
     style_sliders: dict[str, int],
 ) -> str:
+    initial_violations = validate_ctco_output(candidate, session=session, style_sliders=style_sliders)
+    repaired = candidate
+    if initial_violations and (
+        any(v.startswith("unsubstantiated_") for v in initial_violations)
+        or "specific_sounding_vagueness" in initial_violations
+    ):
+        rewritten_candidate, changed = _rewrite_claim_language_candidate(repaired, session)
+        if changed:
+            repaired = rewritten_candidate
+    current_violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
+    if "hook_strength_mismatch" in current_violations:
+        opener_repaired, changed = _repair_hook_strength_candidate(
+            repaired,
+            session=session,
+            style_sliders=style_sliders,
+        )
+        if changed:
+            repaired = opener_repaired
+    if repaired != candidate:
+        repaired_violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
+        if not repaired_violations:
+            return repaired
+        if repaired_violations and all(v.startswith("length_out_of_range:") for v in repaired_violations):
+            length_closed, changed = _close_under_budget_candidate(
+                repaired,
+                session=session,
+                style_sliders=style_sliders,
+            )
+            if changed:
+                length_closed_violations = validate_ctco_output(
+                    length_closed,
+                    session=session,
+                    style_sliders=style_sliders,
+                )
+                if not length_closed_violations:
+                    return length_closed
+                repaired = length_closed
+
+    candidate = repaired
     subject, body = _extract_subject_and_body(candidate)
     plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
         session=session,

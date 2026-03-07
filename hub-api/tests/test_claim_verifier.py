@@ -1,6 +1,8 @@
 from email_generation.claim_verifier import (
     extract_allowed_numeric_claims,
     find_unverified_claims,
+    find_specific_sounding_vagueness,
+    rewrite_specific_sounding_vagueness,
     rewrite_unverified_claims,
 )
 
@@ -40,3 +42,18 @@ def test_disallowed_numeric_claims_are_rewritten_when_not_in_company_notes():
     assert "99.9%" not in rewritten
     assert "5,000+" not in rewritten
     assert "73 Fortune 100" not in rewritten
+    assert "strong outcomes" not in rewritten.lower()
+
+
+def test_specific_sounding_vagueness_is_flagged_and_rewritten():
+    text = "Remix Studio improves visibility, supports expansion, and reduces risk."
+
+    violations = find_specific_sounding_vagueness(text)
+    rewritten = rewrite_specific_sounding_vagueness(text)
+
+    assert "improves visibility" in " ".join(violations).lower()
+    assert "supports expansion" in " ".join(violations).lower()
+    assert "reduces risk" in " ".join(violations).lower()
+    assert "improves visibility" not in rewritten.lower()
+    assert "supports expansion" not in rewritten.lower()
+    assert "reduces risk" not in rewritten.lower()
