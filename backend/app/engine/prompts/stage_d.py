@@ -45,6 +45,8 @@ def build_messages(
         "If rewrite is needed, provide ordered rewrite_plan action objects mapped issue-by-issue.\\n\\n"
         "RULE 6A - OPENER COMPLEXITY IS HIGH SEVERITY.\\n"
         "If the opener is clause-stacked, lead-subordinate, or bloated, mark it high severity and instruct a surgical opener-only rewrite.\\n\\n"
+        "RULE 6B - PRESERVATION DISCIPLINE.\\n"
+        "When only one sentence is bad, say which untouched sentences should remain verbatim. Do not imply a full redraft when a local patch is enough.\\n\\n"
         "RULE 7 - CTA TEXT IS IMMUTABLE.\\n"
         "If locked_cta is already exact, you may only flag placement or duplication. Never propose alternate CTA wording.\\n\\n"
         "RULE 8 - PRESET CONTRACT IS ACTIVE.\\n"
@@ -101,7 +103,8 @@ def build_messages(
         "11) For unsupported proof or unsupported initiative language, quote the exact sentence and instruct removal or narrowing only.\\n"
         "12) If locked_cta already matches exactly, any CTA issue must say to keep the text unchanged and only fix placement/singularity.\\n"
         "13) If opener complexity is the issue, instruct preserving untouched middle sentences and CTA verbatim.\\n"
-        "14) Self-audit: every issue must quote real draft text and every rewrite action must point to a specific target.\\n\\n"
+        "14) If proof is vague or unsupported, quote the exact sentence and instruct deletion or narrowing only; never ask rewrite to invent replacement proof.\\n"
+        "15) Self-audit: every issue must quote real draft text and every rewrite action must point to a specific target.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete QAReport JSON only."
     )

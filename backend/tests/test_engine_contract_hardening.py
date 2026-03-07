@@ -9,7 +9,9 @@ from app.engine.ai_orchestrator import AIOrchestrator
 from app.engine.brief_cache import BriefCache
 from app.engine.validators import (
     ValidationIssue,
+    augment_qa_report_from_validation_codes,
     build_cta_lock,
+    canonicalize_proof_basis,
     normalize_cta_text,
     opener_contract,
     opener_is_simple,
@@ -75,11 +77,18 @@ def _brief() -> dict:
     }
 
 
-def _proof_basis(*, kind: str, fact_ids: list[str] | None = None, source_text: str = "", proof_gap: bool = False) -> dict:
+def _proof_basis(
+    *,
+    kind: str,
+    fact_ids: list[str] | None = None,
+    source_text: str = "",
+    proof_gap: bool = False,
+    hook_ids: list[str] | None = None,
+) -> dict:
     return {
         "kind": kind,
         "source_fact_ids": list(fact_ids or []),
-        "source_hook_ids": ["hook_1"],
+        "source_hook_ids": list(hook_ids or ["hook_1"]),
         "source_fit_hypothesis_id": "fit_1",
         "grounded_span": source_text[:240],
         "source_text": source_text[:240],
@@ -235,6 +244,82 @@ def test_opener_is_simple_rejects_leading_clause_stack() -> None:
         "Given Northstar's audit is active, workflow drift is getting more expensive.",
         contract=opener_contract(),
     ) is False
+    assert opener_is_simple(
+        "Northstar's audit is active; workflow drift is getting more expensive.",
+        contract=opener_contract(),
+    ) is False
+
+
+def test_validate_fit_map_repairs_proof_basis_hook_lineage_when_selected_hook_is_grounded() -> None:
+    brief = _brief()
+    brief["hooks"].append(
+        {
+            "hook_id": "hook_2",
+            "hook_type": "pain",
+            "grounded_observation": "Northstar launched a workflow audit in February 2026.",
+            "inferred_relevance": "That may put another workflow issue under review.",
+            "seller_support": "A fintech team reduced reply lag 18% after QA reviews.",
+            "hook_text": "Another workflow issue may be active.",
+            "supported_by_fact_ids": ["fact_1"],
+            "seller_fact_ids": ["fact_2"],
+            "confidence_level": "medium",
+            "evidence_strength": "moderate",
+            "risk_flags": [],
+        }
+    )
+    brief["hook_lineage"] = {
+        "canonical_hook_ids": ["hook_1", "hook_2"],
+        "hook_alias_map": {"hook_1": "hook_1", "hook_2": "hook_2"},
+    }
+    fit_map = _fit_map(
+        proof_text="A fintech team reduced reply lag 18% after QA reviews.",
+        proof_basis=_proof_basis(
+            kind="hard_proof",
+            fact_ids=["fact_2"],
+            source_text="A fintech team reduced reply lag 18% after QA reviews.",
+            hook_ids=["hook_2"],
+        ),
+    )
+
+    validate_fit_map(fit_map, brief)
+
+
+def test_canonicalize_proof_basis_downgrades_non_seller_hard_proof() -> None:
+    basis = canonicalize_proof_basis(
+        {
+            "kind": "hard_proof",
+            "source_fact_ids": ["fact_1"],
+            "source_hook_ids": ["hook_1"],
+            "source_fit_hypothesis_id": "fit_1",
+            "grounded_span": "Northstar launched a workflow audit in February 2026.",
+            "source_text": "Northstar launched a workflow audit in February 2026.",
+            "proof_gap": False,
+        },
+        messaging_brief=_brief(),
+        selected_hook_id="hook_1",
+        selected_fit_hypothesis_id="fit_1",
+    )
+
+    assert basis["kind"] == "soft_signal"
+
+
+def test_augment_qa_report_synthesizes_unsupported_proof_issue() -> None:
+    report = augment_qa_report_from_validation_codes(
+        {"issues": [], "pass_rewrite_needed": False, "rewrite_plan": []},
+        draft={
+            "subject": "Workflow QA idea",
+            "body": (
+                "Northstar's audit puts workflow drift under review. "
+                "A customer improved visibility by 22% after rollout.\n\n"
+                "Open to a quick chat to see if this is relevant?"
+            ),
+        },
+        locked_cta="Open to a quick chat to see if this is relevant?",
+        validation_codes=["unsupported_proof_sentence"],
+    )
+
+    assert report["pass_rewrite_needed"] is True
+    assert any(issue["issue_code"] == "unsupported_proof_sentence" for issue in report["issues"])
 
 
 def test_reconstruct_draft_from_patch_preserves_untouched_sentence_and_cta() -> None:
@@ -284,5 +369,56 @@ def test_reconstruct_draft_from_patch_preserves_untouched_sentence_and_cta() -> 
     assert details["rewrite_patch_dropped_operations"] == []
 
 
+def test_sanitize_rewrite_patch_removes_preserve_indexes_for_rewritten_sentences() -> None:
+    orchestrator = AIOrchestrator(
+        openai=type("Disabled", (), {"enabled": lambda self: False})(),
+        settings=replace(load_settings(), app_env="test"),
+        brief_cache=BriefCache(),
+    )
+
+    patch, _ = orchestrator._sanitize_rewrite_patch_payload(  # noqa: SLF001
+        {
+            "preserve_sentence_indexes": [0, 1],
+            "sentence_operations": [
+                {
+                    "issue_code": "iss_001",
+                    "action": "rewrite",
+                    "target_sentence_index": 0,
+                    "text": "Rewrite the opener.",
+                }
+            ],
+        },
+        original_draft={
+            "preset_id": "direct",
+            "selected_angle_id": "angle_1",
+            "used_hook_ids": ["hook_1"],
+        },
+        atoms={"preset_id": "direct", "selected_angle_id": "angle_1", "used_hook_ids": ["hook_1"]},
+        cta_line="Open to a quick chat to see if this is relevant?",
+    )
+
+    assert patch["preserve_sentence_indexes"] == [1]
+
+
 def test_cta_lock_normalization_is_shared() -> None:
     assert normalize_cta_text(" Open to  a quick chat to see if this is relevant? ") == "Open to a quick chat to see if this is relevant?"
+
+
+def test_preferred_angle_id_uses_rank_then_fit_then_risk() -> None:
+    orchestrator = AIOrchestrator(
+        openai=type("Disabled", (), {"enabled": lambda self: False})(),
+        settings=replace(load_settings(), app_env="test"),
+        brief_cache=BriefCache(),
+    )
+
+    angle_id = orchestrator._preferred_angle_id(  # noqa: SLF001
+        angle_set={
+            "angles": [
+                {"angle_id": "angle_3", "rank": 3, "persona_fit_score": 0.99, "risk_level": "low"},
+                {"angle_id": "angle_2", "rank": 1, "persona_fit_score": 0.75, "risk_level": "medium"},
+                {"angle_id": "angle_1", "rank": 1, "persona_fit_score": 0.82, "risk_level": "low"},
+            ]
+        }
+    )
+
+    assert angle_id == "angle_1"

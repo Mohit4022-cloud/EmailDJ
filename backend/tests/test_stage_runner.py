@@ -113,6 +113,43 @@ async def test_run_stage_repairs_after_schema_failure() -> None:
 
 
 @pytest.mark.asyncio
+async def test_run_stage_repair_keeps_original_context_messages() -> None:
+    openai = StubOpenAI(
+        responses=[
+            "",
+            {"version": "1", "subject": "Hello", "body": "World"},
+        ]
+    )
+    messages = [
+        {"role": "system", "content": "Use hook_7 from the brief and keep the CTA locked."},
+        {"role": "user", "content": "Return a grounded draft for Acme using fit_3."},
+    ]
+
+    result = await run_stage(
+        openai=openai,  # type: ignore[arg-type]
+        config=StageConfig(
+            stage="EMAIL_GENERATION",
+            max_tokens=100,
+            reasoning_effort="low",
+            response_format=_response_format(),
+        ),
+        messages=messages,
+        validator=None,
+    )
+
+    assert result.attempts == 2
+    repair_messages = openai.calls[1]["messages"]
+    assert repair_messages[0] == messages[0]
+    assert repair_messages[1] == messages[1]
+    assert repair_messages[2]["role"] == "assistant"
+    assert "schema_validation_failed" in repair_messages[2]["content"]
+    assert repair_messages[3]["role"] == "system"
+    assert "Do not invent placeholder IDs" in repair_messages[3]["content"]
+    assert repair_messages[4]["role"] == "user"
+    assert "Previous response:" in repair_messages[4]["content"]
+
+
+@pytest.mark.asyncio
 async def test_run_stage_fails_after_repair_when_still_schema_invalid() -> None:
     openai = StubOpenAI(
         responses=[

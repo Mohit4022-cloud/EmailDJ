@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
 ALLOWED_STAGE_A_SOURCE_FIELDS = [
     "name",
     "title",
@@ -103,21 +105,6 @@ COMMON_DEFS = {
     "TargetSectionStr": {"type": "string", "minLength": 1, "maxLength": 240},
     "WhyItFailsStr": {"type": "string", "minLength": 1, "maxLength": 400},
     "ExpectedEffectStr": {"type": "string", "minLength": 1, "maxLength": 240},
-    "HookLineage": {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["canonical_hook_ids", "hook_alias_map"],
-        "properties": {
-            "canonical_hook_ids": {
-                "type": "array",
-                "items": {"$ref": "#/$defs/IdStr"},
-            },
-            "hook_alias_map": {
-                "type": "object",
-                "additionalProperties": {"$ref": "#/$defs/IdStr"},
-            },
-        },
-    },
     "ProofBasis": {
         "type": "object",
         "additionalProperties": False,
@@ -287,7 +274,21 @@ MESSAGING_BRIEF_SCHEMA = {
             "minItems": 1,
             "items": {"$ref": "#/$defs/Hook"},
         },
-        "hook_lineage": {"$ref": "#/$defs/HookLineage"},
+        "hook_lineage": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["canonical_hook_ids", "hook_alias_map"],
+            "properties": {
+                "canonical_hook_ids": {
+                    "type": "array",
+                    "items": {"$ref": "#/$defs/IdStr"},
+                },
+                "hook_alias_map": {
+                    "type": "object",
+                    "additionalProperties": {"$ref": "#/$defs/IdStr"},
+                },
+            },
+        },
         "persona_cues": {
             "type": "object",
             "additionalProperties": False,
@@ -335,6 +336,10 @@ MESSAGING_BRIEF_SCHEMA = {
         },
     },
 }
+
+MESSAGING_BRIEF_RESPONSE_SCHEMA = deepcopy(MESSAGING_BRIEF_SCHEMA)
+MESSAGING_BRIEF_RESPONSE_SCHEMA["properties"] = dict(MESSAGING_BRIEF_RESPONSE_SCHEMA["properties"])
+MESSAGING_BRIEF_RESPONSE_SCHEMA["properties"].pop("hook_lineage", None)
 
 FIT_MAP_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -754,8 +759,8 @@ ERROR_RESULT_SCHEMA = {
 }
 
 
-def response_format(name: str, schema: dict) -> dict:
-    return {
+def response_format(name: str, schema: dict, *, local_schema: dict | None = None) -> dict:
+    payload = {
         "type": "json_schema",
         "json_schema": {
             "name": name,
@@ -763,9 +768,16 @@ def response_format(name: str, schema: dict) -> dict:
             "strict": True,
         },
     }
+    if local_schema is not None:
+        payload["local_schema"] = local_schema
+    return payload
 
 
-RF_MESSAGING_BRIEF = response_format("MessagingBrief", MESSAGING_BRIEF_SCHEMA)
+RF_MESSAGING_BRIEF = response_format(
+    "MessagingBrief",
+    MESSAGING_BRIEF_RESPONSE_SCHEMA,
+    local_schema=MESSAGING_BRIEF_SCHEMA,
+)
 RF_FIT_MAP = response_format("FitMap", FIT_MAP_SCHEMA)
 RF_ANGLE_SET = response_format("AngleSet", ANGLE_SET_SCHEMA)
 RF_MESSAGE_ATOMS = response_format("MessageAtoms", MESSAGE_ATOMS_SCHEMA)

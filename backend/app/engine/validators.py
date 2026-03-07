@@ -312,6 +312,8 @@ def opener_is_simple(opener_line: str, *, contract: dict[str, Any] | None = None
         return False
     if opener.count(",") > int(normalized_contract.get("max_commas") or 1):
         return False
+    if ";" in opener or ":" in opener or re.search(r"\s[-–—]\s", opener):
+        return False
     connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
     if connector_count > 1:
         return False
@@ -348,6 +350,51 @@ def _grounding_tokens(text: str) -> set[str]:
 
 def _numeric_tokens(text: str) -> set[str]:
     return {token for token in re.findall(r"\b\d+(?:\.\d+)?%?\b", str(text or "").lower())}
+
+
+def canonicalize_proof_basis(
+    proof_basis: dict[str, Any] | None,
+    *,
+    messaging_brief: dict[str, Any],
+    selected_hook_id: str = "",
+    selected_fit_hypothesis_id: str = "",
+) -> dict[str, Any]:
+    basis = dict(proof_basis or {})
+    fact_map = fact_map_by_id(messaging_brief)
+    resolved_hook_ids, _ = resolve_hook_ids(
+        list(basis.get("source_hook_ids") or ([selected_hook_id] if selected_hook_id else [])),
+        messaging_brief=messaging_brief,
+        selected_hook_id=selected_hook_id,
+    )
+    fact_ids = list(
+        dict.fromkeys(
+            str(item or "").strip()
+            for item in (basis.get("source_fact_ids") or [])
+            if str(item or "").strip()
+        )
+    )
+    kind = str(basis.get("kind") or "none").strip() or "none"
+    evidence_kinds = {
+        canonical_fact_kind(str((fact_map.get(fact_id) or {}).get("source_field") or "").strip().lower())
+        for fact_id in fact_ids
+    }
+    evidence_kinds.discard("")
+    has_seller_proof = "seller_proof" in evidence_kinds
+    if kind == "hard_proof" and not has_seller_proof:
+        kind = "soft_signal" if fact_ids else "none"
+    elif kind == "soft_signal" and not fact_ids:
+        kind = "none"
+    return {
+        "kind": kind,
+        "source_fact_ids": fact_ids,
+        "source_hook_ids": resolved_hook_ids,
+        "source_fit_hypothesis_id": str(
+            basis.get("source_fit_hypothesis_id") or selected_fit_hypothesis_id or ""
+        ).strip(),
+        "grounded_span": str(basis.get("grounded_span") or "").strip()[:240],
+        "source_text": str(basis.get("source_text") or "").strip()[:240],
+        "proof_gap": bool(basis.get("proof_gap")),
+    }
 
 
 def _normalize_placeholder_text(text: Any) -> str:
@@ -851,7 +898,8 @@ def validate_fit_map(fit_map: dict[str, Any], messaging_brief: dict[str, Any]) -
     fact_ids = {str(item.get("fact_id")) for item in messaging_brief.get("facts_from_input") or []}
 
     for hyp in fit_map.get("hypotheses") or []:
-        if str(hyp.get("selected_hook_id")) not in hook_ids:
+        selected_hook_id = str(hyp.get("selected_hook_id") or "").strip()
+        if selected_hook_id not in hook_ids:
             codes.append("fit_unknown_hook_id")
             break
         supporting = list(hyp.get("supporting_fact_ids") or [])
@@ -861,12 +909,21 @@ def validate_fit_map(fit_map: dict[str, Any], messaging_brief: dict[str, Any]) -
         if any(str(fid) not in fact_ids for fid in supporting):
             codes.append("fit_unknown_supporting_fact_id")
             break
-        proof_basis = dict(hyp.get("proof_basis") or {})
+        proof_basis = canonicalize_proof_basis(
+            hyp.get("proof_basis"),
+            messaging_brief=messaging_brief,
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=str(hyp.get("fit_hypothesis_id") or "").strip(),
+        )
         if not proof_basis:
             codes.append("fit_missing_proof_basis")
             break
         basis_kind = str(proof_basis.get("kind") or "").strip()
         basis_fact_ids = [str(item or "").strip() for item in (proof_basis.get("source_fact_ids") or []) if str(item or "").strip()]
+        basis_hook_ids = [str(item or "").strip() for item in (proof_basis.get("source_hook_ids") or []) if str(item or "").strip()]
+        if not basis_hook_ids or selected_hook_id not in basis_hook_ids:
+            codes.append("fit_proof_basis_hook_mismatch")
+            break
         if basis_kind in {"hard_proof", "soft_signal"} and not basis_fact_ids:
             codes.append("fit_proof_basis_missing_source_fact")
             break
@@ -894,16 +951,33 @@ def validate_angle_set(angle_set: dict[str, Any], messaging_brief: dict[str, Any
     hook_ids = set(canonical_hook_ids(messaging_brief))
     hyp_ids = {str(item.get("fit_hypothesis_id")) for item in fit_map.get("hypotheses") or []}
     seen_signatures: set[tuple[str, str, str, str]] = set()
+    seen_angle_types: set[str] = set()
     for angle in angles:
-        if str(angle.get("selected_hook_id")) not in hook_ids:
+        selected_hook_id = str(angle.get("selected_hook_id") or "").strip()
+        if selected_hook_id not in hook_ids:
             codes.append("angle_unknown_hook_id")
             break
         if str(angle.get("selected_fit_hypothesis_id")) not in hyp_ids:
             codes.append("angle_unknown_fit_hypothesis_id")
             break
-        proof_basis = dict(angle.get("proof_basis") or {})
+        angle_type = str(angle.get("angle_type") or "").strip()
+        if angle_type and angle_type in seen_angle_types:
+            codes.append("angle_duplicate_type")
+            break
+        if angle_type:
+            seen_angle_types.add(angle_type)
+        proof_basis = canonicalize_proof_basis(
+            angle.get("proof_basis"),
+            messaging_brief=messaging_brief,
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=str(angle.get("selected_fit_hypothesis_id") or "").strip(),
+        )
         if not proof_basis:
             codes.append("angle_missing_proof_basis")
+            break
+        basis_hook_ids = [str(item or "").strip() for item in (proof_basis.get("source_hook_ids") or []) if str(item or "").strip()]
+        if not basis_hook_ids or selected_hook_id not in basis_hook_ids:
+            codes.append("angle_proof_basis_hook_mismatch")
             break
         signature = (
             normalize_text_key(str(angle.get("primary_pain") or angle.get("pain") or "")),
@@ -1006,9 +1080,17 @@ def validate_message_atoms(
         codes.append("atoms_duplicate_used_hook_id")
         _append_detail(details, "atoms_duplicate_used_hook_id", available_fact_ids=used_hooks)
     hook_ids = set(expected_canonical_hook_ids)
+    resolved_used_hook_ids, _ = resolve_hook_ids(
+        used_hooks,
+        messaging_brief=messaging_brief,
+        selected_hook_id=str(selected_angle.get("selected_hook_id") or "").strip(),
+    )
     if any(hook_id and hook_id not in hook_ids for hook_id in used_hooks):
         codes.append("atoms_unknown_hook_id")
         _append_detail(details, "atoms_unknown_hook_id", available_fact_ids=used_hooks)
+    elif resolved_used_hook_ids != used_hooks:
+        codes.append("atoms_unknown_hook_id")
+        _append_detail(details, "atoms_unknown_hook_id", offending_text=",".join(used_hooks))
     if normalized_atoms["canonical_hook_ids"] != expected_canonical_hook_ids:
         codes.append("atoms_canonical_hook_ids_mismatch")
         _append_detail(
@@ -1046,7 +1128,12 @@ def validate_message_atoms(
         _append_detail(details, "atoms_opener_too_complex", offending_text=normalized_atoms["opener_line"][:160])
 
     proof_atom = normalized_atoms["proof_atom"]
-    proof_basis = normalized_atoms["proof_basis"]
+    proof_basis = canonicalize_proof_basis(
+        normalized_atoms["proof_basis"],
+        messaging_brief=messaging_brief,
+        selected_hook_id=selected_hook_id,
+        selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
+    )
     proof_kind = str(proof_basis.get("kind") or "").strip()
     if not proof_basis:
         codes.append("atoms_missing_proof_basis")
@@ -1054,6 +1141,10 @@ def validate_message_atoms(
     elif str(proof_basis.get("source_fit_hypothesis_id") or "") and str(proof_basis.get("source_fit_hypothesis_id") or "") != str(selected_angle.get("selected_fit_hypothesis_id") or ""):
         codes.append("atoms_proof_basis_hypothesis_mismatch")
         _append_detail(details, "atoms_proof_basis_hypothesis_mismatch", offending_text=str(proof_basis.get("source_fit_hypothesis_id") or ""))
+    proof_basis_hooks = {str(item or "").strip() for item in (proof_basis.get("source_hook_ids") or []) if str(item or "").strip()}
+    if selected_hook_id and proof_basis_hooks and selected_hook_id not in proof_basis_hooks:
+        codes.append("atoms_proof_basis_hook_mismatch")
+        _append_detail(details, "atoms_proof_basis_hook_mismatch", offending_text=str(sorted(proof_basis_hooks)))
     if proof_atom:
         if proof_kind not in {"hard_proof", "soft_signal"}:
             codes.append("atoms_proof_kind_not_allowed_for_proof_atom")
@@ -1321,10 +1412,22 @@ def validate_email_draft(
         codes.append("opener_too_complex")
 
     canonical_hooks = set(canonical_hook_ids(brief))
+    resolved_used_hook_ids, _ = resolve_hook_ids(
+        used_hook_ids,
+        messaging_brief=brief,
+        selected_hook_id=str(((atoms.get("used_hook_ids") or [""])[0] or "")).strip(),
+    )
     if any(str(hook_id or "").strip() and str(hook_id or "").strip() not in canonical_hooks for hook_id in used_hook_ids):
         codes.append("personalization_unknown_used_hook")
+    elif used_hook_ids and resolved_used_hook_ids != [str(hook_id or "").strip() for hook_id in used_hook_ids if str(hook_id or "").strip()]:
+        codes.append("personalization_unknown_used_hook")
 
-    proof_basis = dict(atoms.get("proof_basis") or {})
+    proof_basis = canonicalize_proof_basis(
+        atoms.get("proof_basis"),
+        messaging_brief=brief,
+        selected_hook_id=str((resolved_used_hook_ids or [""])[0] or ""),
+        selected_fit_hypothesis_id=str(atoms.get("selected_angle_id") or ""),
+    )
     proof_kind = str(proof_basis.get("kind") or "").strip()
     if proof_kind in {"none", "capability_statement", "assumption"} and _contains_unsupported_proof_sentence(
         body,
@@ -1636,7 +1739,7 @@ def _find_sentence_with_token(draft: dict[str, Any] | None, tokens: list[str]) -
 
 def _opener_clause_counts(draft: dict[str, Any] | None) -> tuple[int, int]:
     opener = _first_body_sentence(draft)
-    comma_count = opener.count(",")
+    comma_count = opener.count(",") + opener.count(";") + opener.count(":")
     connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
     return comma_count, connector_count
 
@@ -1747,6 +1850,45 @@ def _synthesized_issue_for_validation_code(
             expected_effect="Remove the banned phrase without changing the email structure or CTA.",
         )
 
+    if normalized_code == "unsupported_proof_sentence":
+        sentence = _find_sentence_with_token(
+            draft,
+            list(GENERIC_PROOF_PHRASES) + ["customer", "client", "team", "%", "reduced", "improved", "lifted"],
+        )
+        return _validation_issue_dict(
+            issue_code="unsupported_proof_sentence",
+            severity="high",
+            target=sentence or "proof sentence",
+            evidence_quote=sentence or _first_body_sentence(draft),
+            why_it_fails="The quoted sentence reads like proof, but the current proof basis does not support making that claim.",
+            fix_instruction="Delete or narrow only the quoted sentence so it becomes an honest capability statement or remove it entirely; do not invent replacement proof and keep the locked CTA unchanged.",
+            expected_effect="Remove unsupported proof language while preserving grounded narrative and CTA.",
+        )
+
+    if normalized_code == "personalization_unknown_used_hook":
+        sentence = _first_body_sentence(draft)
+        return _validation_issue_dict(
+            issue_code="hook_lineage_drift",
+            severity="high",
+            target=sentence or "opener sentence",
+            evidence_quote=sentence or "opener sentence",
+            why_it_fails="The personalization no longer resolves cleanly to the canonical hook lineage from the brief.",
+            fix_instruction="Rewrite only the personalization sentence so it anchors to the selected canonical hook and leave the rest of the draft, especially the CTA, unchanged.",
+            expected_effect="Restore hook lineage and keep the opener grounded in the selected hook.",
+        )
+
+    if normalized_code == "opener_too_complex":
+        opener = _first_body_sentence(draft)
+        return _validation_issue_dict(
+            issue_code="opener_too_complex",
+            severity="high",
+            target="opener sentence",
+            evidence_quote=opener,
+            why_it_fails="The opener carries too much setup and needs a simpler single thought.",
+            fix_instruction="Replace only the opener sentence with one plain-English sentence tied to the same grounded hook; keep untouched middle sentences and the locked CTA unchanged.",
+            expected_effect="Make the opener easier to scan without changing the rest of the email.",
+        )
+
     return None
 
 
@@ -1798,8 +1940,14 @@ def augment_qa_report_from_draft_heuristics(
 
     existing_codes = {str(item.get("issue_code") or "").strip() for item in issues}
     comma_count, connector_count = _opener_clause_counts(draft)
-    if "opener_too_complex" not in existing_codes and (comma_count > 1 or connector_count > 1):
-        opener = _first_body_sentence(draft)
+    opener = _first_body_sentence(draft)
+    if "opener_too_complex" not in existing_codes and (
+        comma_count > 1
+        or connector_count > 1
+        or _word_count(opener) > int(opener_contract().get("max_words") or 14)
+        or is_leading_subordinate_clause(opener)
+        or re.search(r"\s[-–—]\s", opener)
+    ):
         issues.append(
             _validation_issue_dict(
                 issue_code="opener_too_complex",

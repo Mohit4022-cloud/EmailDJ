@@ -225,6 +225,93 @@ async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pyte
 
 
 @pytest.mark.asyncio
+async def test_judge_message_atoms_fails_on_canonical_hook_lineage_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("ONE_LINER_COMPRESSOR"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "hooks": [{"hook_id": "hook_1"}, {"hook_id": "hook_2"}],
+        "hook_lineage": {
+            "canonical_hook_ids": ["hook_1", "hook_2"],
+            "hook_alias_map": {"hook_1": "hook_1", "hook_2": "hook_2"},
+        },
+        "facts_from_input": [{"source_field": "research_text", "fact_kind": "prospect_context", "text": "Company: Nimbus Health"}],
+    }
+    atoms = {
+        "preset_id": "challenger",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
+        "opener_atom": "Nimbus Health is reviewing workflow quality.",
+        "opener_line": "Nimbus Health is reviewing workflow quality.",
+        "opener_contract": opener_contract(),
+        "value_atom": "RevOps teams cut handoff delays in one quarter.",
+        "proof_atom": "",
+        "proof_basis": _proof_basis(kind="none", proof_gap=True),
+        "cta_atom": "Open to a quick chat to see if this is relevant?",
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "cta_lock": build_cta_lock("Open to a quick chat to see if this is relevant?"),
+        "target_word_budget": 61,
+        "target_sentence_budget": 3,
+    }
+
+    result = await stage_judge.judge_message_atoms(
+        atoms,
+        brief,
+        {"angle_id": "angle_1", "selected_hook_id": "hook_1"},
+        locked_cta="Open to a quick chat to see if this is relevant?",
+        openai=DummyOpenAI(),
+    )
+
+    assert result["scores"]["hook_ids_valid"] == 0
+
+
+@pytest.mark.asyncio
+async def test_judge_message_atoms_accepts_gain_fallback_with_concrete_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return _all_pass_payload("ONE_LINER_COMPRESSOR"), {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "hooks": [{"hook_id": "hook_1"}],
+        "hook_lineage": {"canonical_hook_ids": ["hook_1"], "hook_alias_map": {"hook_1": "hook_1"}},
+        "facts_from_input": [{"source_field": "research_text", "fact_kind": "prospect_context", "text": "Company: Nimbus Health"}],
+    }
+    atoms = {
+        "preset_id": "challenger",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
+        "opener_atom": "Nimbus Health already reviews RevOps quality.",
+        "opener_line": "Nimbus Health already reviews RevOps quality.",
+        "opener_contract": opener_contract(),
+        "value_atom": "Nimbus Health gains tighter forecast reliability without adding another review layer.",
+        "proof_atom": "",
+        "proof_basis": _proof_basis(kind="none", proof_gap=True),
+        "cta_atom": "Open to a quick chat to see if this is relevant?",
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "cta_lock": build_cta_lock("Open to a quick chat to see if this is relevant?"),
+        "target_word_budget": 61,
+        "target_sentence_budget": 3,
+    }
+
+    result = await stage_judge.judge_message_atoms(
+        atoms,
+        brief,
+        {"angle_id": "angle_1", "selected_hook_id": "hook_1"},
+        locked_cta="Open to a quick chat to see if this is relevant?",
+        openai=DummyOpenAI(),
+    )
+
+    assert "value_outcome_not_mechanism" not in result["hard_fail_criteria"]
+
+
+@pytest.mark.asyncio
 async def test_judge_email_draft_hard_fail_on_cta_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
         return _all_pass_payload("EMAIL_GENERATION"), {"usage": {}}

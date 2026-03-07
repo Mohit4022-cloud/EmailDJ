@@ -203,7 +203,7 @@ def _validate_schema_node(
 
 
 def _validate_schema(payload: dict[str, Any], response_format: dict[str, Any]) -> None:
-    schema_payload = response_format.get("json_schema", {}).get("schema", response_format)
+    schema_payload = response_format.get("local_schema") or response_format.get("json_schema", {}).get("schema", response_format)
     if not isinstance(schema_payload, dict):
         raise ValueError("schema_payload_invalid")
     errors: list[str] = []
@@ -213,23 +213,40 @@ def _validate_schema(payload: dict[str, Any], response_format: dict[str, Any]) -
         raise ValueError(f"schema_validation_failed:{joined}")
 
 
-def _repair_messages(raw_output: str, schema: dict[str, Any], error_text: str) -> list[dict[str, str]]:
-    schema_payload = schema.get("json_schema", {}).get("schema", schema)
-    return [
+def _repair_messages(
+    original_messages: list[dict[str, str]],
+    raw_output: str,
+    schema: dict[str, Any],
+    error_text: str,
+) -> list[dict[str, str]]:
+    schema_payload = schema.get("local_schema") or schema.get("json_schema", {}).get("schema", schema)
+    repair_messages = [dict(message) for message in original_messages]
+    previous_output = str(raw_output or "").strip()
+    if previous_output:
+        repair_messages.append({"role": "assistant", "content": previous_output})
+    repair_messages.append(
         {
             "role": "system",
-            "content": "Return only valid JSON that matches the provided schema exactly. Output JSON only.",
-        },
+            "content": (
+                "Your previous response was invalid. Regenerate the artifact using the original campaign context above. "
+                "Keep all IDs and facts grounded in that source context. Do not invent placeholder IDs, sample text, or generic examples. "
+                "Return only valid JSON that matches the provided schema exactly."
+            ),
+        }
+    )
+    repair_messages.append(
         {
             "role": "user",
             "content": (
-                "The following JSON is invalid or missing required fields.\n"
-                f"Fix it to match the schema and return only the corrected JSON: {raw_output}\n"
+                "The previous response was invalid or missing required fields.\n"
                 f"Validation error: {error_text}\n"
+                f"Previous response:\n{previous_output or '[empty response]'}\n"
+                "Regenerate the full artifact from the original context so it matches the schema exactly.\n"
                 f"Schema:\n{json.dumps(schema_payload, ensure_ascii=True)}\n"
             ),
-        },
-    ]
+        }
+    )
+    return repair_messages
 
 
 async def run_stage(
@@ -260,12 +277,15 @@ async def run_stage(
     final_validation_status = "passed"
 
     async def _call(request_messages: list[dict[str, str]]) -> tuple[str, dict[str, Any]]:
+        provider_response_format = {
+            key: value for key, value in config.response_format.items() if key != "local_schema"
+        }
         response = await openai.chat_completion(
             model=ENFORCED_OPENAI_MODEL,
             messages=request_messages,
             reasoning_effort=config.reasoning_effort,
             max_completion_tokens=config.max_tokens,
-            response_format=config.response_format,
+            response_format=provider_response_format,
             timeout_seconds=timeout_seconds,
         )
         message = dict(response.get("message") or {})
@@ -275,7 +295,11 @@ async def run_stage(
     for is_repair in (False, True):
         try:
             attempts += 1
-            call_messages = messages if not is_repair else _repair_messages(last_raw, config.response_format, last_error)
+            call_messages = (
+                messages
+                if not is_repair
+                else _repair_messages(messages, last_raw, config.response_format, last_error)
+            )
             raw_text, usage_payload = await _call(call_messages)
             usage = usage_payload or usage
             last_raw = raw_text

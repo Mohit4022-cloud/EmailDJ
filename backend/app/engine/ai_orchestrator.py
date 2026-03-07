@@ -41,6 +41,7 @@ from .validators import (
     augment_qa_report_from_validation_codes,
     build_cta_lock,
     build_proof_basis,
+    canonicalize_proof_basis,
     canonical_hook_ids,
     dominant_validation_code,
     normalize_qa_report,
@@ -256,6 +257,27 @@ class AIOrchestrator:
                     return dict(angle)
         return dict(angles[0]) if angles else {}
 
+    def _preferred_angle_id(self, *, angle_set: dict[str, Any]) -> str:
+        angles = [dict(item) for item in (angle_set.get("angles") or []) if isinstance(item, dict)]
+        if not angles:
+            return ""
+
+        def _sort_key(angle: dict[str, Any]) -> tuple[int, float, int, str]:
+            try:
+                rank = int(angle.get("rank") or 999)
+            except (TypeError, ValueError):
+                rank = 999
+            try:
+                persona_fit = float(angle.get("persona_fit_score") or 0.0)
+            except (TypeError, ValueError):
+                persona_fit = 0.0
+            risk_order = {"low": 0, "medium": 1, "high": 2}
+            risk = risk_order.get(str(angle.get("risk_level") or "").strip().lower(), 3)
+            return (rank, -persona_fit, risk, str(angle.get("angle_id") or ""))
+
+        preferred = min(angles, key=_sort_key)
+        return str(preferred.get("angle_id") or "").strip()
+
     def _fit_hypothesis_map(self, fit_map: dict[str, Any]) -> dict[str, dict[str, Any]]:
         return {
             str(item.get("fit_hypothesis_id") or "").strip(): dict(item)
@@ -304,6 +326,16 @@ class AIOrchestrator:
         for raw_hypothesis in (out.get("hypotheses") or []):
             hypothesis = dict(raw_hypothesis or {})
             hook_id = str(hypothesis.get("selected_hook_id") or "").strip()
+            resolved_hook_ids, hook_actions = resolve_hook_ids(
+                [hook_id],
+                messaging_brief=messaging_brief,
+                selected_hook_id=hook_id,
+            )
+            actions.extend(hook_actions)
+            hook_id = str((resolved_hook_ids or [hook_id])[0] or "").strip()
+            if hook_id and str(hypothesis.get("selected_hook_id") or "").strip() != hook_id:
+                hypothesis["selected_hook_id"] = hook_id
+                actions.append("repair_fit_selected_hook_id")
             fit_hypothesis_id = str(hypothesis.get("fit_hypothesis_id") or "").strip()
             proof_basis = dict(hypothesis.get("proof_basis") or {})
             if not proof_basis:
@@ -314,6 +346,12 @@ class AIOrchestrator:
                     selected_fit_hypothesis_id=fit_hypothesis_id,
                 )
                 actions.append("derive_fit_proof_basis")
+            proof_basis = canonicalize_proof_basis(
+                proof_basis,
+                messaging_brief=messaging_brief,
+                selected_hook_id=hook_id,
+                selected_fit_hypothesis_id=fit_hypothesis_id,
+            )
             if str(proof_basis.get("kind") or "") == "none":
                 if str(hypothesis.get("proof") or "").strip() != PROOF_GAP_TEXT:
                     hypothesis["proof"] = PROOF_GAP_TEXT
@@ -336,16 +374,33 @@ class AIOrchestrator:
         angles: list[dict[str, Any]] = []
         for raw_angle in (out.get("angles") or []):
             angle = dict(raw_angle or {})
+            raw_hook_id = str(angle.get("selected_hook_id") or "").strip()
+            resolved_hook_ids, hook_actions = resolve_hook_ids(
+                [raw_hook_id],
+                messaging_brief=messaging_brief,
+                selected_hook_id=raw_hook_id,
+            )
+            actions.extend(hook_actions)
+            selected_hook_id = str((resolved_hook_ids or [raw_hook_id])[0] or "").strip()
+            if selected_hook_id and raw_hook_id != selected_hook_id:
+                angle["selected_hook_id"] = selected_hook_id
+                actions.append("repair_angle_selected_hook_id")
             hypothesis = hypothesis_map.get(str(angle.get("selected_fit_hypothesis_id") or "").strip(), {})
             proof_basis = dict(angle.get("proof_basis") or hypothesis.get("proof_basis") or {})
             if not proof_basis:
                 proof_basis = build_proof_basis(
                     angle.get("proof"),
                     messaging_brief=messaging_brief,
-                    selected_hook_id=str(angle.get("selected_hook_id") or "").strip(),
+                    selected_hook_id=selected_hook_id,
                     selected_fit_hypothesis_id=str(angle.get("selected_fit_hypothesis_id") or "").strip(),
                 )
                 actions.append("derive_angle_proof_basis")
+            proof_basis = canonicalize_proof_basis(
+                proof_basis,
+                messaging_brief=messaging_brief,
+                selected_hook_id=selected_hook_id,
+                selected_fit_hypothesis_id=str(angle.get("selected_fit_hypothesis_id") or "").strip(),
+            )
             if str(proof_basis.get("kind") or "") == "none" and str(angle.get("proof") or "").strip() != PROOF_GAP_TEXT:
                 angle["proof"] = PROOF_GAP_TEXT
                 actions.append("lock_angle_proof_gap_text")
@@ -358,6 +413,35 @@ class AIOrchestrator:
             angles.append(angle)
         out["angles"] = angles
         return out, {"angle_sanitation_report": {"actions": actions}}
+
+    def _sanitize_draft_metadata(
+        self,
+        draft: dict[str, Any],
+        *,
+        preset_id: str,
+        selected_angle: dict[str, Any],
+        messaging_brief: dict[str, Any],
+    ) -> tuple[dict[str, Any], list[str]]:
+        out = dict(draft or {})
+        actions: list[str] = []
+        expected_preset_id = str(preset_id or "").strip()
+        if expected_preset_id and str(out.get("preset_id") or "").strip() != expected_preset_id:
+            out["preset_id"] = expected_preset_id
+            actions.append("lock_draft_preset_id")
+        expected_angle_id = str(selected_angle.get("angle_id") or "").strip()
+        if expected_angle_id and str(out.get("selected_angle_id") or "").strip() != expected_angle_id:
+            out["selected_angle_id"] = expected_angle_id
+            actions.append("lock_draft_selected_angle_id")
+        resolved_hook_ids, hook_actions = resolve_hook_ids(
+            list(out.get("used_hook_ids") or []),
+            messaging_brief=messaging_brief,
+            selected_hook_id=str(selected_angle.get("selected_hook_id") or "").strip(),
+        )
+        actions.extend(hook_actions)
+        if resolved_hook_ids != list(out.get("used_hook_ids") or []):
+            out["used_hook_ids"] = resolved_hook_ids
+            actions.append("repair_draft_used_hook_ids")
+        return out, list(dict.fromkeys(actions))
 
     def _body_sentences_without_cta(self, draft: dict[str, Any], *, cta_line: str) -> list[str]:
         body = str(draft.get("body") or "").strip()
@@ -415,6 +499,7 @@ class AIOrchestrator:
             "original_sentences": [{"index": idx, "text": text} for idx, text in enumerate(original_sentences)],
             "targeted_sentence_indexes": targeted_indexes,
             "preserve_sentence_indexes": preserve_indexes,
+            "preserve_sentences": [{"index": idx, "text": original_sentences[idx]} for idx in preserve_indexes],
             "locked_cta": build_cta_lock(cta_line),
         }
 
@@ -438,8 +523,8 @@ class AIOrchestrator:
                 preserve_indexes.append(int(raw_index))
             except (TypeError, ValueError):
                 continue
-        out["preserve_sentence_indexes"] = sorted(set(preserve_indexes))
         normalized_operations: list[dict[str, Any]] = []
+        mutated_indexes: set[int] = set()
         for raw_operation in (out.get("sentence_operations") or []):
             if not isinstance(raw_operation, dict):
                 continue
@@ -455,6 +540,10 @@ class AIOrchestrator:
                     "text": normalize_cta_text(raw_operation.get("text") or ""),
                 }
             )
+            if str(raw_operation.get("action") or "").strip() in {"rewrite", "delete"}:
+                mutated_indexes.add(target_index)
+        preserve_indexes = [index for index in sorted(set(preserve_indexes)) if index not in mutated_indexes]
+        out["preserve_sentence_indexes"] = preserve_indexes
         out["sentence_operations"] = normalized_operations
         return out, {"rewrite_patch_report": {"actions": actions}}
 
@@ -687,6 +776,12 @@ class AIOrchestrator:
                 selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
             )
             actions.append("derive_atoms_proof_basis")
+        proof_basis = canonicalize_proof_basis(
+            proof_basis,
+            messaging_brief=messaging_brief,
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
+        )
         if str(proof_basis.get("kind") or "") not in {"hard_proof", "soft_signal"}:
             if proof_atom:
                 out["proof_atom"] = ""
@@ -1118,6 +1213,15 @@ class AIOrchestrator:
         salvage_draft["preset_id"] = str(preset_id)
         salvage_draft["selected_angle_id"] = str(draft.get("selected_angle_id") or atoms.get("selected_angle_id") or "")
         salvage_draft["used_hook_ids"] = list(draft.get("used_hook_ids") or atoms.get("used_hook_ids") or [])
+        salvage_draft, salvage_metadata_steps = self._sanitize_draft_metadata(
+            salvage_draft,
+            preset_id=str(preset_id),
+            selected_angle={
+                "angle_id": str(draft.get("selected_angle_id") or atoms.get("selected_angle_id") or ""),
+                "selected_hook_id": str(((draft.get("used_hook_ids") or atoms.get("used_hook_ids") or [""])[0]) or ""),
+            },
+            messaging_brief=messaging_brief,
+        )
         salvage_pre_details = {
             "pre_postprocess_word_count": preset_word_count(str(salvage_draft.get("body") or "").strip()),
             "pre_postprocess_sentence_count": preset_sentence_count(str(salvage_draft.get("body") or "").strip()),
@@ -1133,6 +1237,7 @@ class AIOrchestrator:
             trace,
             budget_plan=budget_plan,
         )
+        salvage_steps = list(dict.fromkeys(salvage_metadata_steps + salvage_steps))
         salvage_codes = validate_email_draft(
             salvage_draft,
             brief=messaging_brief,
@@ -1197,7 +1302,7 @@ class AIOrchestrator:
                 cta_line=cta_line,
             )
 
-            selected_angle_id = str((angle_set.get("angles") or [{}])[0].get("angle_id") or "")
+            selected_angle_id = self._preferred_angle_id(angle_set=angle_set)
             if not selected_angle_id:
                 raise StageError(
                     stage=STAGES["B0"],
@@ -1220,7 +1325,7 @@ class AIOrchestrator:
                 trace=trace,
                 config=StageConfig(
                     stage=STAGES["C0"],
-                    max_tokens=400,
+                    max_tokens=700,
                     reasoning_effort=self.settings.openai_reasoning_low,
                     response_format=RF_MESSAGE_ATOMS,
                 ),
@@ -1296,6 +1401,12 @@ class AIOrchestrator:
             draft.setdefault("preset_id", ctx.preset_id)
             draft.setdefault("selected_angle_id", selected_angle_id)
             draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+            draft, draft_metadata_steps = self._sanitize_draft_metadata(
+                draft,
+                preset_id=ctx.preset_id,
+                selected_angle=selected_angle,
+                messaging_brief=messaging_brief,
+            )
             generation_pre_details = {
                 "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                 "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1312,6 +1423,7 @@ class AIOrchestrator:
                 trace,
                 budget_plan=budget_plan,
             )
+            generation_steps = list(dict.fromkeys(draft_metadata_steps + generation_steps))
 
             validation_codes = validate_email_draft(
                 draft,
@@ -1349,7 +1461,7 @@ class AIOrchestrator:
                 trace=trace,
                 config=StageConfig(
                     stage=STAGES["D"],
-                    max_tokens=800,
+                    max_tokens=1200,
                     reasoning_effort=self.settings.openai_reasoning_high,
                     response_format=RF_QA_REPORT,
                 ),
@@ -1436,6 +1548,12 @@ class AIOrchestrator:
                     original_draft=draft,
                     cta_line=cta_line,
                 )
+                draft, rewrite_metadata_steps = self._sanitize_draft_metadata(
+                    draft,
+                    preset_id=ctx.preset_id,
+                    selected_angle=selected_angle,
+                    messaging_brief=messaging_brief,
+                )
                 rewrite_pre_details = {
                     "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                     "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1451,6 +1569,7 @@ class AIOrchestrator:
                     trace,
                     budget_plan=budget_plan,
                 )
+                rewrite_steps = list(dict.fromkeys(rewrite_metadata_steps + rewrite_steps))
                 final_codes = validate_email_draft(
                     draft,
                     brief=messaging_brief,
@@ -1605,7 +1724,7 @@ class AIOrchestrator:
             trace=trace,
             config=StageConfig(
                 stage=STAGES["B0"],
-                max_tokens=1000,
+                max_tokens=1400,
                 reasoning_effort=self.settings.openai_reasoning_high,
                 response_format=RF_ANGLE_SET,
             ),
@@ -1666,7 +1785,7 @@ class AIOrchestrator:
                 trace=trace,
                 cta_line=cta_line,
             )
-            selected_angle_id = str((angle_set.get("angles") or [{}])[0].get("angle_id") or "")
+            selected_angle_id = self._preferred_angle_id(angle_set=angle_set)
             if not selected_angle_id:
                 raise StageError(stage=STAGES["B0"], code="ANGLE_SELECTION_FAILED", message="No angle available", details={})
             selected_angle = self._select_angle(angle_set=angle_set, selected_angle_id=selected_angle_id)
@@ -1693,7 +1812,7 @@ class AIOrchestrator:
                         trace=trace,
                         config=StageConfig(
                             stage=STAGES["C0"],
-                            max_tokens=400,
+                            max_tokens=700,
                             reasoning_effort=self.settings.openai_reasoning_low,
                             response_format=RF_MESSAGE_ATOMS,
                         ),
@@ -1772,6 +1891,12 @@ class AIOrchestrator:
                     draft.setdefault("preset_id", str(requested_id))
                     draft.setdefault("selected_angle_id", selected_angle_id)
                     draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+                    draft, draft_metadata_steps = self._sanitize_draft_metadata(
+                        draft,
+                        preset_id=str(requested_id),
+                        selected_angle=selected_angle,
+                        messaging_brief=messaging_brief,
+                    )
                     generation_pre_details = {
                         "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                         "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1787,6 +1912,7 @@ class AIOrchestrator:
                         trace,
                         budget_plan=budget_plan,
                     )
+                    generation_steps = list(dict.fromkeys(draft_metadata_steps + generation_steps))
 
                     validation_codes = validate_email_draft(
                         draft,
@@ -1823,7 +1949,7 @@ class AIOrchestrator:
                         trace=trace,
                         config=StageConfig(
                             stage=STAGES["D"],
-                            max_tokens=800,
+                            max_tokens=1200,
                             reasoning_effort=self.settings.openai_reasoning_high,
                             response_format=RF_QA_REPORT,
                         ),
@@ -1909,6 +2035,12 @@ class AIOrchestrator:
                             original_draft=draft,
                             cta_line=cta_line,
                         )
+                        draft, rewrite_metadata_steps = self._sanitize_draft_metadata(
+                            draft,
+                            preset_id=str(requested_id),
+                            selected_angle=selected_angle,
+                            messaging_brief=messaging_brief,
+                        )
                         rewrite_pre_details = {
                             "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                             "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1924,6 +2056,7 @@ class AIOrchestrator:
                             trace,
                             budget_plan=budget_plan,
                         )
+                        rewrite_steps = list(dict.fromkeys(rewrite_metadata_steps + rewrite_steps))
 
                         final_codes = validate_email_draft(
                             draft,

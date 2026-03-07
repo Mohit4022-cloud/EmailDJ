@@ -27,6 +27,7 @@ from app.engine.validators import (
     _contains_unsupported_proof_sentence as runtime_contains_unsupported_proof_sentence,
     build_cta_lock,
     build_proof_basis,
+    canonicalize_proof_basis,
     canonical_hook_ids,
     normalize_cta_text,
     opener_contract,
@@ -289,9 +290,19 @@ def _proof_basis_for_artifact(
 ) -> dict[str, Any]:
     provided = dict(proof_basis or {})
     if provided:
-        return provided
-    return build_proof_basis(
-        proof_text,
+        return canonicalize_proof_basis(
+            provided,
+            messaging_brief=brief or {},
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=selected_fit_hypothesis_id,
+        )
+    return canonicalize_proof_basis(
+        build_proof_basis(
+            proof_text,
+            messaging_brief=brief or {},
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=selected_fit_hypothesis_id,
+        ),
         messaging_brief=brief or {},
         selected_hook_id=selected_hook_id,
         selected_fit_hypothesis_id=selected_fit_hypothesis_id,
@@ -820,9 +831,28 @@ def _check_outcome_like(text: str) -> bool:
         "cadence",
     )
     has_mechanism = any(word in lowered for word in mechanism_words)
+    concrete_outcome_words = (
+        "reliability",
+        "accuracy",
+        "consistency",
+        "coverage",
+        "conversion",
+        "variance",
+        "lag",
+        "delay",
+        "leakage",
+        "throughput",
+        "quality",
+        "handoff",
+        "forecast",
+        "pipeline",
+    )
+    gain_fallback = bool(re.search(r"\bgain(?:s|ed)?\b", lowered)) and any(
+        word in lowered for word in concrete_outcome_words
+    )
     if has_mechanism and not (has_metric or has_time or has_outcome_verb):
-        return False
-    return has_metric or has_time or has_outcome_verb
+        return gain_fallback
+    return has_metric or has_time or has_outcome_verb or gain_fallback
 
 
 def _proof_looks_circular(proof_line: str, brief: dict[str, Any], angle: dict[str, Any] | None = None) -> bool:
@@ -1191,7 +1221,10 @@ async def judge_angle_set(
     forced: list[tuple[str, str]] = []
     objective_true: set[str] = set()
     seen_signatures: set[tuple[str, str, str, str]] = set()
+    seen_angle_types: set[str] = set()
+    seen_hook_ids: set[str] = set()
     fact_map = fact_map_by_id((brief or {}).get("facts_from_input") or [])
+    canonical_brief_hook_ids = canonical_hook_ids(brief or {})
     hypothesis_map = {
         str(item.get("fit_hypothesis_id") or ""): item
         for item in (fit_map or {}).get("hypotheses") or []
@@ -1233,6 +1266,15 @@ async def judge_angle_set(
             forced.append(("angles_distinct", f"duplicate distinctness signature for '{str(angle.get('angle_id') or '')}'"))
         else:
             seen_signatures.add(signature)
+        if angle_type and angle_type in seen_angle_types:
+            forced.append(("angles_distinct", f"duplicate angle_type for '{str(angle.get('angle_id') or '')}'"))
+        elif angle_type:
+            seen_angle_types.add(angle_type)
+        if len(canonical_brief_hook_ids) > 1:
+            if hook_id and hook_id in seen_hook_ids:
+                forced.append(("angles_distinct", f"duplicate selected_hook_id for '{str(angle.get('angle_id') or '')}'"))
+            elif hook_id:
+                seen_hook_ids.add(hook_id)
         hypothesis = hypothesis_map.get(str(angle.get("selected_fit_hypothesis_id") or ""), {})
         if not hypothesis:
             hypothesis_ids_valid = False
@@ -1390,14 +1432,18 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     )
     canonical_hooks = set(canonical_hook_ids(brief or {}))
     canonical_hook_ids_in_atoms = [str(item or "").strip() for item in (atoms.get("canonical_hook_ids") or []) if str(item or "").strip()]
+    normalized_used_hook_ids = [str(item or "").strip() for item in used_hook_ids if str(item or "").strip()]
     if (
-        len(resolved_hook_ids) != len({item for item in used_hook_ids if item})
-        and not repair_actions
-    ) or any(item not in canonical_hooks for item in canonical_hook_ids_in_atoms):
+        not resolved_hook_ids
+        or normalized_used_hook_ids != resolved_hook_ids
+        or any(item not in canonical_hooks for item in canonical_hook_ids_in_atoms)
+        or canonical_hook_ids_in_atoms != canonical_hook_ids(brief or {})
+        or (selected_hook_id and selected_hook_id not in resolved_hook_ids)
+    ):
         forced.append(("hook_ids_valid", "used_hook_ids do not resolve to canonical brief hooks"))
     if len(set(used_hook_ids)) != len(used_hook_ids):
         forced.append(("hook_ids_valid", "used_hook_ids contains duplicate hook ids"))
-    elif resolved_hook_ids and set(canonical_hook_ids_in_atoms or resolved_hook_ids).issubset(canonical_hooks):
+    elif not any(criterion == "hook_ids_valid" for criterion, _ in forced) and resolved_hook_ids and set(canonical_hook_ids_in_atoms or resolved_hook_ids).issubset(canonical_hooks):
         objective_true.add("hook_ids_valid")
 
     if proof_line and _check_outcome_like(proof_line):
