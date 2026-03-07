@@ -1,0 +1,17 @@
+{
+  "case_id": "acme__ceo__headliner__assertive",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_PROOF_DUMP"
+  ],
+  "word_count": 58,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Proof dump: 5 capitalized tokens in one sentence: 'Hi Sarah, As CEO of Acme consumer brands since 2022, Sarah Chen has overseen strong outcomes 2024, i'"
+  ]
+}

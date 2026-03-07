@@ -183,7 +183,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -197,8 +197,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -215,7 +215,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -240,7 +240,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_inbox_placement_audit"
     ],
     "prospect": {
@@ -254,8 +254,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Inbox Placement Audit",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -272,7 +272,7 @@
     "expected": {
       "must_include": [
         "Inbox Placement Audit",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Message Risk Scoring",
@@ -297,7 +297,7 @@
       "claim_safety",
       "research_empty",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -311,8 +311,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -329,7 +329,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -525,7 +525,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -539,8 +539,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -557,7 +557,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -582,7 +582,7 @@
       "claim_safety",
       "research_empty",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_compliance_qa"
     ],
     "prospect": {
@@ -596,8 +596,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Compliance QA",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -614,7 +614,7 @@
     "expected": {
       "must_include": [
         "Compliance QA",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -639,7 +639,7 @@
       "claim_safety",
       "research_neutral",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -653,8 +653,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -671,7 +671,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -867,7 +867,7 @@
       "claim_safety",
       "research_empty",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -881,8 +881,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -899,7 +899,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -924,7 +924,7 @@
       "claim_safety",
       "research_neutral",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_brand_protection"
     ],
     "prospect": {
@@ -938,8 +938,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Brand Protection",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -956,7 +956,7 @@
     "expected": {
       "must_include": [
         "Brand Protection",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -981,7 +981,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -995,8 +995,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -1013,7 +1013,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -1209,7 +1209,7 @@
       "claim_safety",
       "research_neutral",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -1223,8 +1223,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -1241,7 +1241,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -1266,7 +1266,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_sequence_governance"
     ],
     "prospect": {
@@ -1280,8 +1280,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Sequence Governance",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -1298,7 +1298,7 @@
     "expected": {
       "must_include": [
         "Sequence Governance",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Inbox Placement Audit",
@@ -1323,7 +1323,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -1337,8 +1337,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -1355,7 +1355,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -1553,7 +1553,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -1567,8 +1567,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -1585,7 +1585,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -1610,7 +1610,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_inbox_placement_audit"
     ],
     "prospect": {
@@ -1624,8 +1624,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Inbox Placement Audit",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -1642,7 +1642,7 @@
     "expected": {
       "must_include": [
         "Inbox Placement Audit",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Message Risk Scoring",
@@ -1667,7 +1667,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -1681,8 +1681,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -1699,7 +1699,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -1895,7 +1895,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -1909,8 +1909,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -1927,7 +1927,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -1952,7 +1952,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_compliance_qa"
     ],
     "prospect": {
@@ -1966,8 +1966,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Compliance QA",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -1984,7 +1984,7 @@
     "expected": {
       "must_include": [
         "Compliance QA",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -2009,7 +2009,7 @@
       "claim_safety",
       "research_empty",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -2023,8 +2023,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -2041,7 +2041,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -2237,7 +2237,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -2251,8 +2251,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -2269,7 +2269,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -2294,7 +2294,7 @@
       "claim_safety",
       "research_empty",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_brand_protection"
     ],
     "prospect": {
@@ -2308,8 +2308,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Brand Protection",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -2326,7 +2326,7 @@
     "expected": {
       "must_include": [
         "Brand Protection",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -2351,7 +2351,7 @@
       "claim_safety",
       "research_neutral",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -2365,8 +2365,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -2383,7 +2383,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -2579,7 +2579,7 @@
       "claim_safety",
       "research_empty",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -2593,8 +2593,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -2611,7 +2611,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -2636,7 +2636,7 @@
       "claim_safety",
       "research_neutral",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_sequence_governance"
     ],
     "prospect": {
@@ -2650,8 +2650,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Sequence Governance",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -2668,7 +2668,7 @@
     "expected": {
       "must_include": [
         "Sequence Governance",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Inbox Placement Audit",
@@ -2693,7 +2693,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -2707,8 +2707,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -2725,7 +2725,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -2923,7 +2923,7 @@
       "claim_safety",
       "research_neutral",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -2937,8 +2937,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -2955,7 +2955,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -2980,7 +2980,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_inbox_placement_audit"
     ],
     "prospect": {
@@ -2994,8 +2994,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Inbox Placement Audit",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -3012,7 +3012,7 @@
     "expected": {
       "must_include": [
         "Inbox Placement Audit",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Message Risk Scoring",
@@ -3037,7 +3037,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -3051,8 +3051,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -3069,7 +3069,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -3265,7 +3265,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -3279,8 +3279,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -3297,7 +3297,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -3322,7 +3322,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_compliance_qa"
     ],
     "prospect": {
@@ -3336,8 +3336,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Compliance QA",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -3354,7 +3354,7 @@
     "expected": {
       "must_include": [
         "Compliance QA",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -3379,7 +3379,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -3393,8 +3393,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -3411,7 +3411,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -3607,7 +3607,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -3621,8 +3621,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -3639,7 +3639,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -3664,7 +3664,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_brand_protection"
     ],
     "prospect": {
@@ -3678,8 +3678,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Brand Protection",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -3696,7 +3696,7 @@
     "expected": {
       "must_include": [
         "Brand Protection",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -3721,7 +3721,7 @@
       "claim_safety",
       "research_empty",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -3735,8 +3735,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -3753,7 +3753,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -3949,7 +3949,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -3963,8 +3963,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -3981,7 +3981,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -4006,7 +4006,7 @@
       "claim_safety",
       "research_empty",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_sequence_governance"
     ],
     "prospect": {
@@ -4020,8 +4020,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Sequence Governance",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -4038,7 +4038,7 @@
     "expected": {
       "must_include": [
         "Sequence Governance",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Inbox Placement Audit",
@@ -4063,7 +4063,7 @@
       "claim_safety",
       "research_neutral",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -4077,8 +4077,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -4095,7 +4095,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -4293,7 +4293,7 @@
       "claim_safety",
       "research_empty",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -4307,8 +4307,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -4325,7 +4325,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -4350,7 +4350,7 @@
       "claim_safety",
       "research_neutral",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_inbox_placement_audit"
     ],
     "prospect": {
@@ -4364,8 +4364,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Inbox Placement Audit",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -4382,7 +4382,7 @@
     "expected": {
       "must_include": [
         "Inbox Placement Audit",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Message Risk Scoring",
@@ -4407,7 +4407,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -4421,8 +4421,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -4439,7 +4439,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -4635,7 +4635,7 @@
       "claim_safety",
       "research_neutral",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -4649,8 +4649,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -4667,7 +4667,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -4692,7 +4692,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_compliance_qa"
     ],
     "prospect": {
@@ -4706,8 +4706,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Compliance QA",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -4724,7 +4724,7 @@
     "expected": {
       "must_include": [
         "Compliance QA",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -4749,7 +4749,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_domain_reputation_shield"
     ],
     "prospect": {
@@ -4763,8 +4763,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Domain Reputation Shield",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -4781,7 +4781,7 @@
     "expected": {
       "must_include": [
         "Domain Reputation Shield",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Pipeline Copilot",
@@ -4977,7 +4977,7 @@
       "claim_safety",
       "research_conflicting_injection",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -4991,8 +4991,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -5009,7 +5009,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",
@@ -5034,7 +5034,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_brand_protection"
     ],
     "prospect": {
@@ -5048,8 +5048,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Brand Protection",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.2,
       "orientation": -0.2,
@@ -5066,7 +5066,7 @@
     "expected": {
       "must_include": [
         "Brand Protection",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "AI Outbound Engine",
@@ -5091,7 +5091,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_remix_studio"
     ],
     "prospect": {
@@ -5105,8 +5105,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Remix Studio",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -5123,7 +5123,7 @@
     "expected": {
       "must_include": [
         "Remix Studio",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Brand Protection",
@@ -5319,7 +5319,7 @@
       "claim_safety",
       "research_long_noisy",
       "name_multipart",
-      "cta_15_min_chat",
+      "cta_try_pilot",
       "offer_message_risk_scoring"
     ],
     "prospect": {
@@ -5333,8 +5333,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Message Risk Scoring",
-    "cta_lock": "Open to a 15-min chat next week?",
-    "cta_type": "time_ask",
+    "cta_lock": "Worth trying a small pilot this month?",
+    "cta_type": "pilot",
     "style_profile": {
       "formality": -0.4,
       "orientation": 0.3,
@@ -5351,7 +5351,7 @@
     "expected": {
       "must_include": [
         "Message Risk Scoring",
-        "Open to a 15-min chat next week?"
+        "Worth trying a small pilot this month?"
       ],
       "must_not_include": [
         "Reply Lift Optimizer",
@@ -5376,7 +5376,7 @@
       "claim_safety",
       "research_taboo_claims",
       "name_hyphen",
-      "cta_send_deck",
+      "cta_referral_intro",
       "offer_sequence_governance"
     ],
     "prospect": {
@@ -5390,8 +5390,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Sequence Governance",
-    "cta_lock": "Should I send a quick deck?",
-    "cta_type": "value_asset",
+    "cta_lock": "Could you point me to the right owner for this?",
+    "cta_type": "referral",
     "style_profile": {
       "formality": 0.6,
       "orientation": 0.0,
@@ -5408,7 +5408,7 @@
     "expected": {
       "must_include": [
         "Sequence Governance",
-        "Should I send a quick deck?"
+        "Could you point me to the right owner for this?"
       ],
       "must_not_include": [
         "Inbox Placement Audit",
@@ -5433,7 +5433,7 @@
       "claim_safety",
       "research_empty",
       "name_apostrophe",
-      "cta_10_min_call",
+      "cta_event_invite",
       "offer_proof_of_concept_pilot"
     ],
     "prospect": {
@@ -5447,8 +5447,8 @@
       "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology."
     },
     "offer_lock": "Proof-of-Concept Pilot",
-    "cta_lock": "Open to a 10-min call next week?",
-    "cta_type": "question",
+    "cta_lock": "Want an invite to our outbound QA workshop?",
+    "cta_type": "event_invite",
     "style_profile": {
       "formality": -0.1,
       "orientation": -0.1,
@@ -5465,7 +5465,7 @@
     "expected": {
       "must_include": [
         "Proof-of-Concept Pilot",
-        "Open to a 10-min call next week?"
+        "Want an invite to our outbound QA workshop?"
       ],
       "must_not_include": [
         "Deal Velocity Studio",

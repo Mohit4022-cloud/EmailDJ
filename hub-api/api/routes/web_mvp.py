@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
+import random
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Query, Request
@@ -25,13 +29,32 @@ from api.schemas import (
     WebRemixAccepted,
     WebRemixRequest,
 )
-from email_generation.preset_preview_pipeline import make_response, run_preview_pipeline
+from email_generation.preset_preview_pipeline import (
+    make_response,
+    preview_prompt_template_hashes,
+    run_preview_pipeline,
+)
+from email_generation.prompt_templates import web_mvp_prompt_template_hash
 from email_generation.remix_engine import (
+    _extract_subject_and_body,
     build_draft,
     create_session_payload,
+    emit_quality_metric,
     load_session,
     persist_violations,
     save_session,
+)
+from email_generation.runtime_policies import (
+    debug_success_sample_rate,
+    feature_flags_effective,
+    feature_lossless_streaming_enabled,
+    feature_rollout_snapshot,
+    preview_pipeline_enabled,
+    quick_generate_mode,
+    real_provider_preference,
+    resolve_runtime_policies,
+    rollout_context,
+    web_mvp_stream_chunk_size,
 )
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
@@ -55,7 +78,7 @@ _REQUESTS: dict[str, RequestRecord] = {}
 
 
 def _preview_pipeline_enabled() -> bool:
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_PIPELINE", "off").strip().lower() == "on"
+    return preview_pipeline_enabled()
 
 
 def _cleanup_expired() -> None:
@@ -76,20 +99,187 @@ async def _emit_metric(name: str) -> None:
     await redis.expire(key, 3 * 24 * 60 * 60)
 
 
-def _token_stream(text: str):
+def _sha256_hex(text: str) -> str:
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+
+
+def _lossless_chunks(text: str, chunk_size: int) -> list[str]:
+    payload = text or ""
+    if not payload:
+        return [""]
+    if chunk_size <= 0:
+        chunk_size = 1
+    return [payload[idx : idx + chunk_size] for idx in range(0, len(payload), chunk_size)]
+
+
+def _token_stream(text: str, mode_info: dict[str, object]):
     async def _gen():
-        words = text.split(" ")
-        first = True
-        for token in words:
-            if first:
-                await asyncio.sleep(0.01)
-                first = False
-            else:
-                await asyncio.sleep(0.005)
-            yield token + " "
+        emitted_chunks: list[str] = []
+        if feature_lossless_streaming_enabled():
+            chunks = _lossless_chunks(text, web_mvp_stream_chunk_size())
+            mode_info["stream_chunk_mode"] = "stable_chars"
+            mode_info["total_chunks"] = len(chunks)
+            mode_info["total_chars"] = len(text)
+            emitted = 0
+            for chunk_index, chunk in enumerate(chunks):
+                await asyncio.sleep(0.004 if chunk_index else 0.01)
+                emitted += 1
+                emitted_chunks.append(chunk)
+                yield {
+                    "token": chunk,
+                    "chunk_index": chunk_index,
+                    "chunk_len": len(chunk),
+                    "chunk_mode": "stable_chars",
+                }
+            missing = max(0, len(chunks) - emitted)
+            mode_info["stream_missing_chunks"] = missing
+        else:
+            words = text.split(" ")
+            mode_info["stream_chunk_mode"] = "word_split"
+            mode_info["total_chunks"] = len(words)
+            emitted = 0
+            for index, token in enumerate(words):
+                await asyncio.sleep(0.005 if index else 0.01)
+                chunk = token + " "
+                emitted += 1
+                emitted_chunks.append(chunk)
+                yield chunk
+            mode_info["total_chars"] = sum(len(part) for part in emitted_chunks)
+            mode_info["stream_missing_chunks"] = max(0, len(words) - emitted)
+
+        reconstructed = "".join(emitted_chunks)
+        mode_info["stream_checksum"] = _sha256_hex(reconstructed)
+        mode_info["stream_integrity_server_ok"] = mode_info.get("stream_missing_chunks", 0) == 0
 
     return _gen()
 
+
+def _final_subject_body(draft: str, response_contract: str) -> tuple[str, str]:
+    if response_contract == "rc_tco_json_v1":
+        try:
+            parsed = json.loads(draft)
+            email = parsed.get("email") if isinstance(parsed, dict) else {}
+            return str((email or {}).get("subject") or "").strip(), str((email or {}).get("body") or "").strip()
+        except Exception:
+            return "", draft.strip()
+    return _extract_subject_and_body(draft)
+
+
+def _violation_codes(violations: list[str]) -> list[str]:
+    output: list[str] = []
+    seen: set[str] = set()
+    for entry in violations:
+        code = str(entry).split(":", 1)[0].strip()
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        output.append(code)
+    return output
+
+
+def _should_emit_success_debug_bundle() -> bool:
+    sample_rate = debug_success_sample_rate()
+    if sample_rate <= 0.0:
+        return False
+    if sample_rate >= 1.0:
+        return True
+    return random.random() < sample_rate
+
+
+def _log_debug_bundle(event: str, payload: dict[str, object], *, failure: bool) -> None:
+    if failure:
+        logger.warning(event, extra=payload)
+        return
+    if _should_emit_success_debug_bundle():
+        logger.info(event, extra=payload)
+
+
+def _debug_endpoints_enabled() -> bool:
+    app_env = resolve_runtime_policies().app_env
+    if app_env in {"local", "dev", "development", "test"}:
+        return True
+    explicit = os.environ.get("EMAILDJ_ENABLE_DEBUG_ENDPOINTS", "0").strip().lower()
+    return explicit in {"1", "true", "yes", "on"}
+
+
+def _flags_snapshot_for(endpoint: str, bucket_key: str) -> dict[str, dict[str, object]]:
+    with rollout_context(endpoint=endpoint, bucket_key=bucket_key):
+        return feature_rollout_snapshot()
+
+
+def _effective_flags_for(endpoint: str, bucket_key: str) -> dict[str, bool]:
+    with rollout_context(endpoint=endpoint, bucket_key=bucket_key):
+        return feature_flags_effective()
+
+
+def _prompt_template_versions() -> dict[str, object]:
+    return {
+        "web_mvp_prompt_hash": web_mvp_prompt_template_hash(),
+        "preview_prompt_hashes": preview_prompt_template_hashes(),
+    }
+
+
+def _provider_path_from_trace(trace: dict[str, Any] | None) -> str:
+    attempts = list((trace or {}).get("attempts") or [])
+    parse_methods = {str(item.get("parse_method") or "") for item in attempts}
+    if "salvage_substring" in parse_methods:
+        return "salvage_used"
+    if parse_methods and parse_methods.issubset({"strict_openai"}):
+        return "openai_strict"
+    return "fallback_parser"
+
+
+def _fact_summary(session: dict[str, Any]) -> dict[str, object]:
+    structured = list(session.get("allowed_facts_structured") or [])
+    high_conf = [item for item in structured if str(item.get("confidence", "")).lower() == "high"]
+    fact_types: list[str] = []
+    for item in structured:
+        kind = str(item.get("type") or "other").strip() or "other"
+        if kind not in fact_types:
+            fact_types.append(kind)
+    return {
+        "count": len(structured),
+        "high_conf_count": len(high_conf),
+        "types": fact_types,
+    }
+
+
+def _truncation_summary(session: dict[str, Any]) -> dict[str, object]:
+    meta = session.get("truncation_metadata") or {}
+    notes = meta.get("company_notes") or {}
+    research = meta.get("research_excerpt") or {}
+    return {
+        "notes_cut": bool(notes.get("cut_mid_sentence")),
+        "research_cut": bool(research.get("cut_mid_sentence")),
+        "boundary_used": {
+            "notes": notes.get("boundary_used", "none"),
+            "research": research.get("boundary_used", "none"),
+        },
+    }
+
+
+@router.get("/debug/config")
+async def debug_config(
+    endpoint: str = Query(default="generate", pattern="^(generate|remix|preview|stream)$"),
+    bucket_key: str = Query(default="debug"),
+) -> dict[str, object]:
+    policies = resolve_runtime_policies()
+    feature_flags = _flags_snapshot_for(endpoint=endpoint, bucket_key=bucket_key)
+    effective_flags = _effective_flags_for(endpoint=endpoint, bucket_key=bucket_key)
+    return {
+        "app_env": policies.app_env,
+        "runtime_mode": policies.quick_generate_mode,
+        "provider_stub_enabled": policies.provider_stub_enabled,
+        "quick_generate_mode": policies.quick_generate_mode,
+        "real_provider_preference": policies.real_provider_preference,
+        "preview_pipeline_enabled": policies.preview_pipeline_enabled,
+        "p0_flags_effective": policies.p0_flags_effective,
+        "p0_all_enabled": policies.p0_all_enabled,
+        "feature_flags": feature_flags,
+        "effective_flags": effective_flags,
+        "prompt_template_versions": _prompt_template_versions(),
+        "feature_env_raw": {key: value for key, value in os.environ.items() if key.startswith("FEATURE_")},
+    }
 
 @router.post("/generate", response_model=WebGenerateAccepted)
 async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
@@ -114,19 +304,49 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         )
 
     session_id = str(uuid4())
-    session = create_session_payload(
-        prospect=req.prospect.model_dump(),
-        research_text=req.research_text,
-        initial_style=req.style_profile.model_dump(),
-        offer_lock=req.offer_lock,
-        cta_offer_lock=req.cta_offer_lock,
-        cta_type=req.cta_type,
-        company_context=req.company_context.model_dump(exclude_none=True),
-        prospect_first_name=req.prospect_first_name,
+    request_id = str(uuid4())
+    feature_flags = _flags_snapshot_for(endpoint="generate", bucket_key=session_id)
+    flags_effective = _effective_flags_for(endpoint="generate", bucket_key=session_id)
+    logger.info(
+        "web_generate_config",
+        extra={
+            "endpoint": "generate",
+            "request_id": request_id,
+            "session_id": session_id,
+            "preset_id": req.preset_id,
+            "style_profile": req.style_profile.model_dump(),
+            "feature_flags": feature_flags,
+            "flags_effective": flags_effective,
+            "prompt_template_versions": _prompt_template_versions(),
+            "quick_generate_mode": quick_generate_mode(),
+            "real_provider_preference": real_provider_preference(),
+        },
     )
+    with rollout_context(endpoint="generate", bucket_key=session_id):
+        session = create_session_payload(
+            prospect=req.prospect.model_dump(),
+            research_text=req.research_text,
+            initial_style=req.style_profile.model_dump(),
+            offer_lock=req.offer_lock,
+            cta_offer_lock=req.cta_offer_lock,
+            cta_type=req.cta_type,
+            company_context=req.company_context.model_dump(exclude_none=True),
+            prospect_first_name=req.prospect_first_name,
+            preset_id=req.preset_id,
+            response_contract=req.response_contract,
+            pipeline_meta=req.pipeline_meta.model_dump(exclude_none=True) if req.pipeline_meta else None,
+        )
+    session["request_config"] = {
+        "request_id": request_id,
+        "endpoint": "generate",
+        "preset_id": req.preset_id,
+        "style_profile": req.style_profile.model_dump(),
+        "feature_flags": feature_flags,
+        "flags_effective": flags_effective,
+        "prompt_template_versions": _prompt_template_versions(),
+    }
     await save_session(session_id, session)
 
-    request_id = str(uuid4())
     _REQUESTS[request_id] = RequestRecord(
         session_id=session_id,
         style_profile=req.style_profile.model_dump(),
@@ -142,9 +362,39 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
     session = await load_session(req.session_id)
     if session is None:
         raise HTTPException(status_code=404, detail={"error": "session_not_found", "session_id": req.session_id})
+    if req.preset_id:
+        session["preset_id"] = req.preset_id
+        await save_session(req.session_id, session)
 
     await _emit_metric("web_remix_started")
     request_id = str(uuid4())
+    feature_flags = _flags_snapshot_for(endpoint="remix", bucket_key=req.session_id)
+    flags_effective = _effective_flags_for(endpoint="remix", bucket_key=req.session_id)
+    logger.info(
+        "web_remix_config",
+        extra={
+            "endpoint": "remix",
+            "request_id": request_id,
+            "session_id": req.session_id,
+            "preset_id": session.get("preset_id"),
+            "style_profile": req.style_profile.model_dump(),
+            "feature_flags": feature_flags,
+            "flags_effective": flags_effective,
+            "prompt_template_versions": _prompt_template_versions(),
+            "quick_generate_mode": quick_generate_mode(),
+            "real_provider_preference": real_provider_preference(),
+        },
+    )
+    session["request_config"] = {
+        "request_id": request_id,
+        "endpoint": "remix",
+        "preset_id": session.get("preset_id"),
+        "style_profile": req.style_profile.model_dump(),
+        "feature_flags": feature_flags,
+        "flags_effective": flags_effective,
+        "prompt_template_versions": _prompt_template_versions(),
+    }
+    await save_session(req.session_id, session)
     _REQUESTS[request_id] = RequestRecord(
         session_id=req.session_id,
         style_profile=req.style_profile.model_dump(),
@@ -157,7 +407,6 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
 @router.post(
     "/preset-previews/batch",
     response_model=WebPresetPreviewBatchResponse,
-    response_model_exclude_none=True,
 )
 async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: Request) -> WebPresetPreviewBatchResponse:
     if not _preview_pipeline_enabled():
@@ -165,9 +414,27 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
 
     await _emit_metric("web_preview_batch_started")
     throttled = bool(getattr(request.state, "cost_throttled", False))
+    preview_request_id = str(uuid4())
+    feature_flags = _flags_snapshot_for(endpoint="preview", bucket_key=preview_request_id)
+    flags_effective = _effective_flags_for(endpoint="preview", bucket_key=preview_request_id)
+    logger.info(
+        "web_preview_batch_config",
+        extra={
+            "endpoint": "preview",
+            "request_id": preview_request_id,
+            "preset_ids": [item.preset_id for item in req.presets],
+            "cta_type": req.cta_type,
+            "feature_flags": feature_flags,
+            "flags_effective": flags_effective,
+            "prompt_template_versions": _prompt_template_versions(),
+            "quick_generate_mode": quick_generate_mode(),
+            "real_provider_preference": real_provider_preference(),
+        },
+    )
 
     try:
-        result = await run_preview_pipeline(req=req, throttled=throttled)
+        with rollout_context(endpoint="preview", bucket_key=preview_request_id):
+            result = await run_preview_pipeline(req=req, throttled=throttled)
         if result.cache_hit:
             await _emit_metric("web_preview_batch_summary_cache_hit")
         if result.violations:
@@ -176,17 +443,101 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
         logger.info(
             "web_preview_batch_done",
             extra={
+                "generation_mode": result.mode,
                 "provider": result.provider,
+                "model": result.model_name,
                 "latency_ms": result.latency_ms,
                 "cache_hit": result.cache_hit,
                 "preview_count": len(result.previews),
                 "violation_count": len(result.violations),
+                "violation_codes": result.violation_codes,
+                "initial_violation_count": result.initial_violation_count,
+                "final_violation_count": result.final_violation_count,
+                "repair_attempt_count": result.repair_attempt_count,
+                "validator_attempt_count": result.validator_attempt_count,
+                "provider_attempt_count": result.provider_attempt_count,
+                "repaired": result.repaired,
+                "enforcement_level": result.enforcement_level,
+                "repair_loop_enabled": result.repair_loop_enabled,
+                "status": result.status,
+                "degraded_reason": result.degraded_reason,
+                "request_id": preview_request_id,
             },
         )
-        return make_response(result)
+        _log_debug_bundle(
+            "web_preview_batch_debug_bundle",
+            {
+                "request_id": preview_request_id,
+                "feature_flags": feature_flags,
+                "flags_effective": flags_effective,
+                "session_id": None,
+                "mode": "preview",
+                "generation_mode": result.mode,
+                "provider": result.provider,
+                "model": result.model_name,
+                "violation_codes": result.violation_codes,
+                "violation_count": result.violation_count,
+                "provider_attempt_count": result.provider_attempt_count,
+                "validator_attempt_count": result.validator_attempt_count,
+                "repair_attempt_count": result.repair_attempt_count,
+                "repaired": result.repaired,
+                "enforcement_level": result.enforcement_level,
+                "repair_loop_enabled": result.repair_loop_enabled,
+                "status": result.status,
+                "degraded_reason": result.degraded_reason,
+            },
+            failure=result.violation_count > 0 or result.status == "degraded",
+        )
+        preview_payload = "\n".join(
+            [f"Subject: {item.subject}\nBody:\n{item.body}" for item in result.previews]
+        )
+        execution_trace = {
+            "flags_effective": flags_effective,
+            "provider_path": (
+                "degraded_fallback"
+                if result.status == "degraded"
+                else "openai_strict" if result.mode == "real" and result.provider == "openai" else "fallback_parser"
+            ),
+            "outcome": result.status,
+            "degraded_reason": result.degraded_reason,
+            "truncation": {"notes_cut": False, "research_cut": False, "boundary_used": "none"},
+            "facts": {
+                "count": len(result.summary_pack.facts if result.summary_pack else []),
+                "high_conf_count": 0,
+                "types": ["summary_pack"],
+            },
+            "preset_contracts": {
+                "selected_preset": "batch",
+                "violations": result.violation_codes,
+            },
+            "final_email": {
+                "len_chars": len(preview_payload),
+                "checksum": _sha256_hex(preview_payload),
+            },
+        }
+        return make_response(
+            result,
+            request_id=preview_request_id,
+            session_id=None,
+            flags_effective=flags_effective,
+            prompt_template_versions=_prompt_template_versions(),
+            execution_trace=execution_trace,
+        )
     except Exception as exc:
         await _emit_metric("web_preview_batch_failed")
-        logger.exception("web_preview_batch_failed", extra={"error": str(exc)})
+        logger.exception("web_preview_batch_failed", extra={"error": str(exc), "request_id": preview_request_id})
+        _log_debug_bundle(
+            "web_preview_batch_debug_bundle",
+            {
+                "request_id": preview_request_id,
+                "feature_flags": feature_flags,
+                "flags_effective": flags_effective,
+                "session_id": None,
+                "mode": "preview",
+                "error": str(exc),
+            },
+            failure=True,
+        )
         raise HTTPException(
             status_code=503,
             detail={"error": "preview_pipeline_unavailable", "message": str(exc)},
@@ -206,47 +557,193 @@ async def web_stream(request_id: str, request: Request):
 
     throttled = bool(getattr(request.state, "cost_throttled", False))
     start = time.perf_counter()
+    generation_id = str(uuid4())
+    draft_id = int(session.get("draft_id_counter") or 0) + 1
+    session["draft_id_counter"] = draft_id
 
     # Mutable dict populated inside _bounded(); read by stream_response done event
-    mode_info: dict[str, str] = {}
+    endpoint_name = rec.mode if rec.mode in {"generate", "remix"} else "stream"
+    mode_info: dict[str, object] = {
+        "request_id": request_id,
+        "session_id": rec.session_id,
+        "generation_id": generation_id,
+        "draft_id": draft_id,
+        # Debug provenance — surfaced at top level for smoke runner + dashboard
+        "endpoint_name": f"web_v1_{endpoint_name}",
+        "preset_name": session.get("preset_id"),
+        "slider_config": rec.style_profile,
+        "prompt_template_hash": web_mvp_prompt_template_hash(),
+    }
 
     async def _bounded():
         async with _STREAM_SEM:
-            result = await build_draft(
-                session=session,
-                style_profile=rec.style_profile,
-                throttled=throttled,
-                session_id=rec.session_id,
-            )
-            mode_info["mode"] = result.mode
-            mode_info["provider"] = result.provider
-            mode_info["model"] = result.model_name
-            async for token in _token_stream(result.draft):
-                yield token
-            if rec.mode == "generate":
-                session["metrics"]["generate_count"] = int(session["metrics"].get("generate_count", 0)) + 1
-                await _emit_metric("web_generate_completed")
-            else:
-                session["metrics"]["remix_count"] = int(session["metrics"].get("remix_count", 0)) + 1
-                await _emit_metric("web_remix_completed")
-            session["metrics"]["last_latency_ms"] = int((time.perf_counter() - start) * 1000)
-            await save_session(rec.session_id, session)
-            logger.info(
-                "web_mvp_stream_done",
-                extra={
-                    "mode": rec.mode,
-                    "generation_mode": result.mode,
-                    "provider": result.provider,
-                    "model": result.model_name,
-                    "cascade_reason": result.cascade_reason,
-                    "attempt_count": result.attempt_count,
-                    "session_id": rec.session_id,
-                    "request_id": request_id,
-                    "latency_ms": session["metrics"]["last_latency_ms"],
-                },
-            )
+            try:
+                flags_effective = _effective_flags_for(endpoint=endpoint_name, bucket_key=rec.session_id)
+                mode_info["flags_effective"] = flags_effective
+                with rollout_context(endpoint=endpoint_name, bucket_key=rec.session_id):
+                    result = await build_draft(
+                        session=session,
+                        style_profile=rec.style_profile,
+                        throttled=throttled,
+                        session_id=rec.session_id,
+                    )
+                mode_info["mode"] = result.mode
+                mode_info["provider"] = result.provider
+                mode_info["model"] = result.model_name
+                mode_info["cascade_reason"] = result.cascade_reason
+                mode_info["provider_attempt_count"] = result.attempt_count
+                mode_info["validator_attempt_count"] = result.validator_attempt_count
+                mode_info["json_repair_count"] = result.json_repair_count
+                mode_info["violation_retry_count"] = result.violation_retry_count
+                mode_info["repaired"] = result.repaired
+                mode_info["violation_codes"] = result.violation_codes
+                mode_info["violation_count"] = result.violation_count
+                mode_info["enforcement_level"] = result.enforcement_level
+                mode_info["repair_loop_enabled"] = result.repair_loop_enabled
+                mode_info["generation_status"] = result.generation_status
+                mode_info["fallback_reason"] = result.fallback_reason
+                mode_info["policy_versions"] = result.policy_version_snapshot
+                mode_info["response_contract"] = result.response_contract
+                final_subject, final_body = _final_subject_body(result.draft, response_contract=result.response_contract)
+                rendered_email = f"Subject: {final_subject}\nBody:\n{final_body}".strip() if final_body else result.draft
+                generation_trace = session.get("last_generation_trace") or {}
+                execution_trace = {
+                    "flags_effective": flags_effective,
+                    "provider_path": _provider_path_from_trace(generation_trace),
+                    "truncation": _truncation_summary(session),
+                    "facts": _fact_summary(session),
+                    "preset_contracts": {
+                        "selected_preset": session.get("preset_id"),
+                        "violations": result.violation_codes,
+                    },
+                    "final_email": {
+                        "len_chars": len(rendered_email or ""),
+                        "checksum": _sha256_hex(rendered_email or ""),
+                    },
+                    "prompt_template_versions": _prompt_template_versions(),
+                }
+                mode_info["final"] = {
+                    "subject": final_subject,
+                    "body": final_body,
+                    "rendered_draft": result.draft,
+                }
+                mode_info["execution_trace"] = execution_trace
+                with rollout_context(endpoint=endpoint_name, bucket_key=rec.session_id):
+                    async for token in _token_stream(result.draft, mode_info):
+                        yield token
+                stream_missing_chunks = int(mode_info.get("stream_missing_chunks", 0) or 0)
+                await emit_quality_metric("stream_count")
+                await emit_quality_metric("draft_count")
+                if stream_missing_chunks > 0:
+                    await emit_quality_metric("stream_missing_chunk_count", amount=stream_missing_chunks)
+                    await emit_quality_metric("stream_integrity_fail_count")
+                if not bool(mode_info.get("stream_integrity_server_ok", True)):
+                    await emit_quality_metric("stream_integrity_fail_count")
+                if rec.mode == "generate":
+                    session["metrics"]["generate_count"] = int(session["metrics"].get("generate_count", 0)) + 1
+                    await _emit_metric("web_generate_completed")
+                else:
+                    session["metrics"]["remix_count"] = int(session["metrics"].get("remix_count", 0)) + 1
+                    await _emit_metric("web_remix_completed")
+                session["metrics"]["last_latency_ms"] = int((time.perf_counter() - start) * 1000)
+                await save_session(rec.session_id, session)
+                logger.info(
+                    "web_mvp_stream_done",
+                    extra={
+                        "mode": rec.mode,
+                        "generation_mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model_name,
+                        "cascade_reason": result.cascade_reason,
+                        "provider_attempt_count": result.attempt_count,
+                        "validator_attempt_count": result.validator_attempt_count,
+                        "json_repair_count": result.json_repair_count,
+                        "violation_retry_count": result.violation_retry_count,
+                        "repaired": result.repaired,
+                        "violation_codes": result.violation_codes,
+                        "violation_count": result.violation_count,
+                        "enforcement_level": result.enforcement_level,
+                        "repair_loop_enabled": result.repair_loop_enabled,
+                        "generation_status": result.generation_status,
+                        "fallback_reason": result.fallback_reason,
+                        "session_id": rec.session_id,
+                        "request_id": request_id,
+                        "latency_ms": session["metrics"]["last_latency_ms"],
+                        "stream_chunk_mode": mode_info.get("stream_chunk_mode"),
+                        "stream_total_chunks": mode_info.get("total_chunks"),
+                        "stream_total_chars": mode_info.get("total_chars"),
+                        "stream_checksum": mode_info.get("stream_checksum"),
+                        "stream_missing_chunks": stream_missing_chunks,
+                        "generation_id": generation_id,
+                        "draft_id": draft_id,
+                        "execution_trace": execution_trace,
+                    },
+                )
+                _log_debug_bundle(
+                    "web_mvp_stream_debug_bundle",
+                    {
+                        "request_id": request_id,
+                        "session_id": rec.session_id,
+                        "mode": result.mode,
+                        "provider": result.provider,
+                        "model": result.model_name,
+                        "violation_codes": result.violation_codes,
+                        "violation_count": result.violation_count,
+                        "provider_attempt_count": result.attempt_count,
+                        "validator_attempt_count": result.validator_attempt_count,
+                        "json_repair_count": result.json_repair_count,
+                        "violation_retry_count": result.violation_retry_count,
+                        "repaired": result.repaired,
+                        "enforcement_level": result.enforcement_level,
+                        "repair_loop_enabled": result.repair_loop_enabled,
+                        "generation_status": result.generation_status,
+                        "fallback_reason": result.fallback_reason,
+                        "stream_chunk_mode": mode_info.get("stream_chunk_mode"),
+                        "stream_total_chunks": mode_info.get("total_chunks"),
+                        "stream_total_chars": mode_info.get("total_chars"),
+                        "stream_checksum": mode_info.get("stream_checksum"),
+                        "stream_missing_chunks": stream_missing_chunks,
+                        "generation_id": generation_id,
+                        "draft_id": draft_id,
+                        "execution_trace": execution_trace,
+                    },
+                    failure=result.violation_count > 0,
+                )
+            except Exception as exc:
+                _log_debug_bundle(
+                    "web_mvp_stream_debug_bundle",
+                    {
+                        "request_id": request_id,
+                        "session_id": rec.session_id,
+                        "mode": rec.mode,
+                        "error": str(exc),
+                    },
+                    failure=True,
+                )
+                raise
 
-    return await stream_response(request_id=request_id, generator=_bounded(), done_extra=mode_info)
+    return await stream_response(
+        request_id=request_id,
+        generator=_bounded(),
+        done_extra=mode_info,
+        event_extra={"session_id": rec.session_id, "generation_id": generation_id, "draft_id": draft_id},
+    )
+
+
+@router.get("/debug/eval")
+async def debug_eval_report() -> dict[str, object]:
+    if not _debug_endpoints_enabled():
+        raise HTTPException(status_code=404, detail={"error": "not_found"})
+    report_path = Path(__file__).resolve().parents[2] / "reports" / "sdr_quality" / "latest.json"
+    if not report_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "sdr_eval_report_missing", "path": str(report_path)},
+        )
+    try:
+        return json.loads(report_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail={"error": "sdr_eval_report_unreadable", "message": str(exc)}) from exc
 
 
 @router.post("/feedback")

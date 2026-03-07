@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$ROOT:${PYTHONPATH:-}"
+export REDIS_FORCE_INMEMORY="${REDIS_FORCE_INMEMORY:-1}"
+export CHROME_EXTENSION_ORIGIN="${CHROME_EXTENSION_ORIGIN:-chrome-extension://dev}"
+export EMAILDJ_JUDGE_MODE="${EMAILDJ_JUDGE_MODE:-mock}"
+export EMAILDJ_JUDGE_MODEL="${EMAILDJ_JUDGE_MODEL:-${EMAILDJ_JUDGE_SMOKE_MODEL:-${EMAILDJ_OPENAI_MODEL:-gpt-5-nano}}}"
+export EMAILDJ_JUDGE_CANDIDATE_ID="${EMAILDJ_JUDGE_CANDIDATE_ID:-${GITHUB_SHA:-$(git rev-parse --short HEAD 2>/dev/null || echo local)}}"
+PYTHON_BIN="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${PYTHON_BIN_FALLBACK:-python3}"
+fi
+
+"$PYTHON_BIN" "$ROOT/evals/runner.py" \
+  --dataset "$ROOT/evals/gold_set.full.json" \
+  --smoke "$ROOT/evals/gold_set.smoke_ids.json" \
+  --report-dir "$ROOT/reports" \
+  --mode smoke \
+  --max-cases 5 \
+  --judge \
+  --judge-mode "$EMAILDJ_JUDGE_MODE" \
+  --judge-model "$EMAILDJ_JUDGE_MODEL" \
+  --judge-sample-count 1 \
+  --judge-candidate-id "$EMAILDJ_JUDGE_CANDIDATE_ID" \
+  "$@"

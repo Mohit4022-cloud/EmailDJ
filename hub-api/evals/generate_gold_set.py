@@ -49,7 +49,7 @@ RESEARCH_VARIANTS = [
 ]
 
 NAME_VARIANTS = [
-    {"full_name": "Alex Karp", "first": "Alex", "tag": "name_first_last"},
+    {"full_name": "Jordan Smith", "first": "Jordan", "tag": "name_first_last"},
     {"full_name": "Madonna", "first": "Madonna", "tag": "name_single"},
     {"full_name": "Dr. Maya Chen", "first": "Maya", "tag": "name_dr_prefix"},
     {"full_name": "Mary Jane Watson", "first": "Mary", "tag": "name_multipart"},
@@ -61,6 +61,17 @@ CTAS = [
     {"type": "time_ask", "text": "Open to a 15-min chat next week?", "tag": "cta_15_min_chat"},
     {"type": "value_asset", "text": "Should I send a quick deck?", "tag": "cta_send_deck"},
     {"type": "question", "text": "Open to a 10-min call next week?", "tag": "cta_10_min_call"},
+    {"type": "pilot", "text": "Worth trying a small pilot this month?", "tag": "cta_try_pilot"},
+    {
+        "type": "referral",
+        "text": "Could you point me to the right owner for this?",
+        "tag": "cta_referral_intro",
+    },
+    {
+        "type": "event_invite",
+        "text": "Want an invite to our outbound QA workshop?",
+        "tag": "cta_event_invite",
+    },
 ]
 
 STYLE_PROFILES = [

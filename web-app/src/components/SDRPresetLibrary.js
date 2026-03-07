@@ -1,4 +1,3 @@
-import { styleToPayload } from '../style.js';
 import {
   buildPresetPreviewBatchPayload,
   buildPreviewCacheKey,
@@ -7,9 +6,7 @@ import {
   buildWhyItWorksBullets,
   normalizePreviewContext,
   normalizeSliderState,
-  parseGeneratedDraft,
   resolveEffectiveSliderState,
-  sanitizePreviewEmail,
   sliderRowsFromState,
 } from './presetPreviewUtils.js';
 
@@ -144,11 +141,20 @@ function buildEmailErrorHtml(presetId, message) {
   `;
 }
 
+function normalizeBodyText(value) {
+  return String(value || '')
+    .replaceAll('\r\n', '\n')
+    .replaceAll('\\r\\n', '\n')
+    .replaceAll('\\n', '\n');
+}
+
 function buildReadyEmailHtml(preview) {
   const subject = escapeHtml(preview?.subject || '');
-  const body = escapeHtml(preview?.body || '').replaceAll('\n', '<br>');
+  const body = escapeHtml(normalizeBodyText(preview?.body || '')).replaceAll('\n', '<br>');
+  const warning = String(preview?.validationWarning || '').trim();
   return `
     <div class="preset-email-card">
+      ${warning ? `<div class="preset-email-warning">${escapeHtml(warning)}</div>` : ''}
       <div class="preset-email-label">Subject</div>
       <div class="preset-email-subject">${subject}</div>
       <div class="preset-email-divider"></div>
@@ -165,25 +171,27 @@ export class SDRPresetLibrary {
       typeof options.onSelectPreset === 'function' ? options.onSelectPreset : () => {};
     this.getPreviewContext =
       typeof options.getPreviewContext === 'function' ? options.getPreviewContext : () => ({});
-    this.generatePreviewDraft =
-      typeof options.generatePreviewDraft === 'function' ? options.generatePreviewDraft : async () => '';
     this.generatePreviewBatch =
       typeof options.generatePreviewBatch === 'function' ? options.generatePreviewBatch : null;
-    this.maxPreviewConcurrency = clamp(Number(options.maxPreviewConcurrency) || 3, 1, 4);
 
     this.previewPresetId = this.presets[0]?.id ?? null;
     this.isOpen = false;
     this.activeContextHash = '';
     this.previewCache = new Map();
     this.previewEntries = new Map();
-    this.inflightPreviews = new Map();
     this.inflightBatches = new Map();
+    this.previewFetchDebounceMs =
+      Number.isFinite(Number(options.previewFetchDebounceMs)) && Number(options.previewFetchDebounceMs) >= 0
+        ? Number(options.previewFetchDebounceMs)
+        : 120;
+    this.previewFetchTimer = null;
+    this.previewFetchToken = 0;
 
     this.onKeydown = (event) => {
       if (event.key === 'Escape' && this.isOpen) this.close();
     };
 
-    this.render();
+    if (options.autoRender !== false) this.render();
   }
 
   render() {
@@ -247,7 +255,12 @@ export class SDRPresetLibrary {
   }
 
   open() {
-    if (!this.backdrop || this.isOpen) return;
+    if (this.isOpen) return;
+    if (!this.backdrop) {
+      this.isOpen = true;
+      this.refreshPreviews();
+      return;
+    }
     this.isOpen = true;
     this.backdrop.hidden = false;
     this.triggerBtn?.setAttribute('aria-expanded', 'true');
@@ -262,7 +275,11 @@ export class SDRPresetLibrary {
   }
 
   close() {
-    if (!this.backdrop || !this.isOpen) return;
+    if (!this.isOpen) return;
+    if (!this.backdrop) {
+      this.isOpen = false;
+      return;
+    }
     this.isOpen = false;
     this.backdrop.hidden = true;
     this.triggerBtn?.setAttribute('aria-expanded', 'false');
@@ -324,35 +341,60 @@ export class SDRPresetLibrary {
     this.renderPresetList();
     this.renderPreview(this.getPreviewPreset());
     if (missing.length > 0) {
-      void this.generateMissingPreviews(missing, context, contextHash);
+      this.scheduleMissingPreviews(missing, context, contextHash);
     }
+  }
+
+  scheduleMissingPreviews(presets, context, contextHash) {
+    if (!Array.isArray(presets) || presets.length === 0) return;
+    const token = ++this.previewFetchToken;
+    if (this.previewFetchTimer) {
+      clearTimeout(this.previewFetchTimer);
+      this.previewFetchTimer = null;
+    }
+    const run = () => {
+      this.previewFetchTimer = null;
+      if (token !== this.previewFetchToken) return;
+      void this.generateMissingPreviews(presets, context, contextHash);
+    };
+    if (this.previewFetchDebounceMs <= 0) {
+      run();
+      return;
+    }
+    this.previewFetchTimer = setTimeout(run, this.previewFetchDebounceMs);
   }
 
   async generateMissingPreviews(presets, context, contextHash) {
-    if (this.generatePreviewBatch) {
-      const batchOk = await this.generateMissingPreviewsBatch(presets, context, contextHash);
-      if (batchOk) return;
+    if (!this.generatePreviewBatch) {
+      this.markPreviewBatchUnavailable(presets, context, 'Preview batch pipeline is disabled.');
+      return;
     }
-    await this.generateMissingPreviewsLegacy(presets, context, contextHash);
+    let result;
+    try {
+      result = await this.generateMissingPreviewsBatch(presets, context, contextHash);
+    } catch (error) {
+      result = { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
+    }
+    if (!result.ok) {
+      this.markPreviewBatchUnavailable(presets, context, result.error || 'Preview batch generation failed.');
+    }
   }
 
-  async generateMissingPreviewsLegacy(presets, context, contextHash) {
-    const queue = [...presets];
-    const workerCount = Math.min(this.maxPreviewConcurrency, queue.length);
-
-    const worker = async () => {
-      while (queue.length > 0) {
-        const nextPreset = queue.shift();
-        if (!nextPreset) return;
-        await this.generatePreviewForPreset(nextPreset, context, contextHash);
-      }
-    };
-
-    await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  markPreviewBatchUnavailable(presets, context, message) {
+    for (const preset of presets) {
+      const existing = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
+      this.previewEntries.set(String(preset.id), {
+        ...existing,
+        status: 'error',
+        errorMessage: String(message || 'Preview batch pipeline unavailable.'),
+      });
+    }
+    this.renderPresetList();
+    this.renderPreview(this.getPreviewPreset());
   }
 
   async generateMissingPreviewsBatch(presets, context, contextHash) {
-    if (!this.generatePreviewBatch) return false;
+    if (!this.generatePreviewBatch) return { ok: false, error: 'Preview batch pipeline is disabled.' };
     const batchKey = `${contextHash}:batch`;
     let promise = this.inflightBatches.get(batchKey);
 
@@ -363,9 +405,17 @@ export class SDRPresetLibrary {
 
     try {
       const response = await promise;
-      if (contextHash !== this.activeContextHash) return true;
+      if (contextHash !== this.activeContextHash) return { ok: true };
 
       const responsePreviews = Array.isArray(response?.previews) ? response.previews : [];
+      const violationCount = Number(response?.meta?.violation_count || 0);
+      const violationCodes = Array.isArray(response?.meta?.violation_codes)
+        ? response.meta.violation_codes.map((code) => String(code)).filter(Boolean)
+        : [];
+      const warning =
+        violationCount > 0
+          ? `Validation warnings: ${violationCodes.slice(0, 4).join(', ') || `${violationCount} issue(s)`}`
+          : '';
       const byPresetId = new Map(
         responsePreviews
           .map((item) => [String(item?.preset_id || ''), item])
@@ -377,8 +427,12 @@ export class SDRPresetLibrary {
         const source = byPresetId.get(String(preset.id));
         const base = this.buildBasePreviewEntry(preset, context);
         if (!source) {
-          unresolved.push(preset);
-          this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+          unresolved.push(preset.name);
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: 'Preset missing in batch response.',
+          });
           continue;
         }
         if (source.error) {
@@ -418,6 +472,7 @@ export class SDRPresetLibrary {
             Array.isArray(source.whyItWorks) && source.whyItWorks.length > 0
               ? source.whyItWorks.map((item) => String(item)).slice(0, 3)
               : base.whyItWorks,
+          validationWarning: warning,
         };
         const key = buildPreviewCacheKey(contextHash, preset.id);
         this.previewCache.set(key, preview);
@@ -427,7 +482,7 @@ export class SDRPresetLibrary {
       this.renderPresetList();
       this.renderPreview(this.getPreviewPreset());
       if (unresolved.length > 0) {
-        await this.generateMissingPreviewsLegacy(unresolved, context, contextHash);
+        return { ok: false, error: `Missing batch previews for ${unresolved.join(', ')}.` };
       }
       return true;
     } catch {
@@ -495,17 +550,9 @@ export class SDRPresetLibrary {
       this.renderPresetList();
       if (this.previewPresetId === preset.id) this.renderPreview(preset);
     } catch (error) {
-      if (contextHash !== this.activeContextHash) return;
-      const existing = this.getPreviewEntry(preset.id) || this.buildBasePreviewEntry(preset, context);
-      this.previewEntries.set(String(preset.id), {
-        ...existing,
-        status: 'error',
-        errorMessage: String(error?.message || error || 'Generation failed'),
-      });
-      this.renderPresetList();
-      if (this.previewPresetId === preset.id) this.renderPreview(preset);
+      return { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
     } finally {
-      this.inflightPreviews.delete(key);
+      this.inflightBatches.delete(batchKey);
     }
   }
 
@@ -515,6 +562,20 @@ export class SDRPresetLibrary {
     this.previewPresetId = preset.id;
     this.renderPresetList();
     this.renderPreview(preset);
+
+    if (!this.isOpen) return;
+    const context = this.normalizeContext();
+    const contextHash = buildPreviewContextHash(context);
+    this.activeContextHash = contextHash;
+    const key = buildPreviewCacheKey(contextHash, preset.id);
+    const entry = this.getPreviewEntry(preset.id);
+    if (this.previewCache.has(key) || entry?.status === 'ready' || entry?.status === 'loading') return;
+    if (this.previewFetchTimer || this.inflightBatches.has(`${contextHash}:batch`)) return;
+    const base = this.buildBasePreviewEntry(preset, context);
+    this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
+    this.renderPresetList();
+    this.renderPreview(preset);
+    this.scheduleMissingPreviews([preset], context, contextHash);
   }
 
   renderPresetList() {
@@ -544,6 +605,8 @@ export class SDRPresetLibrary {
 
   renderPreview(preset) {
     if (!preset || !this.metaBlock || !this.emailBlock) return;
+    this.emailBlock.innerHTML = '';
+    this.metaBlock.innerHTML = '';
     this.rightPane?.classList.remove('preview-refresh');
     void this.rightPane?.offsetHeight;
     this.rightPane?.classList.add('preview-refresh');
@@ -576,7 +639,7 @@ export class SDRPresetLibrary {
     this.previewEntries.set(String(preset.id), { ...base, status: 'loading', errorMessage: '' });
     this.renderPresetList();
     this.renderPreview(preset);
-    void this.generateMissingPreviews([preset], context, contextHash);
+    this.scheduleMissingPreviews([preset], context, contextHash);
   }
 
   selectPreset(id) {
@@ -587,6 +650,10 @@ export class SDRPresetLibrary {
   }
 
   destroy() {
+    if (this.previewFetchTimer) {
+      clearTimeout(this.previewFetchTimer);
+      this.previewFetchTimer = null;
+    }
     window.removeEventListener('keydown', this.onKeydown);
     if (this.modalHost?.parentNode) this.modalHost.parentNode.removeChild(this.modalHost);
   }

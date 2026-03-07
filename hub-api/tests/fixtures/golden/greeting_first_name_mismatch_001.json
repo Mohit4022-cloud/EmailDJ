@@ -1,0 +1,20 @@
+{
+  "scenario_id": "greeting_first_name_mismatch_001",
+  "description": "Greeting uses wrong first name (Bob instead of Alex)",
+  "draft": "Subject: Protect Acme's Brand\nBody:\nHi Bob, we help teams reduce counterfeit risk with Acme Shield Pro.\n\nOpen to a quick call?",
+  "session": {
+    "prospect": {"name": "Alex Doe", "title": "VP Sales", "company": "Acme"},
+    "prospect_first_name": "Alex",
+    "offer_lock": "Acme Shield Pro",
+    "cta_lock_effective": "Open to a quick call?",
+    "company_context": {"company_name": "SellerCo", "company_notes": ""},
+    "research_text_raw": "",
+    "research_text": "",
+    "allowed_facts": [],
+    "generation_plan": {}
+  },
+  "style_sliders": {"tone_formal_casual": 50, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 50},
+  "expected_violations": ["greeting_first_name_mismatch"],
+  "expected_pass": false,
+  "tags": ["greeting"]
+}

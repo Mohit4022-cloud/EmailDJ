@@ -46,11 +46,25 @@ def test_style_profile_to_ctco_sliders_maps_minus1_to_plus1():
 def test_body_word_range_bins_match_ctco_contract():
     from email_generation.remix_engine import body_word_range
 
-    assert body_word_range(0) == (45, 70)
-    assert body_word_range(21) == (70, 110)
-    assert body_word_range(41) == (110, 160)
-    assert body_word_range(61) == (160, 220)
-    assert body_word_range(81) == (220, 300)
+    assert body_word_range(0) == (55, 75)
+    assert body_word_range(33) == (55, 75)
+    assert body_word_range(34) == (75, 110)
+    assert body_word_range(66) == (75, 110)
+    assert body_word_range(67) == (110, 160)
+
+
+def test_ctco_style_bands_medium_length_label_matches_contract():
+    from email_generation.remix_engine import ctco_style_bands
+
+    bands = ctco_style_bands(
+        {
+            "tone_formal_casual": 50,
+            "framing_problem_outcome": 50,
+            "length_short_long": 50,
+            "stance_bold_diplomatic": 50,
+        }
+    )
+    assert bands["short_long"] == "75-110 words"
 
 
 def test_style_profile_key_is_stable():

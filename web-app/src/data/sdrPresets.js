@@ -1,160 +1,98 @@
 export const SDR_PRESETS = [
   {
-    id: 1,
-    name: 'The Straight Shooter',
-    frequency: 'High Volume Daily Use',
-    eqVibe: 'Top 40 / Pop-Rock',
-    vibe:
-      'Clear, concise, and purely functional. Used for standard, high-volume persona-based campaigns...',
-    sliders: { formal: 60, outcome: 50, long: 40, diplomatic: 40 },
-    whyItWorks: 'In a world of overly clever emails, clarity wins.',
+    id: 'straight_shooter',
+    strategy_id: 'straight_shooter',
+    name: 'Straight Shooter',
+    frequency: 'Daily Volume',
+    eqVibe: 'Direct / Tight',
+    vibe: 'Direct wedge + proof + focused CTA.',
+    sliders: { formal: 55, outcome: 45, long: 40, diplomatic: 35 },
+    whyItWorks:
+      'It is explicit about the problem and offer, then asks for a specific next step.',
     sampleEmail: {
-      subject: 'Quick question about your outbound workflow',
+      subject: 'Brand protection workflow for your team',
       body:
-        'Hi [Name],\n\nNoticed your team is scaling up SDRs this quarter. We help outbound teams increase reply rates by 20% by automating preset drafting.\n\nAre you open to a quick chat to see if this aligns with your Q3 goals?\n\nBest,\n[My Name]',
+        'Hi [Name],\n\nQuick point: teams often miss high-risk listings when enforcement steps are split across tools.\n\nWe help legal teams tighten triage and escalation without adding process overhead.\n\nOpen to a 15-min call for a quick teardown + recommended workflow? Worth a look / Not a priority?\n\nBest,\n[My Name]',
     },
   },
   {
-    id: 2,
-    name: 'The Headliner',
-    frequency: 'High Volume Daily Use',
-    eqVibe: 'Stadium Anthem / High Energy',
-    vibe: "FOMO-driven and metric-heavy. The 'Social Proof' play.",
-    sliders: { formal: 40, outcome: 90, long: 60, diplomatic: 20 },
+    id: 'headliner',
+    strategy_id: 'headliner',
+    name: 'Headliner',
+    frequency: 'High Volume',
+    eqVibe: 'Curiosity / Punchy',
+    vibe: 'Curiosity headline + one wedge + concise evidence.',
+    sliders: { formal: 45, outcome: 60, long: 35, diplomatic: 30 },
     whyItWorks:
-      "Buyers are competitive. If a VP hears that a rival just increased revenue by 12%...",
+      'It earns attention with a sharp hook and immediately narrows to one practical risk.',
     sampleEmail: {
-      subject: 'How [Competitor] increased revenue 12%',
+      subject: 'One risk to close this quarter',
       body:
-        'Hi [Name],\n\nJust helped [Direct Competitor] achieve a 12% bump in outbound pipeline using our Remix Studio. We bypassed the usual spam filters and got them straight to the decision-maker.\n\nWorth a 10-minute look to see how they did it?\n\nCheers,\n[My Name]',
+        'Hi [Name],\n\nOne pattern we keep seeing: enforcement queues grow faster than review capacity.\n\nThat gap usually creates avoidable exposure in marketplaces and social channels.\n\nOpen to a 15-min call so I can share a quick teardown + first workflow to automate? Worth a look / Not a priority?\n\nBest,\n[My Name]',
     },
   },
   {
-    id: 3,
-    name: 'The Giver',
-    frequency: 'Medium-High Volume',
-    eqVibe: 'Lo-Fi / Chill Beats',
-    vibe:
-      "Helpful, zero-pressure, and value-first. The 'Deposit before Withdrawal' play.",
-    sliders: { formal: 20, outcome: 40, long: 30, diplomatic: 100 },
+    id: 'giver',
+    strategy_id: 'giver',
+    name: 'Giver',
+    frequency: 'Medium-High',
+    eqVibe: 'Helpful / Low Pressure',
+    vibe: 'Offer deliverable first, then optional next step.',
+    sliders: { formal: 40, outcome: 65, long: 45, diplomatic: 75 },
     whyItWorks:
-      "It dramatically lowers the barrier to entry. Harder to say 'no' to a free resource...",
+      'Value-first framing lowers resistance and gives the prospect a concrete reason to reply.',
     sampleEmail: {
-      subject: 'Made a quick video audit for your site',
+      subject: 'Can I send a quick teardown?',
       body:
-        'Hi [Name],\n\nNoticed a tiny gap in your current email sequencing on the site. I recorded a 2-minute Loom breaking down exactly how to fix it to capture more leads.\n\nMind if I send the link over? No worries if not.\n\nThanks,\n[My Name]',
+        "Hi [Name],\n\nIf useful, I can send a short teardown of your likely risk surface and what we'd automate first.\n\nMost teams use it to prioritize week-one enforcement actions without extra meetings.\n\nWorth a look / Not a priority?\n\nThanks,\n[My Name]",
     },
   },
   {
-    id: 4,
-    name: 'The Challenger',
-    frequency: 'Medium Volume',
-    eqVibe: 'High Distortion / Rock',
-    vibe:
-      "Disruptive and provocative. Challenges a status quo belief to create urgency around a hidden risk.",
-    sliders: { formal: 40, outcome: 0, long: 40, diplomatic: 0 },
+    id: 'challenger',
+    strategy_id: 'challenger',
+    name: 'Challenger',
+    frequency: 'Targeted',
+    eqVibe: 'Contrarian / Risk-Reframe',
+    vibe: 'Reframe cost of inaction with a contrarian insight.',
+    sliders: { formal: 50, outcome: 25, long: 45, diplomatic: 20 },
     whyItWorks:
-      'It reframes inertia as a business cost, which forces the buyer to reassess today.',
+      'It challenges default assumptions and turns hidden risk into an immediate operating issue.',
     sampleEmail: {
-      subject: 'A risk your outbound team may not see yet',
+      subject: 'The hidden cost of delay',
       body:
-        "Hi [Name],\n\nA pattern we keep seeing: teams optimize send volume while reply quality quietly drops quarter over quarter.\n\nIf that trend is showing up at [Company], I can share the exact signal framework teams use to catch it early.\n\nOpen to a quick compare next week?\n\nBest,\n[My Name]",
+        'Hi [Name],\n\nContrarian view: the biggest enforcement risk is often not detection, but slow action routing.\n\nThat delay compounds exposure even when teams are monitoring actively.\n\nOpen to a 15-min call to compare your current flow with a tighter enforcement sequence? Worth a look / Not a priority?\n\nBest,\n[My Name]',
     },
   },
   {
-    id: 5,
-    name: 'The Industry Insider',
-    frequency: 'Medium Volume, Trigger-Based',
-    eqVibe: 'Spoken Word / Podcast',
-    vibe:
-      'Insight-led and research-heavy. Connects a recent market or company trigger to a practical next move.',
-    sliders: { formal: 50, outcome: 40, long: 75, diplomatic: 85 },
+    id: 'industry_insider',
+    strategy_id: 'industry_insider',
+    name: 'Industry Insider',
+    frequency: 'Trigger-Based',
+    eqVibe: 'Domain-Led / Analytical',
+    vibe: 'Domain vocabulary + pattern we see + practical recommendation.',
+    sliders: { formal: 60, outcome: 50, long: 70, diplomatic: 70 },
     whyItWorks:
-      'It earns attention by teaching first, then positioning the offer as a logical extension.',
+      'It sounds informed by the operating context and gives usable guidance without hype.',
     sampleEmail: {
-      subject: 'One takeaway from your latest earnings call',
+      subject: 'Pattern we see in enforcement ops',
       body:
-        "Hi [Name],\n\nAfter reading your latest update on pipeline efficiency, one risk stood out: reps are personalizing later in the cycle instead of first touch.\n\nWe built a lightweight preset workflow that fixes that without changing your stack.\n\nHappy to share a 2-page breakdown if useful.\n\nRegards,\n[My Name]",
+        'Hi [Name],\n\nPattern we see in mature programs: takedown speed improves only when triage logic and escalation policy are designed together.\n\nWhen those stay separate, priority cases still queue too long.\n\nOpen to a 20-min call and I can share a quick teardown + recommended enforcement workflow? Worth a look / Not a priority?\n\nRegards,\n[My Name]',
     },
   },
   {
-    id: 6,
-    name: 'The Icebreaker',
-    frequency: 'Medium-Low Volume, Trigger-Based',
-    eqVibe: 'Pop / Upbeat & Light',
-    vibe:
-      'Warm and conversational with a low-friction opener, designed for warm outbound or shared context.',
-    sliders: { formal: 0, outcome: 70, long: 30, diplomatic: 70 },
+    id: 'c_suite_sniper',
+    strategy_id: 'c_suite_sniper',
+    name: 'C-Suite Sniper',
+    frequency: 'Executive',
+    eqVibe: 'Executive / Minimal',
+    vibe: 'Three sentences max with executive framing.',
+    sliders: { formal: 70, outcome: 80, long: 10, diplomatic: 35 },
     whyItWorks:
-      'It feels human and specific, reducing resistance from prospects who ignore generic outreach.',
+      'It respects executive attention span while making a clear operating and risk argument.',
     sampleEmail: {
-      subject: 'Small idea after your team update',
+      subject: 'Brief risk note for leadership',
       body:
-        "Hi [Name],\n\nSaw your post about expanding the SDR team, congrats on the momentum.\n\nIf helpful, I can share a simple preset workflow we use to keep personalization quality high while volume scales.\n\nWant me to send it over?\n\nCheers,\n[My Name]",
-    },
-  },
-  {
-    id: 7,
-    name: 'The Trusted Advisor',
-    frequency: 'Low Volume, Persona-Specific',
-    eqVibe: 'Classical / Balanced Theater',
-    vibe:
-      'Consultative and thorough. Adds enough detail for operators who need confidence before a meeting.',
-    sliders: { formal: 80, outcome: 50, long: 80, diplomatic: 90 },
-    whyItWorks:
-      'It gives mid-level decision-makers language and proof points they can take internally.',
-    sampleEmail: {
-      subject: 'Framework to improve SDR reply quality safely',
-      body:
-        "Hi [Name],\n\nMost teams we work with want better reply rates but need to avoid risky messaging changes.\n\nWe use a controlled preset framework: lock factual anchors, let reps tune tone in bounds, and review deltas before rollout.\n\nIf useful, I can share the exact rollout checklist.\n\nBest,\n[My Name]",
-    },
-  },
-  {
-    id: 8,
-    name: 'The C-Suite Sniper',
-    frequency: 'Low Volume, Persona-Specific',
-    eqVibe: 'Bass-Heavy & Punchy',
-    vibe:
-      'Executive-first and direct. Focuses on strategic impact, not features.',
-    sliders: { formal: 70, outcome: 80, long: 0, diplomatic: 20 },
-    whyItWorks:
-      'Senior leaders skim quickly; this format makes the business case in seconds.',
-    sampleEmail: {
-      subject: 'Reducing outbound waste this quarter',
-      body:
-        "Hi [Name],\n\nLeaders are spending more on outbound while conversion quality stays flat.\n\nWe help teams increase qualified replies without adding headcount by enforcing message discipline at draft time.\n\nWorth 12 minutes to assess fit?\n\nBest,\n[My Name]",
-    },
-  },
-  {
-    id: 9,
-    name: 'The Visionary',
-    frequency: 'Situational, Strategic',
-    eqVibe: 'Orchestral / Cinematic',
-    vibe:
-      'Narrative-driven and future-oriented. Frames a larger shift and invites the buyer into it.',
-    sliders: { formal: 50, outcome: 100, long: 90, diplomatic: 50 },
-    whyItWorks:
-      'Useful for category-creating products where belief in a new approach matters more than features.',
-    sampleEmail: {
-      subject: 'What outbound looks like in the next 12 months',
-      body:
-        "Hi [Name],\n\nOutbound is moving from template execution to adaptive, account-aware drafting.\n\nTeams that adopt this shift now are creating compounding advantages in reply quality and speed to pipeline.\n\nIf you are exploring that direction, I can share how leading SDR orgs are implementing it.\n\nRegards,\n[My Name]",
-    },
-  },
-  {
-    id: 10,
-    name: 'The VIP Pass',
-    frequency: 'Situational, Highly Targeted',
-    eqVibe: 'Jazz / Smooth & Coordinated',
-    vibe:
-      'Contextual and deferential. Best for referral-led or multi-threaded outreach with internal context.',
-    sliders: { formal: 80, outcome: 70, long: 20, diplomatic: 90 },
-    whyItWorks:
-      'Borrowed trust shortens the path to a response when handled with precision and restraint.',
-    sampleEmail: {
-      subject: 'Following up from [Mutual Contact]',
-      body:
-        "Hi [Name],\n\n[Mutual Contact] suggested I reach out given your current focus on pipeline quality.\n\nWe have helped teams in a similar motion tighten first-touch messaging without adding operational overhead.\n\nIf useful, happy to share a brief summary and let you decide if a call makes sense.\n\nBest,\n[My Name]",
+        'Hi [Name],\n\nWhen enforcement workflows lag, brand risk and team cost both rise.\n\nWe help teams tighten triage and escalation so action is faster and easier to govern.\n\nOpen to a 15-min call for a quick teardown + first automation recommendation? Worth a look / Not a priority?\n\nBest,\n[My Name]',
     },
   },
 ];

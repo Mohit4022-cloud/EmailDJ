@@ -1,0 +1,24 @@
+{
+  "_schema": "seller_fixture_v1",
+  "seller_company_name": "Corsearch",
+  "seller_company_domain": "corsearch.com",
+  "offer_name": "Trademark Search, Screening, and Brand Protection",
+  "offer_category": "brand_protection",
+  "offer_positioning": "Comprehensive IP protection for enterprise brand teams — from trademark clearance to counterfeit takedowns.",
+  "differentiators": [
+    "AI-powered trademark clearance in minutes not days",
+    "End-to-end enforcement from detection to bulk takedown",
+    "Covers 180+ countries and all major e-commerce platforms"
+  ],
+  "proof_points": [],
+  "icp_personas": ["Head of Brand Protection", "VP Legal", "IP Counsel", "Chief Brand Officer"],
+  "constraints": [
+    "Do not imply the prospect already owns brand protection",
+    "Do not promise specific litigation outcomes",
+    "Do not invent filing timelines"
+  ],
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "other_products": "Trademark Watching\nOnline Brand Protection\nDomain Monitoring",
+  "company_notes": "Corsearch helps enterprise IP teams detect and act on trademark conflicts and counterfeiting at scale. We eliminate risk from similar marks before filing and monitor live infringement across digital channels."
+}

@@ -1,0 +1,36 @@
+{
+  "_schema": "prospect_fixture_v1",
+  "prospect_company_name": "Palantir Technologies",
+  "prospect_company_domain": "palantir.com",
+  "prospect_industry": "enterprise_software",
+  "personas": [
+    {
+      "id": "alex_karp",
+      "prospect_first_name": "Alex",
+      "prospect_last_name": "Karp",
+      "prospect_title": "CEO",
+      "research_text": "Palantir reported 70% YoY revenue growth in Q4 2025 and moved headquarters from Denver to Miami in February 2026. Government partnerships remain core: the U.S. Navy awarded a $1B software contract in late 2024. Palantir AIP integrates LLMs into private networks for enterprise decision-making."
+    },
+    {
+      "id": "shyam_sankar",
+      "prospect_first_name": "Shyam",
+      "prospect_last_name": "Sankar",
+      "prospect_title": "Chief Technology Officer",
+      "research_text": "Shyam Sankar leads AI platform strategy at Palantir including the AIP product line. He has spoken publicly about the challenge of integrating LLMs into mission-critical workflows while maintaining auditability. Palantir partnered with NVIDIA to accelerate AIP with GPU-optimized inference."
+    },
+    {
+      "id": "ryan_taylor",
+      "prospect_first_name": "Ryan",
+      "prospect_last_name": "Taylor",
+      "prospect_title": "Chief Revenue Officer",
+      "research_text": "Ryan Taylor oversees commercial revenue at Palantir, which has been expanding from government into enterprise commercial accounts. The commercial segment grew faster than government in 2025. Taylor has been building out a direct sales motion for mid-market enterprise accounts."
+    },
+    {
+      "id": "jordan_miles",
+      "prospect_first_name": "Jordan",
+      "prospect_last_name": "Miles",
+      "prospect_title": "Head of Brand Risk Operations",
+      "research_text": "Jordan Miles leads brand risk and online enforcement operations at Palantir. The team monitors digital channels for unauthorized use of Palantir trademarks and data platform brand assets. They have flagged growing counterfeit activity across APAC marketplaces."
+    }
+  ]
+}

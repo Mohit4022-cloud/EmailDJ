@@ -1,0 +1,45 @@
+{
+  "run_id": "small120_20260303T231946Z",
+  "mode": "small120",
+  "timestamp_utc": "2026-03-03T23:23:12.360953Z",
+  "elapsed_seconds": 205.9,
+  "total": 120,
+  "pass": 120,
+  "fail": 0,
+  "errors": 0,
+  "pass_rate_pct": 100.0,
+  "fail_tag_counts": {},
+  "top_10_worst": [],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 48,
+      "pass": 48
+    },
+    "practitioner": {
+      "total": 48,
+      "pass": 48
+    },
+    "manager": {
+      "total": 24,
+      "pass": 24
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 30,
+      "pass": 30
+    },
+    "c_suite_sniper": {
+      "total": 30,
+      "pass": 30
+    },
+    "headliner": {
+      "total": 30,
+      "pass": 30
+    },
+    "giver": {
+      "total": 30,
+      "pass": 30
+    }
+  }
+}

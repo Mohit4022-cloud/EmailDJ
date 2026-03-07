@@ -65,3 +65,39 @@ def test_eventsource_stream_serializes_json_data():
     payload = json.loads(token['data'])
     assert payload['request_id'] == 'req-2'
     assert payload['token'] == 'hello'
+
+
+def test_event_generator_supports_structured_chunk_payload():
+    async def collect():
+        async def gen():
+            yield {"token": "Hel", "chunk_index": 0, "chunk_len": 3, "chunk_mode": "stable_chars"}
+            yield {"token": "lo", "chunk_index": 1, "chunk_len": 2, "chunk_mode": "stable_chars"}
+
+        items = []
+        async for item in _event_generator(
+            'req-3',
+            gen(),
+            done_extra={"stream_checksum": "abc123", "total_chunks": 2},
+            event_extra={"generation_id": "gen-3", "draft_id": 12},
+        ):
+            items.append(item)
+        return items
+
+    items = asyncio.run(collect())
+    start = next(item for item in items if item["event"] == "start")
+    assert start["data"]["generation_id"] == "gen-3"
+    assert start["data"]["draft_id"] == 12
+    tokens = [item for item in items if item["event"] == "token"]
+    assert len(tokens) == 2
+    assert tokens[0]["data"]["token"] == "Hel"
+    assert tokens[0]["data"]["chunk_index"] == 0
+    assert tokens[0]["data"]["generation_id"] == "gen-3"
+    assert tokens[0]["data"]["draft_id"] == 12
+    assert tokens[1]["data"]["token"] == "lo"
+    assert tokens[1]["data"]["chunk_index"] == 1
+
+    done = next(item for item in items if item["event"] == "done")
+    assert done["data"]["stream_checksum"] == "abc123"
+    assert done["data"]["total_chunks"] == 2
+    assert done["data"]["generation_id"] == "gen-3"
+    assert done["data"]["draft_id"] == 12

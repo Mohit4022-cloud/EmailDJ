@@ -1,0 +1,542 @@
+[
+  {
+    "id": "case_ceo_01",
+    "prospect": {
+      "name": "Jordan Smith",
+      "title": "CEO",
+      "company": "Acme",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "straight_shooter",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": 0.5,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_ceo_02",
+    "prospect": {
+      "name": "Jordan Smith",
+      "title": "CEO",
+      "company": "Acme",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "headliner",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": 0.5,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_ceo_03",
+    "prospect": {
+      "name": "Jordan Smith",
+      "title": "CEO",
+      "company": "Acme",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "giver",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": -0.3,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_ceo_04",
+    "prospect": {
+      "name": "Jordan Smith",
+      "title": "CEO",
+      "company": "Acme",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "challenger",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": -0.3,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_founder_01",
+    "prospect": {
+      "name": "Jamie Lin",
+      "title": "Founder",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "industry_insider",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": 0.5,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_founder_02",
+    "prospect": {
+      "name": "Jamie Lin",
+      "title": "Founder",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "c_suite_sniper",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": 0.5,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_founder_03",
+    "prospect": {
+      "name": "Jamie Lin",
+      "title": "Founder",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "straight_shooter",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": -0.3,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_founder_04",
+    "prospect": {
+      "name": "Jamie Lin",
+      "title": "Founder",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "headliner",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": -0.3,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_president_01",
+    "prospect": {
+      "name": "Morgan Hale",
+      "title": "President",
+      "company": "Northstar Health",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "giver",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": 0.5,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_president_02",
+    "prospect": {
+      "name": "Morgan Hale",
+      "title": "President",
+      "company": "Northstar Health",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "challenger",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": 0.5,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_president_03",
+    "prospect": {
+      "name": "Morgan Hale",
+      "title": "President",
+      "company": "Northstar Health",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "industry_insider",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": -0.3,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_president_04",
+    "prospect": {
+      "name": "Morgan Hale",
+      "title": "President",
+      "company": "Northstar Health",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "c_suite_sniper",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": -0.3,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_director_brand_01",
+    "prospect": {
+      "name": "Riley Park",
+      "title": "Director, Brand Protection",
+      "company": "Mercury Retail",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "straight_shooter",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": 0.5,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_director_brand_02",
+    "prospect": {
+      "name": "Riley Park",
+      "title": "Director, Brand Protection",
+      "company": "Mercury Retail",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "headliner",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": 0.5,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_director_brand_03",
+    "prospect": {
+      "name": "Riley Park",
+      "title": "Director, Brand Protection",
+      "company": "Mercury Retail",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "giver",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": -0.3,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_director_brand_04",
+    "prospect": {
+      "name": "Riley Park",
+      "title": "Director, Brand Protection",
+      "company": "Mercury Retail",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "challenger",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": -0.3,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_vp_legal_01",
+    "prospect": {
+      "name": "Taylor Reed",
+      "title": "VP Legal & IP",
+      "company": "Vertex Mobility",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "industry_insider",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": 0.5,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": ""
+    }
+  },
+  {
+    "id": "case_vp_legal_02",
+    "prospect": {
+      "name": "Taylor Reed",
+      "title": "VP Legal & IP",
+      "company": "Vertex Mobility",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "c_suite_sniper",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": 0.5,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_vp_legal_03",
+    "prospect": {
+      "name": "Taylor Reed",
+      "title": "VP Legal & IP",
+      "company": "Vertex Mobility",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company announced a 2026 outbound quality initiative, opened 12 new SDR roles in Q1, and leadership tied pipeline review goals to reply quality in the latest earnings call. A recent press release highlighted faster qualification targets for enterprise accounts.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "",
+    "cta_type": "time_ask",
+    "preset_id": "straight_shooter",
+    "style_profile": {
+      "formality": 0.1,
+      "orientation": -0.3,
+      "length": 0.9,
+      "assertiveness": -0.4
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": "EmailDJ helps revenue teams control outbound quality across reps and sequences. Customers use structured guardrails to reduce message drift while preserving rep autonomy. Teams typically start with one sequence audit, then scale controls across pods."
+    }
+  },
+  {
+    "id": "case_vp_legal_04",
+    "prospect": {
+      "name": "Taylor Reed",
+      "title": "VP Legal & IP",
+      "company": "Vertex Mobility",
+      "linkedin_url": "https://linkedin.com/in/example-prospect"
+    },
+    "research_text": "The company is an American software company that builds platforms. Wikipedia. Wikipedia. Core platforms include analytics and cloud tools.",
+    "offer_lock": "Remix Studio",
+    "cta_offer_lock": "Open to a 15-min call for a quick teardown + first workflow recommendation? Worth a look / Not a priority?",
+    "cta_type": "",
+    "preset_id": "headliner",
+    "style_profile": {
+      "formality": -0.2,
+      "orientation": -0.3,
+      "length": -0.8,
+      "assertiveness": 0.2
+    },
+    "company_context": {
+      "company_name": "EmailDJ",
+      "company_url": "https://emaildj.ai",
+      "current_product": "Remix Studio",
+      "other_products": "Prospect Enrichment\nSequence QA",
+      "company_notes": ""
+    }
+  }
+]

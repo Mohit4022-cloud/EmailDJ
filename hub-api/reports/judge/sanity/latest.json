@@ -1,0 +1,627 @@
+{
+  "generated_at": "2026-03-02T15:41:33.091810Z",
+  "judge_model": "gpt-4.1-nano",
+  "judge_mode": "mock",
+  "total_cases": 10,
+  "passed_cases": 10,
+  "failed_cases": 0,
+  "results": [
+    {
+      "id": "sentinel_excellent_001",
+      "bucket": "excellent",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "3060658bcc6c64b7",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 4,
+              "clarity_and_structure": 5,
+              "credibility_no_overclaim": 4,
+              "personalization_quality": 4,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 4,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": false
+            },
+            "overall": 4.41,
+            "pass_fail": "pass",
+            "rationale_bullets": [
+              "Relevance scored 4/5 based on prospect and offer alignment.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": []
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 4,
+          "clarity_and_structure": 5,
+          "credibility_no_overclaim": 4,
+          "personalization_quality": 4,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 4,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": false
+        },
+        "overall": 4.41,
+        "pass_fail": "pass",
+        "rationale_bullets": [
+          "Relevance scored 4/5 based on prospect and offer alignment.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [],
+        "sample_count": 1,
+        "repair_actions": []
+      }
+    },
+    {
+      "id": "sentinel_excellent_002",
+      "bucket": "excellent",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "446b6e6f3f96e11b",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 3,
+              "clarity_and_structure": 5,
+              "credibility_no_overclaim": 4,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 4,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": false
+            },
+            "overall": 3.81,
+            "pass_fail": "pass",
+            "rationale_bullets": [
+              "Relevance scored 3/5 based on prospect and offer alignment.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 3,
+          "clarity_and_structure": 5,
+          "credibility_no_overclaim": 4,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 4,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": false
+        },
+        "overall": 3.81,
+        "pass_fail": "pass",
+        "rationale_bullets": [
+          "Relevance scored 3/5 based on prospect and offer alignment.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_average_001",
+      "bucket": "average",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "d3147395ebb2270d",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 3,
+              "clarity_and_structure": 5,
+              "credibility_no_overclaim": 5,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 4,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": false
+            },
+            "overall": 4.01,
+            "pass_fail": "pass",
+            "rationale_bullets": [
+              "Relevance scored 3/5 based on prospect and offer alignment.",
+              "Credibility scored 5/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 3,
+          "clarity_and_structure": 5,
+          "credibility_no_overclaim": 5,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 4,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": false
+        },
+        "overall": 4.01,
+        "pass_fail": "pass",
+        "rationale_bullets": [
+          "Relevance scored 3/5 based on prospect and offer alignment.",
+          "Credibility scored 5/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_average_002",
+      "bucket": "average",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "6118fc91cd5de746",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 3,
+              "clarity_and_structure": 5,
+              "credibility_no_overclaim": 5,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 4,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": false
+            },
+            "overall": 4.01,
+            "pass_fail": "pass",
+            "rationale_bullets": [
+              "Relevance scored 3/5 based on prospect and offer alignment.",
+              "Credibility scored 5/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 3,
+          "clarity_and_structure": 5,
+          "credibility_no_overclaim": 5,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 4,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": false
+        },
+        "overall": 4.01,
+        "pass_fail": "pass",
+        "rationale_bullets": [
+          "Relevance scored 3/5 based on prospect and offer alignment.",
+          "Credibility scored 5/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_bad_generic_001",
+      "bucket": "bad_generic",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "872687fff75a8604",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 2,
+              "clarity_and_structure": 1,
+              "credibility_no_overclaim": 4,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 2,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": true,
+              "clarity_violation_present": true
+            },
+            "overall": 3.01,
+            "pass_fail": "fail",
+            "rationale_bullets": [
+              "Relevance scored 2/5 based on prospect and offer alignment.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "verbosity_padding_detected",
+              "clarity_violation_detected",
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 2,
+          "clarity_and_structure": 1,
+          "credibility_no_overclaim": 4,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 2,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": true,
+          "clarity_violation_present": true
+        },
+        "overall": 3.01,
+        "pass_fail": "fail",
+        "rationale_bullets": [
+          "Relevance scored 2/5 based on prospect and offer alignment.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "verbosity_padding_detected",
+          "clarity_violation_detected",
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          },
+          {
+            "tag": "VERBOSITY_PADDING",
+            "action": "Constrain body length and remove repetitive filler while preserving one core value proposition.",
+            "reason": "Length is being used without additional signal."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_bad_generic_002",
+      "bucket": "bad_generic",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "77fac7a2472b9845",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 2,
+              "clarity_and_structure": 1,
+              "credibility_no_overclaim": 4,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 2,
+              "value_prop_specificity": 4
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": true,
+              "clarity_violation_present": true
+            },
+            "overall": 2.94,
+            "pass_fail": "fail",
+            "rationale_bullets": [
+              "Relevance scored 2/5 based on prospect and offer alignment.",
+              "Credibility scored 4/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "verbosity_padding_detected",
+              "clarity_violation_detected",
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 2,
+          "clarity_and_structure": 1,
+          "credibility_no_overclaim": 4,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 2,
+          "value_prop_specificity": 4
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": true,
+          "clarity_violation_present": true
+        },
+        "overall": 2.94,
+        "pass_fail": "fail",
+        "rationale_bullets": [
+          "Relevance scored 2/5 based on prospect and offer alignment.",
+          "Credibility scored 4/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "verbosity_padding_detected",
+          "clarity_violation_detected",
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          },
+          {
+            "tag": "VERBOSITY_PADDING",
+            "action": "Constrain body length and remove repetitive filler while preserving one core value proposition.",
+            "reason": "Length is being used without additional signal."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_policy_bad_001",
+      "bucket": "policy_bad",
+      "expected_lock_pass": false,
+      "actual_lock_pass": false,
+      "lock_violations": [
+        "UNSUPPORTED_OBJECTIVE_CLAIM"
+      ],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "skipped_hard_fail",
+        "reason": "Lock checks failed; judge intentionally skipped."
+      }
+    },
+    {
+      "id": "sentinel_policy_bad_002",
+      "bucket": "policy_bad",
+      "expected_lock_pass": true,
+      "actual_lock_pass": true,
+      "lock_violations": [],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "scored",
+        "schema_version": "judge_output_v2",
+        "judge_model": "gpt-4.1-nano",
+        "judge_mode": "mock",
+        "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+        "content_hash": "3f040c65a86383fc",
+        "cache_hit": true,
+        "samples": [
+          {
+            "scores": {
+              "relevance_to_prospect": 3,
+              "clarity_and_structure": 5,
+              "credibility_no_overclaim": 5,
+              "personalization_quality": 1,
+              "cta_quality": 5,
+              "tone_match": 5,
+              "conciseness_signal_density": 3,
+              "value_prop_specificity": 5
+            },
+            "binary_checks": {
+              "overclaim_present": false,
+              "filler_padding_present": false,
+              "clarity_violation_present": false
+            },
+            "overall": 3.94,
+            "pass_fail": "fail",
+            "rationale_bullets": [
+              "Relevance scored 3/5 based on prospect and offer alignment.",
+              "Credibility scored 5/5 with emphasis on claim safety.",
+              "CTA quality scored 5/5 based on final ask precision."
+            ],
+            "flags": [
+              "auto_fail_bribery_or_gift",
+              "insufficient_personalization"
+            ]
+          }
+        ],
+        "scores": {
+          "relevance_to_prospect": 3,
+          "clarity_and_structure": 5,
+          "credibility_no_overclaim": 5,
+          "personalization_quality": 1,
+          "cta_quality": 5,
+          "tone_match": 5,
+          "conciseness_signal_density": 3,
+          "value_prop_specificity": 5
+        },
+        "binary_checks": {
+          "overclaim_present": false,
+          "filler_padding_present": false,
+          "clarity_violation_present": false
+        },
+        "overall": 3.94,
+        "pass_fail": "fail",
+        "rationale_bullets": [
+          "Relevance scored 3/5 based on prospect and offer alignment.",
+          "Credibility scored 5/5 with emphasis on claim safety.",
+          "CTA quality scored 5/5 based on final ask precision."
+        ],
+        "flags": [
+          "auto_fail_bribery_or_gift",
+          "insufficient_personalization"
+        ],
+        "sample_count": 1,
+        "repair_actions": [
+          {
+            "tag": "HOOK_TOO_GENERIC",
+            "action": "Increase research hooks and require at least one specific factual detail in the opening sentence.",
+            "reason": "Relevance/personalization is weak for the target prospect context."
+          }
+        ]
+      }
+    },
+    {
+      "id": "sentinel_lock_edge_001",
+      "bucket": "lock_edge",
+      "expected_lock_pass": false,
+      "actual_lock_pass": false,
+      "lock_violations": [
+        "OFFER_MISSING",
+        "FORBIDDEN_OTHER_PRODUCT"
+      ],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "skipped_hard_fail",
+        "reason": "Lock checks failed; judge intentionally skipped."
+      }
+    },
+    {
+      "id": "sentinel_lock_edge_002",
+      "bucket": "lock_edge",
+      "expected_lock_pass": false,
+      "actual_lock_pass": false,
+      "lock_violations": [
+        "CTA_MISMATCH"
+      ],
+      "assertions_passed": true,
+      "messages": [],
+      "judge": {
+        "status": "skipped_hard_fail",
+        "reason": "Lock checks failed; judge intentionally skipped."
+      }
+    }
+  ],
+  "failures": []
+}

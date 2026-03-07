@@ -1,0 +1,17 @@
+{
+  "case_id": "acme__director_security__c_suite_sniper__medium",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_CATEGORY_MISMATCH"
+  ],
+  "word_count": 118,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Category mismatch: offer is brand protection but body uses data-security framing: 'cybersecurity'"
+  ]
+}

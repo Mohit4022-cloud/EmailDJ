@@ -1,0 +1,174 @@
+version: "1"
+
+# docmap.yaml — canonical doc ↔ code binding registry
+# Freshness modes: on_change | on_major_change | manual
+# Tiers: 1=auto-write | 2=auto-draft, human skim | 3=human-authored
+
+bindings:
+
+  # ── Tier 1 — safe to auto-write ───────────────────────────────────────────
+
+  - doc: docs/ops/env_matrix.md
+    tier: 1
+    bound_to:
+      - hub-api/.env.example
+      - hub-api/infra/
+      - hub-api/main.py
+      - hub-api/evals/
+    freshness: on_change
+    generator: scripts/docops/generate_docs.py
+
+  - doc: docs/contracts/openapi.md
+    tier: 1
+    bound_to:
+      - hub-api/openapi.json
+      - hub-api/api/routes/
+      - hub-api/api/schemas.py
+    freshness: on_change
+    generator: scripts/docops/generate_docs.py
+
+  - doc: docs/contracts/schemas.md
+    tier: 1
+    bound_to:
+      - hub-api/api/schemas.py
+    freshness: on_change
+
+  - doc: docs/contracts/openapi_diff.md
+    tier: 1
+    bound_to:
+      - hub-api/openapi.json
+    freshness: on_change
+    generator: scripts/docops/generate_docs.py
+
+  # ── Tier 2 — auto-draft, human skim required ──────────────────────────────
+
+  - doc: docs/contracts/streaming_sse.md
+    tier: 2
+    bound_to:
+      - hub-api/email_generation/streaming.py
+      - web-app/src/api/
+      - chrome-extension/src/side-panel/
+    freshness: on_change
+
+  - doc: docs/architecture/overview.md
+    tier: 2
+    bound_to:
+      - hub-api/main.py
+      - hub-api/agents/graph.py
+      - hub-api/api/routes/
+      - chrome-extension/src/
+    freshness: on_major_change
+
+  - doc: docs/architecture/backend.md
+    tier: 2
+    bound_to:
+      - hub-api/main.py
+      - hub-api/api/routes/
+      - hub-api/api/middleware/
+      - hub-api/email_generation/
+    freshness: on_change
+
+  - doc: docs/architecture/frontend.md
+    tier: 2
+    bound_to:
+      - chrome-extension/src/
+      - web-app/src/
+    freshness: on_change
+
+  - doc: docs/architecture/data_state.md
+    tier: 2
+    bound_to:
+      - hub-api/infra/
+      - hub-api/context_vault/
+    freshness: on_change
+
+  - doc: docs/policy/prompt_contracts.md
+    tier: 2
+    bound_to:
+      - hub-api/email_generation/prompt_templates.py
+      - hub-api/email_generation/preset_strategies.py
+    freshness: on_change
+
+  - doc: docs/product/presets.md
+    tier: 2
+    bound_to:
+      - hub-api/email_generation/preset_strategies.py
+      - docs/EmailDJ SDR Presets.md
+    freshness: on_change
+
+  - doc: docs/ops/runbooks.md
+    tier: 2
+    bound_to:
+      - hub-api/infra/
+      - hub-api/email_generation/model_cascade.py
+      - hub-api/api/middleware/cost_guard.py
+    freshness: on_major_change
+
+  - doc: docs/ops/release_checklist.md
+    tier: 2
+    bound_to:
+      - .github/workflows/ci.yml
+      - hub-api/scripts/checks.sh
+    freshness: on_change
+
+  # ── Tier 3 — human-authored, enforced via ADR ─────────────────────────────
+
+  - doc: docs/policy/control_contract.md
+    tier: 3
+    bound_to:
+      - hub-api/email_generation/compliance_rules.py
+      - hub-api/email_generation/output_enforcement.py
+      - hub-api/email_generation/runtime_policies.py
+      - hub-api/pii/
+    freshness: on_change
+
+  - doc: docs/policy/validator_rules.md
+    tier: 3
+    bound_to:
+      - hub-api/email_generation/compliance_rules.py
+      - hub-api/email_generation/output_enforcement.py
+    freshness: on_change
+
+  - doc: docs/product/positioning.md
+    tier: 3
+    bound_to:
+      - EmailDJ_Concept.md
+    freshness: manual
+
+# ── ADR configuration ─────────────────────────────────────────────────────
+
+adr:
+  required_pattern: "docs/adr/*.md"
+  core_paths:
+    - hub-api/main.py
+    - hub-api/email_generation/compliance_rules.py
+    - hub-api/email_generation/runtime_policies.py
+    - hub-api/email_generation/remix_engine.py
+    - hub-api/email_generation/preset_preview_pipeline.py
+    - hub-api/api/routes/web_mvp.py
+    - hub-api/api/schemas.py
+
+# ── Generator definitions ─────────────────────────────────────────────────
+
+generators:
+  - id: env-matrix
+    script: scripts/docops/generate_docs.py
+    triggers:
+      - hub-api/.env.example
+      - hub-api/**/*.py
+      - web-app/src/**/*.js
+      - .github/workflows/*.yml
+    outputs:
+      - docs/ops/env_matrix.md
+
+  - id: openapi-contract
+    script: scripts/docops/generate_docs.py
+    triggers:
+      - hub-api/openapi.json
+      - hub-api/main.py
+      - hub-api/api/**/*.py
+      - hub-api/scripts/generate_openapi.py
+    outputs:
+      - docs/contracts/openapi.md
+      - docs/contracts/openapi_diff.md
+      - docs/contracts/openapi_snapshot.json

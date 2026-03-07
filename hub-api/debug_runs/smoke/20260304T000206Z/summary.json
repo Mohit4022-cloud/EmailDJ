@@ -1,0 +1,80 @@
+{
+  "run_id": "smoke_20260304T000206Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-04T00:06:37.858095Z",
+  "elapsed_seconds": 242.2,
+  "total": 4,
+  "pass": 0,
+  "fail": 4,
+  "errors": 4,
+  "pass_rate_pct": 0.0,
+  "fail_tag_counts": {
+    "ERROR": 4
+  },
+  "top_10_worst": [
+    {
+      "case_id": "palantir__alex_karp__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 121093,
+      "provider": null
+    },
+    {
+      "case_id": "palantir__shyam_sankar__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 121089,
+      "provider": null
+    },
+    {
+      "case_id": "palantir__ryan_taylor__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 121088,
+      "provider": null
+    },
+    {
+      "case_id": "palantir__head_brand_risk__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 121072,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 3,
+      "pass": 0
+    },
+    "practitioner": {
+      "total": 1,
+      "pass": 0
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 4,
+      "pass": 0
+    }
+  }
+}

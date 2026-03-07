@@ -1,0 +1,36 @@
+{
+  "_schema": "prospect_fixture_v1",
+  "prospect_company_name": "Acme Consumer Brands",
+  "prospect_company_domain": "acmeconsumerbrands.example.com",
+  "prospect_industry": "fmcg",
+  "personas": [
+    {
+      "id": "sarah_chen",
+      "prospect_first_name": "Sarah",
+      "prospect_last_name": "Chen",
+      "prospect_title": "CEO",
+      "research_text": "Sarah Chen joined Acme Consumer Brands as CEO in 2022 after a decade at a Big 4 FMCG conglomerate. She has focused on international expansion and new product category launches. Under her leadership the company entered the European market and filed trademarks in 6 new categories."
+    },
+    {
+      "id": "marcus_williams",
+      "prospect_first_name": "Marcus",
+      "prospect_last_name": "Williams",
+      "prospect_title": "VP Legal / IP Counsel",
+      "research_text": "Marcus Williams leads the legal and IP function at Acme Consumer Brands. He joined in 2021 from outside counsel where he specialized in trademark prosecution. He is responsible for trademark portfolio management across all product lines and has flagged resource constraints in clearance as a growing risk."
+    },
+    {
+      "id": "zoe_martinez",
+      "prospect_first_name": "Zoe",
+      "prospect_last_name": "Martinez",
+      "prospect_title": "Head of Brand Protection",
+      "research_text": "Zoe Martinez manages brand integrity and anti-counterfeiting programs at Acme Consumer Brands. She recently oversaw a takedown campaign on two e-commerce platforms where Acme products were being counterfeited. She has been evaluating newer platforms that provide automated detection and bulk takedown capabilities."
+    },
+    {
+      "id": "revops_pm",
+      "prospect_first_name": "Jordan",
+      "prospect_last_name": "Smith",
+      "prospect_title": "Head of Revenue Operations",
+      "research_text": "Jordan Smith oversees revenue operations and sales process at Acme Consumer Brands. The team runs outbound email sequences across 3 SDR pods. They flagged inconsistent messaging quality as a blocker for scaling from 2 to 5 SDR pods in 2026."
+    }
+  ]
+}

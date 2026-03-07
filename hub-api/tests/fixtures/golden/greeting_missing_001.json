@@ -1,0 +1,20 @@
+{
+  "scenario_id": "greeting_missing_001",
+  "description": "Body has no greeting line",
+  "draft": "Subject: Protect Acme's Brand\nBody:\nWe help teams reduce risk.\n\nOpen to a quick call?",
+  "session": {
+    "prospect": {"name": "Alex Doe", "title": "VP Sales", "company": "Acme"},
+    "prospect_first_name": "Alex",
+    "offer_lock": "Acme Shield Pro",
+    "cta_lock_effective": "Open to a quick call?",
+    "company_context": {"company_name": "SellerCo", "company_notes": ""},
+    "research_text_raw": "",
+    "research_text": "",
+    "allowed_facts": [],
+    "generation_plan": {}
+  },
+  "style_sliders": {"tone_formal_casual": 50, "framing_problem_outcome": 50, "length_short_long": 50, "stance_bold_diplomatic": 50},
+  "expected_violations": ["greeting_missing_or_invalid"],
+  "expected_pass": false,
+  "tags": ["greeting"]
+}

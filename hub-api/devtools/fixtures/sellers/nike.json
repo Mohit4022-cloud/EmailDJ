@@ -1,0 +1,23 @@
+{
+  "_schema": "seller_fixture_v1",
+  "seller_company_name": "Nike",
+  "seller_company_domain": "nike.com",
+  "offer_name": "Nike Wholesale Partner Program",
+  "offer_category": "retail_partnership",
+  "offer_positioning": "Premium athletic brand access for qualified retail partners — exclusive seasonal drops, co-marketing budget, and sell-through support.",
+  "differentiators": [
+    "Access to exclusive seasonal drops not available to general market",
+    "Co-marketing budget and in-store visual merchandising support",
+    "Dedicated partner success manager and quarterly business reviews"
+  ],
+  "proof_points": [],
+  "icp_personas": ["VP Merchandising", "Director of Buying", "Head of Retail Partnerships", "Chief Merchandising Officer"],
+  "constraints": [
+    "Do not reference competitor athletic brands by name",
+    "Do not promise specific inventory allocations without approval"
+  ],
+  "cta_offer_lock": "Worth a quick call to walk through the Q3 partner program details?",
+  "cta_type": "time_ask",
+  "other_products": "Nike Direct Digital Partner Program\nNike by You Custom",
+  "company_notes": "Nike's wholesale program gives qualified retail partners exclusive access to performance footwear and apparel collections, with co-marketing support and dedicated partner success resources."
+}

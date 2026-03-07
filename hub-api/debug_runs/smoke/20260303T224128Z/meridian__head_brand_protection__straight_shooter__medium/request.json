@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Aisha Johnson",
+    "title": "Head of Brand Integrity",
+    "company": "Meridian Health Sciences",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Aisha",
+  "research_text": "Aisha Johnson was recently promoted to lead brand integrity at Meridian Health Sciences, a newly created role. Her background is in pharmaceutical marketing and brand strategy. She is building out the brand protection function from scratch, focused initially on protecting the commercial brand names for their two pipeline assets expected to reach market in 2026. She is actively evaluating technology platforms for trademark watch services and online infringement monitoring.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "straight_shooter",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-4.1-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

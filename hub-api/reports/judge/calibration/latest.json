@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-03-02T15:41:29.046418Z",
+  "judge_mode": "mock",
+  "judge_model": "gpt-4.1-mini",
+  "dataset": "evals/judge/calibration_set.v2.json",
+  "examples": 60,
+  "current_thresholds": {
+    "overall": 3.8,
+    "credibility": 4.0
+  },
+  "recommended_thresholds": {
+    "overall": 3.8,
+    "credibility": 4.0,
+    "accuracy": 1.0
+  },
+  "current_metrics": {
+    "examples": 60,
+    "compared": 60,
+    "pass_fail_agreement": 1.0,
+    "score_rank_correlation": 0.7747
+  },
+  "tuned_metrics": {
+    "examples": 60,
+    "compared": 60,
+    "pass_fail_agreement": 1.0,
+    "score_rank_correlation": 0.7747
+  },
+  "criterion_label_agreement": {
+    "relevance_to_prospect": 0.9833,
+    "clarity_and_structure": 0.85,
+    "credibility_no_overclaim": 0.9333,
+    "personalization_quality": 0.9833,
+    "cta_quality": 0.55,
+    "tone_match": 0.5167,
+    "conciseness_signal_density": 0.9333,
+    "value_prop_specificity": 0.65
+  },
+  "criterion_agreement_target": 0.65,
+  "weakest_criteria_meet_target": false,
+  "targeted_criteria": [
+    "clarity_and_structure",
+    "credibility_no_overclaim",
+    "conciseness_signal_density"
+  ],
+  "targeted_criteria_meet_target": true,
+  "weakest_criteria": [
+    {
+      "criterion": "tone_match",
+      "agreement": 0.5167
+    },
+    {
+      "criterion": "cta_quality",
+      "agreement": 0.55
+    },
+    {
+      "criterion": "value_prop_specificity",
+      "agreement": 0.65
+    }
+  ],
+  "stability": {
+    "previous_recommended_thresholds": {
+      "overall": 3.8,
+      "credibility": 4.0
+    },
+    "delta_overall": 0.0,
+    "delta_credibility": 0.0
+  }
+}

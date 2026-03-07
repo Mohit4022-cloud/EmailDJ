@@ -1,0 +1,52 @@
+{
+  "run_id": "smoke_20260303T225659Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-03T22:57:24.831209Z",
+  "elapsed_seconds": 25.5,
+  "total": 30,
+  "pass": 29,
+  "fail": 1,
+  "errors": 0,
+  "pass_rate_pct": 96.7,
+  "fail_tag_counts": {
+    "FAIL_PROOF_DUMP": 1
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 77,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, as CEO of Acme, your focus on international expansion and brand integrity aligns with our '"
+      ],
+      "latency_ms": 2502,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 11
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 12
+    },
+    "manager": {
+      "total": 6,
+      "pass": 6
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 15
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 14
+    }
+  }
+}

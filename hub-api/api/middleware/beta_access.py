@@ -30,6 +30,11 @@ def _minute_bucket() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
 
 
+def _should_rate_limit(request: Request) -> bool:
+    # Stream polling should not consume the same quota as generation requests.
+    return request.method.upper() == "POST"
+
+
 class WebBetaAccessMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -43,14 +48,15 @@ class WebBetaAccessMiddleware(BaseHTTPMiddleware):
         if not key or key not in _allowed_keys():
             return JSONResponse(status_code=401, content={"error": "unauthorized_beta_key"})
 
-        redis = get_redis()
-        bucket = _minute_bucket()
-        rate_key = f"web_mvp:ratelimit:{key}:{bucket}"
-        count = await redis.incr(rate_key)
-        if count == 1:
-            await redis.expire(rate_key, 70)
-        if count > _rate_limit_per_min():
-            return JSONResponse(status_code=429, content={"error": "rate_limited"})
+        if _should_rate_limit(request):
+            redis = get_redis()
+            bucket = _minute_bucket()
+            rate_key = f"web_mvp:ratelimit:{key}:{bucket}"
+            count = await redis.incr(rate_key)
+            if count == 1:
+                await redis.expire(rate_key, 70)
+            if count > _rate_limit_per_min():
+                return JSONResponse(status_code=429, content={"error": "rate_limited"})
 
         request.state.web_beta_key = key
         return await call_next(request)

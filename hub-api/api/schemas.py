@@ -63,6 +63,111 @@ class WebCompanyContext(BaseModel):
     company_notes: str | None = Field(default=None, max_length=8000)
 
 
+# ---------------------------------------------------------------------------
+# Canonical multi-tenant contracts (Codex spec)
+# These are the source-of-truth schemas consumed by all generation paths.
+# Existing endpoint schemas (WebCompanyContext, WebProspectInput, etc.) remain
+# in place for backward compatibility; new endpoints should use these.
+# ---------------------------------------------------------------------------
+
+
+class SellerProfile(BaseModel):
+    """Canonical seller definition — fully variable, no vendor-specific defaults."""
+
+    seller_company_name: str = Field(min_length=1, max_length=160)
+    seller_company_domain: str | None = Field(default=None, max_length=400)
+    offer_name: str = Field(
+        min_length=1,
+        max_length=240,
+        description="The single offer being pitched. Maps to offer_lock in generation.",
+    )
+    offer_category: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Coarse domain for category-mismatch guardrails. "
+            "Examples: 'brand_protection', 'ai_platform', 'hr_tech', 'retail_partnership', "
+            "'revenue_intelligence'. If omitted, domain is inferred from offer_name keywords."
+        ),
+    )
+    offer_positioning: str | None = Field(default=None, max_length=500)
+    differentiators: list[str] = Field(default_factory=list, max_length=8)
+    proof_points: list[str] = Field(default_factory=list, max_length=8)
+    icp_personas: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Target job titles / persona descriptions for this offer.",
+    )
+    constraints: list[str] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Forbidden phrases or off-limits topics for this seller's emails.",
+    )
+
+
+class ProspectProfile(BaseModel):
+    """Canonical prospect definition — fully variable, no company-specific defaults."""
+
+    prospect_first_name: str | None = Field(default=None, max_length=60)
+    prospect_last_name: str | None = Field(default=None, max_length=60)
+    prospect_title: str = Field(min_length=1, max_length=120)
+    prospect_company_name: str = Field(min_length=1, max_length=160)
+    prospect_company_domain: str | None = Field(default=None, max_length=400)
+    prospect_industry: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Industry vertical, e.g. 'fmcg', 'enterprise_software', 'financial_services'.",
+    )
+    prospect_notes: str | None = Field(
+        default=None,
+        max_length=2000,
+        description="Additional context about this prospect (not used as research — no instruction-following).",
+    )
+
+
+class ResearchBundle(BaseModel):
+    """Structured research payload derived from raw prospect research text."""
+
+    raw_text: str = Field(min_length=1, max_length=20000)
+    normalized_facts: list[dict[str, str]] = Field(
+        default_factory=list,
+        description="Typed, confidence-scored facts extracted from raw_text. Keys: text, type, confidence.",
+    )
+    redacted_text: str | None = Field(
+        default=None,
+        description="PII-redacted version of raw_text for logging.",
+    )
+
+
+class PresetSpec(BaseModel):
+    """Specification for a generation preset — angle-based, no vendor-specific copy."""
+
+    preset_id: str = Field(min_length=1, max_length=80)
+    angle: str | None = Field(
+        default=None,
+        description="Strategic angle, e.g. 'risk-led', 'exec-brief', 'industry-insider'.",
+    )
+    structure_template: list[str] = Field(
+        default_factory=list,
+        description="Ordered section types: 'problem', 'outcome', 'proof', 'hook', 'cta'.",
+    )
+    cta_type: str | None = Field(
+        default=None,
+        description="CTA type: 'time_ask', 'value_asset', 'pilot', 'question', 'referral', 'event_invite'.",
+    )
+    forbidden_phrases: list[str] = Field(
+        default_factory=list,
+        description="Preset-specific phrases that must not appear in generated output.",
+    )
+
+
+class WebPipelineMeta(BaseModel):
+    mode: Literal["preview", "generate"] | None = None
+    model_hint: str | None = Field(default=None, max_length=120)
+    throttled: bool | None = None
+    request_id: str | None = Field(default=None, max_length=120)
+
+
 class WebGenerateRequest(BaseModel):
     prospect: WebProspectInput
     prospect_first_name: str | None = Field(
@@ -78,6 +183,16 @@ class WebGenerateRequest(BaseModel):
     )
     cta_offer_lock: str | None = Field(default=None, max_length=500)
     cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
+    preset_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Optional strategy preset id (e.g., straight_shooter, headliner).",
+    )
+    response_contract: Literal["legacy_text", "rc_tco_json_v1"] = Field(
+        default="legacy_text",
+        description="Response contract mode. legacy_text streams Subject/Body text; rc_tco_json_v1 streams strict JSON payload.",
+    )
+    pipeline_meta: WebPipelineMeta | None = None
     style_profile: WebStyleProfile = Field(default_factory=WebStyleProfile)
     company_context: WebCompanyContext = Field(default_factory=WebCompanyContext)
 
@@ -90,6 +205,11 @@ class WebGenerateAccepted(BaseModel):
 
 class WebRemixRequest(BaseModel):
     session_id: str = Field(min_length=1)
+    preset_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Optional strategy preset id override for this remix request.",
+    )
     style_profile: WebStyleProfile
 
 
@@ -140,6 +260,11 @@ class WebPreviewPresetInput(BaseModel):
 
 class WebPresetPreviewBatchRequest(BaseModel):
     prospect: WebProspectInput
+    prospect_first_name: str | None = Field(
+        default=None,
+        max_length=60,
+        description="Optional first name override used for greeting normalization in previews.",
+    )
     product_context: WebPreviewProductContext
     raw_research: WebPreviewRawResearch
     global_sliders: WebPreviewGlobalSliders
@@ -149,11 +274,18 @@ class WebPresetPreviewBatchRequest(BaseModel):
         max_length=240,
         description="Single product/offering to pitch. Must match product_context.product_name.",
     )
-    cta_lock: str = Field(
-        min_length=1,
+    cta_lock: str | None = Field(
+        default=None,
         max_length=500,
-        description="Exact CTA text used once at the end of every preview email body.",
+        description="Legacy CTA lock field. If set, it is treated as CTA lock override text.",
     )
+    cta_lock_text: str | None = Field(
+        default=None,
+        max_length=500,
+        description="CTA lock override text. If non-empty, this exact text is used as CTA.",
+    )
+    cta_type: Literal["question", "time_ask", "value_asset", "pilot", "referral", "event_invite"] | None = None
+    hook_strategy: Literal["research_anchored", "risk_framed", "domain_hook", "outcome_hook"] | None = None
 
 
 class WebSummaryPack(BaseModel):
@@ -182,10 +314,29 @@ class WebPreviewItem(BaseModel):
 
 
 class WebPreviewBatchMeta(BaseModel):
+    request_id: str | None = None
+    session_id: str | None = None
     pipeline_version: str
+    generation_mode: str | None = None
     provider: str
+    model: str | None = None
+    provider_attempt_count: int | None = Field(default=None, ge=0)
+    validator_attempt_count: int | None = Field(default=None, ge=0)
+    repair_attempt_count: int = Field(default=0, ge=0)
+    repaired: bool = False
+    initial_violation_count: int = Field(default=0, ge=0)
+    final_violation_count: int = Field(default=0, ge=0)
+    violation_codes: list[str] = Field(default_factory=list)
+    violation_count: int = Field(default=0, ge=0)
+    enforcement_level: Literal["warn", "repair", "block"] = "repair"
+    repair_loop_enabled: bool = True
+    status: Literal["success", "degraded"] = "success"
+    degraded_reason: str | None = None
     cache_hit: bool
     latency_ms: int = Field(ge=0)
+    flags_effective: dict[str, bool] | None = None
+    prompt_template_versions: dict[str, Any] | None = None
+    execution_trace: dict[str, Any] | None = None
 
 
 class WebPresetPreviewBatchResponse(BaseModel):

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
+import re
+import shutil
 import sys
 import time
 from collections import Counter
@@ -10,9 +13,38 @@ from pathlib import Path
 from typing import Any
 
 from evals.checks import evaluate_case
+from evals.judge.actions import derive_repair_actions
+from evals.judge.cache import JudgeCache
+from evals.judge.client import JudgeClient, JudgeRuntime
+from evals.judge.prompts import prompt_contract_hash
+from evals.judge.redaction import redact_text
+from evals.judge.reliability import calibration_metrics, load_calibration_set
+from evals.judge.reporting import actionable_feedback, compute_judge_summary, synthesize_prompt_adjustments
 from evals.io import load_cases, load_smoke_ids, write_reports
 from evals.models import EvalResult, REQUIRED_VIOLATION_CODES, ScorecardSummary, Violation
 from email_generation.remix_engine import build_draft, create_session_payload
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, str(default)).strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _default_candidate_id() -> str:
+    value = os.environ.get("EMAILDJ_JUDGE_CANDIDATE_ID", "").strip()
+    if value:
+        return value
+    value = os.environ.get("GITHUB_SHA", "").strip()
+    if value:
+        return value[:12]
+    return "default"
+
+
+def _safe_path_component(value: str) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "_", (value or "").strip()) or "default"
 
 
 def _parse_args() -> argparse.Namespace:
@@ -23,9 +55,30 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=("smoke", "full", "focus"), default="full")
     parser.add_argument("--tag", action="append", default=[])
     parser.add_argument("--id", action="append", default=[])
-    parser.add_argument("--real", action="store_true", help="Run with EMAILDJ_QUICK_GENERATE_MODE=real")
+    parser.add_argument("--real", action="store_true", help="Run with USE_PROVIDER_STUB=0 (real provider path)")
     parser.add_argument("--max-cases", type=int, default=0)
+    parser.add_argument("--min-cases", type=int, default=80)
     parser.add_argument("--allow-failures", action="store_true", help="Always exit zero")
+    parser.add_argument("--judge", action="store_true", help="Run LLM-as-a-judge quality evaluation.")
+    parser.add_argument(
+        "--judge-mode",
+        choices=("mock", "real"),
+        default=(os.environ.get("EMAILDJ_JUDGE_MODE", "mock").strip().lower() or "mock"),
+    )
+    parser.add_argument("--judge-model", default=(os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini"))
+    parser.add_argument(
+        "--judge-model-version",
+        default=(
+            os.environ.get("EMAILDJ_JUDGE_MODEL_VERSION", "").strip()
+            or os.environ.get("EMAILDJ_JUDGE_MODEL", "gpt-4.1-mini").strip()
+            or "gpt-4.1-mini"
+        ),
+    )
+    parser.add_argument("--judge-sample-count", type=int, default=_env_int("EMAILDJ_JUDGE_SAMPLE_COUNT", 1))
+    parser.add_argument("--judge-cache-dir", default=(os.environ.get("EMAILDJ_JUDGE_CACHE_DIR", "reports/judge/cache").strip() or "reports/judge/cache"))
+    parser.add_argument("--judge-candidate-id", default=_default_candidate_id())
+    parser.add_argument("--judge-calibration", default="evals/judge/calibration_set.v2.json")
+    parser.add_argument("--judge-skip-calibration", action="store_true")
     return parser.parse_args()
 
 
@@ -33,9 +86,9 @@ def _env_defaults(real: bool) -> str:
     os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
     os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
     if real:
-        os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+        os.environ["USE_PROVIDER_STUB"] = "0"
         return "real"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     return "mock"
 
 
@@ -89,6 +142,19 @@ async def _run_case(case: Any, mode: str) -> EvalResult:
         subject, body, violations = evaluate_case(case=case, draft=draft_result.draft)
 
         duration_ms = int((time.perf_counter() - started) * 1000)
+        generation_meta = {
+            "generation_mode": draft_result.mode,
+            "provider": draft_result.provider,
+            "model": draft_result.model_name,
+            "cascade_reason": draft_result.cascade_reason,
+            "provider_attempt_count": draft_result.attempt_count,
+            "validator_attempt_count": draft_result.validator_attempt_count,
+            "json_repair_count": draft_result.json_repair_count,
+            "violation_retry_count": draft_result.violation_retry_count,
+            "repaired": draft_result.repaired,
+            "enforcement_level": draft_result.enforcement_level,
+            "repair_loop_enabled": draft_result.repair_loop_enabled,
+        }
         return EvalResult(
             id=case.id,
             tags=case.tags,
@@ -98,6 +164,7 @@ async def _run_case(case: Any, mode: str) -> EvalResult:
             subject=subject,
             body=body,
             draft=draft_result.draft,
+            generation_meta=generation_meta,
             violations=violations,
             error=None,
         )
@@ -112,6 +179,7 @@ async def _run_case(case: Any, mode: str) -> EvalResult:
             subject="",
             body="",
             draft="",
+            generation_meta={},
             violations=[Violation(code="OFFER_MISSING", reason=f"Pipeline error: {exc}", snippet="")],
             error=str(exc),
         )
@@ -178,20 +246,143 @@ async def _amain() -> int:
     args = _parse_args()
     mode = _env_defaults(real=args.real)
 
-    cases = load_cases(Path(args.dataset))
+    cases = load_cases(Path(args.dataset), min_cases=max(0, args.min_cases))
     selected = _select_cases(args, cases)
     if not selected:
         print("No cases selected. Check --mode/--tag/--id filters.", file=sys.stderr)
         return 2
 
     if args.mode == "smoke" and len(selected) != 10:
-        print(f"Smoke run expected 10 cases, selected {len(selected)}.", file=sys.stderr)
-        return 2
+        allow_reduced_smoke = bool(args.judge and args.max_cases and args.max_cases > 0)
+        if not allow_reduced_smoke:
+            print(f"Smoke run expected 10 cases, selected {len(selected)}.", file=sys.stderr)
+            return 2
 
     results: list[EvalResult] = []
+    case_by_id: dict[str, Any] = {}
     for case in selected:
+        case_by_id[case.id] = case
         result = await _run_case(case=case, mode=mode)
         results.append(result)
+
+    judge_summary = None
+    top_quality_failures = None
+    recommended_prompt_adjustments: list[dict[str, Any]] | None = None
+    if args.judge:
+        judge_cache = JudgeCache(Path(args.judge_cache_dir))
+        judge_runtime = JudgeRuntime(
+            mode=args.judge_mode,
+            model=args.judge_model,
+            timeout_seconds=float(os.environ.get("EMAILDJ_JUDGE_TIMEOUT_SEC", "30")),
+            sample_count=max(1, int(args.judge_sample_count)),
+            model_version=(args.judge_model_version.strip() or args.judge_model.strip()),
+            secondary_model=(os.environ.get("EMAILDJ_JUDGE_SECONDARY_MODEL", "").strip() or None),
+        )
+        judge_client = JudgeClient(cache=judge_cache, runtime=judge_runtime)
+
+        for result in results:
+            if not result.passed:
+                result.judge = {
+                    "status": "skipped_hard_fail",
+                    "pass_fail": "fail",
+                    "overall": 0.0,
+                    "scores": {},
+                    "flags": ["auto_fail_policy_or_compliance_risk"],
+                    "rationale_bullets": ["Skipped quality judge because hard lock compliance failed."],
+                    "repair_actions": [],
+                }
+                result.actionable_feedback = actionable_feedback(result)
+                continue
+
+            case = case_by_id.get(result.id)
+            if case is None:
+                result.judge = {
+                    "status": "error",
+                    "error": "missing_case_context",
+                    "pass_fail": "fail",
+                    "overall": 0.0,
+                    "scores": {},
+                    "flags": ["auto_fail_policy_or_compliance_risk"],
+                    "rationale_bullets": ["Judge failed: missing case context."],
+                    "repair_actions": [],
+                }
+                result.actionable_feedback = actionable_feedback(result)
+                continue
+
+            try:
+                result.judge = judge_client.evaluate_email(
+                    case=case,
+                    subject=result.subject,
+                    body=result.body,
+                    candidate_id=args.judge_candidate_id,
+                    eval_mode=args.mode,
+                )
+            except Exception as exc:  # pragma: no cover - runtime safety
+                result.judge = {
+                    "status": "error",
+                    "error": str(exc),
+                    "pass_fail": "fail",
+                    "overall": 0.0,
+                    "scores": {},
+                    "flags": ["auto_fail_policy_or_compliance_risk"],
+                    "rationale_bullets": ["Judge execution failed."],
+                    "repair_actions": [],
+                }
+            result.judge["repair_actions"] = derive_repair_actions(result.judge)
+            result.actionable_feedback = actionable_feedback(result)
+
+        calibration = None
+        calibration_path = Path(args.judge_calibration)
+        if (not args.judge_skip_calibration) and calibration_path.exists():
+            expected = load_calibration_set(str(calibration_path))
+            predicted: list[dict[str, Any]] = []
+            for row in expected:
+                row_id = str(row.get("id", "")).strip()
+                subject = redact_text(str(row.get("subject", "")))
+                body = redact_text(str(row.get("body", "")))
+                context = {
+                    "prospect_role": redact_text(str(row.get("prospect_role", ""))),
+                    "prospect_company": redact_text(str(row.get("prospect_company", ""))),
+                    "offer_lock": redact_text(str(row.get("offer_lock", ""))),
+                    "cta_lock": redact_text(str(row.get("cta_lock", ""))),
+                    "allowed_facts_summary": redact_text(str(row.get("allowed_facts_summary", ""))),
+                    "tone_target": redact_text(str(row.get("tone_target", "professional, balanced"))),
+                }
+                if not row_id or not body:
+                    continue
+                try:
+                    scored = judge_client.evaluate_ad_hoc(
+                        case_id=row_id,
+                        context=context,
+                        subject=subject,
+                        body=body,
+                        candidate_id="calibration",
+                        eval_mode="calibration",
+                    )
+                    predicted.append(
+                        {
+                            "id": row_id,
+                            "pass_fail": scored.get("pass_fail", "fail"),
+                            "overall": scored.get("overall", 0.0),
+                        }
+                    )
+                except Exception:
+                    continue
+            calibration = calibration_metrics(expected=expected, predicted=predicted)
+
+        judge_summary, top_quality_failures = compute_judge_summary(
+            results=results,
+            model=judge_runtime.model,
+            model_version=judge_runtime.model_version or judge_runtime.model,
+            mode=judge_runtime.mode,
+            prompt_contract_hash=prompt_contract_hash(),
+            calibration=calibration,
+        )
+        recommended_prompt_adjustments = synthesize_prompt_adjustments(results=results, max_items=3)
+    else:
+        for result in results:
+            result.judge = {"status": "disabled", "repair_actions": []}
+            result.actionable_feedback = actionable_feedback(result)
 
     summary, top_failures = _compute_summary(results)
     latest_json, latest_md = write_reports(
@@ -202,7 +393,29 @@ async def _amain() -> int:
         summary=summary,
         results=results,
         top_failures=top_failures,
+        judge_summary=judge_summary,
+        top_quality_failures=top_quality_failures,
+        recommended_prompt_adjustments=recommended_prompt_adjustments,
     )
+
+    if args.judge and judge_summary is not None:
+        artifact_root = Path(args.report_dir) / "judge" / "artifacts" / _safe_path_component(args.judge_candidate_id)
+        artifact_root.mkdir(parents=True, exist_ok=True)
+        artifact_json = artifact_root / f"{args.mode}.json"
+        artifact_md = artifact_root / f"{args.mode}.md"
+        shutil.copyfile(latest_json, artifact_json)
+        shutil.copyfile(latest_md, artifact_md)
+        meta = {
+            "generated_at": time.time(),
+            "source_report_json": str(latest_json),
+            "source_report_md": str(latest_md),
+            "candidate_id": args.judge_candidate_id,
+            "judge_model": judge_summary.model,
+            "judge_model_version": judge_summary.model_version,
+            "judge_mode": judge_summary.mode,
+            "prompt_contract_hash": judge_summary.prompt_contract_hash,
+        }
+        (artifact_root / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
     print("Lock Compliance Scorecard")
     print(f"- Cases: {summary.total_cases}")
@@ -211,6 +424,12 @@ async def _amain() -> int:
     print(f"- Pass rate: {summary.pass_rate:.2%}")
     print(f"- Report JSON: {latest_json}")
     print(f"- Report MD: {latest_md}")
+    if judge_summary is not None:
+        print("Quality Judge")
+        print(f"- Evaluated: {judge_summary.evaluated_cases}")
+        print(f"- Failed: {judge_summary.failed_cases}")
+        print(f"- Mean overall: {judge_summary.mean_overall:.2f}")
+        print(f"- Mean credibility: {judge_summary.mean_credibility:.2f}")
 
     if top_failures:
         print("Top recurring failures:")

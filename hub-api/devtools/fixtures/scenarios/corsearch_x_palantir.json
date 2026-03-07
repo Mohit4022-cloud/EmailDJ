@@ -1,0 +1,11 @@
+{
+  "_schema": "scenario_fixture_v1",
+  "description": "Corsearch (brand protection) selling to Palantir exec team — primary regression scenario",
+  "seller": "@sellers/corsearch.json",
+  "prospect_pack": "@prospects/palantir_exec_pack.json",
+  "preset_ids": ["straight_shooter", "c_suite_sniper", "headliner"],
+  "style_configs": {
+    "medium": {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+    "exec_direct": {"formality": 0.2, "orientation": -0.3, "length": -0.5, "assertiveness": 0.4}
+  }
+}

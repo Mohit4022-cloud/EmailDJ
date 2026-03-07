@@ -1,0 +1,10 @@
+{
+  "_schema": "scenario_fixture_v1",
+  "description": "Anthropic (enterprise AI) selling to Acme Consumer Brands — cross-domain tenant test",
+  "seller": "@sellers/anthropic.json",
+  "prospect_pack": "@prospects/acme_sdr_pack.json",
+  "preset_ids": ["straight_shooter", "challenger"],
+  "style_configs": {
+    "medium": {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
+  }
+}

@@ -1,0 +1,54 @@
+name: Docs Nightly Sweep
+
+on:
+  schedule:
+    - cron: '20 8 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  docs-rot-sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Refresh generated docs
+        run: |
+          python3 scripts/docops/generate_docs.py
+
+      - name: Create or update docs maintenance PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/docs-nightly-rot-sweep
+          delete-branch: true
+          commit-message: "docs: nightly rot sweep refresh generated docs"
+          title: "docs: nightly rot sweep refresh"
+          body: |
+            Automated nightly docs refresh.
+
+            Updated generated artifacts:
+            - docs/ops/env_matrix.md
+            - docs/contracts/openapi_summary.md
+            - docs/contracts/openapi_diff.md
+            - docs/contracts/openapi_snapshot.json
+
+            Source generator: scripts/docops/generate_docs.py
+          labels: |
+            documentation
+            automated
+          add-paths: |
+            docs/ops/env_matrix.md
+            docs/contracts/openapi_summary.md
+            docs/contracts/openapi_diff.md
+            docs/contracts/openapi_snapshot.json

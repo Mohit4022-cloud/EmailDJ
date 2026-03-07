@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Priya Patel",
+    "title": "VP Legal and General Counsel",
+    "company": "Meridian Health Sciences",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Priya",
+  "research_text": "Priya Patel oversees legal strategy, IP, and regulatory affairs at Meridian Health Sciences. She manages a portfolio of 40+ trademark filings across the US, EU, and key Asian markets. She has been working with an outside law firm for trademark screening but is frustrated by slow turnaround times and high per-search costs. She is evaluating bringing more of the initial screening in-house to speed up naming decisions early in the development cycle.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "c_suite_sniper",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-4.1-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

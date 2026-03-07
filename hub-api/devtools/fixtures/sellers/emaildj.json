@@ -1,0 +1,23 @@
+{
+  "_schema": "seller_fixture_v1",
+  "seller_company_name": "EmailDJ",
+  "seller_company_domain": "emaildj.ai",
+  "offer_name": "Remix Studio",
+  "offer_category": "revenue_intelligence",
+  "offer_positioning": "AI-powered outbound email quality control for revenue teams — generate, remix, and enforce messaging standards at scale.",
+  "differentiators": [
+    "Deterministic compliance engine blocks policy violations before send",
+    "Preset library with 6 angle-based strategies per account",
+    "Zero hallucination: all facts grounded in research you provide"
+  ],
+  "proof_points": [],
+  "icp_personas": ["VP Sales", "Head of Revenue Operations", "Sales Enablement Lead", "SDR Manager"],
+  "constraints": [
+    "Do not imply EmailDJ generates content without human review",
+    "Do not claim reply rate guarantees"
+  ],
+  "cta_offer_lock": "Open to a 15-min walkthrough to see if this fits your outbound motion?",
+  "cta_type": "time_ask",
+  "other_products": "Sequence QA\nCompliance Dashboard",
+  "company_notes": "EmailDJ helps revenue teams control outbound quality at scale. Reps generate first drafts; the compliance engine enforces messaging standards before anything reaches a prospect."
+}

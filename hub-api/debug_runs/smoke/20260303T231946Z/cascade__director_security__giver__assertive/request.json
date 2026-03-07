@@ -1,0 +1,41 @@
+{
+  "prospect": {
+    "name": "Chris Huang",
+    "title": "Director of Platform Security and Trust",
+    "company": "Cascade Commerce Group",
+    "company_url": "https://cascadecommerce.example.com",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Chris",
+  "product_context": {
+    "product_name": "Trademark Search, Screening, and Brand Protection",
+    "one_line_value": "Corsearch is the global leader in trademark clearance, brand protection, and IP ",
+    "proof_points": [
+      "Trademark Watching",
+      "Online Brand Protection"
+    ],
+    "target_outcome": "15-minute meeting"
+  },
+  "raw_research": {
+    "deep_research_paste": "Chris Huang is responsible for platform integrity, fraud prevention, and seller trust at Cascade Commerce Group. His team handles account takeovers, fraudulent listings, and increasingly, intellectual property abuse by sellers. He is working with Kevin Park on a joint initiative to detect and remove trademark-infringing listings at the point of upload rather than after customer complaints. He has an engineering team and is evaluating API-first tools that can integrate into the listing ingestion pipeline for pre-publication screening.",
+    "company_notes": "Cascade Commerce Group operates an e-commerce marketplace platform serving 8,000+ third-party sellers across home goods, apparel, and consumer electronics. They host branded storefronts for 200+ consumer brands and have been expanding their own private label portfolio. They face growing counterfeiting and trademark infringement challenges on the platform from third-party sellers. They recently launched a brand registry program but lack automated tools for proactive detection and enforcement at scale.",
+    "extra_constraints": null
+  },
+  "global_sliders": {
+    "formality": 35,
+    "brevity": 60,
+    "directness": 85,
+    "personalization": 65
+  },
+  "presets": [
+    {
+      "preset_id": "giver",
+      "label": "Giver",
+      "slider_overrides": {}
+    }
+  ],
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_lock": "Open to a quick 15-minute chat next week?",
+  "cta_lock_text": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask"
+}

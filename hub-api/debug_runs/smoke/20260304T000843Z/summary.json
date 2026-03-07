@@ -1,0 +1,29 @@
+{
+  "run_id": "smoke_20260304T000843Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-04T00:08:43.471227Z",
+  "elapsed_seconds": 0.1,
+  "total": 4,
+  "pass": 4,
+  "fail": 0,
+  "errors": 0,
+  "pass_rate_pct": 100.0,
+  "fail_tag_counts": {},
+  "top_10_worst": [],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 3,
+      "pass": 3
+    },
+    "practitioner": {
+      "total": 1,
+      "pass": 1
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 4,
+      "pass": 4
+    }
+  }
+}

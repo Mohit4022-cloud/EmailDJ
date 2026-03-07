@@ -24,7 +24,7 @@ def _generate_payload(company_context=None):
             "Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts."
         ),
         "offer_lock": "Remix Studio",
-        "cta_offer_lock": "Open to a quick chat to see if this is relevant?",
+        "cta_offer_lock": "",
         "cta_type": "question",
         "style_profile": {
             "formality": 0.1,
@@ -95,6 +95,44 @@ def _stream_token_text(stream_text: str) -> str:
     return "".join(tokens)
 
 
+def _stream_token_json(stream_text: str) -> dict:
+    return json.loads(_stream_token_text(stream_text))
+
+
+def _stream_done_payload(stream_text: str) -> dict:
+    event_name = ""
+    for line in stream_text.splitlines():
+        if line.startswith("event: "):
+            event_name = line[7:].strip()
+            continue
+        if line.startswith("data: ") and event_name == "done":
+            return json.loads(line[6:])
+    return {}
+
+
+def _stream_events(stream_text: str) -> list[tuple[str, dict]]:
+    events: list[tuple[str, dict]] = []
+    event_name = ""
+    for line in stream_text.splitlines():
+        if line.startswith("event: "):
+            event_name = line[7:].strip()
+            continue
+        if line.startswith("data: "):
+            events.append((event_name or "message", json.loads(line[6:])))
+    return events
+
+
+def _assert_upgraded_cta(text: str) -> None:
+    lower = text.lower()
+    assert (
+        "worth a look / not a priority?" in lower
+        or "open to a 15-min call" in lower
+        or "open to a 20-min call" in lower
+    )
+    assert ("15-min" in lower) or ("20-min" in lower)
+    assert ("teardown" in lower) or ("workflow" in lower) or ("examples" in lower)
+
+
 @pytest.mark.asyncio
 async def test_web_generate_and_remix_stream_flow():
     httpx = pytest.importorskip("httpx")
@@ -105,7 +143,7 @@ async def test_web_generate_and_remix_stream_flow():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -121,11 +159,27 @@ async def test_web_generate_and_remix_stream_flow():
         assert stream.status_code == 200
         assert "event: start" in stream.text
         assert "event: done" in stream.text
+        for event_name, payload in _stream_events(stream.text):
+            if event_name in {"start", "token", "done", "error"}:
+                assert isinstance(payload.get("generation_id"), str) and payload["generation_id"]
+                assert isinstance(payload.get("draft_id"), int)
         generated = _stream_token_text(stream.text)
         assert "Acme" in generated
-        assert "Open to a quick chat to see if this is relevant?" in generated
+        _assert_upgraded_cta(generated)
         assert "Subject:" in generated
         assert "Body:" in generated
+        done = _stream_done_payload(stream.text)
+        assert done["request_id"] == body["request_id"]
+        assert done["session_id"] == body["session_id"]
+        assert isinstance(done.get("generation_id"), str) and done["generation_id"]
+        assert isinstance(done.get("draft_id"), int)
+        assert isinstance(done.get("final"), dict)
+        assert isinstance(done["final"].get("body"), str) and done["final"]["body"].strip()
+        assert done["mode"] in {"mock", "real"}
+        assert isinstance(done["violation_codes"], list)
+        assert isinstance(done["violation_count"], int)
+        assert done["enforcement_level"] in {"warn", "repair", "block"}
+        assert isinstance(done["repair_loop_enabled"], bool)
 
         remix = await client.post(
             "/web/v1/remix",
@@ -147,7 +201,11 @@ async def test_web_generate_and_remix_stream_flow():
         assert "event: done" in remix_stream.text
         remixed = _stream_token_text(remix_stream.text)
         assert "Acme" in remixed
-        assert "Open to a quick chat to see if this is relevant?" in remixed
+        _assert_upgraded_cta(remixed)
+        remix_done = _stream_done_payload(remix_stream.text)
+        assert remix_done["request_id"] == remix.json()["request_id"]
+        assert remix_done["session_id"] == body["session_id"]
+        assert remix_done["generation_id"] != done["generation_id"]
 
         feedback = await client.post(
             "/web/v1/feedback",
@@ -169,6 +227,76 @@ async def test_web_generate_and_remix_stream_flow():
 
 
 @pytest.mark.asyncio
+async def test_stream_mid_switch_and_reconnect_prefers_latest_generation():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+    os.environ["FEATURE_LOSSLESS_STREAMING"] = "1"
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start_a = await client.post("/web/v1/generate", json=_generate_payload(), headers=_headers())
+        assert start_a.status_code == 200
+        a_body = start_a.json()
+        stream_a = await client.get(f"/web/v1/stream/{a_body['request_id']}", headers=_headers())
+        assert stream_a.status_code == 200
+        events_a = _stream_events(stream_a.text)
+        done_a = _stream_done_payload(stream_a.text)
+
+        remix = await client.post(
+            "/web/v1/remix",
+            json={
+                "session_id": a_body["session_id"],
+                "style_profile": {
+                    "formality": 0.8,
+                    "orientation": 0.8,
+                    "length": 0.9,
+                    "assertiveness": -0.9,
+                },
+            },
+            headers=_headers(),
+        )
+        assert remix.status_code == 200
+        stream_b = await client.get(f"/web/v1/stream/{remix.json()['request_id']}", headers=_headers())
+        assert stream_b.status_code == 200
+        events_b = _stream_events(stream_b.text)
+        done_b = _stream_done_payload(stream_b.text)
+
+    # Simulate mid-stream switch + reconnect replay:
+    # - start reading generation A
+    # - switch to generation B
+    # - stale tail from A arrives after reconnect
+    mixed_events = events_a[:6] + events_b + events_a[6:]
+    active_generation = None
+    reconstructed = ""
+    final_body = ""
+    for event_name, payload in mixed_events:
+        generation_id = payload.get("generation_id")
+        if event_name == "start" and generation_id:
+            active_generation = generation_id
+            reconstructed = ""
+            continue
+        if active_generation and generation_id and generation_id != active_generation:
+            continue
+        if event_name == "token":
+            reconstructed += str(payload.get("token") or "")
+        elif event_name == "done" and isinstance(payload.get("final"), dict):
+            final_body = str(payload["final"].get("body") or "")
+
+    assert done_a["generation_id"] != done_b["generation_id"]
+    assert final_body == done_b["final"]["body"]
+    assert reconstructed
+
+
+@pytest.mark.asyncio
 async def test_web_generate_real_mode_json_repair_and_research_containment(monkeypatch):
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")
@@ -178,7 +306,7 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "real"
+    os.environ["USE_PROVIDER_STUB"] = "0"
     os.environ["EMAILDJ_REAL_PROVIDER"] = "openai"
     os.environ["OPENAI_API_KEY"] = "test-key"
     os.environ["EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL"] = "repair"
@@ -209,7 +337,7 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
                     ),
                 }
             )
-        return GenerateResult(text=text, provider="openai", model_name="gpt-4.1-nano", cascade_reason="primary", attempt_count=calls["count"])
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
 
@@ -234,8 +362,13 @@ async def test_web_generate_real_mode_json_repair_and_research_containment(monke
         generated = _stream_token_text(stream.text)
         assert "Subject:" in generated
         assert "Body:" in generated
-        assert "Open to a quick chat to see if this is relevant?" in generated
+        _assert_upgraded_cta(generated)
         assert "pipeline outcomes" not in generated.lower()
+        done = _stream_done_payload(stream.text)
+        assert done["mode"] == "real"
+        assert done["provider"] == "openai"
+        assert isinstance(done["model"], str)
+        assert done["model"] != "mock"
 
     assert calls["count"] == 2
 
@@ -250,7 +383,7 @@ async def test_web_generate_respects_offer_lock_and_blocks_adjacent_products_in_
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -290,7 +423,7 @@ async def test_web_generate_rejects_current_product_offer_lock_mismatch():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -323,7 +456,7 @@ async def test_web_generate_empty_cta_uses_canonical_fallback():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -340,7 +473,50 @@ async def test_web_generate_empty_cta_uses_canonical_fallback():
         stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
         assert stream.status_code == 200
         rendered = _stream_token_text(stream.text)
-        assert "Open to a quick chat to see if this is relevant?" in rendered
+        _assert_upgraded_cta(rendered)
+
+
+@pytest.mark.asyncio
+async def test_web_generate_rc_tco_contract_streams_strict_json():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+
+    from main import app
+
+    payload = _generate_payload()
+    payload["response_contract"] = "rc_tco_json_v1"
+    payload["pipeline_meta"] = {"mode": "generate", "model_hint": "gpt-5-nano"}
+    payload["cta_offer_lock"] = "Open to a 15-min chat to sanity-check fit? Worth a look / Not a priority?"
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        start = await client.post("/web/v1/generate", json=payload, headers=_headers())
+        assert start.status_code == 200
+        body = start.json()
+
+        stream = await client.get(f"/web/v1/stream/{body['request_id']}", headers=_headers())
+        assert stream.status_code == 200
+        generated = _stream_token_json(stream.text)
+        assert set(generated.keys()) == {
+            "user_company_intel",
+            "prospect_intel",
+            "message_plan",
+            "email",
+            "self_check",
+            "debug",
+        }
+        assert generated["self_check"]["cta_count"] == 1
+        assert generated["self_check"]["cta_is_last_line"] is True
+        assert generated["debug"]["effective_model_used"] == "mock"
+        done = _stream_done_payload(stream.text)
+        assert done["response_contract"] == "rc_tco_json_v1"
 
 
 @pytest.mark.asyncio
@@ -353,7 +529,7 @@ async def test_web_generate_missing_offer_lock_returns_422():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -373,9 +549,9 @@ async def test_web_beta_key_required_and_rate_limit():
 
     os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
-    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key-stream"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "1"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -384,10 +560,38 @@ async def test_web_beta_key_required_and_rate_limit():
         unauthorized = await client.post("/web/v1/generate", json=_generate_payload())
         assert unauthorized.status_code == 401
 
+        headers = {"x-emaildj-beta-key": "rate-key-stream"}
+
+        first = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
+        assert first.status_code == 200
+
+        second = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
+        assert second.status_code == 429
+
+
+@pytest.mark.asyncio
+async def test_web_stream_get_does_not_consume_post_rate_limit_quota():
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "rate-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "1"
+    os.environ["USE_PROVIDER_STUB"] = "1"
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         headers = {"x-emaildj-beta-key": "rate-key"}
 
         first = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
         assert first.status_code == 200
+        request_id = first.json()["request_id"]
+
+        stream = await client.get(f"/web/v1/stream/{request_id}", headers=headers)
+        assert stream.status_code == 200
 
         second = await client.post("/web/v1/generate", json=_generate_payload(), headers=headers)
         assert second.status_code == 429
@@ -403,7 +607,7 @@ async def test_web_generate_preflight_options_bypasses_beta_key():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
 
     from main import app
 
@@ -431,7 +635,7 @@ async def test_web_preview_batch_endpoint_disabled_returns_503():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "off"
 
     from main import app
@@ -453,7 +657,7 @@ async def test_web_preview_batch_endpoint_mock_contract():
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
-    os.environ["EMAILDJ_QUICK_GENERATE_MODE"] = "mock"
+    os.environ["USE_PROVIDER_STUB"] = "1"
     os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "on"
 
     from main import app
@@ -467,6 +671,14 @@ async def test_web_preview_batch_endpoint_mock_contract():
         assert len(data["previews"]) == 2
         assert "meta" in data
         assert data["meta"]["provider"] == "mock"
+        assert isinstance(data["meta"]["request_id"], str)
+        assert data["meta"]["session_id"] is None
+        assert isinstance(data["meta"]["violation_codes"], list)
+        assert isinstance(data["meta"]["violation_count"], int)
+        assert data["meta"]["enforcement_level"] in {"warn", "repair", "block"}
+        assert isinstance(data["meta"]["repair_loop_enabled"], bool)
+        assert data["meta"]["status"] in {"success", "degraded"}
+        assert data["meta"]["degraded_reason"] is None
 
         subjects = {item["subject"] for item in data["previews"]}
         assert len(subjects) == len(data["previews"])
@@ -478,3 +690,35 @@ async def test_web_preview_batch_endpoint_mock_contract():
             assert 2 <= len(item["vibeTags"]) <= 4
             word_count = len(item["body"].split())
             assert 90 <= word_count <= 130
+
+
+@pytest.mark.asyncio
+async def test_web_preview_batch_endpoint_real_timeout_returns_200_degraded(monkeypatch):
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "0"
+    os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "on"
+
+    import email_generation.preset_preview_pipeline as preview_pipeline
+
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type, **kwargs):  # noqa: ARG001
+        raise preview_pipeline.httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(preview_pipeline, "_openai_structured_json_with_fallback", fake_openai_with_fallback)
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post("/web/v1/preset-previews/batch", json=_preview_batch_payload(), headers=_headers())
+        assert res.status_code == 200
+        data = res.json()
+        assert data["meta"]["status"] == "degraded"
+        assert data["meta"]["degraded_reason"] == "timeout"
+        assert len(data["previews"]) == 2

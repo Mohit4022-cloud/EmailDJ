@@ -1,0 +1,41 @@
+{
+  "prospect": {
+    "name": "Sarah Chen",
+    "title": "CEO",
+    "company": "Acme Consumer Brands",
+    "company_url": "https://acmeconsumerbrands.example.com",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Sarah",
+  "product_context": {
+    "product_name": "Trademark Search, Screening, and Brand Protection",
+    "one_line_value": "Corsearch is the global leader in trademark clearance, brand protection, and IP ",
+    "proof_points": [
+      "Trademark Watching",
+      "Online Brand Protection"
+    ],
+    "target_outcome": "15-minute meeting"
+  },
+  "raw_research": {
+    "deep_research_paste": "Sarah Chen joined Acme Consumer Brands as CEO in 2022 after a decade at a Big 4 FMCG conglomerate. She has been focused on international expansion and new product category launches. Under her leadership the company entered the European market and filed trademarks in 6 new categories. Brand integrity and risk management are recurring themes in her public statements and earnings calls. She has spoken at industry events about protecting brand equity in international markets.",
+    "company_notes": "Acme Consumer Brands is a mid-size FMCG company headquartered in Chicago with a portfolio of household cleaning, personal care, and food products sold across North America and Europe. They filed 12 trademark applications in 2024 across new SKU lines and recently flagged two potential conflicts in their European filing backlog. Their IP team is small (3 FTEs) and relies on outside counsel for screening.",
+    "extra_constraints": null
+  },
+  "global_sliders": {
+    "formality": 50,
+    "brevity": 50,
+    "directness": 50,
+    "personalization": 50
+  },
+  "presets": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "slider_overrides": {}
+    }
+  ],
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_lock": "Open to a quick 15-minute chat next week?",
+  "cta_lock_text": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask"
+}

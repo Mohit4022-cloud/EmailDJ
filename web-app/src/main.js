@@ -1,7 +1,7 @@
 import {
   consumeStream,
+  fetchRuntimeConfig,
   generateDraft,
-  generateDraftText,
   generatePresetPreviewsBatch,
   presetPreviewBatchEnabled,
   remixDraft,
@@ -12,32 +12,54 @@ import { SDRPresetLibrary, presetToSliderState } from './components/SDRPresetLib
 import { SliderBoard } from './components/SliderBoard.js';
 import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
+import { applyStreamEvent, createStreamState } from './streamContract.js';
 import { debounce } from './utils.js';
 
+const VITE_RESPONSE_CONTRACT =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_RESPONSE_CONTRACT : undefined;
+const VITE_ALLOW_MOCK_AI =
+  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_ALLOW_MOCK_AI : undefined;
+const RESPONSE_CONTRACT = String(VITE_RESPONSE_CONTRACT || 'legacy_text').trim().toLowerCase() === 'rc_tco_json_v1'
+  ? 'rc_tco_json_v1'
+  : 'legacy_text';
+
+// Demo defaults are empty — populate via "Load demo data" button or fill manually.
+// Demo fixture files live in hub-api/devtools/fixtures/ for dev/CI use.
 const DEFAULT_COMPANY_CONTEXT = {
-  company_name: 'Corsearch',
-  company_url: 'https://corsearch.com',
-  current_product: 'Trademark Search, Screening, and Brand Protection',
+  company_name: '',
+  company_url: '',
+  current_product: '',
   cta_offer_lock: '',
   cta_type: '',
-  other_products: 'Trademark Watching\nOnline Brand Protection\nDomain Monitoring',
-  company_notes:
-    'Corsearch helps legal and brand teams reduce trademark risk and protect brands across domains, marketplaces, and social platforms.',
+  other_products: '',
+  company_notes: '',
 };
 
 const DEFAULT_TARGET_CONTEXT = {
-  name: 'Alex Karp',
-  title: 'CEO',
-  company: 'Palantir',
+  name: '',
+  title: '',
+  company: '',
   linkedin_url: '',
 };
 
-// Empty default — let the user paste their own research to avoid contaminating outputs
 const DEFAULT_RESEARCH_TEXT = '';
 
 function chooseDefaultString(value, fallback) {
   if (typeof value !== 'string') return fallback;
   return value.trim() ? value : fallback;
+}
+
+function envFlagEnabled(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+async function sha256Hex(text) {
+  const cryptoApi = globalThis?.crypto?.subtle;
+  if (!cryptoApi) return null;
+  const bytes = new TextEncoder().encode(String(text || ''));
+  const hash = await cryptoApi.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 class WebApp {
@@ -47,6 +69,10 @@ class WebApp {
     this.isGenerating = false;
     this.lastDraft = '';
     this.lastStyleKey = '';
+    this.runtimeConfig = null;
+    this.runtimeBadgeMeta = null;
+    this.allowMockAi = envFlagEnabled(VITE_ALLOW_MOCK_AI);
+    this.selectedPresetId = String(SDR_PRESETS?.[0]?.strategy_id || SDR_PRESETS?.[0]?.id || 'straight_shooter');
     this.remixDebounced = debounce(() => this.triggerRemix(), 250);
     this.render();
   }
@@ -70,6 +96,7 @@ class WebApp {
 
   render() {
     this.root.innerHTML = `
+      <div id="runtimeModeBadge" class="runtime-mode-badge mode-loading">Checking runtime mode...</div>
       <div class="hero">
         <h1>EmailDJ Remix Studio</h1>
         <p>Paste research, generate once, then sculpt the draft with live sliders.</p>
@@ -143,6 +170,7 @@ class WebApp {
     `;
 
     this.statusLine = this.root.querySelector('#statusLine');
+    this.runtimeModeBadgeEl = this.root.querySelector('#runtimeModeBadge');
     this.generateBtn = this.root.querySelector('#generateBtn');
     this.saveRemixBtn = this.root.querySelector('#saveRemixBtn');
     this.betaKeyInput = this.root.querySelector('#betaKey');
@@ -166,8 +194,7 @@ class WebApp {
       presets: SDR_PRESETS,
       onSelectPreset: (preset) => this.applyPreset(preset),
       getPreviewContext: () => this.previewContextPayload(),
-      generatePreviewDraft: (payload) => generateDraftText(payload),
-      generatePreviewBatch: presetPreviewBatchEnabled() ? (payload) => generatePresetPreviewsBatch(payload) : null,
+      generatePreviewBatch: presetPreviewBatchEnabled() ? (payload) => this.generatePreviewBatch(payload) : null,
     });
 
     this.seedBetaKey();
@@ -201,11 +228,15 @@ class WebApp {
       input?.addEventListener('input', () => this.persistTargetDefaults());
     }
 
+    this.refreshRuntimeConfig({ silent: true }).catch(() => {
+      this.updateRuntimeModeBadge();
+    });
     this.setStatus('Ready. Fill inputs and click Generate.');
   }
 
   applyPreset(preset) {
     if (!preset) return;
+    this.selectedPresetId = String(preset.strategy_id || preset.id || 'straight_shooter');
     this.sliderBoard.setValues(presetToSliderState(preset), { emit: true });
     if (!this.sessionId) {
       this.setStatus(`Preset selected: ${preset.name}. Click Generate to create a draft.`);
@@ -332,23 +363,39 @@ class WebApp {
       offer_lock: offerLock,
       cta_offer_lock: this.ctaOfferLockInput.value.trim() || null,
       cta_type: this.ctaTypeSelect.value.trim() || null,
+      preset_id: this.selectedPresetId,
+      response_contract: RESPONSE_CONTRACT,
+      pipeline_meta: {
+        mode: 'generate',
+        model_hint: 'gpt-5-nano',
+      },
       style_profile: styleToPayload(this.sliderBoard.getValues()),
       company_context: companyCtx,
     };
   }
 
   previewContextPayload() {
+    const fullName = this.prospectNameInput.value.trim();
+    const firstName = fullName.split(/\s+/)[0] || null;
+    const offerLock = this.sellerCurrentProductInput.value.trim();
     return {
       prospect: {
-        name: this.prospectNameInput.value.trim(),
+        name: fullName,
         title: this.prospectTitleInput.value.trim(),
         company: this.prospectCompanyInput.value.trim(),
         linkedin_url: this.prospectLinkedinInput.value.trim(),
       },
+      prospect_first_name: firstName,
       research_text: this.researchInput.value.trim(),
+      offer_lock: offerLock,
       company_context: this.companyContextPayload(),
       global_slider_state: this.sliderBoard.getValues(),
     };
+  }
+
+  async generatePreviewBatch(payload) {
+    await this.assertRuntimeModeAllowed();
+    return generatePresetPreviewsBatch(payload);
   }
 
   validate(data) {
@@ -363,6 +410,76 @@ class WebApp {
     this.statusLine.classList.toggle('pulse', pulse);
   }
 
+  runtimeMode() {
+    const mode = String(
+      this.runtimeConfig?.runtime_mode
+        || this.runtimeConfig?.quick_generate_mode
+        || ''
+    ).trim().toLowerCase();
+    return mode === 'real' || mode === 'mock' ? mode : 'unknown';
+  }
+
+  mockModeExplicitlyAllowed() {
+    if (this.allowMockAi) return true;
+    return this.storageGet('emaildj_allow_mock_ai') === '1';
+  }
+
+  updateRuntimeModeBadge(doneData = null) {
+    const badgeEl = this.runtimeModeBadgeEl;
+    if (!badgeEl) return;
+    if (doneData && typeof doneData === 'object') {
+      this.runtimeBadgeMeta = {
+        provider: doneData.provider || '',
+        model: doneData.model || '',
+        repaired: Boolean(doneData.repaired),
+        repairCount: Number(doneData?.json_repair_count || 0) + Number(doneData?.violation_retry_count || 0),
+      };
+    }
+
+    const mode = this.runtimeMode();
+    const meta = this.runtimeBadgeMeta || {};
+    if (mode === 'real') {
+      badgeEl.className = 'runtime-mode-badge mode-real';
+      const providerLabel = meta.provider && meta.model ? ` · ${meta.provider}/${meta.model}` : '';
+      const repairedNote = meta.repaired ? ` · repaired (${meta.repairCount || 1}x)` : '';
+      badgeEl.textContent = `REAL AI${providerLabel}${repairedNote}`;
+      return;
+    }
+    if (mode === 'mock') {
+      badgeEl.className = 'runtime-mode-badge mode-mock';
+      const explicit = this.mockModeExplicitlyAllowed() ? ' (explicitly allowed)' : ' (blocked for send)';
+      badgeEl.textContent = `MOCK AI${explicit}`;
+      return;
+    }
+    badgeEl.className = 'runtime-mode-badge mode-unknown';
+    badgeEl.textContent = 'Runtime mode unknown';
+  }
+
+  async refreshRuntimeConfig({ silent = false } = {}) {
+    try {
+      const config = await fetchRuntimeConfig({ endpoint: 'generate', bucketKey: 'web-app' });
+      this.runtimeConfig = config;
+      this.updateRuntimeModeBadge();
+      return config;
+    } catch (error) {
+      if (!silent) this.setStatus(String(error?.message || error));
+      this.updateRuntimeModeBadge();
+      return null;
+    }
+  }
+
+  async assertRuntimeModeAllowed() {
+    const config = await this.refreshRuntimeConfig({ silent: true });
+    if (!config) {
+      throw new Error('Unable to confirm runtime mode from /web/v1/debug/config.');
+    }
+    if (this.runtimeMode() === 'mock' && !this.mockModeExplicitlyAllowed()) {
+      throw new Error(
+        'Backend is in MOCK AI mode. Set USE_PROVIDER_STUB=0 on the server, or explicitly allow mock in UI via VITE_ALLOW_MOCK_AI=1.'
+      );
+    }
+  }
+
   async generate() {
     if (this.isGenerating) return;
     const persisted = this.persistCompanyContext();
@@ -370,6 +487,12 @@ class WebApp {
     const validation = this.validate(payload);
     if (validation) {
       this.setStatus(validation);
+      return;
+    }
+    try {
+      await this.assertRuntimeModeAllowed();
+    } catch (error) {
+      this.setStatus(String(error?.message || error));
       return;
     }
 
@@ -411,6 +534,12 @@ class WebApp {
     const style = styleToPayload(this.sliderBoard.getValues());
     const nextKey = styleKey(style);
     if (nextKey === this.lastStyleKey) return;
+    try {
+      await this.assertRuntimeModeAllowed();
+    } catch (error) {
+      this.setStatus(String(error?.message || error));
+      return;
+    }
 
     this.isGenerating = true;
     this.generateBtn.disabled = true;
@@ -420,7 +549,11 @@ class WebApp {
 
     const start = performance.now();
     try {
-      const accepted = await remixDraft({ session_id: this.sessionId, style_profile: style });
+      const accepted = await remixDraft({
+        session_id: this.sessionId,
+        preset_id: this.selectedPresetId,
+        style_profile: style,
+      });
       await this.streamIntoEditor(accepted.request_id);
       const elapsed = Math.round(performance.now() - start);
       this.editor.markComplete(elapsed);
@@ -438,52 +571,60 @@ class WebApp {
   }
 
   async streamIntoEditor(requestId) {
-    let tokenCount = 0;
-    let streamError = '';
+    const streamState = createStreamState();
     let doneData = null;
+    let finalText = '';
     await consumeStream(requestId, (msg) => {
-      if (msg.event === 'token') {
-        const token = msg.data?.token || '';
-        if (token) {
-          tokenCount += 1;
-          this.editor.appendToken(token);
+      const outcome = applyStreamEvent(streamState, msg);
+      if (!outcome?.accepted) return;
+      if (outcome.reset) {
+        this.editor.setContent('');
+      }
+      if (typeof outcome.appendToken === 'string' && outcome.appendToken) {
+        this.editor.appendToken(outcome.appendToken);
+      }
+      if (outcome.error) {
+        streamState.streamError = outcome.error;
+      }
+      if (outcome.done) {
+        doneData = outcome.doneData || msg.data || null;
+        const finalBody = typeof outcome.finalBody === 'string' ? outcome.finalBody.trim() : '';
+        if (finalBody) {
+          finalText = finalBody;
+          this.editor.setContent(finalText);
+          return;
         }
-      } else if (msg.event === 'done') {
-        doneData = msg.data;
-      } else if (msg.event === 'error') {
-        streamError = String(msg.data?.error || 'Draft generation failed during stream.');
+        if (streamState.streamBuffer) {
+          finalText = streamState.streamBuffer;
+          this.editor.setContent(finalText);
+        }
       }
     });
-    if (streamError) throw new Error(streamError);
-    if (!tokenCount || !this.editor.getText().trim()) {
+    if (streamState.streamError) throw new Error(streamState.streamError);
+    if (streamState.chunkSequenceMismatch) {
+      throw new Error('Draft stream integrity check failed (chunk sequence mismatch).');
+    }
+    if (doneData?.stream_checksum) {
+      const localChecksum = await sha256Hex(streamState.streamBuffer);
+      if (localChecksum && localChecksum !== doneData.stream_checksum) {
+        throw new Error('Draft stream integrity check failed (checksum mismatch).');
+      }
+      if (
+        typeof doneData.total_chunks === 'number'
+        && streamState.expectedChunkIndex
+        && streamState.expectedChunkIndex !== doneData.total_chunks
+      ) {
+        throw new Error('Draft stream integrity check failed (missing chunk).');
+      }
+    }
+    if (!this.editor.getText().trim() && !finalText.trim() && !doneData?.final?.body?.trim()) {
       throw new Error('Draft stream completed without any visible content.');
     }
     if (doneData) this.showModeBadge(doneData);
   }
 
   showModeBadge(doneData) {
-    const mode = doneData?.mode;
-    const provider = doneData?.provider;
-    const model = doneData?.model;
-
-    let badgeEl = this.root.querySelector('#modeBadge');
-    if (!badgeEl) {
-      badgeEl = document.createElement('div');
-      badgeEl.id = 'modeBadge';
-      this.statusLine.insertAdjacentElement('afterend', badgeEl);
-    }
-
-    if (mode === 'mock') {
-      badgeEl.className = 'mode-badge mode-mock';
-      badgeEl.textContent = 'MOCK MODE — output is not AI-generated';
-    } else if (mode === 'real') {
-      badgeEl.className = 'mode-badge mode-real';
-      const label = provider && model ? `${provider} / ${model}` : provider || 'real';
-      badgeEl.textContent = `REAL — ${label}`;
-    } else {
-      badgeEl.className = 'mode-badge';
-      badgeEl.textContent = '';
-    }
+    this.updateRuntimeModeBadge(doneData);
   }
 
   async saveRemix() {

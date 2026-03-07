@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export PYTHONPATH="$ROOT:${PYTHONPATH:-}"
+export REDIS_FORCE_INMEMORY="${REDIS_FORCE_INMEMORY:-1}"
+export CHROME_EXTENSION_ORIGIN="${CHROME_EXTENSION_ORIGIN:-chrome-extension://dev}"
+export EMAILDJ_JUDGE_MODEL="${EMAILDJ_JUDGE_MODEL:-gpt-4.1-mini}"
+export EMAILDJ_JUDGE_MODEL_VERSION="${EMAILDJ_JUDGE_MODEL_VERSION:-$EMAILDJ_JUDGE_MODEL}"
+PYTHON_BIN="${PYTHON_BIN:-$ROOT/.venv/bin/python}"
+if [ ! -x "$PYTHON_BIN" ]; then
+  PYTHON_BIN="${PYTHON_BIN_FALLBACK:-python3}"
+fi
+
+"$PYTHON_BIN" "$ROOT/evals/judge/calibrate_thresholds.py" "$@"

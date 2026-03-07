@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Jordan Lee",
+    "title": "Senior Program Manager, Operations",
+    "company": "Acme Consumer Brands",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Jordan",
+  "research_text": "Jordan Lee is a program manager in the operations division at Acme Consumer Brands. They are responsible for cross-functional project delivery including the ERP migration and the new product launch process. They have recently been looped into a project to streamline the trademark clearance workflow after the legal team flagged delays impacting launch timelines. Jordan has procurement authority for software tools under $100K annually and is coordinating vendor evaluations for the IP workflow improvement initiative.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "c_suite_sniper",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-4.1-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

@@ -123,18 +123,24 @@ export class QuickGenerate {
       this.setState('error', ev?.detail || 'Generation failed. Please retry.');
       cleanup();
     };
+    const onRetry = () => {
+      this.emailEditor?.clear();
+      this.setState('generating');
+    };
 
     const cleanup = () => {
       window.removeEventListener('emailToken', onToken);
       window.removeEventListener('emailComplete', onComplete);
       window.removeEventListener('emailError', onError);
+      window.removeEventListener('emailRetry', onRetry);
       this._handlers = null;
     };
 
-    this._handlers = { onToken, onComplete, onError };
+    this._handlers = { onToken, onComplete, onError, onRetry };
     window.addEventListener('emailToken', onToken);
     window.addEventListener('emailComplete', onComplete);
     window.addEventListener('emailError', onError);
+    window.addEventListener('emailRetry', onRetry);
 
     generateEmail(this.currentPayload, this.sliderValue).catch((err) => {
       this.setState('error', String(err?.message || err));

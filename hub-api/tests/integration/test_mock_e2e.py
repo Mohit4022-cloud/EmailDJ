@@ -9,7 +9,8 @@ async def test_mock_e2e_quick_generate_stream_done():
     pytest.importorskip('fastapi')
 
     os.environ.setdefault('CHROME_EXTENSION_ORIGIN', 'chrome-extension://dev')
-    os.environ['EMAILDJ_QUICK_GENERATE_MODE'] = 'mock'
+    os.environ['USE_PROVIDER_STUB'] = '1'
+    os.environ['REDIS_FORCE_INMEMORY'] = '1'
 
     from main import app
 

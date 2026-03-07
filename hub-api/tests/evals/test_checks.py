@@ -11,9 +11,9 @@ def _case() -> EvalCase:
     return EvalCase(
         id="c1",
         tags=["offer_binding"],
-        prospect={"full_name": "Alex Karp", "title": "VP Sales", "company": "Acme"},
+        prospect={"full_name": "Jordan Smith", "title": "VP Sales", "company": "Acme"},
         seller={"company_name": "EmailDJ", "company_url": "https://emaildj.ai", "company_notes": ""},
-        offer_lock="Brand Protection",
+        offer_lock="Remix Studio",
         cta_lock="Open to a 15-min chat next week?",
         cta_type="time_ask",
         style_profile={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
@@ -21,9 +21,9 @@ def _case() -> EvalCase:
         other_products=["AI Outbound Engine", "Pipeline Copilot"],
         approved_proof_points=[],
         expected=EvalExpected(
-            must_include=["Brand Protection", "Open to a 15-min chat next week?"],
+            must_include=["Remix Studio", "Open to a 15-min chat next week?"],
             must_not_include=["AI Outbound Engine", "mode=mock"],
-            greeting_first_name="Alex",
+            greeting_first_name="Jordan",
         ),
     )
 
@@ -36,9 +36,9 @@ def _codes(draft: str) -> set[str]:
 
 def test_greeting_full_name_violation() -> None:
     draft = (
-        "Subject: Brand Protection for Acme\n"
+        "Subject: Remix Studio for Acme\n"
         "Body:\n"
-        "Hi Alex Karp, Brand Protection helps enterprise teams tighten compliance controls.\n\n"
+        "Hi Jordan Smith, Remix Studio helps enterprise teams tighten compliance controls.\n\n"
         "Open to a 15-min chat next week?"
     )
     assert "GREET_FULL_NAME" in _codes(draft)
@@ -46,9 +46,9 @@ def test_greeting_full_name_violation() -> None:
 
 def test_cta_mismatch_and_not_final_violation() -> None:
     draft = (
-        "Subject: Brand Protection for Acme\n"
+        "Subject: Remix Studio for Acme\n"
         "Body:\n"
-        "Hi Alex, Brand Protection helps enterprise teams tighten compliance controls.\n\n"
+        "Hi Jordan, Remix Studio helps enterprise teams tighten compliance controls.\n\n"
         "Open to a quick chat next week?\n"
         "Regards,\n"
         "Sam"
@@ -61,7 +61,7 @@ def test_other_product_and_research_injection_violation() -> None:
     draft = (
         "Subject: Pipeline Copilot for Acme\n"
         "Body:\n"
-        "Hi Alex, Pipeline Copilot improves pipeline outcomes with better AI outreach.\n\n"
+        "Hi Jordan, Pipeline Copilot improves pipeline outcomes with better AI outreach.\n\n"
         "Open to a 15-min chat next week?"
     )
     codes = _codes(draft)
@@ -71,9 +71,9 @@ def test_other_product_and_research_injection_violation() -> None:
 
 def test_internal_leakage_and_claim_violation() -> None:
     draft = (
-        "Subject: Brand Protection for Acme\n"
+        "Subject: Remix Studio for Acme\n"
         "Body:\n"
-        "Hi Alex, Brand Protection includes prompt controls and system instructions.\n"
+        "Hi Jordan, Remix Studio includes prompt controls and system instructions.\n"
         "We guarantee measurable reply lift for outbound motions.\n\n"
         "Open to a 15-min chat next week?"
     )

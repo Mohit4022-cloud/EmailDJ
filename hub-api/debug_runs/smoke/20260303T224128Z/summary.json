@@ -1,0 +1,160 @@
+{
+  "run_id": "smoke_20260303T224129Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-03T22:41:29.091872Z",
+  "elapsed_seconds": 0.1,
+  "total": 30,
+  "pass": 0,
+  "fail": 30,
+  "errors": 30,
+  "pass_rate_pct": 0.0,
+  "fail_tag_counts": {
+    "ERROR": 30
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 7,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 4,
+      "provider": null
+    },
+    {
+      "case_id": "acme__vp_legal__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 4,
+      "provider": null
+    },
+    {
+      "case_id": "acme__vp_legal__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 3,
+      "provider": null
+    },
+    {
+      "case_id": "acme__head_brand_protection__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 3,
+      "provider": null
+    },
+    {
+      "case_id": "acme__head_brand_protection__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 1,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 1,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: All connection attempts failed"
+      ],
+      "latency_ms": 1,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 0
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 0
+    },
+    "manager": {
+      "total": 6,
+      "pass": 0
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 0
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 0
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "status": "scored",
+  "schema_version": "judge_output_v2",
+  "judge_model": "gpt-4.1-nano",
+  "judge_mode": "mock",
+  "prompt_contract_hash": "6a9b6d59bf6ddcb5",
+  "content_hash": "028733afba2135c2",
+  "cache_hit": false,
+  "samples": [
+    {
+      "scores": {
+        "relevance_to_prospect": 5,
+        "clarity_and_structure": 5,
+        "credibility_no_overclaim": 5,
+        "personalization_quality": 4,
+        "cta_quality": 5,
+        "tone_match": 5,
+        "conciseness_signal_density": 5,
+        "value_prop_specificity": 5
+      },
+      "binary_checks": {
+        "overclaim_present": false,
+        "filler_padding_present": false,
+        "clarity_violation_present": false
+      },
+      "overall": 4.86,
+      "pass_fail": "pass",
+      "rationale_bullets": [
+        "Relevance scored 5/5 based on prospect and offer alignment.",
+        "Credibility scored 5/5 with emphasis on claim safety.",
+        "CTA quality scored 5/5 based on final ask precision."
+      ],
+      "flags": []
+    }
+  ],
+  "scores": {
+    "relevance_to_prospect": 5,
+    "clarity_and_structure": 5,
+    "credibility_no_overclaim": 5,
+    "personalization_quality": 4,
+    "cta_quality": 5,
+    "tone_match": 5,
+    "conciseness_signal_density": 5,
+    "value_prop_specificity": 5
+  },
+  "binary_checks": {
+    "overclaim_present": false,
+    "filler_padding_present": false,
+    "clarity_violation_present": false
+  },
+  "overall": 4.86,
+  "pass_fail": "pass",
+  "rationale_bullets": [
+    "Relevance scored 5/5 based on prospect and offer alignment.",
+    "Credibility scored 5/5 with emphasis on claim safety.",
+    "CTA quality scored 5/5 based on final ask precision."
+  ],
+  "flags": [],
+  "sample_count": 1
+}

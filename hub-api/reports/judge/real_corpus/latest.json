@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-03-02T16:06:59.160919Z",
+  "dataset": "evals/judge/real_corpus.v1.json",
+  "judge_mode": "mock",
+  "judge_model": "gpt-4.1-mini",
+  "judge_model_version": "gpt-4.1-mini",
+  "summary": {
+    "total_cases": 3,
+    "scored_cases": 3,
+    "quality_compared": 3,
+    "quality_label_agreement": 1.0,
+    "overclaim_precision": 1.0,
+    "overclaim_recall": 1.0,
+    "overclaim_f1": 1.0,
+    "overclaim_confusion": {
+      "tp": 1,
+      "fp": 0,
+      "tn": 2,
+      "fn": 0
+    }
+  },
+  "mismatches": [],
+  "results": [
+    {
+      "id": "real_001",
+      "quality_label": "good",
+      "expected_pass_fail": "pass",
+      "predicted_pass_fail": "pass",
+      "label_overclaim": false,
+      "predicted_overclaim": false,
+      "overall": 4.48,
+      "flags": [],
+      "body_snippet": "Hi [REDACTED_NAME], noticed your team is tightening outbound governance this quarter. Brand Protection can reduce risky language and keep me"
+    },
+    {
+      "id": "real_002",
+      "quality_label": "ok",
+      "expected_pass_fail": "pass",
+      "predicted_pass_fail": "pass",
+      "label_overclaim": false,
+      "predicted_overclaim": false,
+      "overall": 4.48,
+      "flags": [],
+      "body_snippet": "Hi [REDACTED_NAME], teams with cross-functional messaging standards usually need cleaner sequence controls. Sequence Governance helps enforc"
+    },
+    {
+      "id": "real_003",
+      "quality_label": "bad",
+      "expected_pass_fail": "fail",
+      "predicted_pass_fail": "fail",
+      "label_overclaim": true,
+      "predicted_overclaim": true,
+      "overall": 2.42,
+      "flags": [
+        "auto_fail_overclaim_present",
+        "auto_fail_guaranteed_outcome",
+        "insufficient_personalization",
+        "weak_cta"
+      ],
+      "body_snippet": "Hi [REDACTED_NAME], we guarantee at least 30% lift in replies in two weeks and can ensure quota acceleration across your outbound team. Can "
+    }
+  ]
+}

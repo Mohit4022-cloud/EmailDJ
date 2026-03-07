@@ -22,9 +22,12 @@ function baseContext() {
       company_name: 'EmailDJ',
       company_url: 'https://emaildj.ai',
       current_product: 'Remix Studio',
+      cta_offer_lock: '',
+      cta_type: 'event_invite',
       other_products: 'Prospect Enrichment\nSequence QA',
       company_notes: 'We help SDR teams improve reply quality with controlled personalization.',
     },
+    offer_lock: 'Remix Studio',
     global_slider_state: {
       formality: 48,
       orientation: 62,
@@ -47,6 +50,18 @@ test('buildPreviewContextHash changes when deep research or sliders change', () 
 
   const third = baseContext();
   third.global_slider_state.orientation = 20;
+
+  assert.notEqual(buildPreviewContextHash(first), buildPreviewContextHash(second));
+  assert.notEqual(buildPreviewContextHash(first), buildPreviewContextHash(third));
+});
+
+test('buildPreviewContextHash changes when CTA or offer lock changes', () => {
+  const first = baseContext();
+  const second = baseContext();
+  second.company_context.cta_type = 'pilot';
+
+  const third = baseContext();
+  third.offer_lock = 'Different Offer';
 
   assert.notEqual(buildPreviewContextHash(first), buildPreviewContextHash(second));
   assert.notEqual(buildPreviewContextHash(first), buildPreviewContextHash(third));
@@ -82,4 +97,3 @@ test('resolveEffectiveSliderState applies preset slider overrides over globals',
     assertiveness: 15,
   });
 });
-

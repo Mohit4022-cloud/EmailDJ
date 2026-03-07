@@ -1,0 +1,257 @@
+{
+  "generated_at": "2026-03-02T16:06:52.828546Z",
+  "mode": "smoke",
+  "count": 2,
+  "rows": [
+    {
+      "candidate_id": "stability-proof",
+      "artifact": "reports/judge/artifacts/stability-proof/smoke.json",
+      "generated_at": "2026-03-02T05:49:15.611800Z",
+      "judge_model": "gpt-4.1-nano",
+      "judge_model_version": "gpt-4.1-nano",
+      "judge_mode": "mock",
+      "prompt_contract_hash": "f6ef78be73fa1a81",
+      "overall_mean": 4.48,
+      "relevance_mean": 4.0,
+      "credibility_mean": 4.0,
+      "overclaim_fail_count": 0,
+      "pass_rate": 0.8,
+      "evaluated_cases": 5,
+      "failure_signal_counts": {
+        "filler_padding_present": 0,
+        "verbosity_padding_detected": 0,
+        "clarity_violation_present": 0,
+        "clarity_violation_detected": 0,
+        "judge_pandering_detected": 0
+      },
+      "cases": [
+        {
+          "id": "lc_001",
+          "overall": 4.68,
+          "relevance": 4.0,
+          "credibility": 5.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_007",
+          "overall": 4.68,
+          "relevance": 4.0,
+          "credibility": 5.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Nimbus Data teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent activity,...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_013",
+          "overall": 4.68,
+          "relevance": 4.0,
+          "credibility": 5.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Altair Works is navigating priorities that make it hard to engage target accounts with the right message at the right time. Base...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_019",
+          "overall": 4.68,
+          "relevance": 4.0,
+          "credibility": 5.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Bluebird Systems teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent acti...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_025",
+          "overall": 3.68,
+          "relevance": 4.0,
+          "credibility": 0.0,
+          "pass_fail": "fail",
+          "body_snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        }
+      ],
+      "recommended_prompt_adjustments": [],
+      "meta_generated_at": 1772430555.613353,
+      "delta_overall": 0.0,
+      "delta_relevance": 0.0,
+      "delta_credibility": 0.0,
+      "delta_overclaim_fail_count": 0,
+      "delta_pass_rate": 0.0
+    },
+    {
+      "candidate_id": "stability-check",
+      "artifact": "reports/judge/artifacts/stability-check/smoke.json",
+      "generated_at": "2026-03-02T15:41:38.681200Z",
+      "judge_model": "gpt-4.1-mini",
+      "judge_model_version": "gpt-4.1-mini",
+      "judge_mode": "mock",
+      "prompt_contract_hash": "db2b6d42ed326b68",
+      "overall_mean": 3.93,
+      "relevance_mean": 4.0,
+      "credibility_mean": 3.4,
+      "overclaim_fail_count": 1,
+      "pass_rate": 0.8,
+      "evaluated_cases": 5,
+      "failure_signal_counts": {
+        "filler_padding_present": 0,
+        "verbosity_padding_detected": 0,
+        "clarity_violation_present": 5,
+        "clarity_violation_detected": 5,
+        "judge_pandering_detected": 0
+      },
+      "cases": [
+        {
+          "id": "lc_001",
+          "overall": 4.05,
+          "relevance": 4.0,
+          "credibility": 4.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_007",
+          "overall": 4.05,
+          "relevance": 4.0,
+          "credibility": 4.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Nimbus Data teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent activity,...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_013",
+          "overall": 4.05,
+          "relevance": 4.0,
+          "credibility": 4.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Altair Works is navigating priorities that make it hard to engage target accounts with the right message at the right time. Base...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_019",
+          "overall": 4.05,
+          "relevance": 4.0,
+          "credibility": 4.0,
+          "pass_fail": "pass",
+          "body_snippet": "Hi Alex, Bluebird Systems teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent acti...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        },
+        {
+          "id": "lc_025",
+          "overall": 3.45,
+          "relevance": 4.0,
+          "credibility": 1.0,
+          "pass_fail": "fail",
+          "body_snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+          "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+        }
+      ],
+      "recommended_prompt_adjustments": [],
+      "meta_generated_at": 1772466098.682815,
+      "delta_overall": -0.55,
+      "delta_relevance": 0.0,
+      "delta_credibility": -0.6,
+      "delta_overclaim_fail_count": 1,
+      "delta_pass_rate": 0.0
+    }
+  ],
+  "current_vs_previous_delta": {
+    "current_candidate_id": "stability-check",
+    "previous_candidate_id": "stability-proof",
+    "metrics": [
+      {
+        "metric": "overall_mean",
+        "current": 3.93,
+        "previous": 4.48,
+        "delta": -0.55
+      },
+      {
+        "metric": "relevance_mean",
+        "current": 4.0,
+        "previous": 4.0,
+        "delta": 0.0
+      },
+      {
+        "metric": "credibility_mean",
+        "current": 3.4,
+        "previous": 4.0,
+        "delta": -0.6
+      },
+      {
+        "metric": "overclaim_fail_count",
+        "current": 1,
+        "previous": 0,
+        "delta": 1
+      },
+      {
+        "metric": "pass_rate",
+        "current": 0.8,
+        "previous": 0.8,
+        "delta": 0.0
+      }
+    ]
+  },
+  "top_rising_failure_flags": [
+    {
+      "signal": "clarity_violation_detected",
+      "delta": 5,
+      "current_count": 5,
+      "previous_count": 0
+    },
+    {
+      "signal": "clarity_violation_present",
+      "delta": 5,
+      "current_count": 5,
+      "previous_count": 0
+    }
+  ],
+  "most_regressed_cases": [
+    {
+      "id": "lc_001",
+      "delta_overall": -0.63,
+      "delta_relevance": 0.0,
+      "delta_credibility": -1.0,
+      "pass_fail_transition": "pass->pass",
+      "snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+      "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+    },
+    {
+      "id": "lc_007",
+      "delta_overall": -0.63,
+      "delta_relevance": 0.0,
+      "delta_credibility": -1.0,
+      "pass_fail_transition": "pass->pass",
+      "snippet": "Hi Alex, Nimbus Data teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent activity,...",
+      "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+    },
+    {
+      "id": "lc_013",
+      "delta_overall": -0.63,
+      "delta_relevance": 0.0,
+      "delta_credibility": -1.0,
+      "pass_fail_transition": "pass->pass",
+      "snippet": "Hi Alex, Altair Works is navigating priorities that make it hard to engage target accounts with the right message at the right time. Base...",
+      "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+    },
+    {
+      "id": "lc_019",
+      "delta_overall": -0.63,
+      "delta_relevance": 0.0,
+      "delta_credibility": -1.0,
+      "pass_fail_transition": "pass->pass",
+      "snippet": "Hi Alex, Bluebird Systems teams focused on message relevance tend to see stronger engagement from priority accounts. Based on recent acti...",
+      "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+    },
+    {
+      "id": "lc_025",
+      "delta_overall": -0.23,
+      "delta_relevance": 0.0,
+      "delta_credibility": 1.0,
+      "pass_fail_transition": "fail->fail",
+      "snippet": "Hi Alex, Acme is navigating priorities that make it hard to engage target accounts with the right message at the right time. Based on rec...",
+      "rationale": "Relevance scored 4/5 based on prospect and offer alignment."
+    }
+  ],
+  "recommended_prompt_adjustments": []
+}

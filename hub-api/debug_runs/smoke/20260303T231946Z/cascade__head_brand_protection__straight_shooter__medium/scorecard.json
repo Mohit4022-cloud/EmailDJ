@@ -1,0 +1,13 @@
+{
+  "case_id": "cascade__head_brand_protection__straight_shooter__medium",
+  "pass": true,
+  "fail_tags": [],
+  "word_count": 92,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": []
+}

@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from evals.models import EvalCase, EvalExpected, EvalResult, ScorecardSummary
+from evals.models import EvalCase, EvalExpected, EvalResult, JudgeSummary, ScorecardSummary
 
 
-def load_cases(path: Path) -> list[EvalCase]:
+def load_cases(path: Path, *, min_cases: int = 80) -> list[EvalCase]:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw, list):
         raise ValueError("Gold set must be a list of test cases.")
@@ -22,8 +22,8 @@ def load_cases(path: Path) -> list[EvalCase]:
         ids.add(case.id)
         cases.append(case)
 
-    if len(cases) < 80:
-        raise ValueError(f"Gold set must contain at least 80 cases, found {len(cases)}")
+    if len(cases) < min_cases:
+        raise ValueError(f"Gold set must contain at least {min_cases} cases, found {len(cases)}")
 
     return cases
 
@@ -97,6 +97,9 @@ def write_reports(
     summary: ScorecardSummary,
     results: list[EvalResult],
     top_failures: list[dict[str, Any]],
+    judge_summary: JudgeSummary | None = None,
+    top_quality_failures: list[dict[str, Any]] | None = None,
+    recommended_prompt_adjustments: list[dict[str, Any]] | None = None,
 ) -> tuple[Path, Path]:
     report_dir.mkdir(parents=True, exist_ok=True)
     history_dir = report_dir / "history"
@@ -116,6 +119,12 @@ def write_reports(
         "top_recurring_failures": top_failures,
         "results": [result.to_dict() for result in results],
     }
+    if judge_summary is not None:
+        payload["judge"] = {
+            "summary": judge_summary.to_dict(),
+            "top_recurring_quality_failures": top_quality_failures or [],
+            "recommended_prompt_adjustments": recommended_prompt_adjustments or [],
+        }
 
     latest_json = report_dir / "latest.json"
     latest_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -166,6 +175,62 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append("- None")
     lines.append("")
 
+    judge = payload.get("judge")
+    if judge:
+        judge_summary = judge.get("summary", {})
+        lines.append("## Quality Judge Summary")
+        lines.append("")
+        lines.append("| Metric | Value |")
+        lines.append("|---|---:|")
+        lines.append(f"| Enabled | {judge_summary.get('enabled', False)} |")
+        lines.append(f"| Model | `{judge_summary.get('model', 'unknown')}` |")
+        lines.append(f"| Model version | `{judge_summary.get('model_version', judge_summary.get('model', 'unknown'))}` |")
+        lines.append(f"| Mode | `{judge_summary.get('mode', 'unknown')}` |")
+        lines.append(f"| Schema version | `{judge_summary.get('schema_version', 'unknown')}` |")
+        lines.append(f"| Evaluated cases | {judge_summary.get('evaluated_cases', 0)} |")
+        lines.append(f"| Skipped (hard fail) | {judge_summary.get('skipped_cases', 0)} |")
+        lines.append(f"| Passed | {judge_summary.get('passed_cases', 0)} |")
+        lines.append(f"| Failed | {judge_summary.get('failed_cases', 0)} |")
+        lines.append(f"| Pass rate | {judge_summary.get('pass_rate', 0):.2%} |")
+        lines.append(f"| Mean overall | {judge_summary.get('mean_overall', 0):.2f} |")
+        lines.append(f"| Mean relevance | {judge_summary.get('mean_relevance', 0):.2f} |")
+        lines.append(f"| Mean credibility | {judge_summary.get('mean_credibility', 0):.2f} |")
+        lines.append(f"| Overclaim fail count | {judge_summary.get('overclaim_fail_count', 0)} |")
+        lines.append(f"| Threshold overall | {judge_summary.get('threshold_overall', 0):.2f} |")
+        lines.append(f"| Threshold credibility | {judge_summary.get('threshold_credibility', 0):.2f} |")
+        lines.append(f"| Cache hits | {judge_summary.get('cache_hits', 0)} / {judge_summary.get('cache_lookups', 0)} |")
+        lines.append(f"| Cache hit rate | {judge_summary.get('cache_hit_rate', 0):.2%} |")
+        lines.append(f"| Prompt contract hash | `{judge_summary.get('prompt_contract_hash', '')}` |")
+        if judge_summary.get("calibration_examples", 0):
+            lines.append(f"| Calibration examples | {judge_summary.get('calibration_examples', 0)} |")
+            agreement = judge_summary.get("calibration_pass_fail_agreement")
+            rank_corr = judge_summary.get("calibration_score_rank_correlation")
+            lines.append(f"| Calibration pass/fail agreement | {agreement if agreement is not None else 'n/a'} |")
+            lines.append(f"| Calibration rank correlation | {rank_corr if rank_corr is not None else 'n/a'} |")
+        lines.append("")
+        lines.append("## Top Recurring Quality Failures")
+        lines.append("")
+        top_quality = judge.get("top_recurring_quality_failures", [])
+        if top_quality:
+            for row in top_quality:
+                lines.append(f"- `{row['flag']}` x{row['count']}")
+        else:
+            lines.append("- None")
+        lines.append("")
+        lines.append("## Recommended Next Prompt Adjustments")
+        lines.append("")
+        recommendations = judge.get("recommended_prompt_adjustments", [])
+        if recommendations:
+            for row in recommendations:
+                action = str((row or {}).get("action", "")).strip()
+                signal = str((row or {}).get("signal", "")).strip() or "quality_signal"
+                count = int((row or {}).get("count", 0) or 0)
+                if action:
+                    lines.append(f"- `{signal}` ({count}): {action}")
+        else:
+            lines.append("- None")
+        lines.append("")
+
     lines.append("## Per-test Results")
     lines.append("")
     for result in payload["results"]:
@@ -179,6 +244,27 @@ def _to_markdown(payload: dict[str, Any]) -> str:
             for v in result["violations"]:
                 snippet = v.get("snippet") or ""
                 lines.append(f"- `{v['code']}`: {v['reason']}" + (f" | snippet: `{snippet}`" if snippet else ""))
+        judge_result = result.get("judge") or {}
+        if judge_result:
+            lines.append(f"- Judge status: `{judge_result.get('status', 'disabled')}`")
+            if judge_result.get("status") == "scored":
+                lines.append(f"- Judge pass/fail: `{judge_result.get('pass_fail', 'fail')}`")
+                lines.append(f"- Judge overall: `{judge_result.get('overall', 0):.2f}`")
+                flags = judge_result.get("flags") or []
+                lines.append(f"- Judge flags: `{', '.join(flags) if flags else '(none)'}`")
+                for bullet in (judge_result.get("rationale_bullets") or [])[:3]:
+                    lines.append(f"- Judge rationale: {bullet}")
+                for action in (judge_result.get("repair_actions") or [])[:3]:
+                    if isinstance(action, dict):
+                        tag = action.get("tag", "")
+                        step = action.get("action", "")
+                        if tag and step:
+                            lines.append(f"- Repair {tag}: {step}")
+            elif judge_result.get("status") == "error":
+                lines.append(f"- Judge error: `{judge_result.get('error', 'unknown')}`")
+        feedback = result.get("actionable_feedback") or []
+        for item in feedback[:4]:
+            lines.append(f"- Action: {item}")
         lines.append("")
 
     return "\n".join(lines).strip() + "\n"

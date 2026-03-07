@@ -3,6 +3,7 @@ const VITE_HUB_URL =
 const HUB_URL = (VITE_HUB_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
 const VITE_PRESET_PREVIEW_PIPELINE =
   typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_PRESET_PREVIEW_PIPELINE : undefined;
+const PRESET_PREVIEW_BATCH_TIMEOUT_MS = 45000;
 
 function parsePythonDictPayload(raw) {
   if (!raw || raw[0] !== '{' || raw[raw.length - 1] !== '}') return null;
@@ -106,6 +107,18 @@ export async function sendFeedback(payload) {
   return res.json();
 }
 
+export async function fetchRuntimeConfig(options = {}) {
+  const endpoint = String(options.endpoint || 'generate').trim() || 'generate';
+  const bucketKey = String(options.bucketKey || 'web-app').trim() || 'web-app';
+  const params = new URLSearchParams({ endpoint, bucket_key: bucketKey });
+  const res = await fetch(`${HUB_URL}/web/v1/debug/config?${params.toString()}`, {
+    method: 'GET',
+    headers: { 'X-EmailDJ-Beta-Key': betaKey() },
+  });
+  if (!res.ok) throw new Error(`Runtime config failed (${res.status})`);
+  return res.json();
+}
+
 export async function consumeStream(requestId, onEvent) {
   const res = await fetch(`${HUB_URL}/web/v1/stream/${requestId}`, {
     headers: { 'X-EmailDJ-Beta-Key': betaKey(), Accept: 'text/event-stream' },
@@ -115,13 +128,22 @@ export async function consumeStream(requestId, onEvent) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let lastSequence = -1;
   const drainBlocks = () => {
     let idx;
     while ((idx = buffer.indexOf('\n\n')) !== -1) {
       const block = buffer.slice(0, idx);
       buffer = buffer.slice(idx + 2);
       if (!block.trim()) continue;
-      onEvent(parseSseBlock(block));
+      const parsed = parseSseBlock(block);
+      if (parsed.event === 'token') {
+        const seq = parsed.data?.sequence;
+        if (typeof seq === 'number') {
+          if (seq <= lastSequence) continue; // duplicate or out-of-order
+          lastSequence = seq;
+        }
+      }
+      onEvent(parsed);
     }
   };
 
@@ -131,7 +153,15 @@ export async function consumeStream(requestId, onEvent) {
       buffer += decoder.decode();
       buffer = buffer.replace(/\r\n/g, '\n');
       drainBlocks();
-      if (buffer.trim()) onEvent(parseSseBlock(buffer));
+      if (buffer.trim()) {
+        const parsed = parseSseBlock(buffer);
+        if (parsed.event === 'token') {
+          const seq = parsed.data?.sequence;
+          if (typeof seq !== 'number' || seq > lastSequence) onEvent(parsed);
+        } else {
+          onEvent(parsed);
+        }
+      }
       break;
     }
     buffer += decoder.decode(value, { stream: true });
@@ -145,12 +175,26 @@ export function presetPreviewBatchEnabled() {
   return raw !== 'off' && raw !== '0' && raw !== 'false';
 }
 
-export async function generatePresetPreviewsBatch(payload) {
-  const res = await fetch(`${HUB_URL}/web/v1/preset-previews/batch`, {
-    method: 'POST',
-    headers: headers(),
-    body: JSON.stringify(payload),
-  });
+export async function generatePresetPreviewsBatch(payload, options = {}) {
+  const timeoutMs = Number(options?.timeoutMs) > 0 ? Number(options.timeoutMs) : PRESET_PREVIEW_BATCH_TIMEOUT_MS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(`${HUB_URL}/web/v1/preset-previews/batch`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(`Preset preview batch timed out (${timeoutMs}ms)`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) {
     let detail = '';
     try {

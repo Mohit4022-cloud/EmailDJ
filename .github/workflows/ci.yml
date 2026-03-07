@@ -5,10 +5,43 @@ on:
   push:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      allow_judge_drift_override:
+        description: 'Allow nightly judge drift override when model/version changes'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '0 7 * * *'
+
+permissions:
+  contents: read
+  actions: read
   schedule:
     - cron: '0 7 * * *'
 
 jobs:
+  doc-freshness:
+    name: Doc Freshness Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pyyaml
+      - name: Check doc freshness
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python hub-api/scripts/doc_freshness_check.py \
+              --base ${{ github.event.pull_request.base.sha }} \
+              --head ${{ github.sha }}
+          else
+            python hub-api/scripts/doc_freshness_check.py --head HEAD --warn-only
+          fi
+
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -24,6 +57,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Fetch PR base ref for doc freshness
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch origin "${{ github.base_ref }}" --depth=1
+
+      - name: Doc freshness gate (coverage + ADR)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            python3 scripts/docops/check_doc_freshness.py --base "origin/${{ github.base_ref }}" --head HEAD
+          else
+            python3 scripts/docops/check_doc_freshness.py --head HEAD
+          fi
+
+      - name: Generated docs freshness gate
+        run: |
+          python3 scripts/docops/generate_docs.py --check --write-patch /tmp/docops-generated.patch
+
+      - name: Upload generated docs patch
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docops-generated-patch
+          if-no-files-found: ignore
+          path: /tmp/docops-generated.patch
 
       - name: Install backend deps
         working-directory: hub-api
@@ -80,6 +138,29 @@ jobs:
       - name: Install extension deps
         working-directory: chrome-extension
         run: npm install
+
+      - name: Fetch previous nightly metadata artifact
+        working-directory: hub-api
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p reports/judge
+          PREV_RUN_ID="$(gh run list --workflow ci.yml --limit 40 --json databaseId,event,conclusion --jq ".[] | select((.databaseId|tostring)!=\"$CURRENT_RUN_ID\" and (.event==\"schedule\" or .event==\"workflow_dispatch\") and .conclusion==\"success\") | .databaseId" | head -n 1 || true)"
+          if [ -z "${PREV_RUN_ID}" ]; then
+            echo "No previous successful nightly run found; drift guard will run without baseline."
+            exit 0
+          fi
+          mkdir -p /tmp/judge-nightly-prev
+          if gh run download "${PREV_RUN_ID}" -n judge-nightly-metadata -D /tmp/judge-nightly-prev; then
+            if [ -f /tmp/judge-nightly-prev/nightly_metadata.json ]; then
+              cp /tmp/judge-nightly-prev/nightly_metadata.json reports/judge/previous_nightly_metadata.json
+              echo "Previous nightly metadata restored from run ${PREV_RUN_ID}."
+            fi
+          else
+            echo "Previous metadata artifact not available; continuing without baseline."
+          fi
 
       - name: Run checks with credentialed real smoke
         working-directory: hub-api

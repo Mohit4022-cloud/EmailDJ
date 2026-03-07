@@ -12,7 +12,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
-os.environ.setdefault("EMAILDJ_QUICK_GENERATE_MODE", "mock")
+os.environ.setdefault("USE_PROVIDER_STUB", "1")
 os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 
 import httpx

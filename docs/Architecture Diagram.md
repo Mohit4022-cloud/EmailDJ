@@ -19,7 +19,7 @@ Text diagram (runtime pipeline):
     * else → `_build_real_draft`  
       * `get_web_mvp_prompt(...)` → `_real_generate(prompt, ...)` → `canonicalize_draft(...)`  
   * Provider wrapper  
-    * `email_generation/quick_generate.py::_real_generate` selects provider/model; OpenAI path uses `gpt-4.1-nano`, `temperature: 0`  
+    * `email_generation/quick_generate.py::_real_generate` selects provider/model; OpenAI path uses `gpt-5-nano`, `temperature: 0`  
 * Prompt \+ constraints  
   * `email_generation/prompt_templates.py::get_web_mvp_prompt` (described) injects: SELLER, PROSPECT, DEEP RESEARCH, OFFER\_LOCK, CTA\_LOCK, sliders, plus a “VALIDATION FEEDBACK TO FIX” repair block  
   * Validation guard (at least for “other products mentioned”)  
@@ -41,7 +41,7 @@ B) File/Module Inventory (table)
 | `hub-api/api/schemas.py` | Request schema | `WebGenerateRequest` includes `prospect`, `research_text`, `offer_lock`, `cta_offer_lock`, `cta_type`, `style_profile`, `company_context` | Schema allows duplicated offer fields (offer\_lock \+ company\_context.current\_product). |
 | `hub-api/email_generation/remix_engine.py` | Central engine: mock/real switch, prompt call, validation | `build_draft` chooses mock vs real; real path uses prompt \+ `canonicalize_draft`; validation includes forbidden other products check | Mock mode hardcodes greeting and outbound framing; validation appears incomplete for “offer binding” and “CTA exactness” beyond what prompt asks. |
 | `hub-api/email_generation/prompt_templates.py` | Prompt contract | Includes SELLER/PROSPECT/DEEP RESEARCH/OFFER\_LOCK/CTA\_LOCK \+ repair block | Deep research is uncontained; mapping context is embedded into SELLER block. |
-| `hub-api/email_generation/quick_generate.py` | Provider wrapper and model selection | OpenAI default `gpt-4.1-nano`, `temperature: 0` | No structured-output enforcement; model can still “sound right” while breaking locks. |
+| `hub-api/email_generation/quick_generate.py` | Provider wrapper and model selection | OpenAI default `gpt-5-nano`, `temperature: 0` | No structured-output enforcement; model can still “sound right” while breaking locks. |
 | `hub-api/email_generation/model_cascade.py` | Model routing | (Unknown details—confirm by opening file) | Cascade may differ between preview vs real generation. |
 | `hub-api/email_generation/preset_preview_pipeline.py` | Preset preview backend | (Unknown details—confirm by opening file) | Likely additional path where “mapping” or “outbound outcomes” copy leaks. |
 | `hub-api/main.py` | App wiring | (Unknown details—confirm by opening file) | Where env mode defaults are likely set (critical to fix mock/real confusion). |

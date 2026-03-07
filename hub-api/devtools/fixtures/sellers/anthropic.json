@@ -1,0 +1,23 @@
+{
+  "_schema": "seller_fixture_v1",
+  "seller_company_name": "Anthropic",
+  "seller_company_domain": "anthropic.com",
+  "offer_name": "Claude API for Enterprise",
+  "offer_category": "ai_platform",
+  "offer_positioning": "Safe, steerable AI for enterprise workloads — built for teams that need reliability, auditability, and long-context reasoning.",
+  "differentiators": [
+    "Constitutional AI safety layer reduces harmful outputs without prompt engineering",
+    "200K token context window handles full codebase or document corpus in one call",
+    "Enterprise controls: usage policies, audit logs, fine-grained rate limits"
+  ],
+  "proof_points": [],
+  "icp_personas": ["CTO", "VP Engineering", "Head of AI", "Director of ML Platform"],
+  "constraints": [
+    "Do not make specific performance benchmarks without grounding in research",
+    "Do not compare directly to named competitors"
+  ],
+  "cta_offer_lock": "Open to a 20-min technical walkthrough with our solutions team?",
+  "cta_type": "time_ask",
+  "other_products": "Claude for Workgroups\nAnthropic API\nClaude.ai Teams",
+  "company_notes": "Anthropic builds reliable, interpretable AI systems for enterprises with strict safety and compliance requirements. Claude excels at long-context reasoning, code generation, and structured data extraction."
+}

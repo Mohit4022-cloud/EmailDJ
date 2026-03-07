@@ -367,6 +367,53 @@
         }
       }
     },
+    "/web/v1/compliance/dashboard": {
+      "get": {
+        "tags": [
+          "web-mvp"
+        ],
+        "summary": "Compliance Dashboard",
+        "operationId": "compliance_dashboard_web_v1_compliance_dashboard_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 3,
+              "minimum": 1,
+              "description": "Number of days of history (1-3)",
+              "default": 1,
+              "title": "Days"
+            },
+            "description": "Number of days of history (1-3)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComplianceDashboardResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/campaigns/": {
       "post": {
         "tags": [
@@ -986,6 +1033,81 @@
         ],
         "title": "CampaignCreateRequest"
       },
+      "ComplianceDashboardDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "title": "Date"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceViolationBucket"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "total_violations": {
+            "type": "integer",
+            "title": "Total Violations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "buckets",
+          "total_violations"
+        ],
+        "title": "ComplianceDashboardDay"
+      },
+      "ComplianceDashboardResponse": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceDashboardDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "generated_at": {
+            "type": "string",
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "generated_at"
+        ],
+        "title": "ComplianceDashboardResponse"
+      },
+      "ComplianceViolationBucket": {
+        "properties": {
+          "violation_type": {
+            "type": "string",
+            "title": "Violation Type"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "remix": {
+            "type": "integer",
+            "title": "Remix"
+          },
+          "preview": {
+            "type": "integer",
+            "title": "Preview"
+          }
+        },
+        "type": "object",
+        "required": [
+          "violation_type",
+          "total",
+          "remix",
+          "preview"
+        ],
+        "title": "ComplianceViolationBucket"
+      },
       "DeepResearchRequest": {
         "properties": {
           "account_id": {
@@ -1295,7 +1417,8 @@
                 "type": "null"
               }
             ],
-            "title": "Current Product"
+            "title": "Current Product",
+            "description": "Informational only \u2014 not injected into generation prompt. Use offer_lock as the single pitch anchor."
           },
           "other_products": {
             "anyOf": [
@@ -1384,6 +1507,19 @@
           "prospect": {
             "$ref": "#/components/schemas/WebProspectInput"
           },
+          "prospect_first_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prospect First Name",
+            "description": "First name used for greeting. Derived server-side from prospect.name if omitted."
+          },
           "research_text": {
             "type": "string",
             "maxLength": 20000,
@@ -1394,7 +1530,8 @@
             "type": "string",
             "maxLength": 240,
             "minLength": 1,
-            "title": "Offer Lock"
+            "title": "Offer Lock",
+            "description": "Single source of truth for what is pitched. All generation (real and mock) uses this exclusively."
           },
           "cta_offer_lock": {
             "anyOf": [
@@ -1464,6 +1601,20 @@
             "maxItems": 20,
             "minItems": 1,
             "title": "Presets"
+          },
+          "offer_lock": {
+            "type": "string",
+            "maxLength": 240,
+            "minLength": 1,
+            "title": "Offer Lock",
+            "description": "Single product/offering to pitch. Must match product_context.product_name."
+          },
+          "cta_lock": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Cta Lock",
+            "description": "Exact CTA text used once at the end of every preview email body."
           }
         },
         "type": "object",
@@ -1472,7 +1623,9 @@
           "product_context",
           "raw_research",
           "global_sliders",
-          "presets"
+          "presets",
+          "offer_lock",
+          "cta_lock"
         ],
         "title": "WebPresetPreviewBatchRequest"
       },
@@ -1509,13 +1662,132 @@
       },
       "WebPreviewBatchMeta": {
         "properties": {
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
           "pipeline_version": {
             "type": "string",
             "title": "Pipeline Version"
           },
+          "generation_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Mode"
+          },
           "provider": {
             "type": "string",
             "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "provider_attempt_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Attempt Count"
+          },
+          "validator_attempt_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Validator Attempt Count"
+          },
+          "repair_attempt_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Repair Attempt Count",
+            "default": 0
+          },
+          "repaired": {
+            "type": "boolean",
+            "title": "Repaired",
+            "default": false
+          },
+          "initial_violation_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Initial Violation Count",
+            "default": 0
+          },
+          "final_violation_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Final Violation Count",
+            "default": 0
+          },
+          "violation_codes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Violation Codes"
+          },
+          "violation_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Violation Count",
+            "default": 0
+          },
+          "enforcement_level": {
+            "type": "string",
+            "enum": [
+              "warn",
+              "repair",
+              "block"
+            ],
+            "title": "Enforcement Level",
+            "default": "repair"
+          },
+          "repair_loop_enabled": {
+            "type": "boolean",
+            "title": "Repair Loop Enabled",
+            "default": true
           },
           "cache_hit": {
             "type": "boolean",

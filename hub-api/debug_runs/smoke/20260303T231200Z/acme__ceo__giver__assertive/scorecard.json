@@ -1,0 +1,17 @@
+{
+  "case_id": "acme__ceo__giver__assertive",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_PROOF_DUMP"
+  ],
+  "word_count": 88,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": false,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Given Acme's recent trademark filings in Europe and your focus on brand protection, I thou'"
+  ]
+}
