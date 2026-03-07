@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmailDJ Smoke Eval Runner"
+  short_description: "Run and summarize EmailDJ smoke eval failures"
+  default_prompt: "Use $emaildj-smoke-eval-runner to run or summarize EmailDJ smoke evals by stage and root cause."

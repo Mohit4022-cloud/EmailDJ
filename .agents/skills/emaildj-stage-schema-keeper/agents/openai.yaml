@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmailDJ Stage Schema Keeper"
+  short_description: "Guard EmailDJ staged JSON contracts and validators"
+  default_prompt: "Use $emaildj-stage-schema-keeper to diagnose this EmailDJ stage schema or validator contract issue."
