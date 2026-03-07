@@ -1,0 +1,170 @@
+{
+  "run_id": "smoke_20260303T225404Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-03T22:54:25.202270Z",
+  "elapsed_seconds": 21.2,
+  "total": 30,
+  "pass": 18,
+  "fail": 12,
+  "errors": 0,
+  "pass_rate_pct": 60.0,
+  "fail_tag_counts": {
+    "FAIL_PROSPECT_OWNS_OFFER": 6,
+    "FAIL_EXEC_TOO_LONG": 6,
+    "FAIL_PROOF_DUMP": 4
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER",
+        "FAIL_EXEC_TOO_LONG",
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 112,
+      "notes": [
+        "Ownership: found 'your trademark'",
+        "Exec email 112 words (title='CEO', limit=90)",
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Sarah, as CEO of Acme Consumer Brands, you\u2019ve emphasized protecting brand equity internati'"
+      ],
+      "latency_ms": 2474,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG",
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 91,
+      "notes": [
+        "Exec email 91 words (title='CEO', limit=90)",
+        "Proof dump: 5 capitalized tokens in one sentence: 'Hi Sarah, Sarah Chen's focus on brand integrity and risk management aligns with our Trademark Search'"
+      ],
+      "latency_ms": 2488,
+      "provider": null
+    },
+    {
+      "case_id": "cascade__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER",
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 99,
+      "notes": [
+        "Ownership: found 'your brand protection'",
+        "Exec email 99 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 2501,
+      "provider": null
+    },
+    {
+      "case_id": "acme__vp_legal__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER"
+      ],
+      "word_count": 104,
+      "notes": [
+        "Ownership: found 'your trademark'"
+      ],
+      "latency_ms": 2116,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER"
+      ],
+      "word_count": 90,
+      "notes": [
+        "Ownership: found 'your trademark'"
+      ],
+      "latency_ms": 2168,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 99,
+      "notes": [
+        "Exec email 99 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 1893,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 93,
+      "notes": [
+        "Exec email 93 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 1974,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__vp_legal__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 102,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Priya, Managing trademark filings at Meridian Health Sciences involves active screening, which ca'"
+      ],
+      "latency_ms": 2058,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__revops_pm__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER"
+      ],
+      "word_count": 97,
+      "notes": [
+        "Ownership: found 'your trademark'"
+      ],
+      "latency_ms": 2026,
+      "provider": null
+    },
+    {
+      "case_id": "cascade__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 106,
+      "notes": [
+        "Exec email 106 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 2026,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 4
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 11
+    },
+    "manager": {
+      "total": 6,
+      "pass": 3
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 9
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 9
+    }
+  }
+}

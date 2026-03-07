@@ -10,8 +10,11 @@ from email_generation.policies.claims_policy import (
     extract_allowed_claims,
     extract_allowed_numeric_claims,
     find_unverified_claims,
+    find_specific_sounding_vagueness,
     has_unverified_claims,
+    has_specific_sounding_vagueness,
     merge_claim_sources,
+    rewrite_specific_sounding_vagueness,
     rewrite_unverified_claims,
 )
 
@@ -19,7 +22,10 @@ __all__ = [
     "extract_allowed_claims",
     "extract_allowed_numeric_claims",
     "find_unverified_claims",
+    "find_specific_sounding_vagueness",
     "has_unverified_claims",
+    "has_specific_sounding_vagueness",
     "merge_claim_sources",
+    "rewrite_specific_sounding_vagueness",
     "rewrite_unverified_claims",
 ]

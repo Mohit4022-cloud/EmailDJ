@@ -1,0 +1,41 @@
+{
+  "prospect": {
+    "name": "James Okafor",
+    "title": "CEO",
+    "company": "Meridian Health Sciences",
+    "company_url": "https://meridianhs.example.com",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "James",
+  "product_context": {
+    "product_name": "Trademark Search, Screening, and Brand Protection",
+    "one_line_value": "Corsearch is the global leader in trademark clearance, brand protection, and IP ",
+    "proof_points": [
+      "Trademark Watching",
+      "Online Brand Protection"
+    ],
+    "target_outcome": "15-minute meeting"
+  },
+  "raw_research": {
+    "deep_research_paste": "James Okafor has led Meridian Health Sciences since 2020 and has taken the company from Series B to pre-commercial stage. He has a background in pharma commercialization from his time at two large pharmaceutical companies. He has publicly discussed the cost and reputational impact of late-stage trademark conflicts in drug naming, noting that one recent incident cost the company seven figures and delayed their brand launch by three months. He is focused on de-risking the commercialization path for their lead asset.",
+    "company_notes": "Meridian Health Sciences is a mid-stage biotech and specialty pharma company with a pipeline of 8 compounds in clinical development. They have an active trademark filing program tied to brand names for upcoming commercial launches. Their IP counsel has flagged that trademark screening is a bottleneck ahead of two anticipated NDA submissions. They have experienced two naming conflicts in the past 18 months requiring costly rebrand or licensing.",
+    "extra_constraints": null
+  },
+  "global_sliders": {
+    "formality": 35,
+    "brevity": 60,
+    "directness": 85,
+    "personalization": 65
+  },
+  "presets": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "slider_overrides": {}
+    }
+  ],
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_lock": "Open to a quick 15-minute chat next week?",
+  "cta_lock_text": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask"
+}

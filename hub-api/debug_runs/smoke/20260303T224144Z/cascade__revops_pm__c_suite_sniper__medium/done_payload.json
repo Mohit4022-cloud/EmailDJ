@@ -1,0 +1,109 @@
+{
+  "request_id": "25935c45-ab01-45b0-97fe-966ef0772135",
+  "session_id": "0f2363f1-cf13-4e8d-ad99-e634de447aa0",
+  "generation_id": "8ed6da17-ca15-48b1-b8a5-0fd0f544fa32",
+  "draft_id": 1,
+  "sequence": 94,
+  "timestamp": 1772577729.1624472,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "c_suite_sniper",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": false,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+    "FEATURE_LOSSLESS_STREAMING": false,
+    "FEATURE_FLUENCY_REPAIR": false,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": false,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+    "FEATURE_PRESET_TRUE_REWRITE": false
+  },
+  "mode": "real",
+  "provider": "openai",
+  "model": "gpt-4.1-nano",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 1,
+  "validator_attempt_count": 1,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Supporting Cascade\u2019s Brand Protection Initiatives",
+    "body": "Hi Alex, Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Supporting Cascade\u2019s Brand Protection Initiatives\nBody:\nHi Alex, Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 2,
+      "types": [
+        "initiative",
+        "ops",
+        "other"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "c_suite_sniper",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 672,
+      "checksum": "e779cbc403882b8f61e8186b83f5f04eba8a22b532e2997b199c564d0c5b25b9"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "63501cbce8a4dc62",
+        "combined": "762883f1fa67d9cb"
+      }
+    }
+  },
+  "stream_chunk_mode": "word_split",
+  "total_chunks": 93,
+  "total_chars": 673,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "9ce8555ee650d2db11d6f2858ea1cc8c1c0204841645e856ee63b624e9cee59c",
+  "stream_integrity_server_ok": true
+}

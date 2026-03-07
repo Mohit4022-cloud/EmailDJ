@@ -1,0 +1,5 @@
+Subject: Remix Studio teardown for Acme’s outbound initiative
+Body:
+Hi Alex, your team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Acme.
+
+Open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? 

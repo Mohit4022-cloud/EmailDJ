@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -373,6 +373,159 @@ def _preset_wedge_copy(preset_id: str, company: str, offer_lock: str) -> tuple[s
     )
 
 
+_EVIDENCE_BAND_ORDER = {
+    "contextual_inference": 0,
+    "weak_signal": 1,
+    "strong_signal": 2,
+    "direct_evidence": 3,
+}
+
+
+def _evidence_band_rank(value: str | None) -> int:
+    return _EVIDENCE_BAND_ORDER.get(_compact(value), 0)
+
+
+def _normalize_proof_points_meta(raw: list[dict[str, Any]] | None, proof_points: list[str]) -> list[dict[str, str]]:
+    normalized: list[dict[str, str]] = []
+    for item in raw or []:
+        text = _normalize_sentence(str(item.get("text") or ""))
+        if not text:
+            continue
+        normalized.append(
+            {
+                "text": text,
+                "proof_basis": _compact(item.get("proof_basis")) or "seller_note",
+            }
+        )
+    if normalized:
+        return normalized[:3]
+    return [{"text": _normalize_sentence(item), "proof_basis": "seller_note"} for item in proof_points if _compact(item)][:3]
+
+
+def _banded_problem_statement(
+    *,
+    company: str,
+    evidence_band: str,
+    source_text: str,
+    fact_type: str,
+    fallback: str,
+) -> str:
+    source = _normalize_sentence(source_text)
+    band = _compact(evidence_band) or "contextual_inference"
+    if band == "direct_evidence" and source:
+        return source
+    if band == "strong_signal":
+        templates = {
+            "hiring": "Team growth can make message consistency harder to maintain across first touches.",
+            "initiative": "New rollout work can make message quality and manager review more important.",
+            "ops": "There are signs message review and execution discipline matter more right now.",
+            "timeline": "Current timing pressure can make first-touch consistency harder to keep tight.",
+        }
+        return templates.get(fact_type, f"There are signs consistent first-touch quality matters more at {company}.")
+    if band == "weak_signal":
+        templates = {
+            "hiring": "It may be worth tightening first-touch quality before team growth adds more drift.",
+            "initiative": "It may be worth pressure-testing how consistently first touches map to current priorities.",
+            "ops": "It may be worth tightening message review before quality drift becomes harder to catch.",
+            "timeline": "It may be worth tightening message quality before timing pressure adds more noise.",
+        }
+        return templates.get(fact_type, f"It may be worth tightening first-touch quality as execution scales at {company}.")
+    return fallback
+
+
+def _hook_hint_for_band(plan: "GenerationPlan", company: str, fallback_hint: str) -> str:
+    source = _normalize_sentence(plan.hook_source_text or fallback_hint).rstrip(".")
+    fact_type = str((plan.hook_lineage or {}).get("fact_type") or "")
+    band = plan.hook_evidence_band or "contextual_inference"
+    if band == "direct_evidence" and source:
+        return source
+    if band == "strong_signal":
+        templates = {
+            "hiring": "team expansion can make message consistency harder to keep tight",
+            "initiative": "new rollout work can put more pressure on message quality",
+            "ops": "the team appears to be tightening message review and execution discipline",
+            "timeline": "timing pressure can make consistent first touches harder to maintain",
+        }
+        return templates.get(fact_type, "there are signs message quality matters more as execution scales")
+    if band == "weak_signal":
+        templates = {
+            "hiring": "it may be worth tightening first-touch quality before team growth adds more drift",
+            "initiative": "it may be worth pressure-testing how consistently first touches map to current priorities",
+            "ops": "it may be worth pressure-testing message quality before review gaps widen",
+            "timeline": "it may be worth tightening message quality before timing pressure adds more noise",
+        }
+        return templates.get(fact_type, f"it may be worth tightening first-touch quality as execution scales at {company}")
+    return f"{company} likely needs message quality to stay tight as execution scales"
+
+
+def _proof_points_from_company_notes(company_notes: str | None) -> list[dict[str, str]]:
+    points = _split_lines_catalog(company_notes, limit=3)
+    return [
+        {
+            "text": _normalize_sentence(point),
+            "proof_basis": "seller_note",
+        }
+        for point in points
+        if _compact(point)
+    ][:3]
+
+
+def _fact_entries_for_plan(
+    *,
+    session: dict[str, Any],
+    company: str,
+    first_name: str,
+    prospect_name: str,
+) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for raw in session.get("allowed_facts_structured") or []:
+        source_text = _sanitize_fact_hint(
+            _first_sentence(raw.get("text", "")),
+            prospect_name=prospect_name,
+            company=company,
+            first_name=first_name,
+        )
+        if not source_text:
+            continue
+        evidence_band = _compact(raw.get("evidence_band")) or "contextual_inference"
+        entries.append(
+            {
+                "text": source_text,
+                "type": _compact(raw.get("type")) or "other",
+                "confidence": _compact(raw.get("confidence")) or "low",
+                "evidence_band": evidence_band,
+                "assertable": bool(raw.get("assertable", False)),
+            }
+        )
+    return entries
+
+
+def _select_hook_fact(fact_entries: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not fact_entries:
+        return None
+    for band in ("direct_evidence", "strong_signal", "weak_signal", "contextual_inference"):
+        for entry in fact_entries:
+            if entry.get("evidence_band") == band:
+                return entry
+    return fact_entries[0]
+
+
+def _hook_signal_equivalent(candidate: str, plan: "GenerationPlan") -> bool:
+    normalized = _compact(candidate)
+    if not normalized:
+        return False
+    anchors = [
+        _compact(plan.hook_source_text),
+        _compact(plan.wedge_problem),
+    ]
+    for anchor in anchors:
+        if not anchor:
+            continue
+        if SequenceMatcher(None, normalized.lower(), anchor.lower()).ratio() >= 0.72:
+            return True
+    return False
+
+
 @dataclass
 class GenerationPlan:
     greeting: str
@@ -390,6 +543,10 @@ class GenerationPlan:
     preset_id: str
     structure_template: list[str]
     persona_route: str
+    hook_evidence_band: str = "contextual_inference"
+    hook_source_text: str = ""
+    hook_lineage: dict[str, Any] = field(default_factory=dict)
+    proof_points_meta: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -434,6 +591,10 @@ class GenerationPlan:
                 preset_id=normalize_preset_id(str(raw["preset_id"])),
                 structure_template=[str(item) for item in list(raw.get("structure_template") or []) if item][:6],
                 persona_route=str(raw.get("persona_route") or "standard"),
+                hook_evidence_band=str(raw.get("hook_evidence_band") or "contextual_inference"),
+                hook_source_text=str(raw.get("hook_source_text") or ""),
+                hook_lineage=dict(raw.get("hook_lineage") or {}),
+                proof_points_meta=_normalize_proof_points_meta(raw.get("proof_points_meta"), [str(item) for item in list(raw.get("proof_points_used") or [])]),
             )
         except Exception:
             return None
@@ -458,16 +619,14 @@ def build_generation_plan(
 
     allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
     prospect_name = str(prospect.get("name") or "")
-    high_conf_facts = [
-        _sanitize_fact_hint(
-            _first_sentence(entry.get("text", "")),
-            prospect_name=prospect_name,
-            company=company,
-            first_name=first_name or "you",
-        )
-        for entry in (session.get("allowed_facts_structured") or [])
-        if str(entry.get("confidence", "")).lower() == "high" and _first_sentence(entry.get("text", ""))
-    ]
+    fact_entries = _fact_entries_for_plan(
+        session=session,
+        company=company,
+        first_name=first_name or "you",
+        prospect_name=prospect_name,
+    )
+    hook_fact = _select_hook_fact(fact_entries)
+    high_conf_facts = [entry["text"] for entry in fact_entries if str(entry.get("confidence") or "").lower() == "high"]
     first_fact = (
         _sanitize_fact_hint(
             _first_sentence(allowed_facts[0]),
@@ -490,25 +649,20 @@ def build_generation_plan(
     )
     offer_lock = _compact(session.get("offer_lock")) or "this approach"
 
-    proof_points = _split_lines_catalog((session.get("company_context") or {}).get("company_notes"), limit=3)
-    if not proof_points and second_fact:
-        proof_points = [second_fact]
-    if preset_true_rewrite and high_conf_facts:
-        merged: list[str] = []
-        seen: set[str] = set()
-        for item in [high_conf_facts[0], *proof_points]:
-            key = _compact(item).lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            merged.append(item)
-        proof_points = merged[:3]
+    proof_points_meta = _proof_points_from_company_notes((session.get("company_context") or {}).get("company_notes"))
+    proof_points = [item["text"] for item in proof_points_meta]
 
     wedge_problem, wedge_outcome = _preset_wedge_copy(strategy.preset_id, company, offer_lock)
     if not preset_true_rewrite:
-        wedge_problem = (
-            first_fact
-            or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
+        wedge_problem = _banded_problem_statement(
+            company=company,
+            evidence_band=str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
+            source_text=str((hook_fact or {}).get("text") or first_fact),
+            fact_type=str((hook_fact or {}).get("type") or "other"),
+            fallback=(
+                first_fact
+                or f"{company} teams often lose replies when first-touch messaging lacks clear enforcement discipline"
+            ),
         )
         wedge_outcome = f"{offer_lock} helps teams keep outreach specific while raising quality from first touch"
 
@@ -545,17 +699,15 @@ def build_generation_plan(
         }.get(strategy.hook_type, "domain_hook")
     if persona_route == "exec":
         requested_hook_strategy = "risk_framed"
-        if high_conf_facts:
-            exec_fact = _sanitize_fact_hint(
-                high_conf_facts[0],
-                prospect_name=prospect_name,
-                company=company,
-                first_name=first_name or "you",
-            )
-            wedge_problem = _normalize_sentence(exec_fact or high_conf_facts[0])
-            proof_points = [exec_fact or high_conf_facts[0]]
-        else:
-            proof_points = proof_points[:1]
+        wedge_problem = _banded_problem_statement(
+            company=company,
+            evidence_band=str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
+            source_text=str((hook_fact or {}).get("text") or ""),
+            fact_type=str((hook_fact or {}).get("type") or "other"),
+            fallback=f"{company} carries execution risk when outbound quality drifts across teams.",
+        )
+        proof_points_meta = proof_points_meta[:1]
+        proof_points = [item["text"] for item in proof_points_meta]
 
     structure_template = list(strategy.structure_template)
     if preset_true_rewrite:
@@ -583,17 +735,42 @@ def build_generation_plan(
         preset_id=strategy.preset_id,
         structure_template=structure_template,
         persona_route=persona_route,
+        hook_evidence_band=str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
+        hook_source_text=str((hook_fact or {}).get("text") or ""),
+        hook_lineage={
+            "source_text": str((hook_fact or {}).get("text") or ""),
+            "fact_type": str((hook_fact or {}).get("type") or "other"),
+            "assertable": bool((hook_fact or {}).get("assertable", False)),
+            "evidence_band": str((hook_fact or {}).get("evidence_band") or "contextual_inference"),
+        },
+        proof_points_meta=proof_points_meta[: (1 if persona_route == "exec" else 3)],
     )
 
 
 def _hook_sentence(plan: GenerationPlan, company: str, fact_hint: str) -> str:
-    hint = fact_hint or f"{company} is under pressure to keep outreach precise without slowing execution"
+    hint = _hook_hint_for_band(plan, company, fact_hint or f"{company} is under pressure to keep outreach precise without slowing execution")
     templates = {
         "direct_wedge": f"Quick point from what we saw: {hint}.",
-        "curiosity_headline": f"One pattern that stood out in {company}: {hint}.",
-        "value_first": f"I put together a quick teardown based on {hint}.",
-        "contrarian_risk": f"Contrarian take: {hint} can hide a costly quality gap.",
-        "domain_pattern": f"Pattern we keep seeing in this segment: {hint}.",
+        "curiosity_headline": (
+            f"One concrete signal at {company}: {hint}."
+            if plan.hook_evidence_band == "direct_evidence"
+            else f"One signal worth noting at {company}: {hint}."
+        ),
+        "value_first": (
+            f"I put together a quick teardown based on {hint}."
+            if plan.hook_evidence_band == "direct_evidence"
+            else f"I put together a quick teardown around one signal we noticed: {hint}."
+        ),
+        "contrarian_risk": (
+            f"Contrarian take: {hint} can hide a costly quality gap."
+            if _evidence_band_rank(plan.hook_evidence_band) >= _evidence_band_rank("strong_signal")
+            else f"Contrarian take: {hint}."
+        ),
+        "domain_pattern": (
+            f"Pattern we keep seeing in this segment: {hint}."
+            if _evidence_band_rank(plan.hook_evidence_band) >= _evidence_band_rank("strong_signal")
+            else f"One pattern worth pressure-testing in this segment: {hint}."
+        ),
         "executive_brief": f"Executive brief: {hint}.",
     }
     return _normalize_sentence(templates.get(plan.hook_type, hint))
@@ -662,16 +839,19 @@ def apply_generation_plan(
     forbidden_terms = _forbidden_product_terms(session, offer_lock)
     first_name = derive_first_name(session.get("prospect_first_name") or prospect.get("name")) or "you"
 
-    fact_hint = ""
-    allowed_facts = [item for item in (session.get("allowed_facts") or []) if _compact(item)]
-    if allowed_facts:
-        fact_hint = _first_sentence(allowed_facts[0])
+    fact_hint = _compact(plan.hook_source_text)
     if _contains_forbidden_term(fact_hint, forbidden_terms):
         fact_hint = ""
     model_signal = _first_sentence(body)
     if model_signal and re.match(r"^(Hi|Hello)\s+[^,\n]+,", model_signal):
         model_signal = re.sub(r"^(Hi|Hello)\s+[^,\n]+,\s*", "", model_signal).strip()
-    if model_signal and _word_count(model_signal) >= 6 and not _contains_forbidden_term(model_signal, forbidden_terms):
+    if (
+        model_signal
+        and _word_count(model_signal) >= 6
+        and not _contains_forbidden_term(model_signal, forbidden_terms)
+        and _hook_signal_equivalent(model_signal, plan)
+        and _evidence_band_rank(plan.hook_evidence_band) >= _evidence_band_rank("direct_evidence")
+    ):
         fact_hint = model_signal
     fact_hint = _sanitize_fact_hint(
         fact_hint,
@@ -726,7 +906,11 @@ def apply_generation_plan(
             session.get("research_text_raw"),
             session.get("research_text"),
             (session.get("company_context") or {}).get("company_notes"),
-            " ".join(session.get("allowed_facts") or []),
+            " ".join(
+                item["text"]
+                for item in (plan.proof_points_meta or [])
+                if (item.get("proof_basis") or "") == "seller_note"
+            ),
             " ".join(plan.proof_points_used),
         ]
     )

@@ -1,4 +1,4 @@
-"""Preset preview pipeline with extractor and generator stages."""
+"""Preset preview pipeline with a single low-latency generator stage."""
 
 from __future__ import annotations
 
@@ -10,11 +10,13 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from functools import lru_cache
 from typing import Any
 
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from api.schemas import (
     WebPresetPreviewBatchRequest,
@@ -63,10 +65,9 @@ from infra.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
-PIPELINE_VERSION = "extractor-generator-v1"
+PIPELINE_VERSION = "single-generator-v2"
 _PREVIEW_ENFORCEMENT_LEVEL_ENV = "EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"
 _PREVIEW_OPENAI_TIMEOUT_ENV = "EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS"
-_PREVIEW_OPENAI_EXTRACTION_TIMEOUT_ENV = "EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION"
 _BANNED_POSITIONING_PHRASES = (
     "ai services",
     "ai consulting",
@@ -127,13 +128,12 @@ _WIKI_BIO_OPENER_LINE_RE = re.compile(
 
 @lru_cache(maxsize=1)
 def preview_prompt_template_hashes() -> dict[str, str]:
-    extractor_material = _EXTRACTOR_SYSTEM_PROMPT + inspect.getsource(_extractor_messages)
     generator_material = _GENERATOR_SYSTEM_PROMPT + inspect.getsource(_generator_messages)
-    combined_material = _COMBINED_SYSTEM_PROMPT + inspect.getsource(_combined_messages)
+    generator_hash = hashlib.sha256(generator_material.encode("utf-8")).hexdigest()[:16]
     return {
-        "extractor": hashlib.sha256(extractor_material.encode("utf-8")).hexdigest()[:16],
-        "generator": hashlib.sha256(generator_material.encode("utf-8")).hexdigest()[:16],
-        "combined": hashlib.sha256(combined_material.encode("utf-8")).hexdigest()[:16],
+        "extractor": "removed",
+        "generator": generator_hash,
+        "combined": "removed",
     }
 
 # CTA-like sentence patterns — used to strip duplicate CTA lines from draft body
@@ -142,14 +142,6 @@ _CTA_LINE_PATTERN = re.compile(
     r"quick chat|calendar|schedule|let me know|next step|reach out|happy to)\b",
     re.IGNORECASE,
 )
-
-_EXTRACTOR_SYSTEM_PROMPT = """You are EmailDJ’s Research Extractor. Your job is to compress raw research into a small, high-signal summary_pack for downstream email generation.
-Optimization priorities: (1) lowest tokens, (2) factual accuracy, (3) usefulness for outbound emails.
-Rules:
-- Only include facts that are explicitly supported by the raw research text provided.
-- If something is uncertain, omit it (do not guess).
-- Do not use placeholder tokens like [Name] or {Company}.
-- Output MUST match the JSON schema provided (Structured Outputs / strict)."""
 
 _GENERATOR_SYSTEM_PROMPT = """You are EmailDJ’s Preview Batch Generator. Generate send-ready outbound emails with strict CTCO compliance and cost control.
 Optimization priorities: (1) CTCO compliance, (2) lowest total tokens, (3) high-quality credible copy.
@@ -167,34 +159,20 @@ HARD COMPLIANCE RULES (violations trigger regeneration):
 HARD FORMAT LIMITS:
 - subject: <= 8 words
 - body: 55-130 words total (including cta_lock line); exec titles must stay <=90 words
-- whyItWorks: exactly 3 bullets, each <= 12 words
-- vibeTags: 2-4 tags, each <= 18 characters
 
 STYLE RULES:
 - No "hope you’re well"
 - No exclamation marks
 - Body must end with the resolved CTA line as its own line
 
-Output MUST match the JSON schema (Structured Outputs / strict)."""
-
-_EXTRACTOR_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "summary_pack": {
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "facts": {"type": "array", "minItems": 4, "maxItems": 4, "items": {"type": "string"}},
-                "hooks": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string"}},
-                "likely_priorities": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string"}},
-                "keywords": {"type": "array", "minItems": 6, "maxItems": 6, "items": {"type": "string"}},
-            },
-            "required": ["facts", "hooks", "likely_priorities", "keywords"],
-        }
-    },
-    "required": ["summary_pack"],
+Output MUST match the JSON schema (Structured Outputs / strict).
+Return exactly this shape:
+{
+  "previews": [
+    {"preset_id": "...", "subject": "...", "body": "..."}
+  ]
 }
+Do not include extra fields."""
 
 _GENERATOR_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -208,58 +186,26 @@ _GENERATOR_SCHEMA: dict[str, Any] = {
                 "additionalProperties": False,
                 "properties": {
                     "preset_id": {"type": "string"},
-                    "label": {"type": "string"},
-                    "effective_sliders": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "properties": {
-                            "formality": {"type": "integer"},
-                            "brevity": {"type": "integer"},
-                            "directness": {"type": "integer"},
-                            "personalization": {"type": "integer"},
-                        },
-                        "required": ["formality", "brevity", "directness", "personalization"],
-                    },
-                    "vibeLabel": {"type": "string"},
-                    "vibeTags": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"type": "string"}},
-                    "whyItWorks": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "string"}},
                     "subject": {"type": "string"},
                     "body": {"type": "string"},
                 },
-                "required": [
-                    "preset_id",
-                    "label",
-                    "effective_sliders",
-                    "vibeLabel",
-                    "vibeTags",
-                    "whyItWorks",
-                    "subject",
-                    "body",
-                ],
+                "required": ["preset_id", "subject", "body"],
             },
         }
     },
     "required": ["previews"],
 }
 
-_COMBINED_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "summary_pack": _EXTRACTOR_SCHEMA["properties"]["summary_pack"],
-        "previews": _GENERATOR_SCHEMA["properties"]["previews"],
-    },
-    "required": ["summary_pack", "previews"],
-}
+class _GeneratorPreviewOutputItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    preset_id: str = Field(min_length=1)
+    subject: str
+    body: str
 
-_COMBINED_SYSTEM_PROMPT = (
-    _EXTRACTOR_SYSTEM_PROMPT.replace(
-        "downstream email generation.",
-        "downstream generation in this same response.",
-    )
-    + "\n\n"
-    + _GENERATOR_SYSTEM_PROMPT
-)
+
+class _GeneratorPreviewOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    previews: list[_GeneratorPreviewOutputItem] = Field(min_length=1)
 
 
 @dataclass
@@ -282,6 +228,8 @@ class PipelineResult:
     violation_count: int = 0
     enforcement_level: str = "repair"
     repair_loop_enabled: bool = True
+    status: str = "success"
+    degraded_reason: str | None = None
 
     def __post_init__(self) -> None:
         if self.violations is None:
@@ -351,11 +299,6 @@ def _quick_mode() -> str:
     return quick_generate_mode()
 
 
-def _extractor_model() -> str:
-    default_model = default_openai_model()
-    return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR", default_model).strip() or default_model
-
-
 def _generator_model() -> str:
     default_model = default_openai_model()
     return os.environ.get("EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR", default_model).strip() or default_model
@@ -375,23 +318,14 @@ def _summary_ttl() -> int:
 
 
 def _openai_timeout_seconds(transform_type: str) -> float:
-    default_timeout = 45.0
-    default_extraction_timeout = 90.0
+    _ = transform_type  # kept for call-site compatibility
+    default_timeout = 30.0
     raw_default = os.environ.get(_PREVIEW_OPENAI_TIMEOUT_ENV, str(default_timeout)).strip()
     try:
         fallback_timeout = float(raw_default)
     except ValueError:
         fallback_timeout = default_timeout
-    fallback_timeout = max(10.0, min(300.0, fallback_timeout))
-
-    if str(transform_type or "").strip().lower() == "extraction":
-        raw_extraction = os.environ.get(_PREVIEW_OPENAI_EXTRACTION_TIMEOUT_ENV, str(default_extraction_timeout)).strip()
-        try:
-            extraction_timeout = float(raw_extraction)
-        except ValueError:
-            extraction_timeout = default_extraction_timeout
-        return max(10.0, min(300.0, extraction_timeout))
-    return fallback_timeout
+    return max(10.0, min(30.0, fallback_timeout))
 
 
 def _to_words(value: str) -> list[str]:
@@ -1013,30 +947,6 @@ async def _save_cached_summary(req: WebPresetPreviewBatchRequest, summary_pack: 
     await redis.setex(key, _summary_ttl(), json.dumps(summary_pack.model_dump(), separators=(",", ":")))
 
 
-def _extractor_messages(req: WebPresetPreviewBatchRequest) -> list[dict[str, str]]:
-    preprocessed_research = _preprocessed_raw_research(req)
-    payload = {
-        "prospect": req.prospect.model_dump(),
-        "product_context": req.product_context.model_dump(),
-        "raw_research": preprocessed_research,
-    }
-    user_prompt = (
-        "INPUTS (use exactly; do not invent facts):\n"
-        f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n\n"
-        "TASK:\n"
-        "Create a compact summary_pack for email generation:\n"
-        "- facts: exactly 4 bullets, each must be directly supported by raw_research\n"
-        "- hooks: exactly 3 short angles (derived from facts; no invention)\n"
-        '- likely_priorities: exactly 3 bullets; may be reasonable inferences BUT must be labeled with "(likely)"\n'
-        "- keywords: exactly 6 tags/phrases\n"
-        "Return ONLY valid JSON."
-    )
-    return [
-        {"role": "system", "content": _EXTRACTOR_SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
-
-
 def _generator_messages(
     req: WebPresetPreviewBatchRequest,
     summary_pack: WebSummaryPack,
@@ -1057,28 +967,56 @@ def _generator_messages(
     if repair_notes:
         joined = "\n".join(f"- {note}" for note in repair_notes)
         extra = (
-            "\n\nFix these violations in this attempt:\n"
+            "\n\nRepair this output:\n"
             f"{joined}\n"
-            "Do not change schema. Keep all hard limits satisfied."
+            "Keep the exact JSON schema and return only one preview per preset_id."
         )
     user_prompt = (
         "INPUTS:\n"
         f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n\n"
         "TASK:\n"
         "Generate previews for ALL presets in one response.\n"
-        "For each preset compute effective_sliders with preset overrides applied.\n"
-        "For each preset resolve CTA using precedence: lock text -> cta_type -> preset default.\n"
+        "Use preset_id values exactly as provided.\n"
         "Write a unique email where opener references one hook or softened likely priority.\n"
         "Only state specific facts from summary_pack.facts.\n"
         "Include 1-2 proof points when available; otherwise use a soft credibility line.\n"
         "End with exactly one CTA line.\n"
-        "Return ONLY valid JSON."
+        "Return ONLY strict JSON in this exact shape:\n"
+        '{"previews":[{"preset_id":"...","subject":"...","body":"..."}]}'
         f"{extra}"
     )
     return [
         {"role": "system", "content": _GENERATOR_SYSTEM_PROMPT},
         {"role": "user", "content": user_prompt},
     ]
+
+
+def _message_chars(messages: list[dict[str, str]]) -> int:
+    return sum(len(str(item.get("content") or "")) for item in messages)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _is_timeout_error(exc: Exception) -> bool:
+    if isinstance(exc, httpx.TimeoutException):
+        return True
+    lowered = str(exc).lower()
+    return "timeout" in lowered or "timed out" in lowered
+
+
+def _generator_output_token_budget(req: WebPresetPreviewBatchRequest) -> int:
+    per_preset_budget = 220
+    return max(600, min(5000, len(req.presets) * per_preset_budget))
+
+
+def _validate_generator_output(raw: dict[str, Any]) -> list[dict[str, Any]]:
+    try:
+        parsed = _GeneratorPreviewOutput.model_validate(raw)
+    except ValidationError as exc:
+        raise RuntimeError(f"preview_output_validation_failed:{exc}") from exc
+    return [item.model_dump() for item in parsed.previews]
 
 
 async def _openai_structured_json(
@@ -1088,13 +1026,18 @@ async def _openai_structured_json(
     schema_name: str,
     model_name: str,
     transform_type: str,
+    max_output_tokens: int | None = None,
+    reasoning_effort_override: str | None = None,
+    timeout_seconds_override: float | None = None,
+    temperature_override: float | None = None,
 ) -> dict[str, Any]:
     key = os.environ.get("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY missing")
 
-    request_timeout = _openai_timeout_seconds(transform_type)
-    reasoning_effort = openai_reasoning_effort(
+    request_timeout = timeout_seconds_override or _openai_timeout_seconds(transform_type)
+    request_timeout = max(10.0, min(30.0, request_timeout))
+    reasoning_effort = reasoning_effort_override or openai_reasoning_effort(
         model_name=model_name,
         transform_type=transform_type,
     )
@@ -1107,8 +1050,14 @@ async def _openai_structured_json(
             "json_schema": {"name": schema_name, "strict": True, "schema": schema},
         },
     }
+    if max_output_tokens is not None and max_output_tokens > 0:
+        request_body["max_completion_tokens"] = int(max_output_tokens)
+    chosen_temperature = 0.0 if temperature_override is None else temperature_override
     if openai_supports_temperature_override(model_name):
-        request_body["temperature"] = 0
+        request_body["temperature"] = chosen_temperature
+    started = time.perf_counter()
+    start_iso = _now_iso()
+    prompt_chars = _message_chars(messages)
     logger.debug(
         "preview_openai_request_policy",
         extra={
@@ -1118,36 +1067,96 @@ async def _openai_structured_json(
             "reasoning_effort": reasoning_effort,
             "temperature_override": "temperature" in request_body,
             "timeout_seconds": request_timeout,
+            "max_output_tokens": request_body.get("max_completion_tokens"),
+            "prompt_chars": prompt_chars,
+            "started_at": start_iso,
         },
     )
-    async with httpx.AsyncClient(timeout=request_timeout) as client:
-        response = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-            json=request_body,
-        )
-    if response.status_code >= 400:
-        raise RuntimeError(f"openai_error_{response.status_code}:{response.text[:300]}")
-    payload = response.json()
-    choices = payload.get("choices") or []
-    if not choices:
-        raise RuntimeError("openai_empty_choices")
-    message = choices[0].get("message") or {}
-    if message.get("refusal"):
-        raise RuntimeError("openai_model_refused")
-    content = message.get("content")
-    if isinstance(content, list):
-        text = "".join(part.get("text", "") for part in content if isinstance(part, dict))
-    else:
-        text = str(content or "")
-    if not text.strip():
-        raise RuntimeError("openai_empty_content")
     try:
-        parsed = json.loads(text)
-    except Exception as exc:  # pragma: no cover - defensive for provider drift
-        raise RuntimeError(f"openai_invalid_json:{exc}") from exc
-    if not isinstance(parsed, dict):
-        raise RuntimeError("openai_json_not_object")
+        async with httpx.AsyncClient(timeout=request_timeout) as client:
+            response = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json=request_body,
+            )
+    except Exception as exc:
+        outcome = "timeout" if _is_timeout_error(exc) else "error"
+        logger.warning(
+            "preview_openai_step_end",
+            extra={
+                "schema_name": schema_name,
+                "model": model_name,
+                "transform_type": transform_type,
+                "reasoning_effort": reasoning_effort,
+                "prompt_chars": prompt_chars,
+                "timeout_seconds": request_timeout,
+                "max_output_tokens": request_body.get("max_completion_tokens"),
+                "started_at": start_iso,
+                "finished_at": _now_iso(),
+                "latency_ms": int((time.perf_counter() - started) * 1000),
+                "outcome": outcome,
+                "error": str(exc),
+            },
+        )
+        raise
+    try:
+        if response.status_code >= 400:
+            raise RuntimeError(f"openai_error_{response.status_code}:{response.text[:300]}")
+        payload = response.json()
+        choices = payload.get("choices") or []
+        if not choices:
+            raise RuntimeError("openai_empty_choices")
+        message = choices[0].get("message") or {}
+        if message.get("refusal"):
+            raise RuntimeError("openai_model_refused")
+        content = message.get("content")
+        if isinstance(content, list):
+            text = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        else:
+            text = str(content or "")
+        if not text.strip():
+            raise RuntimeError("openai_empty_content")
+        try:
+            parsed = json.loads(text)
+        except Exception as exc:  # pragma: no cover - defensive for provider drift
+            raise RuntimeError(f"openai_invalid_json:{exc}") from exc
+        if not isinstance(parsed, dict):
+            raise RuntimeError("openai_json_not_object")
+    except Exception as exc:
+        logger.warning(
+            "preview_openai_step_end",
+            extra={
+                "schema_name": schema_name,
+                "model": model_name,
+                "transform_type": transform_type,
+                "reasoning_effort": reasoning_effort,
+                "prompt_chars": prompt_chars,
+                "timeout_seconds": request_timeout,
+                "max_output_tokens": request_body.get("max_completion_tokens"),
+                "started_at": start_iso,
+                "finished_at": _now_iso(),
+                "latency_ms": int((time.perf_counter() - started) * 1000),
+                "outcome": "error",
+                "error": str(exc),
+            },
+        )
+        raise
+    logger.info(
+        "preview_openai_step_end",
+        extra={
+            "schema_name": schema_name,
+            "model": model_name,
+            "transform_type": transform_type,
+            "reasoning_effort": reasoning_effort,
+            "prompt_chars": prompt_chars,
+            "timeout_seconds": request_timeout,
+            "max_output_tokens": request_body.get("max_completion_tokens"),
+            "started_at": start_iso,
+            "finished_at": _now_iso(),
+            "latency_ms": int((time.perf_counter() - started) * 1000),
+            "outcome": "success",
+        },
+    )
     return parsed
 
 
@@ -1158,6 +1167,10 @@ async def _openai_structured_json_with_fallback(
     schema_name: str,
     model_name: str,
     transform_type: str,
+    max_output_tokens: int | None = None,
+    reasoning_effort_override: str | None = None,
+    timeout_seconds_override: float | None = None,
+    temperature_override: float | None = None,
 ) -> tuple[dict[str, Any], str]:
     """Call with primary model; fall back on schema/refusal error."""
     try:
@@ -1167,6 +1180,10 @@ async def _openai_structured_json_with_fallback(
             schema_name=schema_name,
             model_name=model_name,
             transform_type=transform_type,
+            max_output_tokens=max_output_tokens,
+            reasoning_effort_override=reasoning_effort_override,
+            timeout_seconds_override=timeout_seconds_override,
+            temperature_override=temperature_override,
         )
         return result, model_name
     except RuntimeError as exc:
@@ -1182,36 +1199,13 @@ async def _openai_structured_json_with_fallback(
                 schema_name=schema_name,
                 model_name=fallback,
                 transform_type=transform_type,
+                max_output_tokens=max_output_tokens,
+                reasoning_effort_override=reasoning_effort_override,
+                timeout_seconds_override=timeout_seconds_override,
+                temperature_override=temperature_override,
             )
             return result, fallback
         raise
-
-
-def _combined_messages(req: WebPresetPreviewBatchRequest) -> list[dict[str, str]]:
-    preprocessed_research = _preprocessed_raw_research(req)
-    payload = {
-        "prospect": req.prospect.model_dump(),
-        "product_context": req.product_context.model_dump(),
-        "raw_research": preprocessed_research,
-        "global_sliders": req.global_sliders.model_dump(),
-        "presets": [item.model_dump() for item in req.presets],
-        "offer_lock": req.offer_lock,
-        "cta_lock_text": req.cta_lock_text or req.cta_lock or "",
-        "cta_type": req.cta_type,
-        "hook_strategy": req.hook_strategy,
-    }
-    user_prompt = (
-        "INPUTS:\n"
-        f"{json.dumps(payload, indent=2, ensure_ascii=False)}\n\n"
-        "TASK:\n"
-        "Step 1: Extract summary_pack from raw_research (facts, hooks, likely_priorities, keywords).\n"
-        "Step 2: Using that summary_pack, generate previews for ALL presets.\n"
-        "Return both summary_pack and previews in one JSON response."
-    )
-    return [
-        {"role": "system", "content": _COMBINED_SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
-    ]
 
 
 def _is_cta_like_sentence(sentence: str, canonical_cta: str) -> bool:
@@ -1236,16 +1230,6 @@ def _strip_cta_lines_from_draft(draft_body: str, canonical_cta: str) -> str:
             continue
         kept.append(_collapse_ws(sentence))
     return " ".join(item for item in kept if item).strip()
-
-
-def _sanitize_summary_pack(raw: dict[str, Any], req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
-    data = raw.get("summary_pack", {}) if isinstance(raw, dict) else {}
-    try:
-        pack = WebSummaryPack.model_validate(data)
-    except Exception:
-        pack = _mock_summary_pack(req)
-    pack.likely_priorities = _ensure_likely_prefix(pack.likely_priorities)
-    return pack
 
 
 def _violation_messages(previews: list[WebPreviewItem], req: WebPresetPreviewBatchRequest) -> list[str]:
@@ -1534,6 +1518,71 @@ def _mock_previews(req: WebPresetPreviewBatchRequest, summary_pack: WebSummaryPa
     return _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=[])
 
 
+async def _generate_raw_preview_items(
+    *,
+    req: WebPresetPreviewBatchRequest,
+    summary_pack: WebSummaryPack,
+    repair_enabled: bool,
+    throttled: bool,
+) -> tuple[list[dict[str, Any]], str, int, int, int, bool]:
+    provider_attempt_count = 1
+    validator_attempt_count = 1
+    repair_attempt_count = 0
+    repaired = False
+    model_name = _generator_model()
+
+    messages = _generator_messages(req, summary_pack)
+    raw, model_name = await _openai_structured_json_with_fallback(
+        messages=messages,
+        schema=_GENERATOR_SCHEMA,
+        schema_name="preset_preview_batch",
+        model_name=model_name,
+        transform_type="rendering",
+        max_output_tokens=_generator_output_token_budget(req),
+    )
+    try:
+        raw_items = _validate_generator_output(raw)
+        return (
+            raw_items,
+            model_name,
+            provider_attempt_count,
+            validator_attempt_count,
+            repair_attempt_count,
+            repaired,
+        )
+    except RuntimeError as exc:
+        if "preview_output_validation_failed" not in str(exc) or throttled or not repair_enabled:
+            raise
+        repair_attempt_count = 1
+        repaired = True
+        provider_attempt_count += 1
+        validator_attempt_count += 1
+        repair_notes = [
+            "Schema validation failed. Return strict JSON only.",
+            "Each item must include only preset_id, subject, and body.",
+        ]
+        repaired_raw, model_name = await _openai_structured_json_with_fallback(
+            messages=_generator_messages(req, summary_pack, repair_notes=repair_notes),
+            schema=_GENERATOR_SCHEMA,
+            schema_name="preset_preview_batch_repair",
+            model_name=model_name,
+            transform_type="rewrite",
+            max_output_tokens=400,
+            reasoning_effort_override="low",
+            timeout_seconds_override=30.0,
+            temperature_override=0.0,
+        )
+        repaired_items = _validate_generator_output(repaired_raw)
+        return (
+            repaired_items,
+            model_name,
+            provider_attempt_count,
+            validator_attempt_count,
+            repair_attempt_count,
+            repaired,
+        )
+
+
 async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: bool = False) -> PipelineResult:
     started = time.perf_counter()
     mode = _quick_mode()
@@ -1548,88 +1597,127 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
     repaired = False
     initial_violation_count = 0
     final_violation_count = 0
+    status = "success"
+    degraded_reason: str | None = None
 
     summary_pack = await _load_cached_summary(req)
     if summary_pack is not None:
         cache_hit = True
+    else:
+        summary_pack = _mock_summary_pack(req)
+        await _save_cached_summary(req, summary_pack)
 
     all_violations: list[str] = []
+    previews: list[WebPreviewItem]
+    final_violations: list[str]
 
     if mode == "real":
         provider = "openai"
-        validator_attempt_count = 1
-        if cache_hit:
-            # Cache hit: summary_pack from Redis; one generator call
-            provider_attempt_count += 1
-            generator_model = _generator_model()
-            raw, model_name = await _openai_structured_json_with_fallback(
-                messages=_generator_messages(req, summary_pack),
-                schema=_GENERATOR_SCHEMA,
-                schema_name="preset_preview_batch",
-                model_name=generator_model,
-                transform_type="rendering",
+        try:
+            (
+                raw_items,
+                model_name,
+                provider_attempt_count,
+                validator_attempt_count,
+                repair_attempt_count,
+                repaired,
+            ) = await _generate_raw_preview_items(
+                req=req,
+                summary_pack=summary_pack,
+                repair_enabled=repair_enabled,
+                throttled=throttled,
             )
-            raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
-        else:
-            # Cache miss: separate extraction (high effort) and rendering (low effort).
-            provider_attempt_count += 1
-            extractor_raw, _ = await _openai_structured_json_with_fallback(
-                messages=_extractor_messages(req),
-                schema=_EXTRACTOR_SCHEMA,
-                schema_name="preset_preview_extractor",
-                model_name=_extractor_model(),
-                transform_type="extraction",
-            )
-            summary_pack = _sanitize_summary_pack(extractor_raw, req)
-            await _save_cached_summary(req, summary_pack)
-            provider_attempt_count += 1
-            raw, model_name = await _openai_structured_json_with_fallback(
-                messages=_generator_messages(req, summary_pack),
-                schema=_GENERATOR_SCHEMA,
-                schema_name="preset_preview_batch",
-                model_name=_generator_model(),
-                transform_type="rendering",
-            )
-            raw_items = raw.get("previews", []) if isinstance(raw, dict) else []
-        previews = _normalize_preview_items(req=req, summary_pack=summary_pack, raw_items=raw_items if isinstance(raw_items, list) else [])
-        violations = _violation_messages(previews, req)
-        initial_violation_count = len(violations)
-        all_violations.extend(violations)
-        final_violations = violations
-        if violations and enforcement_level == "repair" and repair_enabled and not throttled:
-            repair_attempt_count = 1
-            repaired = True
-            provider_attempt_count += 1
-            validator_attempt_count += 1
-            repaired_raw, _ = await _openai_structured_json_with_fallback(
-                messages=_generator_messages(req, summary_pack, repair_notes=violations[:10]),
-                schema=_GENERATOR_SCHEMA,
-                schema_name="preset_preview_batch_repair",
-                model_name=model_name,
-                transform_type="rewrite",
-            )
-            repaired_items = repaired_raw.get("previews", []) if isinstance(repaired_raw, dict) else []
             previews = _normalize_preview_items(
                 req=req,
                 summary_pack=summary_pack,
-                raw_items=repaired_items if isinstance(repaired_items, list) else [],
+                raw_items=raw_items,
+            )
+        except Exception as exc:
+            provider_attempt_count = max(provider_attempt_count, 1)
+            validator_attempt_count = max(validator_attempt_count, 1)
+            status = "degraded"
+            degraded_reason = "timeout" if _is_timeout_error(exc) else "provider_error"
+            logger.warning(
+                "preview_generation_degraded",
+                extra={
+                    "reason": degraded_reason,
+                    "error": str(exc),
+                    "model": model_name,
+                    "started_at": _now_iso(),
+                },
+            )
+            previews = _mock_previews(req, summary_pack)
+    else:
+        previews = _mock_previews(req, summary_pack)
+
+    violations = _violation_messages(previews, req)
+    initial_violation_count = len(violations)
+    all_violations.extend(violations)
+    final_violations = violations
+
+    if (
+        violations
+        and mode == "real"
+        and status == "success"
+        and enforcement_level == "repair"
+        and repair_enabled
+        and not throttled
+    ):
+        try:
+            repair_attempt_count += 1
+            repaired = True
+            provider_attempt_count += 1
+            validator_attempt_count += 1
+            repaired_raw, model_name = await _openai_structured_json_with_fallback(
+                messages=_generator_messages(req, summary_pack, repair_notes=violations[:10]),
+                schema=_GENERATOR_SCHEMA,
+                schema_name="preset_preview_batch_compliance_repair",
+                model_name=model_name,
+                transform_type="rewrite",
+                max_output_tokens=400,
+                reasoning_effort_override="low",
+                timeout_seconds_override=30.0,
+                temperature_override=0.0,
+            )
+            repaired_items = _validate_generator_output(repaired_raw)
+            previews = _normalize_preview_items(
+                req=req,
+                summary_pack=summary_pack,
+                raw_items=repaired_items,
             )
             final_violations = _violation_messages(previews, req)
             all_violations.extend(final_violations)
-        final_violation_count = len(final_violations)
-        if final_violations and enforcement_level in {"repair", "block"}:
-            raise ValueError(f"preview_validation_failed: {'; '.join(final_violations)}")
-    else:
-        if not cache_hit:
-            summary_pack = _mock_summary_pack(req)
-            await _save_cached_summary(req, summary_pack)
+        except Exception as exc:
+            status = "degraded"
+            degraded_reason = "timeout" if _is_timeout_error(exc) else "repair_error"
+            logger.warning(
+                "preview_compliance_repair_degraded",
+                extra={
+                    "reason": degraded_reason,
+                    "error": str(exc),
+                    "model": model_name,
+                },
+            )
+            previews = _mock_previews(req, summary_pack)
+            final_violations = _violation_messages(previews, req)
+            all_violations.extend(final_violations)
+
+    if final_violations and enforcement_level in {"repair", "block"}:
+        status = "degraded"
+        degraded_reason = degraded_reason or "validation_failed"
         previews = _mock_previews(req, summary_pack)
         final_violations = _violation_messages(previews, req)
         all_violations.extend(final_violations)
-        initial_violation_count = len(final_violations)
-        final_violation_count = len(final_violations)
-        if final_violations and enforcement_level in {"repair", "block"}:
-            raise ValueError(f"preview_validation_failed: {'; '.join(final_violations)}")
+        logger.warning(
+            "preview_validation_degraded",
+            extra={
+                "reason": degraded_reason,
+                "enforcement_level": enforcement_level,
+                "violation_count": len(final_violations),
+            },
+        )
+
+    final_violation_count = len(final_violations)
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     return PipelineResult(
@@ -1651,6 +1739,8 @@ async def run_preview_pipeline(req: WebPresetPreviewBatchRequest, throttled: boo
         violation_count=len(all_violations),
         enforcement_level=enforcement_level,
         repair_loop_enabled=repair_enabled,
+        status=status,
+        degraded_reason=degraded_reason,
     )
 
 
@@ -1682,6 +1772,8 @@ def make_response(
             violation_count=result.violation_count,
             enforcement_level=result.enforcement_level,
             repair_loop_enabled=result.repair_loop_enabled,
+            status=result.status,
+            degraded_reason=result.degraded_reason,
             cache_hit=result.cache_hit,
             latency_ms=result.latency_ms,
             flags_effective=flags_effective,

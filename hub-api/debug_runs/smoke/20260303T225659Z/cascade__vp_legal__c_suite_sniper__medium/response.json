@@ -1,0 +1,99 @@
+{
+  "previews": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "effective_sliders": {
+        "formality": 50,
+        "brevity": 50,
+        "directness": 50,
+        "personalization": 50
+      },
+      "vibeLabel": "Professional and direct",
+      "vibeTags": [
+        "Legal",
+        "Brand Protection",
+        "E-commerce"
+      ],
+      "whyItWorks": [
+        "Highlights legal risk without automation.",
+        "Focuses on decision-maker role.",
+        "Emphasizes scalable solutions."
+      ],
+      "subject": "Addressing trademark risks at Cascade",
+      "body": "Hi Robert, Kline manages legal and compliance at Cascade commerce group, facing growing trademark infringement complaints. Manual processes are overwhelmed, risking legal exposure. Corsearch offers automated trademark protection, brand monitoring, and infringement detection. A quick 15-minute chat can explore how we support scalable brand protection. Cascade commerce group operates an e-commerce marketplace platform serving 8,000+ third-party sellers across home goods, apparel, and consumer electronics. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "11bb2e8e-1afa-47ac-bed8-7e66de56c86d",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 0,
+    "final_violation_count": 0,
+    "violation_codes": [],
+    "violation_count": 0,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": false,
+    "latency_ms": 2138,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": []
+      },
+      "final_email": {
+        "len_chars": 771,
+        "checksum": "32233a98142a07b06aa0d5ccd0093a338853a0a7ec43dc984d472e4f21da19a6"
+      }
+    }
+  },
+  "summary_pack": null
+}

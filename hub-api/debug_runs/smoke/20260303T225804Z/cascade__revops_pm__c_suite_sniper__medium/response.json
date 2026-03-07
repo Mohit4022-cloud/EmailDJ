@@ -1,0 +1,103 @@
+{
+  "previews": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "effective_sliders": {
+        "formality": 50,
+        "brevity": 50,
+        "directness": 50,
+        "personalization": 50
+      },
+      "vibeLabel": "Professional and direct",
+      "vibeTags": [
+        "Business",
+        "Concise",
+        "Impactful"
+      ],
+      "whyItWorks": [
+        "Focuses on strategic IP enforcement benefits.",
+        "Highlights risk of partner churn.",
+        "Offers a quick, targeted meeting."
+      ],
+      "subject": "Strengthen Your Brand Protection",
+      "body": "Hi Alex, managing brand partnerships at Cascade, faces rising counterfeiting issues. Corsearch offers trademark watching and online brand protection to help automate enforcement and reduce partner churn. Let\u2019s discuss how a 15-minute call can address your IP challenges. Cascade commerce group operates an e-commerce marketplace platform serving 8,000+ third-party sellers across home goods, apparel, and consumer electronics. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "8f4e3360-397e-475a-bfae-5445c7330a28",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 1,
+    "final_violation_count": 1,
+    "violation_codes": [
+      "c_suite_sniper"
+    ],
+    "violation_count": 1,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": false,
+    "latency_ms": 3036,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": [
+          "c_suite_sniper"
+        ]
+      },
+      "final_email": {
+        "len_chars": 684,
+        "checksum": "7ccef14a4a3e643b3dda7226ff0a8f08a91f8ca5bb0427e4b6656cfb20666239"
+      }
+    }
+  },
+  "summary_pack": null
+}

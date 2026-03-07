@@ -1,0 +1,17 @@
+{
+  "case_id": "acme__vp_legal__straight_shooter__medium",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_PROSPECT_OWNS_OFFER"
+  ],
+  "word_count": 104,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Ownership: found 'your trademark'"
+  ]
+}

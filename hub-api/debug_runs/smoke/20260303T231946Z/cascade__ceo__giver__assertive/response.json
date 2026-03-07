@@ -1,0 +1,102 @@
+{
+  "previews": [
+    {
+      "preset_id": "giver",
+      "label": "Giver",
+      "effective_sliders": {
+        "formality": 35,
+        "brevity": 60,
+        "directness": 85,
+        "personalization": 65
+      },
+      "vibeLabel": "Professional",
+      "vibeTags": [
+        "Brand Protection",
+        "E-commerce"
+      ],
+      "whyItWorks": [
+        "Addresses counterfeiting issues directly",
+        "Highlights brand trust focus",
+        "Mentions automated detection tools"
+      ],
+      "subject": "Protect Your Brand from Counterfeits",
+      "body": "Hi Elena, Cascade operates an e-commerce marketplace with over strong outcomes, facing challenges from counterfeit and trademark infringement. Elena is focused on building brand trust and has invested in brand registry. Corsearch offers trademark watching and online brand protection, which can help automate detection and enforcement.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "d44d6182-91e5-4769-bf94-e999b47d4776",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 2,
+    "final_violation_count": 2,
+    "violation_codes": [
+      "giver"
+    ],
+    "violation_count": 2,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": true,
+    "latency_ms": 2228,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": [
+          "giver"
+        ]
+      },
+      "final_email": {
+        "len_chars": 430,
+        "checksum": "a0b1d24b30d0908e01dafe94e6d9f2c768f5da15543b38027e2ab9e49bb0345a"
+      }
+    }
+  },
+  "summary_pack": null
+}

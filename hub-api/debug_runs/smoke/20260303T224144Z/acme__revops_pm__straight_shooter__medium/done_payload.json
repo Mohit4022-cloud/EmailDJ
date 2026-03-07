@@ -1,0 +1,108 @@
+{
+  "request_id": "13bf7d15-f1ac-4417-bb4f-2282167e17e0",
+  "session_id": "5241f406-16f3-4b70-9d63-8b6f2550bc77",
+  "generation_id": "1a9881dd-ea58-43c9-bea8-767663a77f62",
+  "draft_id": 1,
+  "sequence": 108,
+  "timestamp": 1772577712.31198,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "straight_shooter",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": false,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+    "FEATURE_LOSSLESS_STREAMING": false,
+    "FEATURE_FLUENCY_REPAIR": false,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": false,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+    "FEATURE_PRESET_TRUE_REWRITE": false
+  },
+  "mode": "real",
+  "provider": "openai",
+  "model": "gpt-4.1-nano",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 1,
+  "validator_attempt_count": 1,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Streamlining Trademark Workflows at Acme Consumer Brands",
+    "body": "Hi Jordan, Jordan is a program manager in the operations division at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Streamlining Trademark Workflows at Acme Consumer Brands\nBody:\nHi Jordan, Jordan is a program manager in the operations division at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 3,
+      "types": [
+        "initiative",
+        "ops"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "straight_shooter",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 750,
+      "checksum": "f184b0cb7bb70487fff89b1020d6a6e3b5a38b9fcd5c97dc0dde8821f0bcdd48"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "63501cbce8a4dc62",
+        "combined": "762883f1fa67d9cb"
+      }
+    }
+  },
+  "stream_chunk_mode": "word_split",
+  "total_chunks": 107,
+  "total_chars": 751,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "8e64c5c4703bb71ecae0478041977aec711021c8fa99220f60d4ced8a54457a9",
+  "stream_integrity_server_ok": true
+}

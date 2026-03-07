@@ -1,0 +1,85 @@
+{
+  "run_id": "small120_20260303T230551Z",
+  "mode": "small120",
+  "timestamp_utc": "2026-03-03T23:10:12.630208Z",
+  "elapsed_seconds": 261.3,
+  "total": 120,
+  "pass": 117,
+  "fail": 3,
+  "errors": 0,
+  "pass_rate_pct": 97.5,
+  "fail_tag_counts": {
+    "FAIL_PROOF_DUMP": 2,
+    "FAIL_CATEGORY_MISMATCH": 1
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__headliner__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 58,
+      "notes": [
+        "Proof dump: 5 capitalized tokens in one sentence: 'Hi Sarah, As CEO of Acme consumer brands since 2022, Sarah Chen has overseen strong outcomes 2024, i'"
+      ],
+      "latency_ms": 2454,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__giver__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 83,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Chen, as CEO of Acme consumer brands since 2022, your focus on international expansion and'"
+      ],
+      "latency_ms": 2257,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__headliner__medium",
+      "fail_tags": [
+        "FAIL_CATEGORY_MISMATCH"
+      ],
+      "word_count": 125,
+      "notes": [
+        "Category mismatch: offer is brand protection but body uses data-security framing: 'cybersecurity'"
+      ],
+      "latency_ms": 2639,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 48,
+      "pass": 46
+    },
+    "practitioner": {
+      "total": 48,
+      "pass": 47
+    },
+    "manager": {
+      "total": 24,
+      "pass": 24
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 30,
+      "pass": 30
+    },
+    "c_suite_sniper": {
+      "total": 30,
+      "pass": 30
+    },
+    "headliner": {
+      "total": 30,
+      "pass": 28
+    },
+    "giver": {
+      "total": 30,
+      "pass": 29
+    }
+  }
+}

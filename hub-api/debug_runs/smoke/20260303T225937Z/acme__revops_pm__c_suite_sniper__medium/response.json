@@ -1,0 +1,102 @@
+{
+  "previews": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "effective_sliders": {
+        "formality": 50,
+        "brevity": 50,
+        "directness": 50,
+        "personalization": 50
+      },
+      "vibeLabel": "Professional",
+      "vibeTags": [
+        "IP Management",
+        "Brand Protection"
+      ],
+      "whyItWorks": [
+        "Streamlining trademark workflows can reduce delays.",
+        "Vendor evaluation for IP tools is ongoing.",
+        "Acme filed strong outcomes 2024."
+      ],
+      "subject": "Enhance Your Trademark Workflow at Acme",
+      "body": "Hi Jordan, Lee, as a program manager at Acme consumer brands, is responsible for project delivery and IP workflow improvements. Their small IP team relies on outside counsel for screening, and they flagged conflicts in European filings. Improving IP management can support faster product launches. Corsearch is the global leader in trademark clearance, brand protection, and IP. We offer trademark watching and online brand protection to help streamline trademark workflows. Acme consumer brands is a mid-size fmcg company headquartered in chicago with a portfolio of household cleaning, personal care, and food products sold across north america and europe.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "3b7c5116-53fe-4780-9739-d1c4c67b5ee4",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 1,
+    "final_violation_count": 1,
+    "violation_codes": [
+      "c_suite_sniper"
+    ],
+    "violation_count": 1,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": true,
+    "latency_ms": 4661,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": [
+          "c_suite_sniper"
+        ]
+      },
+      "final_email": {
+        "len_chars": 756,
+        "checksum": "a469ee5aa2889e703702f151876f9fb12659e89dc7dfdf046c2ecfc3143b3e3a"
+      }
+    }
+  },
+  "summary_pack": null
+}

@@ -1,0 +1,98 @@
+{
+  "previews": [
+    {
+      "preset_id": "headliner",
+      "label": "Headliner",
+      "effective_sliders": {
+        "formality": 35,
+        "brevity": 60,
+        "directness": 85,
+        "personalization": 65
+      },
+      "vibeLabel": "Professional and direct",
+      "vibeTags": [
+        "IP Protection",
+        "Brand Strategy"
+      ],
+      "whyItWorks": [
+        "Trademark clearance speed impacts launch timelines.",
+        "Past conflicts caused costly rebrands or licensing.",
+        "Trademark Watching helps prevent conflicts."
+      ],
+      "subject": "Streamline your trademark clearance process",
+      "body": "Hi Maya, speeding up trademark clearance is key for Meridian health sciences' strong outcomes. Our Trademark search, screening, and brand protection solution offers trademark watching and online brand protection, helping you avoid conflicts and delays. With active trademark filing, efficient IP processes are vital. Meridian health sciences is a mid-stage biotech and specialty pharma company with a pipeline of 8 compounds in clinical development. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "3e69a4ae-e08e-466e-8dcf-e776d4ae1d50",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 0,
+    "final_violation_count": 0,
+    "violation_codes": [],
+    "violation_count": 0,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": true,
+    "latency_ms": 1663,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": []
+      },
+      "final_email": {
+        "len_chars": 718,
+        "checksum": "f828ff2d86d50eedc0f732729d7e1be08d9fbe5e07bc2106f48ae92870e4e1bd"
+      }
+    }
+  },
+  "summary_pack": null
+}

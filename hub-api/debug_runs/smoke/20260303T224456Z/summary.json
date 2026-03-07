@@ -1,0 +1,122 @@
+{
+  "run_id": "smoke_20260303T224456Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-03T22:45:28.051229Z",
+  "elapsed_seconds": 31.9,
+  "total": 30,
+  "pass": 24,
+  "fail": 6,
+  "errors": 0,
+  "pass_rate_pct": 80.0,
+  "fail_tag_counts": {
+    "FAIL_EXEC_TOO_LONG": 6,
+    "FAIL_PROOF_DUMP": 3,
+    "FAIL_PROSPECT_OWNS_OFFER": 1
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_PROSPECT_OWNS_OFFER",
+        "FAIL_EXEC_TOO_LONG",
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 91,
+      "notes": [
+        "Ownership: found 'your trademark'",
+        "Exec email 91 words (title='CEO', limit=90)",
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Sarah, as CEO of Acme, managing brand integrity is key.'"
+      ],
+      "latency_ms": 2642,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG",
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 111,
+      "notes": [
+        "Exec email 111 words (title='CEO', limit=90)",
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Sarah, as CEO of Acme Consumer Brands, your focus on brand integrity and risk management i'"
+      ],
+      "latency_ms": 2698,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG",
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 97,
+      "notes": [
+        "Exec email 97 words (title='CEO', limit=90)",
+        "Proof dump: 4 capitalized tokens in one sentence: 'Our Trademark Search, Screening, and Brand Protection service can help you avoid costly rebrands and'"
+      ],
+      "latency_ms": 2553,
+      "provider": null
+    },
+    {
+      "case_id": "meridian__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 95,
+      "notes": [
+        "Exec email 95 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 2519,
+      "provider": null
+    },
+    {
+      "case_id": "cascade__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 98,
+      "notes": [
+        "Exec email 98 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 3725,
+      "provider": null
+    },
+    {
+      "case_id": "cascade__ceo__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_EXEC_TOO_LONG"
+      ],
+      "word_count": 93,
+      "notes": [
+        "Exec email 93 words (title='CEO', limit=90)"
+      ],
+      "latency_ms": 2864,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 6
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 12
+    },
+    "manager": {
+      "total": 6,
+      "pass": 6
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 12
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 12
+    }
+  }
+}

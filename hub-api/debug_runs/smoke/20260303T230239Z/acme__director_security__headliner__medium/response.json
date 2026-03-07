@@ -1,0 +1,98 @@
+{
+  "previews": [
+    {
+      "preset_id": "headliner",
+      "label": "Headliner",
+      "effective_sliders": {
+        "formality": 50,
+        "brevity": 50,
+        "directness": 50,
+        "personalization": 50
+      },
+      "vibeLabel": "Professional",
+      "vibeTags": [
+        "Security",
+        "BrandProtection"
+      ],
+      "whyItWorks": [
+        "Recent domain spoof incident highlights brand protection needs.",
+        "Collaboration with legal and marketing indicates a focus on brand security.",
+        "Budget authority suggests decision-making power for security tools."
+      ],
+      "subject": "Enhance your brand protection strategy",
+      "body": "Hi David, Given your recent focus on digital brand risk after a spoofed domain incident, you might find value in Corsearch's Trademark search, screening, and brand protection. We are the global leader in trademark clearance and IP protection, with proven solutions like trademark watching and online brand protection. Our tools can help monitor domain abuse and manage trademark conflicts effectively. Acme consumer brands is a mid-size fmcg company headquartered in chicago with a portfolio of household cleaning, personal care, and food products sold across north america and europe.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "dfdc7908-af09-4d79-b4ac-b66d354a5305",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 0,
+    "final_violation_count": 0,
+    "violation_codes": [],
+    "violation_count": 0,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": true,
+    "latency_ms": 2061,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": []
+      },
+      "final_email": {
+        "len_chars": 682,
+        "checksum": "fad18888b0693b5fe9e418a2fe21eca9468a3edcfd7b1cd39f219903c49f00ab"
+      }
+    }
+  },
+  "summary_pack": null
+}

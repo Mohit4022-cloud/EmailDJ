@@ -1,0 +1,109 @@
+{
+  "request_id": "32d97f2e-142d-4aff-bc8e-4bd219a35082",
+  "session_id": "f962a609-03d5-4ac0-a7f8-54ea23ca2a5d",
+  "generation_id": "a0b5ddf2-a13b-4d9d-aff4-db10a15f77a5",
+  "draft_id": 1,
+  "sequence": 110,
+  "timestamp": 1772577726.723831,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "straight_shooter",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": false,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+    "FEATURE_LOSSLESS_STREAMING": false,
+    "FEATURE_FLUENCY_REPAIR": false,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": false,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+    "FEATURE_PRESET_TRUE_REWRITE": false
+  },
+  "mode": "real",
+  "provider": "openai",
+  "model": "gpt-4.1-nano",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 1,
+  "validator_attempt_count": 1,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Supporting your initiative to prevent trademark infringement",
+    "body": "Hi Chris, Chris is responsible for platform integrity, fraud prevention, and seller trust at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Supporting your initiative to prevent trademark infringement\nBody:\nHi Chris, Chris is responsible for platform integrity, fraud prevention, and seller trust at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 3,
+      "types": [
+        "other",
+        "ops",
+        "initiative"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "straight_shooter",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 778,
+      "checksum": "3786b6688fd6e0ccd7aed595d6ec2372e88dc73e0415a0a960ede75f7acc88c2"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "63501cbce8a4dc62",
+        "combined": "762883f1fa67d9cb"
+      }
+    }
+  },
+  "stream_chunk_mode": "word_split",
+  "total_chunks": 109,
+  "total_chars": 779,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "aec30bb96e150f605df53e1b3e7d9786a2104797d97332d8683c7e03787a9af0",
+  "stream_integrity_server_ok": true
+}

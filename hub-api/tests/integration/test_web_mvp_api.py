@@ -677,6 +677,8 @@ async def test_web_preview_batch_endpoint_mock_contract():
         assert isinstance(data["meta"]["violation_count"], int)
         assert data["meta"]["enforcement_level"] in {"warn", "repair", "block"}
         assert isinstance(data["meta"]["repair_loop_enabled"], bool)
+        assert data["meta"]["status"] in {"success", "degraded"}
+        assert data["meta"]["degraded_reason"] is None
 
         subjects = {item["subject"] for item in data["previews"]}
         assert len(subjects) == len(data["previews"])
@@ -688,3 +690,35 @@ async def test_web_preview_batch_endpoint_mock_contract():
             assert 2 <= len(item["vibeTags"]) <= 4
             word_count = len(item["body"].split())
             assert 90 <= word_count <= 130
+
+
+@pytest.mark.asyncio
+async def test_web_preview_batch_endpoint_real_timeout_returns_200_degraded(monkeypatch):
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
+    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["USE_PROVIDER_STUB"] = "0"
+    os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "on"
+
+    import email_generation.preset_preview_pipeline as preview_pipeline
+
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type, **kwargs):  # noqa: ARG001
+        raise preview_pipeline.httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(preview_pipeline, "_openai_structured_json_with_fallback", fake_openai_with_fallback)
+
+    from main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        res = await client.post("/web/v1/preset-previews/batch", json=_preview_batch_payload(), headers=_headers())
+        assert res.status_code == 200
+        data = res.json()
+        assert data["meta"]["status"] == "degraded"
+        assert data["meta"]["degraded_reason"] == "timeout"
+        assert len(data["previews"]) == 2

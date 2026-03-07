@@ -22,6 +22,10 @@ _DELIVERABLE_PATTERN = re.compile(
     r"\b(?:teardown|workflow|examples?|audit|breakdown|findings?|enforcement)\b",
     re.IGNORECASE,
 )
+_EXEC_TITLES_RE = re.compile(
+    r"\b(ceo|chief executive officer|founder|co-founder|president|chief of staff)\b",
+    re.IGNORECASE,
+)
 
 # ---------------------------------------------------------------------------
 # Patterns from compliance_rules.py
@@ -83,6 +87,16 @@ def _either_or_suffix() -> str:
     return "Worth a look / Not a priority?"
 
 
+def _allow_either_or_suffix(*, preset_id: str | None = None, prospect_title: str | None = None) -> bool:
+    preset = compact(preset_id).lower()
+    title = compact(prospect_title)
+    if preset == "straight_shooter":
+        return False
+    if _EXEC_TITLES_RE.search(title):
+        return False
+    return True
+
+
 def _normalize_cta_type(value: str | None) -> str:
     return (value or "").strip().lower() or "time_ask"
 
@@ -92,11 +106,15 @@ def render_cta(
     cta_type: str | None,
     risk_surface: str,
     directness: int,
+    preset_id: str | None = None,
+    prospect_title: str | None = None,
     minutes: int = 15,
 ) -> str:
     bounded_minutes = 20 if minutes >= 20 else 15
     surface = compact(risk_surface) or "your highest-risk surface"
     kind = _normalize_cta_type(cta_type)
+    allow_suffix = _allow_either_or_suffix(preset_id=preset_id, prospect_title=prospect_title)
+    suffix = f" {_either_or_suffix()}" if allow_suffix else ""
 
     if kind == "curiosity":
         prefix = "Curious if this is useful"
@@ -125,25 +143,25 @@ def render_cta(
     if kind == "objection_friendly":
         return (
             f"Open to a {bounded_minutes}-min call so I can share a quick teardown of {surface} "
-            f"+ what we'd automate first? {_either_or_suffix()}"
+            f"+ what we'd automate first?{suffix}"
         )
 
     # Backward-compatible legacy CTA styles.
     if kind in {"value_asset"}:
         return (
             f"If you're open, I can send 3 examples we usually find on {surface} in week 1 "
-            f"and the workflow we'd recommend first. {_either_or_suffix()}"
+            f"and the workflow we'd recommend first.{suffix}"
         )
     if kind in {"pilot", "event_invite"}:
         return (
             f"Open to a {bounded_minutes}-min call so I can share a quick teardown of {surface} "
-            f"+ what we'd automate first? {_either_or_suffix()}"
+            f"+ what we'd automate first?{suffix}"
         )
     if kind in {"time_ask", "question"}:
         tone = "Open to" if directness >= 50 else "If useful, open to"
         return (
             f"{tone} a {bounded_minutes}-min call to share a quick teardown of {surface} "
-            f"and a recommended enforcement workflow? {_either_or_suffix()}"
+            f"and a recommended enforcement workflow?{suffix}"
         )
 
     # Default = calendar
@@ -160,6 +178,8 @@ def resolve_cta_lock(
     cta_type: str | None,
     risk_surface: str,
     directness: int,
+    preset_id: str | None = None,
+    prospect_title: str | None = None,
 ) -> str:
     lock = compact(existing_lock)
     if lock:
@@ -169,6 +189,8 @@ def resolve_cta_lock(
         cta_type=cta_type,
         risk_surface=risk_surface,
         directness=directness,
+        preset_id=preset_id,
+        prospect_title=prospect_title,
         minutes=minutes,
     )
 

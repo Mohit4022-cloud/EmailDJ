@@ -1,0 +1,19 @@
+{
+  "case_id": "meridian__ceo__c_suite_sniper__medium",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_EXEC_TOO_LONG",
+    "FAIL_PROOF_DUMP"
+  ],
+  "word_count": 97,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Exec email 97 words (title='CEO', limit=90)",
+    "Proof dump: 4 capitalized tokens in one sentence: 'Our Trademark Search, Screening, and Brand Protection service can help you avoid costly rebrands and'"
+  ]
+}

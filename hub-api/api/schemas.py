@@ -330,6 +330,8 @@ class WebPreviewBatchMeta(BaseModel):
     violation_count: int = Field(default=0, ge=0)
     enforcement_level: Literal["warn", "repair", "block"] = "repair"
     repair_loop_enabled: bool = True
+    status: Literal["success", "degraded"] = "success"
+    degraded_reason: str | None = None
     cache_hit: bool
     latency_ms: int = Field(ge=0)
     flags_effective: dict[str, bool] | None = None

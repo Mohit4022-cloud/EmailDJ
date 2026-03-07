@@ -1,0 +1,100 @@
+{
+  "previews": [
+    {
+      "preset_id": "straight_shooter",
+      "label": "Straight Shooter",
+      "effective_sliders": {
+        "formality": 45,
+        "brevity": 60,
+        "directness": 35,
+        "personalization": 45
+      },
+      "vibeLabel": "Straight Shooter",
+      "vibeTags": [
+        "Casual",
+        "Diplomatic",
+        "Detailed",
+        "General"
+      ],
+      "whyItWorks": [
+        "Uses stated facts without overstating certainty.",
+        "Matches tone through clear slider controls.",
+        "Ends with one specific, low-friction CTA."
+      ],
+      "subject": "Palantir Straight angle 1",
+      "body": "Hi Ryan, Lead with this signal: Current Financial Status (march 2, 2026) stock symbol:. Trademark search, screening, and brand protection is built to Palantir Technologies is an American software company that develops data integra. From our side, teams usually start with trademark watching and online brand protection. My read is that your team may be prioritizing improving Chief Revenue Officer team reply quality. The practical win is reducing counterfeit exposure while improving enforcement throughput.\n\nIf useful, open to a 15-min call to share a quick teardown of Trademark Search, Screening, and Brand Protection and a recommended enforcement workflow?"
+    }
+  ],
+  "meta": {
+    "request_id": "b4549310-5810-464f-b0e7-ab237b62f5b6",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "mock",
+    "provider": "mock",
+    "model": "mock",
+    "provider_attempt_count": 0,
+    "validator_attempt_count": 0,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 0,
+    "final_violation_count": 0,
+    "violation_codes": [],
+    "violation_count": 0,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": false,
+    "latency_ms": 5,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "b1ebd29db2353800",
+        "generator": "4ecff94041f29e8c",
+        "combined": "9e5df72cfcc6bd48"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "fallback_parser",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": []
+      },
+      "final_email": {
+        "len_chars": 702,
+        "checksum": "c2366db487372f95142eb318ce7e9161f78e551ccbe158a04772910654b52a95"
+      }
+    }
+  },
+  "summary_pack": null
+}

@@ -1,0 +1,170 @@
+{
+  "run_id": "small120_20260303T230239Z",
+  "mode": "small120",
+  "timestamp_utc": "2026-03-03T23:03:01.233725Z",
+  "elapsed_seconds": 21.9,
+  "total": 120,
+  "pass": 26,
+  "fail": 94,
+  "errors": 90,
+  "pass_rate_pct": 21.7,
+  "fail_tag_counts": {
+    "ERROR": 90,
+    "FAIL_PROOF_DUMP": 3,
+    "FAIL_CATEGORY_MISMATCH": 1
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__headliner__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 55,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Chen, as CEO of Acme consumer brands since 2022, your focus on brand protection and risk m'"
+      ],
+      "latency_ms": 2066,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__giver__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 58,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Chen, as CEO of Acme consumer brands since 2022, your focus on international expansion and'"
+      ],
+      "latency_ms": 2686,
+      "provider": null
+    },
+    {
+      "case_id": "acme__ceo__giver__assertive",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 87,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Given Acme's recent trademark filings in Europe and your focus on brand protection, I thou'"
+      ],
+      "latency_ms": 2563,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__c_suite_sniper__medium",
+      "fail_tags": [
+        "FAIL_CATEGORY_MISMATCH"
+      ],
+      "word_count": 118,
+      "notes": [
+        "Category mismatch: offer is brand protection but body uses data-security framing: 'cybersecurity'"
+      ],
+      "latency_ms": 2135,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__giver__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__director_security__giver__assertive",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__straight_shooter__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__straight_shooter__assertive",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 2,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__c_suite_sniper__medium",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 1,
+      "provider": null
+    },
+    {
+      "case_id": "acme__revops_pm__c_suite_sniper__assertive",
+      "fail_tags": [
+        "ERROR"
+      ],
+      "word_count": 0,
+      "notes": [
+        "Runner error: HTTP 429: {\"error\":\"rate_limited\"}"
+      ],
+      "latency_ms": 1,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 48,
+      "pass": 13
+    },
+    "practitioner": {
+      "total": 48,
+      "pass": 13
+    },
+    "manager": {
+      "total": 24,
+      "pass": 0
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 30,
+      "pass": 8
+    },
+    "c_suite_sniper": {
+      "total": 30,
+      "pass": 7
+    },
+    "headliner": {
+      "total": 30,
+      "pass": 7
+    },
+    "giver": {
+      "total": 30,
+      "pass": 4
+    }
+  }
+}

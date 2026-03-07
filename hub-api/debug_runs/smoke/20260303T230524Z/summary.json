@@ -1,0 +1,52 @@
+{
+  "run_id": "smoke_20260303T230524Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-03-03T23:05:45.571944Z",
+  "elapsed_seconds": 21.0,
+  "total": 30,
+  "pass": 29,
+  "fail": 1,
+  "errors": 0,
+  "pass_rate_pct": 96.7,
+  "fail_tag_counts": {
+    "FAIL_PROOF_DUMP": 1
+  },
+  "top_10_worst": [
+    {
+      "case_id": "acme__ceo__straight_shooter__medium",
+      "fail_tags": [
+        "FAIL_PROOF_DUMP"
+      ],
+      "word_count": 55,
+      "notes": [
+        "Proof dump: 4 capitalized tokens in one sentence: 'Hi Sarah, Chen, as CEO of Acme consumer brands, focusing on international expansion, might find valu'"
+      ],
+      "latency_ms": 1926,
+      "provider": null
+    }
+  ],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 11
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 12
+    },
+    "manager": {
+      "total": 6,
+      "pass": 6
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 14
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 15
+    }
+  }
+}

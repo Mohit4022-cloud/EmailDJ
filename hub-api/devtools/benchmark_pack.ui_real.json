@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "description": "UI-real regression pack from Mohit defaults (Palantir) with dirty Wikipedia-style variants",
+    "presets": ["straight_shooter"],
+    "slider_configs": {
+      "medium": {
+        "formality": -0.1,
+        "orientation": -0.1,
+        "length": -0.2,
+        "assertiveness": -0.3
+      }
+    }
+  },
+  "seller": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "offer_lock": "Trademark Search, Screening, and Brand Protection",
+    "cta_offer_lock": "If useful, open to a 15-min call to share a quick teardown of Trademark Search, Screening, and Brand Protection and a recommended enforcement workflow?",
+    "cta_type": "time_ask",
+    "other_products": "Trademark Watching\nOnline Brand Protection\nDomain Monitoring",
+    "company_notes": "Palantir Technologies is an American software company that develops data integration and analytics platforms for government agencies, militaries, and large corporations.\nWikipedia\nWikipedia\n+1\nCurrent Financial Status (March 2, 2026)\nStock Symbol: PLTR (Nasdaq).\nStock Price: Trending Up. Shares jumped over 6% today following rising geopolitical tensions in the Middle East and a surge in defense-related stocks.\nMarket Capitalization: Exceeds $400 billion.\nProfitability: Reported record revenue growth of 70% year-over-year in late 2025 and is consistently profitable under GAAP metrics.\nWikipedia\nWikipedia\n+4\nCore Platforms\nPalantir Gotham: Primarily used by defense and intelligence agencies (e.g., CIA, FBI, DoD) to identify patterns in disparate datasets.\nPalantir Foundry: A \"central operating system\" for commercial and civil data. It is widely used in healthcare, manufacturing, and supply chain management.\nPalantir AIP (Artificial Intelligence Platform): Integrates large language models (LLMs) into private networks to automate decision-making.\nPalantir Apollo: A control layer that manages the deployment and delivery of software across diverse environments, from data centers to \"the edge\".\nWikipedia\nWikipedia\n+7\nKey Recent Developments\nHeadquarters Move: In February 2026, the company announced it is moving its headquarters from Denver, Colorado, to Miami (Aventura), Florida.\nGovernment Partnerships:\nThe U.S. Navy awarded a nearly $1 billion software contract in late 2024.\nUnder the second Trump administration, Palantir has been selected to help the Department of Government Efficiency (DOGE) compile a master database for immigration enforcement and potential deportations.\nNVIDIA Collaboration: Partnered with NVIDIA to integrate GPU-accelerated computing and specialized AI agents into its Palantir AIP framework."
+  },
+  "companies": [
+    {
+      "id": "palantir",
+      "name": "Palantir",
+      "company_url": "https://www.palantir.com",
+      "company_notes": "Palantir Technologies is an American software company that develops data integration and analytics platforms for government agencies, militaries, and large corporations.\nWikipedia\nWikipedia\n+1\nCurrent Financial Status (March 2, 2026)\nStock Symbol: PLTR (Nasdaq).\nStock Price: Trending Up. Shares jumped over 6% today following rising geopolitical tensions in the Middle East and a surge in defense-related stocks.\nMarket Capitalization: Exceeds $400 billion.\nProfitability: Reported record revenue growth of 70% year-over-year in late 2025 and is consistently profitable under GAAP metrics.\nWikipedia\nWikipedia\n+4\nCore Platforms\nPalantir Gotham: Primarily used by defense and intelligence agencies (e.g., CIA, FBI, DoD) to identify patterns in disparate datasets.\nPalantir Foundry: A \"central operating system\" for commercial and civil data. It is widely used in healthcare, manufacturing, and supply chain management.\nPalantir AIP (Artificial Intelligence Platform): Integrates large language models (LLMs) into private networks to automate decision-making.\nPalantir Apollo: A control layer that manages the deployment and delivery of software across diverse environments, from data centers to \"the edge\".\nWikipedia\nWikipedia\n+7\nKey Recent Developments\nHeadquarters Move: In February 2026, the company announced it is moving its headquarters from Denver, Colorado, to Miami (Aventura), Florida.\nGovernment Partnerships:\nThe U.S. Navy awarded a nearly $1 billion software contract in late 2024.\nUnder the second Trump administration, Palantir has been selected to help the Department of Government Efficiency (DOGE) compile a master database for immigration enforcement and potential deportations.\nNVIDIA Collaboration: Partnered with NVIDIA to integrate GPU-accelerated computing and specialized AI agents into its Palantir AIP framework.",
+      "personas": [
+        {
+          "id": "alex_karp",
+          "name": "Alex Karp",
+          "title": "CEO",
+          "persona_type": "exec",
+          "research_text": "Alex Karp is an American businessman and CEO of Palantir. Wikipedia notes he co-founded the company and still drives strategy. Palantir Technologies is an American software company that develops data integration and analytics platforms for governments and enterprises. Wikipedia"
+        },
+        {
+          "id": "shyam_sankar",
+          "name": "Shyam Sankar",
+          "title": "Chief Technology Officer",
+          "persona_type": "exec",
+          "research_text": "Shyam Sankar is an American technology executive at Palantir. Wikipedia. He has spoken about operationalizing AI in government and defense environments while scaling delivery for enterprise users. Palantir is an American software company with a large federal footprint. Wikipedia"
+        },
+        {
+          "id": "ryan_taylor",
+          "name": "Ryan Taylor",
+          "title": "Chief Revenue Officer",
+          "persona_type": "exec",
+          "research_text": "Ryan Taylor is an American commercial leader at Palantir. Wikipedia profiles his focus on enterprise growth, regulated industries, and scaling account teams. Palantir Technologies is an American software company and is often described with Wikipedia-style corporate language. Wikipedia"
+        },
+        {
+          "id": "head_brand_risk",
+          "name": "Jordan Miles",
+          "title": "Head of Brand Risk Operations",
+          "persona_type": "practitioner",
+          "research_text": "Jordan Miles leads brand-risk operations at Palantir across government and commercial messaging programs. Wikipedia-style summaries often start with 'is an American' biography language, which can pollute outreach openers if unfiltered. Wikipedia"
+        }
+      ]
+    }
+  ]
+}

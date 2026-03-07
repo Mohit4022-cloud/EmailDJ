@@ -25,6 +25,14 @@ _NON_CLAIM_NUMERIC_CONTEXT_PATTERN = re.compile(
     r"|examples?|samples?|steps?|points?|items?|calls?|workflows?|teardowns?|audits?)\b",
     re.IGNORECASE,
 )
+_SPECIFIC_SOUNDING_VAGUE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bhelps?\s+protect\s+growth\b", re.IGNORECASE),
+    re.compile(r"\bprotects?\s+growth\b", re.IGNORECASE),
+    re.compile(r"\bimproves?\s+visibility\b(?!\s+(?:into|across|for|over|on|within)\b)", re.IGNORECASE),
+    re.compile(r"\bsupports?\s+expansion\b(?!\s+(?:into|across|for|of|within)\b)", re.IGNORECASE),
+    re.compile(r"\breduces?\s+risk\b(?!\s+(?:for|around|from|of|across|in|within)\b)", re.IGNORECASE),
+    re.compile(r"\bstrong\s+outcomes\b", re.IGNORECASE),
+)
 
 _ABSOLUTE_SOFTEN = {
     "guarantee": "aim to",
@@ -154,31 +162,69 @@ def _soften_absolute(match: re.Match[str]) -> str:
 def _rewrite_numeric_metric(match: re.Match[str]) -> str:
     text = match.group(0).lower()
     if "marketplace" in text:
-        return "many marketplaces"
+        return "marketplace coverage"
     if "compliance rate" in text:
-        return "strong compliance"
+        return "compliance support"
     if "accuracy rate" in text:
-        return "strong accuracy"
+        return "accuracy-focused workflows"
     if "x" in text or "times" in text:
-        return "meaningful improvement"
-    return "significant improvement"
+        return "workflow improvement"
+    return "operational improvement"
 
 
 def _rewrite_numeric_snippet(match_text: str) -> str:
     text = _compact(match_text).lower()
     if "marketplace" in text:
-        return "many marketplaces"
+        return "marketplace coverage"
     if "fortune" in text:
-        return "large enterprises"
+        return "large enterprise teams"
     if "customer" in text:
-        return "many customers"
+        return "customer teams"
     if "roi" in text:
-        return "strong ROI potential"
+        return "commercial upside"
     if "compliance" in text:
-        return "strong compliance"
+        return "compliance support"
     if "accuracy" in text:
-        return "strong accuracy"
-    return "strong outcomes"
+        return "accuracy-focused workflows"
+    if any(token in text for token in ("accounts", "regions", "countries")):
+        return "broader coverage"
+    return "operational support"
+
+
+def find_specific_sounding_vagueness(text: str) -> list[str]:
+    body = _compact(text)
+    if not body:
+        return []
+    violations: list[str] = []
+    for pattern in _SPECIFIC_SOUNDING_VAGUE_PATTERNS:
+        for match in pattern.finditer(body):
+            _append_once(violations, match.group(0))
+    return violations
+
+
+def has_specific_sounding_vagueness(text: str) -> bool:
+    return bool(find_specific_sounding_vagueness(text))
+
+
+def rewrite_specific_sounding_vagueness(text: str) -> str:
+    normalized = _compact(text)
+    if not normalized:
+        return normalized
+    replacements: tuple[tuple[re.Pattern[str], str], ...] = (
+        (re.compile(r"\bhelps?\s+protect\s+growth\b", re.IGNORECASE), "can help teams stay ahead of issues"),
+        (re.compile(r"\bprotects?\s+growth\b", re.IGNORECASE), "can help protect momentum"),
+        (re.compile(r"\bimproves?\s+visibility\b", re.IGNORECASE), "gives teams a clearer review path"),
+        (re.compile(r"\bsupports?\s+expansion\b", re.IGNORECASE), "can support broader coverage"),
+        (re.compile(r"\breduces?\s+risk\b", re.IGNORECASE), "can help teams catch issues earlier"),
+        (re.compile(r"\bstrong\s+outcomes\b", re.IGNORECASE), "operational priorities"),
+    )
+    rewritten = normalized
+    for pattern, replacement in replacements:
+        rewritten = pattern.sub(replacement, rewritten)
+    rewritten = re.sub(r"\bover\s+operational priorities\b", "at scale", rewritten, flags=re.IGNORECASE)
+    rewritten = re.sub(r"\boperational priorities\s+operational priorities\b", "operational priorities", rewritten, flags=re.IGNORECASE)
+    rewritten = re.sub(r"\s{2,}", " ", rewritten).strip()
+    return rewritten
 
 
 def rewrite_unverified_claims(
@@ -234,6 +280,7 @@ def rewrite_unverified_claims(
     if not allowed and not allowed_numeric_claims:
         rewritten = _GENERAL_NUMBER_PATTERN.sub(_remove_general_number, rewritten)
 
+    rewritten = rewrite_specific_sounding_vagueness(rewritten)
     rewritten = re.sub(r"\s{2,}", " ", rewritten).strip()
     return rewritten
 

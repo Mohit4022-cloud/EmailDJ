@@ -1,0 +1,13 @@
+{
+  "case_id": "meridian__director_security__headliner__assertive",
+  "pass": true,
+  "fail_tags": [],
+  "word_count": 95,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": []
+}

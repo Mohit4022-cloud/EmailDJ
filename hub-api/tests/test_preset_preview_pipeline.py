@@ -331,7 +331,8 @@ def test_preprocess_research_strips_wikipedia_openers_and_tokens_before_prompt_a
     assert "+1" not in cleaned
     assert "Core Platforms" in cleaned
 
-    messages = preview_pipeline._extractor_messages(req)
+    summary_pack = _mock_summary_pack(req)
+    messages = preview_pipeline._generator_messages(req, summary_pack)
     user_prompt = messages[1]["content"]
     assert "wikipedia" not in user_prompt.lower()
     assert "is an american software company" not in user_prompt.lower()
@@ -339,15 +340,16 @@ def test_preprocess_research_strips_wikipedia_openers_and_tokens_before_prompt_a
 
 def test_openai_timeout_seconds_defaults_and_env_overrides(monkeypatch):
     monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", raising=False)
-    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", raising=False)
-    assert preview_pipeline._openai_timeout_seconds("rendering") == 45.0
-    assert preview_pipeline._openai_timeout_seconds("rewrite") == 45.0
-    assert preview_pipeline._openai_timeout_seconds("extraction") == 90.0
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 30.0
+    assert preview_pipeline._openai_timeout_seconds("rewrite") == 30.0
+    assert preview_pipeline._openai_timeout_seconds("extraction") == 30.0
 
+    monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", "20")
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 20.0
     monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", "60")
-    monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", "120")
-    assert preview_pipeline._openai_timeout_seconds("rendering") == 60.0
-    assert preview_pipeline._openai_timeout_seconds("extraction") == 120.0
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 30.0
+    monkeypatch.setenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", "5")
+    assert preview_pipeline._openai_timeout_seconds("rendering") == 10.0
 
 
 def test_preview_normalization_sections_avoid_search_enrich_act_phrase():
@@ -444,15 +446,13 @@ def test_cta_canonicalization_strips_fuzzy_match():
 
 
 @pytest.mark.asyncio
-async def test_preview_pipeline_cache_miss_splits_extractor_and_generator_calls(monkeypatch):
+async def test_preview_pipeline_cache_miss_makes_single_generator_call(monkeypatch):
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["USE_PROVIDER_STUB"] = "0"
     os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "warn"
-    os.environ["EMAILDJ_PRESET_PREVIEW_MODEL_EXTRACTOR"] = "gpt-5-nano"
     os.environ["EMAILDJ_PRESET_PREVIEW_MODEL_GENERATOR"] = "gpt-5-nano"
 
     req = _request_payload("SplitCalls")
-    summary_pack = _mock_summary_pack(req)
     call_details: list[tuple[str, str, str]] = []
 
     async def fake_load_cached_summary(_req):
@@ -461,23 +461,13 @@ async def test_preview_pipeline_cache_miss_splits_extractor_and_generator_calls(
     async def fake_save_cached_summary(_req, _summary_pack):
         return None
 
-    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type):  # noqa: ARG001
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type, **kwargs):  # noqa: ARG001
         call_details.append((schema_name, transform_type, model_name))
         previews = []
         for preset in req.presets:
             previews.append(
                 {
                     "preset_id": str(preset.preset_id),
-                    "label": preset.label,
-                    "effective_sliders": {
-                        "formality": 40,
-                        "brevity": 65,
-                        "directness": 70,
-                        "personalization": 75,
-                    },
-                    "vibeLabel": "Risk-led",
-                    "vibeTags": ["Direct", "Specific"],
-                    "whyItWorks": ["Uses one hook", "Focuses risk", "Clear ask"],
                     "subject": "Remix Studio for Acme",
                     "body": (
                         "Hi Alex, Acme is scaling outbound quality and the team wants cleaner first-touch messaging. "
@@ -486,8 +476,6 @@ async def test_preview_pipeline_cache_miss_splits_extractor_and_generator_calls(
                     ),
                 }
             )
-        if schema_name == "preset_preview_extractor":
-            return {"summary_pack": summary_pack.model_dump()}, "gpt-5-nano"
         return {"previews": previews}, "gpt-5-nano"
 
     monkeypatch.setattr(preview_pipeline, "_load_cached_summary", fake_load_cached_summary)
@@ -497,23 +485,42 @@ async def test_preview_pipeline_cache_miss_splits_extractor_and_generator_calls(
 
     result = await run_preview_pipeline(req)
 
-    assert call_details == [
-        ("preset_preview_extractor", "extraction", "gpt-5-nano"),
-        ("preset_preview_batch", "rendering", "gpt-5-nano"),
-    ]
-    assert result.provider_attempt_count == 2
+    assert call_details == [("preset_preview_batch", "rendering", "gpt-5-nano")]
+    assert result.provider_attempt_count == 1
     assert result.model_name == "gpt-5-nano"
+    assert result.status == "success"
 
 
 @pytest.mark.asyncio
-async def test_openai_structured_json_uses_extraction_effort_and_omits_temperature_for_gpt5(monkeypatch):
+async def test_preview_pipeline_real_timeout_degrades_instead_of_raising(monkeypatch):
+    os.environ["REDIS_FORCE_INMEMORY"] = "1"
+    os.environ["USE_PROVIDER_STUB"] = "0"
+    os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "block"
+
+    req = _request_payload("TimeoutDegrade")
+
+    async def fake_openai_with_fallback(*, messages, schema, schema_name, model_name, transform_type, **kwargs):  # noqa: ARG001
+        raise preview_pipeline.httpx.ReadTimeout("timed out")
+
+    monkeypatch.setattr(preview_pipeline, "_openai_structured_json_with_fallback", fake_openai_with_fallback)
+
+    result = await run_preview_pipeline(req)
+
+    assert result.status == "degraded"
+    assert result.degraded_reason == "timeout"
+    assert result.provider == "openai"
+    assert len(result.previews) == len(req.presets)
+
+
+@pytest.mark.asyncio
+async def test_openai_structured_json_uses_capped_timeout_and_omits_temperature_for_gpt5(monkeypatch):
     os.environ["OPENAI_API_KEY"] = "sk-test"
     captured: dict = {}
     reasoning_calls: list[dict] = []
 
     def fake_openai_reasoning_effort(*, raw_env_vars=None, model_name=None, transform_type=None):  # noqa: ARG001
         reasoning_calls.append({"model_name": model_name, "transform_type": transform_type})
-        return "high"
+        return "low"
 
     class FakeResponse:
         status_code = 200
@@ -521,7 +528,7 @@ async def test_openai_structured_json_uses_extraction_effort_and_omits_temperatu
 
         @staticmethod
         def json():
-            return {"choices": [{"message": {"content": '{"previews": []}'}}]}
+            return {"choices": [{"message": {"content": '{"previews":[{"preset_id":"challenger","subject":"Quick angle","body":"Hi Alex, this stays grounded. Open to a quick chat to see if this is relevant?"}]}'}}]}
 
     class FakeAsyncClient:
         def __init__(self, timeout):
@@ -542,18 +549,19 @@ async def test_openai_structured_json_uses_extraction_effort_and_omits_temperatu
     monkeypatch.setattr(preview_pipeline, "openai_reasoning_effort", fake_openai_reasoning_effort)
     monkeypatch.setattr(preview_pipeline.httpx, "AsyncClient", FakeAsyncClient)
     monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS", raising=False)
-    monkeypatch.delenv("EMAILDJ_PREVIEW_OPENAI_TIMEOUT_SECONDS_EXTRACTION", raising=False)
 
     await preview_pipeline._openai_structured_json(
         messages=[{"role": "user", "content": "Return JSON"}],
         schema={"type": "object", "properties": {"previews": {"type": "array"}}, "required": ["previews"]},
         schema_name="preset_preview_batch",
         model_name="gpt-5-nano",
-        transform_type="extraction",
+        transform_type="rendering",
+        max_output_tokens=321,
     )
 
     assert captured["url"] == "https://api.openai.com/v1/chat/completions"
-    assert captured["json"]["reasoning_effort"] == "high"
+    assert captured["json"]["reasoning_effort"] == "low"
     assert "temperature" not in captured["json"]
-    assert captured["timeout"] == 90.0
-    assert reasoning_calls == [{"model_name": "gpt-5-nano", "transform_type": "extraction"}]
+    assert captured["timeout"] == 30.0
+    assert captured["json"]["max_completion_tokens"] == 321
+    assert reasoning_calls == [{"model_name": "gpt-5-nano", "transform_type": "rendering"}]

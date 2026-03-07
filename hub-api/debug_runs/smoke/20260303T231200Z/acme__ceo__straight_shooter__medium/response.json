@@ -1,0 +1,102 @@
+{
+  "previews": [
+    {
+      "preset_id": "straight_shooter",
+      "label": "Straight Shooter",
+      "effective_sliders": {
+        "formality": 50,
+        "brevity": 50,
+        "directness": 50,
+        "personalization": 50
+      },
+      "vibeLabel": "Clear and direct",
+      "vibeTags": [
+        "professional",
+        "concise"
+      ],
+      "whyItWorks": [
+        "Highlights brand protection focus",
+        "Mentions international trademarks",
+        "Emphasizes risk management"
+      ],
+      "subject": "Protect Your Brand Internationally",
+      "body": "Hi Sarah, As CEO of Acme consumer brands, managing risk in international markets is key. Since 2022, you've filed strong outcomes, including in Europe, relying on outside counsel for screening. Corsearch offers trademark clearance, brand protection, and IP solutions that can streamline your process. Acme consumer brands is a mid-size fmcg company headquartered in chicago with a portfolio of household cleaning, personal care, and food products sold across north america and europe.\n\nOpen to a quick 15-minute chat next week?"
+    }
+  ],
+  "meta": {
+    "request_id": "7d293d21-08de-4bb8-88f2-5285415d2e87",
+    "session_id": null,
+    "pipeline_version": "extractor-generator-v1",
+    "generation_mode": "real",
+    "provider": "openai",
+    "model": "gpt-4.1-nano",
+    "provider_attempt_count": 1,
+    "validator_attempt_count": 1,
+    "repair_attempt_count": 0,
+    "repaired": false,
+    "initial_violation_count": 1,
+    "final_violation_count": 1,
+    "violation_codes": [
+      "straight_shooter"
+    ],
+    "violation_count": 1,
+    "enforcement_level": "warn",
+    "repair_loop_enabled": true,
+    "cache_hit": true,
+    "latency_ms": 2066,
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "4ecff94041f29e8c",
+        "combined": "d2b56dcc724ac254"
+      }
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "openai_strict",
+      "truncation": {
+        "notes_cut": false,
+        "research_cut": false,
+        "boundary_used": "none"
+      },
+      "facts": {
+        "count": 4,
+        "high_conf_count": 0,
+        "types": [
+          "summary_pack"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "batch",
+        "violations": [
+          "straight_shooter"
+        ]
+      },
+      "final_email": {
+        "len_chars": 577,
+        "checksum": "22b4103b4b77a80d84b93a7cbed42586669e3658409e46cc1bb4a79f3cba0858"
+      }
+    }
+  },
+  "summary_pack": null
+}

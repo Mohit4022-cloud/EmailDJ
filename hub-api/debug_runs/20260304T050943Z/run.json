@@ -1,0 +1,224 @@
+{
+  "accepted": {
+    "request_id": "8075cec2-f491-41d8-b2e4-f3c107e56ffb",
+    "session_id": "39030435-6651-489a-bb85-d4a63e7fed08",
+    "stream_url": "/web/v1/stream/8075cec2-f491-41d8-b2e4-f3c107e56ffb"
+  },
+  "done_payload": {
+    "request_id": "8075cec2-f491-41d8-b2e4-f3c107e56ffb",
+    "session_id": "39030435-6651-489a-bb85-d4a63e7fed08",
+    "generation_id": "2a37ad93-fb00-497a-b883-2ba106ba9c47",
+    "draft_id": 1,
+    "sequence": 120,
+    "timestamp": 1772601012.002243,
+    "endpoint_name": "web_v1_generate",
+    "preset_name": "straight_shooter",
+    "slider_config": {
+      "formality": 0.0,
+      "orientation": 0.0,
+      "length": 1.0,
+      "assertiveness": 0.0
+    },
+    "prompt_template_hash": "0d555f2764977d16",
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "mode": "real",
+    "provider": "openai",
+    "model": "gpt-5-nano",
+    "cascade_reason": "primary",
+    "provider_attempt_count": 2,
+    "validator_attempt_count": 2,
+    "json_repair_count": 1,
+    "violation_retry_count": 0,
+    "repaired": true,
+    "violation_codes": [
+      "invalid_json_output"
+    ],
+    "violation_count": 1,
+    "enforcement_level": "repair",
+    "repair_loop_enabled": true,
+    "generation_status": "ok",
+    "fallback_reason": null,
+    "policy_versions": {
+      "policy_runner": "1.0.0",
+      "greeting": "1.0.0",
+      "cta": "1.0.0",
+      "offer_lock": "1.0.0",
+      "leakage": "1.0.0",
+      "claims": "1.0.0",
+      "length": "1.0.0"
+    },
+    "response_contract": "legacy_text",
+    "final": {
+      "subject": "Remix Studio teardown for Acme\u2019s outbound initiative",
+      "body": "Hi Alex, your team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Acme.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+      "rendered_draft": "Subject: Remix Studio teardown for Acme\u2019s outbound initiative\nBody:\nHi Alex, your team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Acme.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+    },
+    "execution_trace": {
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": false,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+        "FEATURE_LOSSLESS_STREAMING": false,
+        "FEATURE_FLUENCY_REPAIR": false,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": false,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+        "FEATURE_PRESET_TRUE_REWRITE": false
+      },
+      "provider_path": "fallback_parser",
+      "truncation": {
+        "notes_cut": true,
+        "research_cut": true,
+        "boundary_used": {
+          "notes": "legacy_hard_cut",
+          "research": "legacy_hard_cut"
+        }
+      },
+      "facts": {
+        "count": 8,
+        "high_conf_count": 7,
+        "types": [
+          "hiring",
+          "ops"
+        ]
+      },
+      "preset_contracts": {
+        "selected_preset": "straight_shooter",
+        "violations": [
+          "invalid_json_output"
+        ]
+      },
+      "final_email": {
+        "len_chars": 828,
+        "checksum": "90b855a365dfb40e4b726ad54125f121c435beb83baa66c65116c792fb44ae28"
+      },
+      "prompt_template_versions": {
+        "web_mvp_prompt_hash": "0d555f2764977d16",
+        "preview_prompt_hashes": {
+          "extractor": "b1ebd29db2353800",
+          "generator": "4ecff94041f29e8c",
+          "combined": "9e5df72cfcc6bd48"
+        }
+      }
+    },
+    "stream_chunk_mode": "word_split",
+    "total_chunks": 119,
+    "total_chars": 829,
+    "stream_missing_chunks": 0,
+    "stream_checksum": "232cdf3f47788aad764f24abfd448e2c8bf06456fd3bbd6e70b7194f24e7cedf",
+    "stream_integrity_server_ok": true
+  },
+  "stream_text_length": 37009,
+  "rendered_text": "Subject: Remix Studio teardown for Acme\u2019s outbound initiative\nBody:\nHi Alex, your team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Acme.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow? ",
+  "rendered_text_length": 829,
+  "session_trace": {
+    "attempts": [
+      {
+        "attempt": 1,
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "prompt_token_estimate": 6938,
+        "output_token_budget": 700,
+        "raw_length": 0,
+        "finish_reason": "length",
+        "prompt_template_hash": "0d555f2764977d16",
+        "prompt_checksum": "235044fb179228bd739e7308c069611c8e2fe328c5b022f3738875bf54e396d4",
+        "prompt_redacted": [
+          {
+            "role": "system",
+            "content": "You write executive-grade cold outbound emails with strict compliance. Follow lock constraints exactly and never invent facts. Never include sentences that describe the email itself or reference its compliance."
+          },
+          {
+            "role": "user",
+            "content": "(C) CONTEXT\nSELLER: {'seller_company_name': '<redacted>', 'seller_company_url': '<redacted_url> 'seller_company_notes': '<redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterpri...[truncated]"
+          }
+        ],
+        "parse_error": "empty_output",
+        "violations": [
+          "invalid_json_output:empty_output"
+        ]
+      },
+      {
+        "attempt": 2,
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "prompt_token_estimate": 6996,
+        "output_token_budget": 700,
+        "raw_length": 607,
+        "finish_reason": "stop",
+        "prompt_template_hash": "0d555f2764977d16",
+        "prompt_checksum": "206abe87751690bd116bfbabb8229a3d14af1a14d25c1b334cb6720fca390f96",
+        "prompt_redacted": [
+          {
+            "role": "system",
+            "content": "You write executive-grade cold outbound emails with strict compliance. Follow lock constraints exactly and never invent facts. Never include sentences that describe the email itself or reference its compliance."
+          },
+          {
+            "role": "user",
+            "content": "(C) CONTEXT\nSELLER: {'seller_company_name': '<redacted>', 'seller_company_url': '<redacted_url> 'seller_company_notes': '<redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. <redacted> supports enterpri...[truncated]"
+          }
+        ],
+        "parse_method": "strict",
+        "allow_salvage": false,
+        "parse_invalid_retries": 1,
+        "parsed_json": {
+          "subject": "Remix Studio teardown for Acme\u2019s outbound initiative",
+          "body": "Hi Alex,\n\nYour team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1, which puts emphasis on quality and repeatable messaging at scale.\n\nRemix Studio helps teams keep outreach specific while raising quality from first touch.\n\nCorsearch supports enterprise outbound quality control. We provide deterministic controls for SDR messaging and enforce strict product locks.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+        },
+        "subject_length": 52,
+        "body_length": 523,
+        "violations": [],
+        "repaired": false
+      }
+    ],
+    "last_raw_model_output": "{\"subject\":\"Remix Studio teardown for Acme\u2019s outbound initiative\",\"body\":\"Hi Alex,\\n\\nYour team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1, which puts emphasis on quality and repeatable messaging at scale.\\n\\nRemix Studio helps teams keep outreach specific while raising quality from first touch.\\n\\nCorsearch supports enterprise outbound quality control. We provide deterministic controls for SDR messaging and enforce strict product locks.\\n\\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?\"}",
+    "final_candidate": "Subject: Remix Studio teardown for Acme\u2019s outbound initiative\nBody:\nHi Alex, your team launched a new enterprise outbound initiative in [DATE_1] and expanded SDR hiring by 12 roles in Q1. Remix studio helps teams keep outreach specific while raising quality from first touch. Corsearch supports enterprise outbound quality control. This note intentionally exceeds truncation thresholds to test sentence-safe boundaries. We provide deterministic controls for SDR messaging and enforce strict product locks. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier. That lowers counterfeit exposure, protects brand trust, and improves enforcement throughput for Acme.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+    "status": "ok"
+  },
+  "session_truncation_metadata": {
+    "company_notes": {
+      "was_truncated": true,
+      "boundary_used": "legacy_hard_cut",
+      "cut_mid_sentence": true,
+      "original_length": 6899,
+      "final_length": 802
+    },
+    "research_excerpt": {
+      "was_truncated": true,
+      "boundary_used": "legacy_hard_cut",
+      "cut_mid_sentence": true,
+      "original_length": 8990,
+      "final_length": 1603
+    }
+  },
+  "session_allowed_facts_count": 8,
+  "quality_metrics": {
+    "truncation_mid_sentence_count": 1,
+    "parse_invalid_json_count": 1,
+    "parse_attempt_count": 2,
+    "parse_invalid_json_rate": 0.5,
+    "finish_reason_length_count": 1,
+    "provider_response_count": 2,
+    "finish_reason_length_rate": 0.5,
+    "stream_integrity_fail_count": 0,
+    "stream_count": 1,
+    "stream_integrity_fail_rate": 0.0,
+    "fluency_violation_count": 0,
+    "draft_count": 1,
+    "fluency_violation_rate": 0.0
+  },
+  "harness_meta": {
+    "timestamp_utc": "20260304T050943Z",
+    "mode": "real",
+    "simulate_fallback": false,
+    "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/20260304T050943Z"
+  }
+}

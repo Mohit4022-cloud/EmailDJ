@@ -1,0 +1,108 @@
+{
+  "request_id": "78582dc4-7d20-4158-98ad-05600eb5c515",
+  "session_id": "5f16cb98-7132-4db1-bc68-c9480f68ae63",
+  "generation_id": "664c5e59-8723-4c94-ab0b-3d1cdf87d85a",
+  "draft_id": 1,
+  "sequence": 101,
+  "timestamp": 1772577718.412163,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "straight_shooter",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": false,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+    "FEATURE_LOSSLESS_STREAMING": false,
+    "FEATURE_FLUENCY_REPAIR": false,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": false,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+    "FEATURE_PRESET_TRUE_REWRITE": false
+  },
+  "mode": "real",
+  "provider": "openai",
+  "model": "gpt-4.1-nano",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 1,
+  "validator_attempt_count": 1,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Supporting Meridian\u2019s Digital Security Initiatives",
+    "body": "Hi Natasha, Natasha leads digital security at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Supporting Meridian\u2019s Digital Security Initiatives\nBody:\nHi Natasha, Natasha leads digital security at your team. Trademark search, screening, and brand protection helps teams keep outreach specific while raising quality from first touch. Corsearch is the global leader in trademark clearance. Corsearch is the global leader in trademark clearance, brand protection, and ip enforcement. Trademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": false,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
+      "FEATURE_LOSSLESS_STREAMING": false,
+      "FEATURE_FLUENCY_REPAIR": false,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": false,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
+      "FEATURE_PRESET_TRUE_REWRITE": false
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 1,
+      "types": [
+        "other",
+        "initiative"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "straight_shooter",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 721,
+      "checksum": "0123b5e74e73238aa47ee0701c33f806cd1f403b5e0f72e85d6e16116faa53e3"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "c182aac826f31e4d",
+        "generator": "63501cbce8a4dc62",
+        "combined": "762883f1fa67d9cb"
+      }
+    }
+  },
+  "stream_chunk_mode": "word_split",
+  "total_chunks": 100,
+  "total_chars": 722,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "98dbf7f062e778d892e45852550affe1c613894132ade526401466c2955944cf",
+  "stream_integrity_server_ok": true
+}

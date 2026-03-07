@@ -1,0 +1,41 @@
+{
+  "prospect": {
+    "name": "Alex Nguyen",
+    "title": "Senior Program Manager, Brand Partnerships",
+    "company": "Cascade Commerce Group",
+    "company_url": "https://cascadecommerce.example.com",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Alex",
+  "product_context": {
+    "product_name": "Trademark Search, Screening, and Brand Protection",
+    "one_line_value": "Corsearch is the global leader in trademark clearance, brand protection, and IP ",
+    "proof_points": [
+      "Trademark Watching",
+      "Online Brand Protection"
+    ],
+    "target_outcome": "15-minute meeting"
+  },
+  "raw_research": {
+    "deep_research_paste": "Alex Nguyen manages the brand partnership program at Cascade Commerce Group, responsible for onboarding and retaining the 200+ branded storefronts on the platform. They act as the primary contact for brand partners on IP protection concerns and feed those requirements back to the legal and platform teams. They have been tracking growing churn risk among brand partners who are frustrated with the pace of trademark enforcement on the platform. They are co-sponsoring the brand protection tooling evaluation with Robert Kline.",
+    "company_notes": "Cascade Commerce Group operates an e-commerce marketplace platform serving 8,000+ third-party sellers across home goods, apparel, and consumer electronics. They host branded storefronts for 200+ consumer brands and have been expanding their own private label portfolio. They face growing counterfeiting and trademark infringement challenges on the platform from third-party sellers. They recently launched a brand registry program but lack automated tools for proactive detection and enforcement at scale.",
+    "extra_constraints": null
+  },
+  "global_sliders": {
+    "formality": 35,
+    "brevity": 60,
+    "directness": 85,
+    "personalization": 65
+  },
+  "presets": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "slider_overrides": {}
+    }
+  ],
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_lock": "Open to a quick 15-minute chat next week?",
+  "cta_lock_text": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask"
+}

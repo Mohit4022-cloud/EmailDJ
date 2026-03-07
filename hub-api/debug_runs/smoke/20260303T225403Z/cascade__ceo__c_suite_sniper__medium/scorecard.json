@@ -1,0 +1,19 @@
+{
+  "case_id": "cascade__ceo__c_suite_sniper__medium",
+  "pass": false,
+  "fail_tags": [
+    "FAIL_PROSPECT_OWNS_OFFER",
+    "FAIL_EXEC_TOO_LONG"
+  ],
+  "word_count": 99,
+  "has_required_fields": {
+    "prospect_name": true,
+    "company": true,
+    "offer": true,
+    "cta": true
+  },
+  "notes": [
+    "Ownership: found 'your brand protection'",
+    "Exec email 99 words (title='CEO', limit=90)"
+  ]
+}

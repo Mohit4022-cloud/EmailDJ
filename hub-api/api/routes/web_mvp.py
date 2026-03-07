@@ -459,6 +459,8 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
                 "repaired": result.repaired,
                 "enforcement_level": result.enforcement_level,
                 "repair_loop_enabled": result.repair_loop_enabled,
+                "status": result.status,
+                "degraded_reason": result.degraded_reason,
                 "request_id": preview_request_id,
             },
         )
@@ -481,15 +483,23 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
                 "repaired": result.repaired,
                 "enforcement_level": result.enforcement_level,
                 "repair_loop_enabled": result.repair_loop_enabled,
+                "status": result.status,
+                "degraded_reason": result.degraded_reason,
             },
-            failure=result.violation_count > 0,
+            failure=result.violation_count > 0 or result.status == "degraded",
         )
         preview_payload = "\n".join(
             [f"Subject: {item.subject}\nBody:\n{item.body}" for item in result.previews]
         )
         execution_trace = {
             "flags_effective": flags_effective,
-            "provider_path": "openai_strict" if result.mode == "real" and result.provider == "openai" else "fallback_parser",
+            "provider_path": (
+                "degraded_fallback"
+                if result.status == "degraded"
+                else "openai_strict" if result.mode == "real" and result.provider == "openai" else "fallback_parser"
+            ),
+            "outcome": result.status,
+            "degraded_reason": result.degraded_reason,
             "truncation": {"notes_cut": False, "research_cut": False, "boundary_used": "none"},
             "facts": {
                 "count": len(result.summary_pack.facts if result.summary_pack else []),

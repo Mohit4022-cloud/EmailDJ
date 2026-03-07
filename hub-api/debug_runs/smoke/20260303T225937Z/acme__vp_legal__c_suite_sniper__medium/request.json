@@ -1,0 +1,41 @@
+{
+  "prospect": {
+    "name": "Marcus Williams",
+    "title": "VP Legal / IP Counsel",
+    "company": "Acme Consumer Brands",
+    "company_url": "https://acmeconsumerbrands.example.com",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Marcus",
+  "product_context": {
+    "product_name": "Trademark Search, Screening, and Brand Protection",
+    "one_line_value": "Corsearch is the global leader in trademark clearance, brand protection, and IP ",
+    "proof_points": [
+      "Trademark Watching",
+      "Online Brand Protection"
+    ],
+    "target_outcome": "15-minute meeting"
+  },
+  "raw_research": {
+    "deep_research_paste": "Marcus Williams leads the legal and IP function at Acme Consumer Brands. He joined in 2021 from outside counsel where he specialized in trademark prosecution and brand licensing. He is responsible for trademark portfolio management across all product lines and regions. He has been handling the European filing backlog personally with support from two paralegals. He has flagged resource constraints in trademark clearance as a growing risk given the pace of new product launches.",
+    "company_notes": "Acme Consumer Brands is a mid-size FMCG company headquartered in Chicago with a portfolio of household cleaning, personal care, and food products sold across North America and Europe. They filed 12 trademark applications in 2024 across new SKU lines and recently flagged two potential conflicts in their European filing backlog. Their IP team is small (3 FTEs) and relies on outside counsel for screening.",
+    "extra_constraints": null
+  },
+  "global_sliders": {
+    "formality": 50,
+    "brevity": 50,
+    "directness": 50,
+    "personalization": 50
+  },
+  "presets": [
+    {
+      "preset_id": "c_suite_sniper",
+      "label": "C Suite Sniper",
+      "slider_overrides": {}
+    }
+  ],
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_lock": "Open to a quick 15-minute chat next week?",
+  "cta_lock_text": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask"
+}
