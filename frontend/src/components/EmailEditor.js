@@ -9,20 +9,30 @@ export class EmailEditor {
 
   render() {
     this.container.innerHTML = `
-      <div id="emailBody" class="editor" contenteditable="true" spellcheck="false"></div>
-      <div class="actions" style="margin-top:10px;">
-        <button id="copyBtn" class="btn-secondary" disabled>Copy</button>
-      </div>
-      <details id="sourcesPanel" style="margin-top:8px;" hidden>
-        <summary>Sources</summary>
-        <div id="sourcesList" class="meta"></div>
-      </details>
-      <div class="meta" id="draftMeta">Draft not generated yet.</div>
+      <article class="draft-card">
+        <div class="draft-card-head">
+          <div>
+            <p class="eyebrow">Draft Canvas</p>
+            <h3>Primary email draft</h3>
+          </div>
+          <button id="copyBtn" class="btn-secondary" disabled>Copy Draft</button>
+        </div>
+        <p class="draft-card-note">Generate once, then remix expression without changing the underlying brief, proof, or CTA lock.</p>
+        <div
+          id="emailBody"
+          class="editor"
+          contenteditable="true"
+          spellcheck="false"
+          data-placeholder="Generate a draft to start editing. This workspace stays anchored to the same messaging brief and deterministic QA checks."
+        ></div>
+        <div class="draft-card-foot">
+          <div class="meta" id="draftMeta">Draft not generated yet.</div>
+          <div class="draft-copy-note">Save Remix copies the current draft and feedback snapshot.</div>
+        </div>
+      </article>
     `;
     this.editorEl = this.container.querySelector('#emailBody');
     this.copyBtn = this.container.querySelector('#copyBtn');
-    this.sourcesPanel = this.container.querySelector('#sourcesPanel');
-    this.sourcesList = this.container.querySelector('#sourcesList');
     this.metaEl = this.container.querySelector('#draftMeta');
     this.copyBtn?.addEventListener('click', () => this.copy());
   }
@@ -54,22 +64,6 @@ export class EmailEditor {
 
   setSources(sources = []) {
     this.sources = Array.isArray(sources) ? sources : [];
-    if (!this.sourcesPanel || !this.sourcesList) return;
-    if (this.sources.length === 0) {
-      this.sourcesPanel.hidden = true;
-      this.sourcesList.innerHTML = '';
-      return;
-    }
-    this.sourcesPanel.hidden = false;
-    this.sourcesList.innerHTML = this.sources
-      .map((item) => {
-        const url = String(item?.url || '').trim();
-        const published = String(item?.published_at || 'Unknown').trim();
-        const retrieved = String(item?.retrieved_at || '').trim();
-        const link = url ? `<a href="${url}" target="_blank" rel="noreferrer">${url}</a>` : 'Unknown';
-        return `<div>${link}<br/><small>published: ${published} · retrieved: ${retrieved || 'Unknown'}</small></div>`;
-      })
-      .join('<hr/>');
   }
 
   markComplete(latencyMs = null) {

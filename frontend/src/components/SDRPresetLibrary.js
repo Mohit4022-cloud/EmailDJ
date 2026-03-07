@@ -183,7 +183,10 @@ export class SDRPresetLibrary {
             <path d="M12 2l1.9 5.1L19 9l-5.1 1.9L12 16l-1.9-5.1L5 9l5.1-1.9L12 2zM19 14l.9 2.6L22.5 18l-2.6.9L19 21.5l-.9-2.6-2.6-.9 2.6-1.4L19 14zM6 14l.9 2.4 2.4.9-2.4.9L6 20.5l-.9-2.3-2.4-.9 2.4-.9L6 14z"></path>
           </svg>
         </span>
-        <span>Browse Presets</span>
+        <span class="preset-trigger-copy">
+          <span class="preset-trigger-label">Preset Studio</span>
+          <span class="preset-trigger-subtitle">Live previews from your current brief</span>
+        </span>
       </button>
     `;
 
@@ -193,8 +196,8 @@ export class SDRPresetLibrary {
         <div class="preset-modal" role="dialog" aria-modal="true" aria-labelledby="presetLibraryTitle">
           <div class="preset-modal-head">
             <div>
-              <h2 id="presetLibraryTitle">SDR Preset Library</h2>
-              <p>Live AI preview for every preset using your current context.</p>
+              <h2 id="presetLibraryTitle">Preset Studio</h2>
+              <p>Presets and sliders keep the same brief, proof, and CTA. They only steer delivery.</p>
             </div>
             <button type="button" id="closePresetModalBtn" class="preset-close-btn" aria-label="Close preset library">
               <span aria-hidden="true">&times;</span>
@@ -581,10 +584,17 @@ export class SDRPresetLibrary {
       emailHtml = buildEmailErrorHtml(preset.id, entry.errorMessage);
     }
     this.emailBlock.innerHTML = `
-      <h3>Email Preview</h3>
+      <div class="preset-preview-head">
+        <div>
+          <h3>Email Preview</h3>
+          <p>Same strategy core. Different tone, framing, pacing, and pressure.</p>
+        </div>
+        <button type="button" class="btn-primary preset-apply-btn" data-apply-preset-id="${escapeHtml(preset.id)}">Use ${escapeHtml(preset.name)}</button>
+      </div>
       ${emailHtml}
     `;
     this.emailBlock.querySelector('.preset-retry-btn')?.addEventListener('click', () => this.retryPreset(preset.id));
+    this.emailBlock.querySelector('.preset-apply-btn')?.addEventListener('click', () => this.selectPreset(preset.id));
   }
 
   retryPreset(id) {

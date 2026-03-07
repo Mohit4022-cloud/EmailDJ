@@ -8,3 +8,12 @@
 - Treat presets and sliders as style modifiers only. For the same request, do not let them change grounded brief facts, hook logic, proof availability, or locked CTA text.
 - Reject invented proof, prospect-as-proof, ungrounded personalization, template leakage, and fallback leakage. Keep validator codes visible in traces and explanations.
 - Prefer the existing repo harnesses in `backend/evals/` over ad hoc eval scripts.
+
+## Frontend product rules
+
+- Keep the draft workspace primary in `frontend/**`. Seller/prospect inputs should support the draft flow, not visually dominate it.
+- Preserve the generate-once -> stable brief -> remix workflow. UI changes must not suggest that presets or sliders create a new worldview.
+- Treat preset browsing, slider motion, and remix states as steering UI for the same `MessagingBrief`, not as template selection.
+- Keep trust surfaces visible: runtime mode, stage status, trace identifiers, prompt hash/version, repair activity, source visibility, and validation outcomes should remain easy to inspect.
+- Do not reintroduce dense one-panel forms or inline one-off styles when shared tokens or reusable panel/button/input treatments would suffice.
+- Avoid fake example drafts, template fallback language, or any UI copy that implies the system can fabricate outputs when validators fail.

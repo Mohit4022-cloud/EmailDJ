@@ -1,3 +1,4 @@
+import './styles.css';
 import {
   consumeStream,
   fetchPresetPreviewsBatch,
@@ -17,6 +18,7 @@ import { SDRPresetLibrary, presetToSliderState } from './components/SDRPresetLib
 import { SliderBoard } from './components/SliderBoard.js';
 import { SDR_PRESETS } from './data/sdrPresets.js';
 import { styleToPayload, styleKey } from './style.js';
+import { buildStageTimeline, buildTraceMeta, buildValidationNotes, classifyStudioStatus } from './studioStatus.js';
 import { applyStreamEvent, createStreamState } from './streamContract.js';
 import { debounce } from './utils.js';
 
@@ -84,6 +86,30 @@ function stripUnknown(items = []) {
   return (Array.isArray(items) ? items : []).map((item) => String(item || '').trim()).filter(Boolean);
 }
 
+function escapeHtml(value) {
+  return String(value || '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function shortId(value) {
+  const text = String(value || '').trim();
+  if (!text) return 'Not started';
+  return text.length <= 12 ? text : `${text.slice(0, 8)}...`;
+}
+
+function stageStatusClass(status) {
+  const normalized = String(status || 'pending').trim().toLowerCase().replaceAll('_', '-');
+  if (normalized.includes('fail') || normalized.includes('error')) return 'status-failed';
+  if (normalized.includes('pass')) return 'status-passed';
+  if (normalized.includes('complete') || normalized.includes('ready')) return 'status-complete';
+  if (normalized.includes('rewrite')) return 'status-loading';
+  return `status-${normalized || 'pending'}`;
+}
+
 class WebApp {
   constructor(root) {
     this.root = root;
@@ -94,6 +120,11 @@ class WebApp {
     this.runtimeConfig = null;
     this.runtimeBadgeMeta = null;
     this.selectedPresetId = String(SDR_PRESETS?.[0]?.strategy_id || SDR_PRESETS?.[0]?.id || 'straight_shooter');
+    this.lastDoneData = null;
+    this.lastStageEvents = [];
+    this.currentSources = [];
+    this.lastRunAt = '';
+    this.statusTone = 'neutral';
     this.remixDebounced = debounce(() => this.triggerRemix(), 200);
     this.activeRemixController = null;
 
@@ -123,115 +154,261 @@ class WebApp {
 
   render() {
     this.root.innerHTML = `
-      <div id="runtimeModeBadge" class="runtime-mode-badge mode-loading">Checking runtime mode...</div>
-      <div class="hero">
-        <h1>EmailDJ Remix Studio</h1>
-        <p>Generate once, then sculpt with live sliders. Enrichment uses cited, cached tool results.</p>
-      </div>
-      <div class="layout">
-        <section class="panel" id="inputPanel">
-          <div class="field">
-            <label>Beta Key</label>
-            <input id="betaKey" placeholder="dev-beta-key" />
-          </div>
-          <div class="field">
-            <label>Your Company Name (saved locally)</label>
-            <input id="sellerCompanyName" placeholder="EmailDJ" />
-          </div>
-          <div class="row">
-            <div class="field"><label>Company URL</label><input id="sellerCompanyUrl" placeholder="https://yourcompany.com" /></div>
-            <div class="field"><label>Current Product / Service to Pitch</label><input id="sellerCurrentProduct" placeholder="Remix Studio" /></div>
-          </div>
-          <div class="field">
-            <label>Seller Offerings (what you sell)</label>
-            <textarea id="sellerOfferings" class="compact" placeholder="Brand monitoring&#10;Trademark enforcement&#10;Marketplace takedowns"></textarea>
-          </div>
-          <div class="field">
-            <label>Internal Modules (never shared)</label>
-            <textarea id="sellerInternalModules" class="compact" placeholder="Internal workflow tags only"></textarea>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label>CTA / Offer Lock text</label>
-              <input id="ctaOfferLock" placeholder="Open to a quick chat to see if this is relevant?" />
-            </div>
-            <div class="field">
-              <label>CTA Type (optional)</label>
-              <select id="ctaType">
-                <option value="">Not set</option>
-                <option value="question">question</option>
-                <option value="time_ask">time_ask</option>
-                <option value="value_asset">value_asset</option>
-                <option value="pilot">pilot</option>
-                <option value="referral">referral</option>
-                <option value="event_invite">event_invite</option>
-              </select>
+      <div class="studio-shell">
+        <section class="studio-hero">
+          <div class="hero-copy">
+            <p class="eyebrow">AI-first outbound drafting</p>
+            <h1>EmailDJ Remix Studio</h1>
+            <p class="hero-body">Build one reusable messaging brief from seller and prospect context, then remix delivery without changing the facts, proof, or CTA lock.</p>
+            <div class="hero-trust-row">
+              <span class="hero-tag">Fail closed output</span>
+              <span class="hero-tag">Stable MessagingBrief logic</span>
+              <span class="hero-tag">Deterministic validators visible</span>
             </div>
           </div>
-          <div class="field">
-            <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <span>Company Notes (proof points, ICP, differentiation)</span>
-              <span style="display:inline-flex;align-items:center;gap:6px;">
-                <button class="btn-secondary" id="senderAiBtn" type="button">AI Clean/Structure</button>
-                <small id="senderRefreshMeta" class="meta"></small>
-              </span>
-            </label>
-            <textarea id="sellerCompanyNotes" class="compact" placeholder="What your product does best, who it helps, and why it wins."></textarea>
+          <div class="hero-side">
+            <div id="runtimeModeBadge" class="runtime-mode-badge mode-loading">Checking runtime mode...</div>
+            <section class="hero-status-card" id="statusCard" data-tone="neutral">
+              <p class="eyebrow">System status</p>
+              <div class="hero-status-copy">
+                <h2 class="status-headline" id="statusHeadline">Ready to steer</h2>
+                <div class="status" id="statusLine">Seller context + prospect context feed one reusable intelligence artifact. Generate once, then remix the expression.</div>
+              </div>
+              <div class="hero-actions">
+                <button class="btn-primary" id="generateBtn">Generate Draft</button>
+                <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
+              </div>
+            </section>
           </div>
-          <hr />
-          <div class="row">
-            <div class="field"><label>Prospect Name</label><input id="prospectName" placeholder="Alex Doe" /></div>
-            <div class="field">
-              <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span>Title</span>
-                <span style="display:inline-flex;align-items:center;gap:6px;">
-                  <button class="btn-secondary" id="prospectAiBtn" type="button">AI</button>
-                  <button class="btn-secondary" id="prospectRefreshBtn" type="button">Refresh</button>
-                </span>
-              </label>
-              <input id="prospectTitle" placeholder="SDR Manager" />
-              <small id="prospectRefreshMeta" class="meta"></small>
-            </div>
-          </div>
-          <div class="row">
-            <div class="field">
-              <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-                <span>Company</span>
-                <span style="display:inline-flex;align-items:center;gap:6px;">
-                  <button class="btn-secondary" id="targetAiBtn" type="button">AI</button>
-                  <button class="btn-secondary" id="targetRefreshBtn" type="button">Refresh</button>
-                </span>
-              </label>
-              <input id="prospectCompany" placeholder="Acme" />
-              <small id="targetRefreshMeta" class="meta"></small>
-            </div>
-            <div class="field"><label>LinkedIn URL (optional)</label><input id="prospectLinkedin" placeholder="https://linkedin.com/in/..." /></div>
-          </div>
-          <div class="field"><label>Target Company URL/domain (optional)</label><input id="prospectCompanyUrl" placeholder="https://acme.com" /></div>
-          <div class="field">
-            <label>Deep Research Paste</label>
-            <textarea id="researchText" placeholder="Paste account/prospect research here..."></textarea>
-          </div>
-          <div class="actions">
-            <button class="btn-primary" id="generateBtn">Generate</button>
-            <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
-            <div id="presetLibraryMount"></div>
-          </div>
-          <div class="status" id="statusLine"></div>
         </section>
 
-        <section class="panel">
-          <div id="sliderBoard"></div>
-          <div id="editorMount"></div>
-        </section>
+        <div class="studio-layout">
+          <aside class="control-rail">
+            <section class="step-card">
+              <div class="step-head">
+                <div>
+                  <p class="eyebrow">Step 1</p>
+                  <h2>Seller context</h2>
+                  <p class="step-copy">Capture the stable business truth the draft should preserve across every preset, slider move, and rewrite.</p>
+                </div>
+                <div class="step-tag">Reusable brief input</div>
+              </div>
+              <div class="field-stack">
+                <div class="field">
+                  <label>Beta Key</label>
+                  <input id="betaKey" placeholder="dev-beta-key" />
+                </div>
+                <div class="field">
+                  <label>Your Company Name (saved locally)</label>
+                  <input id="sellerCompanyName" placeholder="EmailDJ" />
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label>Company URL</label>
+                    <input id="sellerCompanyUrl" placeholder="https://yourcompany.com" />
+                  </div>
+                  <div class="field">
+                    <label>Current Product / Service to Pitch</label>
+                    <input id="sellerCurrentProduct" placeholder="Remix Studio" />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Seller Offerings (what you sell)</label>
+                  <textarea id="sellerOfferings" class="compact" placeholder="Brand monitoring&#10;Trademark enforcement&#10;Marketplace takedowns"></textarea>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <label>CTA / Offer Lock text</label>
+                    <input id="ctaOfferLock" placeholder="Open to a quick chat to see if this is relevant?" />
+                  </div>
+                  <div class="field">
+                    <label>CTA Type (optional)</label>
+                    <select id="ctaType">
+                      <option value="">Not set</option>
+                      <option value="question">question</option>
+                      <option value="time_ask">time_ask</option>
+                      <option value="value_asset">value_asset</option>
+                      <option value="pilot">pilot</option>
+                      <option value="referral">referral</option>
+                      <option value="event_invite">event_invite</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="label-row">
+                    <span>Company Notes (proof points, ICP, differentiation)</span>
+                    <span class="action-row">
+                      <button class="btn-secondary" id="senderAiBtn" type="button">AI Clean / Structure</button>
+                    </span>
+                  </div>
+                  <textarea id="sellerCompanyNotes" class="compact" placeholder="What your product does best, who it helps, and why it wins."></textarea>
+                  <small id="senderRefreshMeta" class="meta"></small>
+                </div>
+                <div class="field">
+                  <label>Internal Modules (never shared with generation)</label>
+                  <textarea id="sellerInternalModules" class="compact" placeholder="Internal workflow tags only"></textarea>
+                </div>
+              </div>
+            </section>
+
+            <section class="step-card">
+              <div class="step-head">
+                <div>
+                  <p class="eyebrow">Step 2</p>
+                  <h2>Prospect context</h2>
+                  <p class="step-copy">Ground the draft in the actual person and account, then enrich only through cited, tool-based research.</p>
+                </div>
+                <div class="step-tag">Account + person</div>
+              </div>
+              <div class="field-stack">
+                <div class="row">
+                  <div class="field">
+                    <label>Prospect Name</label>
+                    <input id="prospectName" placeholder="Alex Doe" />
+                  </div>
+                  <div class="field">
+                    <div class="label-row">
+                      <span>Title</span>
+                      <span class="action-row">
+                        <button class="btn-secondary" id="prospectAiBtn" type="button">AI</button>
+                        <button class="btn-secondary" id="prospectRefreshBtn" type="button">Refresh</button>
+                      </span>
+                    </div>
+                    <input id="prospectTitle" placeholder="SDR Manager" />
+                    <small id="prospectRefreshMeta" class="meta"></small>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="field">
+                    <div class="label-row">
+                      <span>Company</span>
+                      <span class="action-row">
+                        <button class="btn-secondary" id="targetAiBtn" type="button">AI</button>
+                        <button class="btn-secondary" id="targetRefreshBtn" type="button">Refresh</button>
+                      </span>
+                    </div>
+                    <input id="prospectCompany" placeholder="Acme" />
+                    <small id="targetRefreshMeta" class="meta"></small>
+                  </div>
+                  <div class="field">
+                    <label>LinkedIn URL (optional)</label>
+                    <input id="prospectLinkedin" placeholder="https://linkedin.com/in/..." />
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Target Company URL/domain (optional)</label>
+                  <input id="prospectCompanyUrl" placeholder="https://acme.com" />
+                </div>
+              </div>
+            </section>
+
+            <section class="step-card">
+              <div class="step-head">
+                <div>
+                  <p class="eyebrow">Step 3</p>
+                  <h2>Research and evidence</h2>
+                  <p class="step-copy">Paste the high-signal research that should anchor the stable brief. Enrichment appends cited context instead of guessing.</p>
+                </div>
+                <div class="step-tag">Tool-only retrieval</div>
+              </div>
+              <div class="field-stack">
+                <div class="field">
+                  <label>Deep Research Paste</label>
+                  <textarea id="researchText" placeholder="Paste account/prospect research here..."></textarea>
+                </div>
+              </div>
+            </section>
+          </aside>
+
+          <main class="workspace-column">
+            <section class="workspace-card">
+              <div class="workspace-head">
+                <div class="workspace-copy">
+                  <p class="eyebrow">Step 4</p>
+                  <h2>Draft workspace</h2>
+                  <p class="workspace-copy">Presets and sliders sculpt expression only. The brief, proof, and CTA logic stay grounded to the same run.</p>
+                </div>
+                <div class="summary-chip-row">
+                  <span class="session-chip" id="sessionChip">Session · Not started</span>
+                  <span class="preset-chip" id="workspacePresetChip">Preset · Straight Shooter</span>
+                </div>
+              </div>
+
+              <div class="workspace-shell">
+                <div class="preset-summary-card">
+                  <div class="preset-summary-head">
+                    <div>
+                      <p class="eyebrow">Preset overlay</p>
+                      <h3 class="preset-summary-title" id="selectedPresetName">Straight Shooter</h3>
+                    </div>
+                    <div id="presetLibraryMount"></div>
+                  </div>
+                  <p class="preset-summary-copy" id="selectedPresetCopy">Direct wedge + proof + focused CTA.</p>
+                  <div class="summary-chip-row" id="selectedPresetMeta"></div>
+                </div>
+
+                <div id="sliderBoard"></div>
+                <div id="editorMount"></div>
+              </div>
+            </section>
+
+            <section class="diagnostics-grid">
+              <article class="diagnostic-card">
+                <div class="diagnostic-head">
+                  <div>
+                    <p class="eyebrow">System</p>
+                    <h3>Run confidence</h3>
+                  </div>
+                </div>
+                <div class="signal-grid" id="signalGrid"></div>
+              </article>
+
+              <article class="diagnostic-card">
+                <div class="diagnostic-head">
+                  <div>
+                    <p class="eyebrow">Step 5</p>
+                    <h3>QA and trace</h3>
+                  </div>
+                </div>
+                <div class="trace-meta-grid" id="traceMeta"></div>
+                <ul class="validation-list" id="validationList"></ul>
+                <ul class="trace-list" id="traceTimeline"></ul>
+              </article>
+
+              <article class="diagnostic-card">
+                <div class="diagnostic-head">
+                  <div>
+                    <p class="eyebrow">Grounding</p>
+                    <h3>Sources</h3>
+                  </div>
+                </div>
+                <div class="diagnostic-empty" id="sourcesEmpty">Sources from enrichment and generation will appear here after a run.</div>
+                <ul class="source-list" id="sourcesList"></ul>
+              </article>
+            </section>
+          </main>
+        </div>
       </div>
     `;
 
     this.statusLine = this.root.querySelector('#statusLine');
+    this.statusHeadline = this.root.querySelector('#statusHeadline');
+    this.statusCard = this.root.querySelector('#statusCard');
     this.runtimeModeBadgeEl = this.root.querySelector('#runtimeModeBadge');
     this.generateBtn = this.root.querySelector('#generateBtn');
     this.saveRemixBtn = this.root.querySelector('#saveRemixBtn');
     this.presetLibraryMount = this.root.querySelector('#presetLibraryMount');
+    this.sessionChip = this.root.querySelector('#sessionChip');
+    this.workspacePresetChip = this.root.querySelector('#workspacePresetChip');
+    this.selectedPresetNameEl = this.root.querySelector('#selectedPresetName');
+    this.selectedPresetCopyEl = this.root.querySelector('#selectedPresetCopy');
+    this.selectedPresetMetaEl = this.root.querySelector('#selectedPresetMeta');
+    this.signalGrid = this.root.querySelector('#signalGrid');
+    this.traceMeta = this.root.querySelector('#traceMeta');
+    this.validationList = this.root.querySelector('#validationList');
+    this.traceTimeline = this.root.querySelector('#traceTimeline');
+    this.sourcesEmpty = this.root.querySelector('#sourcesEmpty');
+    this.sourcesList = this.root.querySelector('#sourcesList');
 
     this.betaKeyInput = this.root.querySelector('#betaKey');
     this.sellerCompanyNameInput = this.root.querySelector('#sellerCompanyName');
@@ -312,7 +489,7 @@ class WebApp {
     }
 
     this.refreshRuntimeConfig({ silent: true }).catch(() => this.updateRuntimeModeBadge());
-    this.setStatus('Ready. Fill inputs and click Generate.');
+    this.setStatus('Seller context + prospect context feed one reusable intelligence artifact. Generate once, then remix the expression.');
   }
 
   seedBetaKey() {
@@ -471,6 +648,159 @@ class WebApp {
     };
   }
 
+  selectedPreset() {
+    return SDR_PRESETS.find(
+      (preset) => String(preset.strategy_id || preset.id || '') === String(this.selectedPresetId || '')
+    ) || SDR_PRESETS[0] || null;
+  }
+
+  syncPresetSummary() {
+    const preset = this.selectedPreset();
+    if (!preset) return;
+    if (this.selectedPresetNameEl) this.selectedPresetNameEl.textContent = preset.name;
+    if (this.selectedPresetCopyEl) this.selectedPresetCopyEl.textContent = preset.vibe || preset.whyItWorks || '';
+    if (this.selectedPresetMetaEl) {
+      this.selectedPresetMetaEl.innerHTML = [
+        `<span class="summary-chip">${escapeHtml(preset.frequency || 'Preset')}</span>`,
+        `<span class="summary-chip">${escapeHtml(preset.eqVibe || 'Style modifier')}</span>`,
+        `<span class="summary-chip">Brief stays locked</span>`,
+      ].join('');
+    }
+    if (this.workspacePresetChip) this.workspacePresetChip.textContent = `Preset · ${preset.name}`;
+    if (this.sessionChip) {
+      this.sessionChip.textContent = this.sessionId ? `Session · ${shortId(this.sessionId)}` : 'Session · Not started';
+    }
+  }
+
+  syncDiagnostics() {
+    this.syncPresetSummary();
+
+    const statusInfo = classifyStudioStatus(this.statusLine?.textContent || '', this.statusLine?.classList.contains('pulse'));
+    this.statusTone = statusInfo.tone;
+    if (this.statusHeadline) this.statusHeadline.textContent = statusInfo.title;
+    if (this.statusCard) this.statusCard.dataset.tone = statusInfo.tone;
+
+    const preset = this.selectedPreset();
+    const stageStats = Array.isArray(this.lastDoneData?.stage_stats) ? this.lastDoneData.stage_stats : [];
+    const validationNotes = buildValidationNotes(stageStats, this.lastDoneData);
+    const traceMeta = buildTraceMeta(this.lastDoneData);
+    const stageTimeline = buildStageTimeline(stageStats, this.lastStageEvents);
+
+    if (this.signalGrid) {
+      const signalCards = [
+        {
+          label: 'Run state',
+          value: statusInfo.title,
+          detail: statusInfo.detail,
+        },
+        {
+          label: 'Current preset',
+          value: preset?.name || 'Not selected',
+          detail: preset?.whyItWorks || 'Presets act as style modifiers, not separate template worlds.',
+        },
+        {
+          label: 'Remix guardrail',
+          value: 'Stable brief',
+          detail: 'Slider changes keep the same narrative, proof, and CTA lock.',
+        },
+        {
+          label: 'Last completed',
+          value: this.lastRunAt || 'No completed run',
+          detail: this.lastDoneData?.repaired
+            ? `Repair loop applied ${Number(this.lastDoneData?.repair_attempt_count || 1)}x before final output.`
+            : 'Deterministic validators remain active on every run.',
+        },
+      ];
+      this.signalGrid.innerHTML = signalCards
+        .map(
+          (item) => `
+            <section class="signal-card">
+              <span class="signal-label">${escapeHtml(item.label)}</span>
+              <div class="signal-value">${escapeHtml(item.value)}</div>
+              <p class="signal-detail">${escapeHtml(item.detail)}</p>
+            </section>
+          `
+        )
+        .join('');
+    }
+
+    if (this.traceMeta) {
+      this.traceMeta.innerHTML = traceMeta.length
+        ? traceMeta
+            .map(
+              ([label, value]) => `
+                <div class="trace-meta">
+                  <span>${escapeHtml(label)}</span>
+                  <code>${escapeHtml(value)}</code>
+                </div>
+              `
+            )
+            .join('')
+        : `<div class="diagnostic-empty">No trace metadata yet. Generate a draft to inspect the run contract.</div>`;
+    }
+
+    if (this.validationList) {
+      this.validationList.innerHTML = validationNotes.length
+        ? validationNotes
+            .map(
+              (item) => `
+                <li class="validation-item">
+                  <span class="validation-code ${stageStatusClass(item.code)}">${escapeHtml(String(item.code).replaceAll('_', ' '))}</span>
+                  <span>${escapeHtml(item.message)}</span>
+                </li>
+              `
+            )
+            .join('')
+        : `<li class="validation-item"><span>No validator exceptions on the current draft.</span></li>`;
+    }
+
+    if (this.traceTimeline) {
+      this.traceTimeline.innerHTML = stageTimeline.length
+        ? stageTimeline
+            .map(
+              (item) => `
+                <li class="trace-item">
+                  <div class="trace-item-head">
+                    <span class="trace-stage">${escapeHtml(item.label)}</span>
+                    <span class="trace-stage-status ${stageStatusClass(item.status)}">${escapeHtml(String(item.status || 'pending').replaceAll('_', ' '))}</span>
+                  </div>
+                  <div class="trace-stage-meta">
+                    ${escapeHtml(
+                      [item.elapsedMs ? `${item.elapsedMs}ms` : '', item.model || '', item.finalValidationStatus || item.rawValidationStatus || '']
+                        .filter(Boolean)
+                        .join(' · ')
+                    )}
+                  </div>
+                </li>
+              `
+            )
+            .join('')
+        : `<li class="trace-item"><span class="diagnostic-empty">Stage events will stream here as soon as generation starts.</span></li>`;
+    }
+
+    if (this.sourcesList && this.sourcesEmpty) {
+      this.sourcesList.innerHTML = this.currentSources
+        .map((item) => {
+          const url = String(item?.url || '').trim();
+          const published = String(item?.published_at || 'Unknown').trim();
+          const retrieved = String(item?.retrieved_at || 'Unknown').trim();
+          const link = url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer">${escapeHtml(url)}</a>` : 'Unknown';
+          return `
+            <li class="source-item">
+              <div class="source-item-head">
+                <span class="source-chip">Source</span>
+                <span class="source-item-meta">published ${escapeHtml(published)}</span>
+              </div>
+              <div>${link}</div>
+              <div class="source-item-meta">retrieved ${escapeHtml(retrieved)}</div>
+            </li>
+          `;
+        })
+        .join('');
+      this.sourcesEmpty.style.display = this.currentSources.length ? 'none' : '';
+    }
+  }
+
   async generatePresetPreview(payload) {
     return fetchPresetPreview(payload);
   }
@@ -495,6 +825,8 @@ class WebApp {
   setStatus(text, pulse = false) {
     this.statusLine.textContent = text;
     this.statusLine.classList.toggle('pulse', pulse);
+    this.statusCard?.classList.toggle('pulse', pulse);
+    this.syncDiagnostics();
   }
 
   llmDraftMode() {
@@ -530,6 +862,7 @@ class WebApp {
       const providerLabel = meta.provider && meta.model ? ` · ${meta.provider}/${meta.model}` : '';
       const repairedNote = meta.repaired ? ` · repaired (${meta.repairCount || 1}x)` : '';
       badgeEl.textContent = `LLM Draft: ON (OpenAI)${providerLabel}${lastRun}${repairedNote}`;
+      this.syncDiagnostics();
       return;
     }
 
@@ -540,6 +873,7 @@ class WebApp {
       ? 'disabled'
       : 'deterministic';
     badgeEl.textContent = `LLM Draft: OFF (deterministic) · ${reason}${lastRun}`;
+    this.syncDiagnostics();
   }
 
   async refreshRuntimeConfig({ silent = false } = {}) {
@@ -559,6 +893,7 @@ class WebApp {
     if (!preset) return;
     this.selectedPresetId = String(preset.strategy_id || preset.id || 'straight_shooter');
     this.sliderBoard.setValues(presetToSliderState(preset), { emit: true });
+    this.syncDiagnostics();
     if (!this.sessionId) {
       this.setStatus(`Preset selected: ${preset.name}. Click Generate to create a draft.`);
       return;
@@ -578,6 +913,9 @@ class WebApp {
 
     this.isGenerating = true;
     this.generateBtn.disabled = true;
+    this.lastDoneData = null;
+    this.lastStageEvents = [];
+    this.currentSources = [];
     this.editor.reset();
     this.setStatus('Generating draft...', true);
 
@@ -590,6 +928,7 @@ class WebApp {
       this.editor.markComplete(elapsed);
       this.lastDraft = this.editor.getText();
       this.lastStyleKey = styleKey(payload.style_profile);
+      this.lastRunAt = nowPretty();
       this.setStatus(persisted ? 'Draft ready. Adjust sliders to remix.' : 'Draft ready.');
       this.saveRemixBtn.disabled = false;
     } catch (error) {
@@ -598,6 +937,8 @@ class WebApp {
       this.isGenerating = false;
       this.generateBtn.disabled = false;
       this.statusLine.classList.remove('pulse');
+      this.statusCard?.classList.remove('pulse');
+      this.syncDiagnostics();
     }
   }
 
@@ -621,6 +962,9 @@ class WebApp {
 
     this.isGenerating = true;
     this.generateBtn.disabled = true;
+    this.lastDoneData = null;
+    this.lastStageEvents = [];
+    this.currentSources = [];
     this.setStatus('Remixing draft...', true);
     this.editor.reset();
 
@@ -636,6 +980,7 @@ class WebApp {
       this.editor.markComplete(elapsed);
       this.lastDraft = this.editor.getText();
       this.lastStyleKey = nextKey;
+      this.lastRunAt = nowPretty();
       this.setStatus('Remix applied.');
     } catch (error) {
       if (String(error?.name || '') !== 'AbortError') {
@@ -646,6 +991,8 @@ class WebApp {
       this.isGenerating = false;
       this.generateBtn.disabled = false;
       this.statusLine.classList.remove('pulse');
+      this.statusCard?.classList.remove('pulse');
+      this.syncDiagnostics();
     }
   }
 
@@ -661,6 +1008,18 @@ class WebApp {
           const stage = String(msg?.data?.stage || '');
           const status = String(msg?.data?.status || '');
           const note = String(msg?.data?.message || '');
+          if (msg.event === 'stage') {
+            const nextStage = {
+              stage,
+              status,
+              elapsed_ms: Number(msg?.data?.elapsed_ms || 0),
+              model: String(msg?.data?.model || ''),
+            };
+            const existingIndex = this.lastStageEvents.findIndex((item) => String(item?.stage || '') === stage);
+            if (existingIndex >= 0) this.lastStageEvents.splice(existingIndex, 1, nextStage);
+            else this.lastStageEvents.push(nextStage);
+            this.syncDiagnostics();
+          }
           this.setStatus(note || [stage, status].filter(Boolean).join(' · ') || 'Working...', true);
           return;
         }
@@ -763,9 +1122,12 @@ class WebApp {
       throw new Error('Draft stream completed without content.');
     }
     if (doneData?.sources) {
+      this.currentSources = Array.isArray(doneData.sources) ? doneData.sources : [];
       this.editor.setSources(doneData.sources);
     }
+    this.lastDoneData = doneData || null;
     if (doneData) this.updateRuntimeModeBadge(doneData);
+    this.syncDiagnostics();
   }
 
   async runEnrichment(accepted, initialMessage) {
@@ -785,6 +1147,8 @@ class WebApp {
       }
     });
     this.statusLine.classList.remove('pulse');
+    this.statusCard?.classList.remove('pulse');
+    this.syncDiagnostics();
     return result;
   }
 
@@ -899,9 +1263,13 @@ class WebApp {
       this.applyResearchResult(completed?.result);
       this.setStatus('Company research complete.');
       this.statusLine.classList.remove('pulse');
+      this.statusCard?.classList.remove('pulse');
+      this.syncDiagnostics();
     } catch (error) {
       this.setStatus(String(error?.message || error));
       this.statusLine.classList.remove('pulse');
+      this.statusCard?.classList.remove('pulse');
+      this.syncDiagnostics();
     }
   }
 
