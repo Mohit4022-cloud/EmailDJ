@@ -27,6 +27,7 @@ def build_messages(
     messaging_brief: dict[str, Any],
     message_atoms: dict[str, Any],
     cta_final_line: str,
+    rewrite_context: dict[str, Any] | None = None,
     preset_contract: dict[str, Any] | None = None,
     budget_plan: dict[str, Any] | None = None,
     sliders: dict[str, Any] | None = None,
@@ -34,6 +35,7 @@ def build_messages(
     slider_payload = dict(sliders or {})
     contract = dict(preset_contract or {})
     plan = dict(budget_plan or {})
+    patch_context = dict(rewrite_context or {})
     tone = float(slider_payload.get("tone", 0.4))
     length = str(slider_payload.get("length", "medium"))
     min_words, max_words = _length_band(length)
@@ -49,17 +51,19 @@ def build_messages(
 
     system = (
         "You are a Senior SDR Editor executing a QA rewrite plan. "
-        "This is surgical editing: execute plan actions in order with minimum viable changes.\\n\\n"
+        "This is patch-mode editing: return sentence-indexed edit operations, not a redrafted email.\\n\\n"
         "RULE 1 - EXECUTE PLAN IN ORDER.\\n"
         "Do not skip, reorder, or invent extra actions. Each action is scoped to one issue_code and target.\\n\\n"
         "RULE 2 - MINIMUM CHANGE PRINCIPLE.\\n"
         "Change only text needed to satisfy each fix instruction.\\n\\n"
+        "RULE 2A - PATCH OUTPUT ONLY.\\n"
+        "Return EmailRewritePatch JSON with preserve_sentence_indexes and sentence_operations. Do not return subject/body text.\\n\\n"
         "RULE 3 - ATOMS BOUNDARY REMAINS ACTIVE.\\n"
         "Do not add claims/facts/proof beyond atoms + grounded brief support.\\n\\n"
         "RULE 4 - CTA LOCK.\\n"
         f"Final body line must remain exactly: {cta_final_line}\\n\\n"
         "RULE 5 - DO NOT TOUCH CLEAN TEXT.\\n"
-        "If sentence was not targeted by plan/issues, leave it unchanged.\\n\\n"
+        "If sentence was not targeted by plan/issues, leave it unchanged and include it in preserve_sentence_indexes.\\n\\n"
         "RULE 6 - HANDLE BLOCKED ACTIONS SAFELY.\\n"
         "If action conflicts with atoms boundary, do partial safe execution and keep grounding intact.\\n\\n"
         "RULE 7 - PRESET CONTRACT IS ACTIVE.\\n"
@@ -69,10 +73,10 @@ def build_messages(
         "RULE 9 - UNSUPPORTED CONTENT MUST BE REMOVED, NOT REPLACED WITH INVENTION.\\n"
         "If an action targets unsupported proof or unsupported initiative language, delete or narrow that claim only.\\n\\n"
         "RULE 10 - VALIDATE BEFORE OUTPUT.\\n"
-        "Check schema, banned phrases, CTA lock, preset contract, budget plan, and unresolved high-severity failures.\\n\\n"
+        "Check schema, banned phrases, CTA lock, preserve list, preset contract, budget plan, and unresolved high-severity failures.\\n\\n"
         f"Active settings: tone={_tone_instruction(tone)} body_words={min_words}-{max_words} "
         f"target_words={plan.get('target_total_words', '')} target_sentences={plan.get('target_sentence_count', '')}.\\n\\n"
-        "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
+        "Output strict JSON only. No markdown. No commentary. Match EmailRewritePatch schema exactly."
     )
 
     user_payload = {
@@ -82,6 +86,7 @@ def build_messages(
         "rewrite_plan": rewrite_plan,
         "message_atoms": message_atoms,
         "messaging_brief": messaging_brief,
+        "rewrite_context": patch_context,
         "preset_contract": contract,
         "budget_plan": plan,
         "slider_rules": {
@@ -114,25 +119,20 @@ def build_messages(
     user = (
         "Execute the rewrite plan on the original draft.\\n"
         "INSTRUCTIONS:\\n"
-        "1) Map each rewrite_plan action object to the exact quoted target before editing.\\n"
-        "2) Apply actions sequentially with minimal edits.\\n"
-        "3) Preserve preset_id, selected_angle_id, and used_hook_ids unless explicitly changed by plan.\\n"
-        "4) Keep all untouched, non-flagged text identical.\\n"
-        "5) Enforce exact locked CTA as final line; delete any trailing text after CTA.\\n"
-        "6) Make the revised draft satisfy preset_contract target_word_range and sentence_count_guidance.\\n"
-        "7) Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target.\\n"
-        "8) Preserve message_atoms.required_cta_line exactly; cta_intent may not replace it.\\n"
-        "9) If any action suggests changing CTA wording, ignore that part and keep the locked CTA text unchanged.\\n"
-        "10) For unsupported proof or initiative issues, remove or narrow only the targeted span; do not add substitute proof.\\n"
-        "11) If the current draft is under the minimum word floor, do not stop after one added sentence if it still remains under the floor. "
-        "Keep expanding with one or two concise grounded middle sentences until the body reaches the allowed minimum, while keeping the opener simple and the CTA unchanged.\\n"
-        "12) Prefer expanding the middle of the email, not the opener. Keep the opener at one clear thought.\\n"
-        "13) Validate final draft for credibility, personalization grounding, banned phrases, schema, preset contract, and budget plan.\\n"
-        "14) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
+        "1) Map each rewrite_plan action object to the exact sentence indexes in rewrite_context before editing.\\n"
+        "2) Output preserve_sentence_indexes for every untouched sentence index that must remain verbatim.\\n"
+        "3) sentence_operations may use only: keep, rewrite, insert_after, delete.\\n"
+        "4) Preserve preset_id, selected_angle_id, and used_hook_ids exactly.\\n"
+        "5) Never emit an operation that changes CTA wording or places content after the CTA.\\n"
+        "6) For opener complexity, rewrite only the opener sentence unless another issue explicitly requires more.\\n"
+        "7) For unsupported proof or initiative issues, remove or narrow only the targeted span; do not add substitute proof.\\n"
+        "8) If the body is under the minimum word floor, prefer one grounded middle-sentence insert_after operation rather than rewriting preserved sentences.\\n"
+        "9) Keep the opener at one clear thought and keep preserved sentences verbatim.\\n"
+        "10) Validate the patch against schema, atoms grounding, preserve list discipline, CTA lock, preset contract, and budget plan.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         f"BUDGET STATUS: current_body_words={current_word_count}, allowed_min_words={min_words}, "
         f"allowed_max_words={max_words}, words_needed_to_min={words_needed_to_min}, words_over_max={words_over_max}.\\n\\n"
-        "Output complete EmailDraft JSON only."
+        "Output complete EmailRewritePatch JSON only."
     )
 
     return [

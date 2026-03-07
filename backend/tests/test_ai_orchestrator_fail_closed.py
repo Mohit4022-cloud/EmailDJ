@@ -9,6 +9,7 @@ from app.config import load_settings
 from app.engine.ai_orchestrator import AIOrchestrator
 from app.engine.brief_cache import BriefCache
 from app.engine.tracer import Trace
+from app.engine.validators import PROOF_GAP_TEXT, build_cta_lock, opener_contract
 from app.schemas import WebCompanyContext, WebGenerateRequest, WebProspectInput, WebSliders, WebStyleProfile
 
 
@@ -101,6 +102,10 @@ def _brief() -> dict[str, Any]:
                 "risk_flags": ["seller_proof_gap"],
             }
         ],
+        "hook_lineage": {
+            "canonical_hook_ids": ["hook_1"],
+            "hook_alias_map": {"hook_1": "hook_1", "legacy_hook_1": "hook_1"},
+        },
         "persona_cues": {
             "likely_kpis": ["pipeline coverage"],
             "likely_initiatives": ["workflow consistency"],
@@ -122,6 +127,26 @@ def _brief() -> dict[str, Any]:
     }
 
 
+def _proof_basis(
+    *,
+    kind: str,
+    fact_ids: list[str] | None = None,
+    source_text: str = "",
+    proof_gap: bool = False,
+    hook_ids: list[str] | None = None,
+    fit_hypothesis_id: str = "fit_1",
+) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "source_fact_ids": list(fact_ids or []),
+        "source_hook_ids": list(hook_ids or ["hook_1"]),
+        "source_fit_hypothesis_id": fit_hypothesis_id,
+        "grounded_span": source_text[:240],
+        "source_text": source_text[:240],
+        "proof_gap": proof_gap,
+    }
+
+
 def _fit_map() -> dict[str, Any]:
     return {
         "version": "1",
@@ -134,6 +159,10 @@ def _fit_map() -> dict[str, Any]:
                 "impact": "lower conversion",
                 "value": "repeatable outreach quality",
                 "proof": "workflow QA controls",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="workflow QA controls",
+                ),
                 "supporting_fact_ids": ["fact_1"],
                 "why_now": "initiative timing",
                 "confidence": 0.8,
@@ -158,6 +187,15 @@ def _angles() -> dict[str, Any]:
                 "impact": "conversion drag",
                 "value": "repeatable quality",
                 "proof": "workflow QA",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="workflow QA",
+                ),
+                "primary_pain": "inconsistent outreach",
+                "primary_value_motion": "repeatable quality",
+                "primary_proof_basis": "capability_statement|workflow_qa",
+                "framing_type": "problem_led",
+                "risk_level": "low",
                 "cta_question_suggestion": "quick review",
                 "risk_flags": [],
             },
@@ -172,6 +210,15 @@ def _angles() -> dict[str, Any]:
                 "impact": "slower pipeline",
                 "value": "faster iteration",
                 "proof": "workflow QA",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="workflow QA",
+                ),
+                "primary_pain": "execution noise",
+                "primary_value_motion": "faster iteration",
+                "primary_proof_basis": "capability_statement|workflow_qa|iteration",
+                "framing_type": "outcome_led",
+                "risk_level": "medium",
                 "cta_question_suggestion": "quick review",
                 "risk_flags": [],
             },
@@ -186,6 +233,15 @@ def _angles() -> dict[str, Any]:
                 "impact": "reply drop",
                 "value": "consistent controls",
                 "proof": "workflow QA",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="workflow QA",
+                ),
+                "primary_pain": "manual drift",
+                "primary_value_motion": "consistent controls",
+                "primary_proof_basis": "capability_statement|workflow_qa|controls",
+                "framing_type": "proof_led",
+                "risk_level": "medium",
                 "cta_question_suggestion": "quick review",
                 "risk_flags": [],
             },
@@ -215,19 +271,76 @@ def _atoms_for(
     resolved_target_sentence_budget = target_sentence_budget
     if resolved_target_sentence_budget is None:
         resolved_target_sentence_budget = 3 if resolved_proof_atom.strip() == "" else 4
+    resolved_proof_basis = (
+        _proof_basis(kind="none", source_text="", proof_gap=True)
+        if resolved_proof_atom.strip() == ""
+        else _proof_basis(kind="capability_statement", source_text=resolved_proof_atom)
+    )
     return {
         "version": "1",
         "preset_id": preset_id,
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
         "opener_atom": "Noticed Acme is prioritizing RevOps workflow consistency.",
+        "opener_line": "Noticed Acme is prioritizing RevOps workflow consistency.",
+        "opener_contract": opener_contract(),
         "value_atom": "Teams usually improve meeting quality when messaging execution is consistent.",
         "proof_atom": resolved_proof_atom,
+        "proof_basis": resolved_proof_basis,
         "cta_atom": CTA,
         "cta_intent": "Ask whether a quick chat is relevant.",
         "required_cta_line": CTA,
+        "cta_lock": build_cta_lock(CTA),
         "target_word_budget": resolved_target_word_budget,
         "target_sentence_budget": resolved_target_sentence_budget,
+    }
+
+
+def _rewrite_patch(
+    *,
+    preset_id: str = "direct",
+    text_by_index: dict[int, str] | None = None,
+    insert_after: dict[int, str] | None = None,
+    delete_indexes: list[int] | None = None,
+    preserve_indexes: list[int] | None = None,
+) -> dict[str, Any]:
+    sentence_operations: list[dict[str, Any]] = []
+    for index, text in sorted((text_by_index or {}).items()):
+        sentence_operations.append(
+            {
+                "issue_code": "other",
+                "action": "rewrite",
+                "target_sentence_index": index,
+                "text": text,
+            }
+        )
+    for index, text in sorted((insert_after or {}).items()):
+        sentence_operations.append(
+            {
+                "issue_code": "word_count_out_of_band",
+                "action": "insert_after",
+                "target_sentence_index": index,
+                "text": text,
+            }
+        )
+    for index in sorted(delete_indexes or []):
+        sentence_operations.append(
+            {
+                "issue_code": "other",
+                "action": "delete",
+                "target_sentence_index": index,
+                "text": "",
+            }
+        )
+    return {
+        "version": "1",
+        "preset_id": preset_id,
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": ["hook_1"],
+        "cta_lock": build_cta_lock(CTA),
+        "preserve_sentence_indexes": list(preserve_indexes or []),
+        "sentence_operations": sentence_operations,
     }
 
 
@@ -362,7 +475,7 @@ def test_stage_e_final_validation_failure_is_fail_closed() -> None:
     assert result.subject is None
     assert result.body is None
     assert result.error
-    assert result.error["stage"] == "VALIDATION"
+    assert result.error["stage"] == "EMAIL_REWRITE"
 
 
 def test_message_atoms_repair_recovers_one_cta_mismatch_case() -> None:
@@ -426,27 +539,21 @@ def test_preset_browse_returns_mixed_success_and_error_variants() -> None:
 
 
 def test_cta_lock_mechanical_postprocess_preserves_exact_final_line() -> None:
-    req = _request()
+    orchestrator = _orchestrator([])
+    trace = Trace(str(uuid4()), "test")
     wrong_cta_draft = _valid_draft()
     wrong_cta_draft["body"] = wrong_cta_draft["body"].replace(CTA, "Can we connect this week?")
 
-    orchestrator = _orchestrator([
-        _brief(),
-        _fit_map(),
-        _angles(),
-        _atoms(),
+    repaired, _ = orchestrator._mechanical_postprocess(  # noqa: SLF001
         wrong_cta_draft,
-        _qa(pass_rewrite_needed=False),
-        _valid_draft(),
-    ])
+        {"tone": 0.5, "framing": 0.5, "length": "short", "stance": 0.5},
+        CTA,
+        trace,
+        budget_plan=None,
+    )
 
-    trace = Trace(str(uuid4()), "test")
-    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
-
-    assert result.ok is True
-    assert result.body
-    assert result.body.rstrip().endswith(CTA)
-    assert result.body.count(CTA) == 1
+    assert repaired["body"].rstrip().endswith(CTA)
+    assert repaired["body"].count(CTA) == 1
 
 
 def test_empty_proof_atom_is_normalized_before_stage_c() -> None:
@@ -682,7 +789,13 @@ def test_qa_rewrite_tightens_weak_draft_and_marks_rewrite_applied() -> None:
             "ungrounded_personalization_claim",
             evidence_quote="Acme's RevOps initiative may matter.",
         ),
-        rewritten,
+        _rewrite_patch(
+            text_by_index={
+                0: "Hi Alex, Acme's RevOps initiative suggests your team is tightening workflow consistency.",
+                1: "We help teams reduce sequence drift and improve meeting quality with practical QA controls.",
+                2: "This keeps messaging specific and repeatable without extra overhead.",
+            },
+        ),
     ])
 
     trace = Trace(str(uuid4()), "test")
@@ -716,7 +829,7 @@ def test_challenger_salvage_rescues_slightly_over_band_and_preserves_metadata() 
     salvaged = _valid_draft("challenger")
     salvaged["body"] = (
         "Hi Alex,\n\n"
-        "Most RevOps teams do not notice workflow drift until response quality starts slipping. "
+        "Workflow drift often stays hidden until reply quality starts slipping. "
         "We help teams catch that drift earlier and tighten outbound QA before reply quality falls across handoffs. "
         "That gives ops leaders a cleaner way to challenge the status quo without more review overhead.\n\n"
         f"{CTA}"
@@ -732,8 +845,16 @@ def test_challenger_salvage_rescues_slightly_over_band_and_preserves_metadata() 
             "word_count_out_of_band",
             evidence_quote="Most RevOps teams do not notice workflow drift until it starts cutting response quality across sequences.",
         ),
-        over_band,
-        salvaged,
+        _rewrite_patch(
+            preset_id="challenger",
+            text_by_index={
+                0: "Hi Alex, workflow drift often stays hidden until reply quality starts slipping.",
+                1: "We help teams catch that drift earlier and tighten outbound QA before reply quality falls across handoffs.",
+            },
+            insert_after={
+                1: "That gives ops leaders a cleaner way to challenge the status quo without more review overhead.",
+            },
+        ),
     ])
 
     trace = Trace(str(uuid4()), "test")
@@ -768,7 +889,7 @@ def test_challenger_salvage_rescues_slightly_under_band() -> None:
     salvaged = _valid_draft("challenger")
     salvaged["body"] = (
         "Hi Alex,\n\n"
-        "Acme's RevOps initiative makes hidden workflow drift expensive once reply quality starts to slide. "
+        "Hidden workflow drift gets expensive once reply quality starts slipping. "
         "We help teams catch that drift earlier and tighten outbound QA before managers are forced into cleanup mode. "
         "That gives RevOps a more defensible way to challenge the status quo without adding review drag.\n\n"
         f"{CTA}"
@@ -784,7 +905,10 @@ def test_challenger_salvage_rescues_slightly_under_band() -> None:
             "word_count_out_of_band",
             evidence_quote="Acme's RevOps initiative makes hidden workflow drift expensive.",
         ),
-        too_short,
+        _rewrite_patch(
+            preset_id="challenger",
+            preserve_indexes=[0, 1],
+        ),
         salvaged,
     ])
 
@@ -835,7 +959,12 @@ def test_qa_heuristics_trigger_rewrite_for_clause_heavy_opener() -> None:
         _atoms(),
         generated,
         _qa(pass_rewrite_needed=False),
-        rewritten,
+        _rewrite_patch(
+            text_by_index={
+                0: "Hi Alex, Acme's RevOps initiative puts workflow consistency under more scrutiny.",
+            },
+            preserve_indexes=[1, 2],
+        ),
     ])
 
     trace = Trace(str(uuid4()), "test")
@@ -843,6 +972,7 @@ def test_qa_heuristics_trigger_rewrite_for_clause_heavy_opener() -> None:
 
     assert result.ok is True
     assert "Because Acme's RevOps initiative is active" not in result.body
+    assert "This keeps messaging specific and repeatable without extra overhead." in result.body
     qa_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_QA" and item.get("status") == "complete"]
     assert qa_entries[-1]["dominant_failing_rule"] == "opener_too_complex"
     rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
@@ -861,7 +991,13 @@ def test_salvage_does_not_run_on_semantic_failure() -> None:
         _atoms_for("challenger"),
         _valid_draft("challenger"),
         _qa_with_issue("tone_mismatch_for_preset"),
-        bad_rewrite,
+        _rewrite_patch(
+            preset_id="challenger",
+            text_by_index={
+                1: "We help teams reduce sequence drift and touch base on practical QA controls.",
+            },
+            preserve_indexes=[0, 2],
+        ),
     ])
 
     trace = Trace(str(uuid4()), "test")
@@ -885,7 +1021,13 @@ def test_preset_trace_fields_capture_contract_and_word_counts() -> None:
         _atoms_for("challenger"),
         _valid_draft("challenger"),
         _qa_with_issue("opener_too_soft_for_preset", severity="medium"),
-        _valid_draft("challenger"),
+        _rewrite_patch(
+            preset_id="challenger",
+            text_by_index={
+                0: "Hi Alex, Acme's RevOps initiative puts workflow consistency under more scrutiny.",
+            },
+            preserve_indexes=[1, 2],
+        ),
     ])
 
     trace = Trace(str(uuid4()), "test")

@@ -108,6 +108,20 @@ GROUNDING_STOPWORDS = {
     "would",
 }
 
+PROOF_GAP_TEXT = "Proof gap: no seller proof provided in brief."
+SUBORDINATE_OPENER_PREFIXES = ("given ", "as ", "with ", "considering ")
+GENERIC_PROOF_PHRASES = (
+    "helps teams stay ahead",
+    "improves visibility",
+    "supports growth",
+    "drives efficiency",
+    "improves alignment",
+    "improves outcomes",
+    "supports scale",
+    "supports scaling",
+    "enhances collaboration",
+)
+
 
 class ValidationIssue(ValueError):
     def __init__(
@@ -120,6 +134,190 @@ class ValidationIssue(ValueError):
         super().__init__(message)
         self.codes = list(codes)
         self.details = list(details or [])
+
+
+def normalize_cta_text(text: Any) -> str:
+    return re.sub(r"\s+", " ", str(text or "").strip())
+
+
+def build_cta_lock(cta_final_line: Any) -> dict[str, str]:
+    normalized = normalize_cta_text(cta_final_line)
+    return {
+        "final_line": normalized,
+        "normalized_final_line": normalized,
+    }
+
+
+def canonical_hook_ids(messaging_brief: dict[str, Any]) -> list[str]:
+    lineage = dict(messaging_brief.get("hook_lineage") or {})
+    from_lineage = [str(item or "").strip() for item in (lineage.get("canonical_hook_ids") or []) if str(item or "").strip()]
+    if from_lineage:
+        return list(dict.fromkeys(from_lineage))
+    return list(
+        dict.fromkeys(
+            str(item.get("hook_id") or "").strip()
+            for item in (messaging_brief.get("hooks") or [])
+            if isinstance(item, dict) and str(item.get("hook_id") or "").strip()
+        )
+    )
+
+
+def hook_alias_map(messaging_brief: dict[str, Any]) -> dict[str, str]:
+    lineage = dict(messaging_brief.get("hook_lineage") or {})
+    raw_map = dict(lineage.get("hook_alias_map") or {})
+    normalized: dict[str, str] = {}
+    for raw_key, raw_value in raw_map.items():
+        key = str(raw_key or "").strip()
+        value = str(raw_value or "").strip()
+        if key and value:
+            normalized[key] = value
+    return normalized
+
+
+def resolve_hook_ids(
+    hook_ids: list[Any],
+    *,
+    messaging_brief: dict[str, Any],
+    selected_hook_id: str = "",
+) -> tuple[list[str], list[str]]:
+    valid_hook_ids = set(canonical_hook_ids(messaging_brief))
+    alias_map = hook_alias_map(messaging_brief)
+    repaired: list[str] = []
+    actions: list[str] = []
+    seen: set[str] = set()
+    fallback = str(selected_hook_id or "").strip()
+    allow_fallback = bool(fallback) and (len(valid_hook_ids) == 1 or fallback in valid_hook_ids)
+    for raw_item in hook_ids:
+        item = str(raw_item or "").strip()
+        if not item:
+            continue
+        canonical = alias_map.get(item, item)
+        if canonical not in valid_hook_ids and allow_fallback:
+            canonical = fallback
+            actions.append("repair_stale_hook_id_to_selected")
+        if canonical not in valid_hook_ids or canonical in seen:
+            continue
+        seen.add(canonical)
+        repaired.append(canonical)
+    if fallback and fallback in valid_hook_ids and fallback not in seen:
+        repaired.insert(0, fallback)
+        actions.append("restore_selected_hook_id")
+    return repaired, list(dict.fromkeys(actions))
+
+
+def _seller_proof_facts(messaging_brief: dict[str, Any]) -> list[dict[str, Any]]:
+    facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    return [fact for fact in facts if canonical_fact_kind(str(fact.get("source_field") or "").strip().lower()) == "seller_proof"]
+
+
+def proof_basis_key(proof_basis: dict[str, Any] | None) -> str:
+    basis = dict(proof_basis or {})
+    source_fact_ids = [str(item or "").strip() for item in (basis.get("source_fact_ids") or []) if str(item or "").strip()]
+    source_hook_ids = [str(item or "").strip() for item in (basis.get("source_hook_ids") or []) if str(item or "").strip()]
+    return "|".join(
+        [
+            str(basis.get("kind") or "none").strip() or "none",
+            source_fact_ids[0] if source_fact_ids else "",
+            source_hook_ids[0] if source_hook_ids else "",
+            normalize_text_key(str(basis.get("grounded_span") or "")[:80]),
+        ]
+    )
+
+
+def proof_is_vague(text: str) -> bool:
+    lowered = str(text or "").strip().lower()
+    if not lowered:
+        return False
+    return any(phrase in lowered for phrase in GENERIC_PROOF_PHRASES)
+
+
+def build_proof_basis(
+    proof_text: Any,
+    *,
+    messaging_brief: dict[str, Any],
+    selected_hook_id: str = "",
+    selected_fit_hypothesis_id: str = "",
+) -> dict[str, Any]:
+    normalized_text = str(proof_text or "").strip()
+    matched_fact_ids: list[str] = []
+    matched_hook_ids: list[str] = [str(selected_hook_id or "").strip()] if str(selected_hook_id or "").strip() else []
+    matched_span = ""
+    proof_gap = False
+    kind = "none"
+
+    if not normalized_text or normalized_text == PROOF_GAP_TEXT:
+        proof_gap = True
+    else:
+        proof_tokens = _grounding_tokens(normalized_text)
+        proof_numbers = _numeric_tokens(normalized_text)
+        for fact in _seller_proof_facts(messaging_brief):
+            fact_id = str(fact.get("fact_id") or "").strip()
+            fact_text = str(fact.get("text") or "").strip()
+            if not fact_id or not fact_text:
+                continue
+            overlap = proof_tokens & _grounding_tokens(fact_text)
+            numeric_overlap = proof_numbers & _numeric_tokens(fact_text)
+            if len(overlap) >= 2 and (not proof_numbers or bool(numeric_overlap)):
+                matched_fact_ids.append(fact_id)
+                if not matched_span:
+                    matched_span = fact_text[:240]
+        if matched_fact_ids:
+            kind = "hard_proof" if proof_numbers else "soft_signal"
+        elif re.search(r"\b(likely|probably|may|might)\b", normalized_text.lower()):
+            kind = "assumption"
+        elif re.search(r"\b(can|helps|enable|enables|designed to|supports)\b", normalized_text.lower()):
+            kind = "capability_statement"
+        else:
+            proof_gap = True
+
+    if proof_gap:
+        normalized_text = ""
+        matched_span = ""
+        matched_fact_ids = []
+        kind = "none"
+
+    return {
+        "kind": kind,
+        "source_fact_ids": matched_fact_ids,
+        "source_hook_ids": matched_hook_ids,
+        "source_fit_hypothesis_id": str(selected_fit_hypothesis_id or "").strip(),
+        "grounded_span": matched_span,
+        "source_text": normalized_text[:240],
+        "proof_gap": bool(proof_gap),
+    }
+
+
+def is_leading_subordinate_clause(opener_line: str) -> bool:
+    lowered = str(opener_line or "").strip().lower()
+    return any(lowered.startswith(prefix) for prefix in SUBORDINATE_OPENER_PREFIXES)
+
+
+def opener_contract() -> dict[str, Any]:
+    return {
+        "max_words": 14,
+        "max_commas": 1,
+        "plain_english_required": True,
+        "allow_leading_subordinate_clause": False,
+    }
+
+
+def opener_is_simple(opener_line: str, *, contract: dict[str, Any] | None = None) -> bool:
+    normalized_contract = dict(contract or opener_contract())
+    opener = normalize_cta_text(opener_line)
+    if not opener:
+        return False
+    if len(_body_sentences(opener)) != 1:
+        return False
+    if _word_count(opener) > int(normalized_contract.get("max_words") or 14):
+        return False
+    if opener.count(",") > int(normalized_contract.get("max_commas") or 1):
+        return False
+    connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
+    if connector_count > 1:
+        return False
+    if not bool(normalized_contract.get("allow_leading_subordinate_clause")) and is_leading_subordinate_clause(opener):
+        return False
+    return True
 
 
 def _codes_or_raise(codes: list[str], details: list[dict[str, Any]] | None = None) -> None:
@@ -649,7 +847,7 @@ def validate_messaging_brief(
 
 def validate_fit_map(fit_map: dict[str, Any], messaging_brief: dict[str, Any]) -> None:
     codes: list[str] = []
-    hook_ids = {str(item.get("hook_id")) for item in messaging_brief.get("hooks") or []}
+    hook_ids = set(canonical_hook_ids(messaging_brief))
     fact_ids = {str(item.get("fact_id")) for item in messaging_brief.get("facts_from_input") or []}
 
     for hyp in fit_map.get("hypotheses") or []:
@@ -663,6 +861,27 @@ def validate_fit_map(fit_map: dict[str, Any], messaging_brief: dict[str, Any]) -
         if any(str(fid) not in fact_ids for fid in supporting):
             codes.append("fit_unknown_supporting_fact_id")
             break
+        proof_basis = dict(hyp.get("proof_basis") or {})
+        if not proof_basis:
+            codes.append("fit_missing_proof_basis")
+            break
+        basis_kind = str(proof_basis.get("kind") or "").strip()
+        basis_fact_ids = [str(item or "").strip() for item in (proof_basis.get("source_fact_ids") or []) if str(item or "").strip()]
+        if basis_kind in {"hard_proof", "soft_signal"} and not basis_fact_ids:
+            codes.append("fit_proof_basis_missing_source_fact")
+            break
+        if any(fid not in fact_ids for fid in basis_fact_ids):
+            codes.append("fit_proof_basis_unknown_fact_id")
+            break
+        if str(proof_basis.get("proof_gap")) == "True":
+            proof_basis["proof_gap"] = True
+        proof_text = str(hyp.get("proof") or "").strip()
+        if basis_kind == "none" and proof_text != PROOF_GAP_TEXT:
+            codes.append("fit_proof_gap_text_mismatch")
+            break
+        if basis_kind != "none" and proof_is_vague(proof_text):
+            codes.append("fit_proof_not_specific")
+            break
 
     _codes_or_raise(codes)
 
@@ -672,8 +891,9 @@ def validate_angle_set(angle_set: dict[str, Any], messaging_brief: dict[str, Any
     angles = list(angle_set.get("angles") or [])
     if len(angles) < 3:
         codes.append("angle_set_too_small")
-    hook_ids = {str(item.get("hook_id")) for item in messaging_brief.get("hooks") or []}
+    hook_ids = set(canonical_hook_ids(messaging_brief))
     hyp_ids = {str(item.get("fit_hypothesis_id")) for item in fit_map.get("hypotheses") or []}
+    seen_signatures: set[tuple[str, str, str, str]] = set()
     for angle in angles:
         if str(angle.get("selected_hook_id")) not in hook_ids:
             codes.append("angle_unknown_hook_id")
@@ -681,6 +901,20 @@ def validate_angle_set(angle_set: dict[str, Any], messaging_brief: dict[str, Any
         if str(angle.get("selected_fit_hypothesis_id")) not in hyp_ids:
             codes.append("angle_unknown_fit_hypothesis_id")
             break
+        proof_basis = dict(angle.get("proof_basis") or {})
+        if not proof_basis:
+            codes.append("angle_missing_proof_basis")
+            break
+        signature = (
+            normalize_text_key(str(angle.get("primary_pain") or angle.get("pain") or "")),
+            normalize_text_key(str(angle.get("primary_value_motion") or angle.get("value") or "")),
+            normalize_text_key(str(angle.get("primary_proof_basis") or proof_basis_key(proof_basis))),
+            normalize_text_key(str(angle.get("framing_type") or angle.get("angle_type") or "")),
+        )
+        if signature in seen_signatures:
+            codes.append("angle_duplicate_distinctness_signature")
+            break
+        seen_signatures.add(signature)
     _codes_or_raise(codes)
 
 
@@ -700,16 +934,24 @@ def validate_message_atoms(
     facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
     seller_proof_facts = [fact for fact in facts if canonical_fact_kind(str(fact.get("source_field") or "")) == "seller_proof"]
     seller_proof_texts = [str(fact.get("text") or "").strip() for fact in seller_proof_facts if str(fact.get("text") or "").strip()]
+    expected_opener_contract = opener_contract()
+    expected_cta_lock = build_cta_lock(cta_final_line)
+    expected_canonical_hook_ids = canonical_hook_ids(messaging_brief)
     normalized_atoms = {
         "preset_id": str(atoms.get("preset_id") or "").strip(),
         "selected_angle_id": str(atoms.get("selected_angle_id") or "").strip(),
         "used_hook_ids": [str(item or "").strip() for item in (atoms.get("used_hook_ids") or []) if str(item or "").strip()],
+        "canonical_hook_ids": [str(item or "").strip() for item in (atoms.get("canonical_hook_ids") or []) if str(item or "").strip()],
         "opener_atom": str(atoms.get("opener_atom") or "").strip(),
+        "opener_line": str(atoms.get("opener_line") or "").strip(),
+        "opener_contract": dict(atoms.get("opener_contract") or {}),
         "value_atom": str(atoms.get("value_atom") or "").strip(),
         "proof_atom": str(atoms.get("proof_atom") or "").strip(),
+        "proof_basis": dict(atoms.get("proof_basis") or {}),
         "cta_atom": str(atoms.get("cta_atom") or "").strip(),
         "cta_intent": str(atoms.get("cta_intent") or "").strip(),
         "required_cta_line": str(atoms.get("required_cta_line") or "").strip(),
+        "cta_lock": dict(atoms.get("cta_lock") or {}),
         "target_word_budget": int(atoms.get("target_word_budget") or 0),
         "target_sentence_budget": int(atoms.get("target_sentence_budget") or 0),
     }
@@ -733,14 +975,14 @@ def validate_message_atoms(
             expected_angle_id=expected_angle_id,
         )
 
-    cta_status = cta_alignment_status(candidate=normalized_atoms["cta_atom"], required_cta_line=cta_final_line)
-    if normalized_atoms["required_cta_line"] != str(cta_final_line or "").strip():
+    cta_status = cta_alignment_status(candidate=normalized_atoms["cta_atom"], required_cta_line=expected_cta_lock["final_line"])
+    if normalized_atoms["required_cta_line"] != expected_cta_lock["final_line"]:
         codes.append("atoms_required_cta_mismatch")
         _append_detail(
             details,
             "atoms_required_cta_mismatch",
             offending_text=normalized_atoms["required_cta_line"],
-            expected_cta=str(cta_final_line or "").strip(),
+            expected_cta=expected_cta_lock["final_line"],
         )
     if cta_status != "aligned":
         codes.append("atoms_cta_mismatch")
@@ -749,8 +991,12 @@ def validate_message_atoms(
             "atoms_cta_mismatch",
             offending_text=normalized_atoms["cta_atom"],
             cta_alignment_status=cta_status,
-            expected_cta=str(cta_final_line or "").strip(),
+            expected_cta=expected_cta_lock["final_line"],
         )
+    cta_lock = normalized_atoms["cta_lock"]
+    if cta_lock.get("final_line") != expected_cta_lock["final_line"] or cta_lock.get("normalized_final_line") != expected_cta_lock["normalized_final_line"]:
+        codes.append("atoms_cta_lock_mismatch")
+        _append_detail(details, "atoms_cta_lock_mismatch", offending_text=str(cta_lock))
 
     used_hooks = normalized_atoms["used_hook_ids"]
     if len(used_hooks) < 1:
@@ -759,14 +1005,18 @@ def validate_message_atoms(
     if len(set(used_hooks)) != len(used_hooks):
         codes.append("atoms_duplicate_used_hook_id")
         _append_detail(details, "atoms_duplicate_used_hook_id", available_fact_ids=used_hooks)
-    hook_ids = {
-        str(item.get("hook_id") or "").strip()
-        for item in (messaging_brief.get("hooks") or [])
-        if isinstance(item, dict)
-    }
+    hook_ids = set(expected_canonical_hook_ids)
     if any(hook_id and hook_id not in hook_ids for hook_id in used_hooks):
         codes.append("atoms_unknown_hook_id")
         _append_detail(details, "atoms_unknown_hook_id", available_fact_ids=used_hooks)
+    if normalized_atoms["canonical_hook_ids"] != expected_canonical_hook_ids:
+        codes.append("atoms_canonical_hook_ids_mismatch")
+        _append_detail(
+            details,
+            "atoms_canonical_hook_ids_mismatch",
+            offending_text=",".join(normalized_atoms["canonical_hook_ids"]),
+            available_fact_ids=expected_canonical_hook_ids,
+        )
     selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
     if selected_hook_id and selected_hook_id not in used_hooks:
         codes.append("atoms_selected_hook_not_preserved")
@@ -784,9 +1034,36 @@ def validate_message_atoms(
             codes.append("atoms_forbidden_opener_pattern")
             _append_detail(details, "atoms_forbidden_opener_pattern", offending_text=token)
             break
+    if normalized_atoms["opener_line"] != normalized_atoms["opener_atom"]:
+        codes.append("atoms_opener_line_mismatch")
+        _append_detail(details, "atoms_opener_line_mismatch", offending_text=normalized_atoms["opener_line"])
+    opener_contract_payload = dict(normalized_atoms["opener_contract"] or {})
+    if opener_contract_payload != expected_opener_contract:
+        codes.append("atoms_opener_contract_mismatch")
+        _append_detail(details, "atoms_opener_contract_mismatch", offending_text=str(opener_contract_payload))
+    if not opener_is_simple(normalized_atoms["opener_line"], contract=opener_contract_payload or expected_opener_contract):
+        codes.append("atoms_opener_too_complex")
+        _append_detail(details, "atoms_opener_too_complex", offending_text=normalized_atoms["opener_line"][:160])
 
     proof_atom = normalized_atoms["proof_atom"]
+    proof_basis = normalized_atoms["proof_basis"]
+    proof_kind = str(proof_basis.get("kind") or "").strip()
+    if not proof_basis:
+        codes.append("atoms_missing_proof_basis")
+        _append_detail(details, "atoms_missing_proof_basis", offending_text="")
+    elif str(proof_basis.get("source_fit_hypothesis_id") or "") and str(proof_basis.get("source_fit_hypothesis_id") or "") != str(selected_angle.get("selected_fit_hypothesis_id") or ""):
+        codes.append("atoms_proof_basis_hypothesis_mismatch")
+        _append_detail(details, "atoms_proof_basis_hypothesis_mismatch", offending_text=str(proof_basis.get("source_fit_hypothesis_id") or ""))
     if proof_atom:
+        if proof_kind not in {"hard_proof", "soft_signal"}:
+            codes.append("atoms_proof_kind_not_allowed_for_proof_atom")
+            _append_detail(details, "atoms_proof_kind_not_allowed_for_proof_atom", offending_text=proof_kind)
+        if bool(proof_basis.get("proof_gap")):
+            codes.append("atoms_proof_despite_gap")
+            _append_detail(details, "atoms_proof_despite_gap", offending_text=proof_atom[:160])
+        if proof_is_vague(proof_atom):
+            codes.append("atoms_proof_too_generic")
+            _append_detail(details, "atoms_proof_too_generic", offending_text=proof_atom[:160])
         if not seller_proof_texts:
             codes.append("atoms_proof_without_seller_proof")
             _append_detail(
@@ -813,6 +1090,9 @@ def validate_message_atoms(
                     actual_evidence_kinds=["seller_proof"],
                     required_evidence_kind="seller_proof",
                 )
+    elif proof_kind in {"hard_proof", "soft_signal"}:
+        codes.append("atoms_missing_proof_atom_for_proof_basis")
+        _append_detail(details, "atoms_missing_proof_atom_for_proof_basis", offending_text=proof_kind)
 
     atom_fields = ("opener_atom", "value_atom", "proof_atom", "cta_atom")
     duplicate_map: dict[str, str] = {}
@@ -887,6 +1167,43 @@ def _word_count(text: str) -> int:
     return len(re.findall(r"\b\w+\b", text or ""))
 
 
+def _body_sentences(text: str) -> list[str]:
+    collapsed = re.sub(r"\s+", " ", str(text or "").replace("\n", " ")).strip()
+    if not collapsed:
+        return []
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", collapsed) if part.strip()]
+
+
+def _last_nonempty_line(text: str) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def _contains_unsupported_proof_sentence(
+    body: str,
+    *,
+    cta_final_line: str,
+    message_atoms: dict[str, Any] | None,
+) -> bool:
+    atoms = dict(message_atoms or {})
+    opener_line = normalize_cta_text(atoms.get("opener_line") or atoms.get("opener_atom") or "")
+    value_line = normalize_cta_text(atoms.get("value_atom") or "")
+    locked_cta = normalize_cta_text(cta_final_line)
+    known_lines = {line for line in (opener_line, value_line, locked_cta) if line}
+    for sentence in _body_sentences(body):
+        normalized = normalize_cta_text(sentence)
+        if normalized in known_lines:
+            continue
+        lowered = normalized.lower()
+        if re.search(r"\b(?:customer|peer|client)\b", lowered):
+            return True
+        if re.search(r"\ba\s+[a-z0-9_-]+\s+team\b", lowered) and _numeric_tokens(lowered):
+            return True
+        if _numeric_tokens(lowered) and re.search(r"\b(?:improv|lift|reduc|cut|faster|increase|decrease)\b", lowered):
+            return True
+    return False
+
+
 def _paragraphs(text: str) -> list[str]:
     return [chunk.strip() for chunk in re.split(r"\n\s*\n", text or "") if chunk.strip()]
 
@@ -934,6 +1251,7 @@ def validate_email_draft(
     brief: dict[str, Any],
     cta_final_line: str,
     sliders: dict[str, Any],
+    message_atoms: dict[str, Any] | None = None,
     preset_contract: dict[str, Any] | None = None,
     budget_plan: dict[str, Any] | None = None,
     personalization_threshold: float = 0.65,
@@ -942,15 +1260,16 @@ def validate_email_draft(
     subject = str(draft.get("subject") or "").strip()
     body = str(draft.get("body") or "").strip()
     used_hook_ids = list(draft.get("used_hook_ids") or [])
+    atoms = dict(message_atoms or {})
 
     if len(subject) > 70:
         codes.append("subject_too_long")
 
-    cta = str(cta_final_line or "").strip()
+    cta = normalize_cta_text(cta_final_line)
     if cta:
-        if not body.endswith(cta):
+        if _last_nonempty_line(body) != cta:
             codes.append("cta_not_final_line")
-        if body.count(cta) > 1:
+        if sum(1 for line in body.splitlines() if normalize_cta_text(line) == cta) > 1:
             codes.append("duplicate_cta_line")
 
     lower_body = body.lower()
@@ -997,9 +1316,25 @@ def validate_email_draft(
     if isinstance(hard_sentence_max, int) and contract_sentence_count(body) > hard_sentence_max:
         codes.append("too_many_sentences_for_preset")
 
+    opener = _body_sentences(body)[0] if _body_sentences(body) else ""
+    if opener and not opener_is_simple(opener, contract=dict(atoms.get("opener_contract") or opener_contract())):
+        codes.append("opener_too_complex")
+
+    canonical_hooks = set(canonical_hook_ids(brief))
+    if any(str(hook_id or "").strip() and str(hook_id or "").strip() not in canonical_hooks for hook_id in used_hook_ids):
+        codes.append("personalization_unknown_used_hook")
+
+    proof_basis = dict(atoms.get("proof_basis") or {})
+    proof_kind = str(proof_basis.get("kind") or "").strip()
+    if proof_kind in {"none", "capability_statement", "assumption"} and _contains_unsupported_proof_sentence(
+        body,
+        cta_final_line=cta,
+        message_atoms=atoms,
+    ):
+        codes.append("unsupported_proof_sentence")
+
     tone_marker = float(sliders.get("framing", 0.5))
     if tone_marker >= personalization_threshold:
-        opener = str(body.splitlines()[0] if body else "")
         if len(used_hook_ids) == 0:
             codes.append("personalization_missing_used_hook")
         if not _is_non_generic_opener(opener):
@@ -1468,7 +1803,7 @@ def augment_qa_report_from_draft_heuristics(
         issues.append(
             _validation_issue_dict(
                 issue_code="opener_too_complex",
-                severity="medium",
+                severity="high",
                 target="opener sentence",
                 evidence_quote=opener,
                 why_it_fails="The opener carries too many clauses, which weakens clarity and makes the first line feel generic.",

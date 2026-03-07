@@ -24,6 +24,7 @@ from .prompts import stage_a, stage_b, stage_b0, stage_c, stage_c0, stage_d, sta
 from .schemas import (
     RF_ANGLE_SET,
     RF_EMAIL_DRAFT,
+    RF_EMAIL_REWRITE_PATCH,
     RF_FIT_MAP,
     RF_MESSAGING_BRIEF,
     RF_MESSAGE_ATOMS,
@@ -38,8 +39,17 @@ from .validators import (
     ValidationIssue,
     augment_qa_report_from_draft_heuristics,
     augment_qa_report_from_validation_codes,
+    build_cta_lock,
+    build_proof_basis,
+    canonical_hook_ids,
     dominant_validation_code,
     normalize_qa_report,
+    normalize_cta_text,
+    opener_contract,
+    opener_is_simple,
+    proof_basis_key,
+    PROOF_GAP_TEXT,
+    resolve_hook_ids,
     salvage_eligible_validation_codes,
     validate_angle_set,
     validate_email_draft,
@@ -246,6 +256,264 @@ class AIOrchestrator:
                     return dict(angle)
         return dict(angles[0]) if angles else {}
 
+    def _fit_hypothesis_map(self, fit_map: dict[str, Any]) -> dict[str, dict[str, Any]]:
+        return {
+            str(item.get("fit_hypothesis_id") or "").strip(): dict(item)
+            for item in (fit_map.get("hypotheses") or [])
+            if isinstance(item, dict) and str(item.get("fit_hypothesis_id") or "").strip()
+        }
+
+    def _risk_level_from_flags(self, risk_flags: list[Any]) -> str:
+        lowered = {str(item or "").strip().lower() for item in risk_flags if str(item or "").strip()}
+        if lowered & {"proof_gap", "seller_proof_gap", "unsupported_recency", "unsupported_initiative"}:
+            return "high"
+        if lowered:
+            return "medium"
+        return "low"
+
+    def _simplify_opener_text(self, text: Any) -> str:
+        opener = normalize_cta_text(text)
+        if not opener:
+            return ""
+        if opener_is_simple(opener, contract=opener_contract()):
+            return opener
+        parts = [
+            chunk.strip()
+            for chunk in re.split(r"(?<=[.!?])\s+|,\s+|;\s+|:\s+", opener)
+            if chunk.strip()
+        ]
+        for chunk in parts:
+            candidate = chunk.strip()
+            if len(candidate.split()) < 4:
+                continue
+            if candidate and candidate[-1] not in ".!?":
+                candidate = candidate.rstrip(",;:") + "."
+            if opener_is_simple(candidate, contract=opener_contract()):
+                return candidate
+        return opener
+
+    def _sanitize_fit_map_payload(
+        self,
+        fit_map: dict[str, Any],
+        *,
+        messaging_brief: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        out = dict(fit_map or {})
+        actions: list[str] = []
+        hypotheses: list[dict[str, Any]] = []
+        for raw_hypothesis in (out.get("hypotheses") or []):
+            hypothesis = dict(raw_hypothesis or {})
+            hook_id = str(hypothesis.get("selected_hook_id") or "").strip()
+            fit_hypothesis_id = str(hypothesis.get("fit_hypothesis_id") or "").strip()
+            proof_basis = dict(hypothesis.get("proof_basis") or {})
+            if not proof_basis:
+                proof_basis = build_proof_basis(
+                    hypothesis.get("proof"),
+                    messaging_brief=messaging_brief,
+                    selected_hook_id=hook_id,
+                    selected_fit_hypothesis_id=fit_hypothesis_id,
+                )
+                actions.append("derive_fit_proof_basis")
+            if str(proof_basis.get("kind") or "") == "none":
+                if str(hypothesis.get("proof") or "").strip() != PROOF_GAP_TEXT:
+                    hypothesis["proof"] = PROOF_GAP_TEXT
+                    actions.append("lock_fit_proof_gap_text")
+            hypothesis["proof_basis"] = proof_basis
+            hypotheses.append(hypothesis)
+        out["hypotheses"] = hypotheses
+        return out, {"fit_sanitation_report": {"actions": actions}}
+
+    def _sanitize_angle_set_payload(
+        self,
+        angle_set: dict[str, Any],
+        *,
+        messaging_brief: dict[str, Any],
+        fit_map: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        out = dict(angle_set or {})
+        actions: list[str] = []
+        hypothesis_map = self._fit_hypothesis_map(fit_map)
+        angles: list[dict[str, Any]] = []
+        for raw_angle in (out.get("angles") or []):
+            angle = dict(raw_angle or {})
+            hypothesis = hypothesis_map.get(str(angle.get("selected_fit_hypothesis_id") or "").strip(), {})
+            proof_basis = dict(angle.get("proof_basis") or hypothesis.get("proof_basis") or {})
+            if not proof_basis:
+                proof_basis = build_proof_basis(
+                    angle.get("proof"),
+                    messaging_brief=messaging_brief,
+                    selected_hook_id=str(angle.get("selected_hook_id") or "").strip(),
+                    selected_fit_hypothesis_id=str(angle.get("selected_fit_hypothesis_id") or "").strip(),
+                )
+                actions.append("derive_angle_proof_basis")
+            if str(proof_basis.get("kind") or "") == "none" and str(angle.get("proof") or "").strip() != PROOF_GAP_TEXT:
+                angle["proof"] = PROOF_GAP_TEXT
+                actions.append("lock_angle_proof_gap_text")
+            angle["proof_basis"] = proof_basis
+            angle["primary_pain"] = normalize_cta_text(angle.get("primary_pain") or angle.get("pain") or "")
+            angle["primary_value_motion"] = normalize_cta_text(angle.get("primary_value_motion") or angle.get("value") or "")
+            angle["primary_proof_basis"] = str(angle.get("primary_proof_basis") or proof_basis_key(proof_basis)).strip()
+            angle["framing_type"] = str(angle.get("framing_type") or angle.get("angle_type") or "").strip()
+            angle["risk_level"] = str(angle.get("risk_level") or self._risk_level_from_flags(angle.get("risk_flags") or [])).strip()
+            angles.append(angle)
+        out["angles"] = angles
+        return out, {"angle_sanitation_report": {"actions": actions}}
+
+    def _body_sentences_without_cta(self, draft: dict[str, Any], *, cta_line: str) -> list[str]:
+        body = str(draft.get("body") or "").strip()
+        if not body:
+            return []
+        locked_cta = normalize_cta_text(cta_line)
+        narrative_lines = [
+            line.strip()
+            for line in body.splitlines()
+            if line.strip() and normalize_cta_text(line) != locked_cta
+        ]
+        narrative = " ".join(narrative_lines).strip()
+        if not narrative:
+            return []
+        return [part.strip() for part in re.split(r"(?<=[.!?])\s+", narrative) if part.strip()]
+
+    def _matching_sentence_indexes(self, sentences: list[str], *candidates: Any) -> list[int]:
+        indexes: list[int] = []
+        normalized_sentences = [normalize_cta_text(sentence).lower() for sentence in sentences]
+        for raw_candidate in candidates:
+            candidate = normalize_cta_text(raw_candidate).lower()
+            if not candidate:
+                continue
+            for idx, sentence in enumerate(normalized_sentences):
+                if candidate in sentence or sentence in candidate:
+                    indexes.append(idx)
+        return list(dict.fromkeys(indexes))
+
+    def _build_rewrite_context(
+        self,
+        *,
+        draft: dict[str, Any],
+        qa_report: dict[str, Any],
+        cta_line: str,
+    ) -> dict[str, Any]:
+        original_sentences = self._body_sentences_without_cta(draft, cta_line=cta_line)
+        targeted: list[int] = []
+        for issue in (qa_report.get("issues") or []):
+            if not isinstance(issue, dict):
+                continue
+            targeted.extend(
+                self._matching_sentence_indexes(
+                    original_sentences,
+                    issue.get("evidence_quote"),
+                    issue.get("offending_span_or_target_section"),
+                )
+            )
+        for action in (qa_report.get("rewrite_plan") or []):
+            if not isinstance(action, dict):
+                continue
+            targeted.extend(self._matching_sentence_indexes(original_sentences, action.get("target")))
+        targeted_indexes = sorted(set(targeted))
+        preserve_indexes = [idx for idx in range(len(original_sentences)) if idx not in set(targeted_indexes)]
+        return {
+            "original_sentences": [{"index": idx, "text": text} for idx, text in enumerate(original_sentences)],
+            "targeted_sentence_indexes": targeted_indexes,
+            "preserve_sentence_indexes": preserve_indexes,
+            "locked_cta": build_cta_lock(cta_line),
+        }
+
+    def _sanitize_rewrite_patch_payload(
+        self,
+        patch: dict[str, Any],
+        *,
+        original_draft: dict[str, Any],
+        atoms: dict[str, Any],
+        cta_line: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        out = dict(patch or {})
+        actions: list[str] = []
+        out["preset_id"] = str(original_draft.get("preset_id") or atoms.get("preset_id") or "").strip()
+        out["selected_angle_id"] = str(original_draft.get("selected_angle_id") or atoms.get("selected_angle_id") or "").strip()
+        out["used_hook_ids"] = list(original_draft.get("used_hook_ids") or atoms.get("used_hook_ids") or [])
+        out["cta_lock"] = build_cta_lock(cta_line)
+        preserve_indexes = []
+        for raw_index in (out.get("preserve_sentence_indexes") or []):
+            try:
+                preserve_indexes.append(int(raw_index))
+            except (TypeError, ValueError):
+                continue
+        out["preserve_sentence_indexes"] = sorted(set(preserve_indexes))
+        normalized_operations: list[dict[str, Any]] = []
+        for raw_operation in (out.get("sentence_operations") or []):
+            if not isinstance(raw_operation, dict):
+                continue
+            try:
+                target_index = int(raw_operation.get("target_sentence_index"))
+            except (TypeError, ValueError):
+                continue
+            normalized_operations.append(
+                {
+                    "issue_code": str(raw_operation.get("issue_code") or "other").strip() or "other",
+                    "action": str(raw_operation.get("action") or "").strip(),
+                    "target_sentence_index": target_index,
+                    "text": normalize_cta_text(raw_operation.get("text") or ""),
+                }
+            )
+        out["sentence_operations"] = normalized_operations
+        return out, {"rewrite_patch_report": {"actions": actions}}
+
+    def _reconstruct_draft_from_patch(
+        self,
+        *,
+        patch: dict[str, Any],
+        original_draft: dict[str, Any],
+        cta_line: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        original_sentences = self._body_sentences_without_cta(original_draft, cta_line=cta_line)
+        preserve_indexes = {int(item) for item in (patch.get("preserve_sentence_indexes") or []) if isinstance(item, int)}
+        rewrites: dict[int, str] = {}
+        deletions: set[int] = set()
+        insertions: dict[int, list[str]] = {}
+        dropped_operations: list[str] = []
+        for operation in (patch.get("sentence_operations") or []):
+            if not isinstance(operation, dict):
+                continue
+            action = str(operation.get("action") or "").strip()
+            target_index = int(operation.get("target_sentence_index") or 0)
+            text = normalize_cta_text(operation.get("text") or "")
+            if target_index < 0 or target_index >= len(original_sentences):
+                dropped_operations.append("drop_patch_invalid_index")
+                continue
+            if action in {"rewrite", "delete"} and target_index in preserve_indexes:
+                dropped_operations.append("drop_patch_against_preserve")
+                continue
+            if action == "rewrite" and text:
+                rewrites[target_index] = text
+            elif action == "delete":
+                deletions.add(target_index)
+            elif action == "insert_after" and text:
+                insertions.setdefault(target_index, []).append(text)
+            elif action == "keep":
+                continue
+        rebuilt_sentences: list[str] = []
+        for idx, sentence in enumerate(original_sentences):
+            if idx not in deletions:
+                rebuilt_sentences.append(rewrites.get(idx, sentence).strip())
+            for inserted in insertions.get(idx, []):
+                rebuilt_sentences.append(inserted.strip())
+        narrative = " ".join(part for part in rebuilt_sentences if part).strip()
+        locked_cta = normalize_cta_text(cta_line)
+        rebuilt_body = f"{narrative}\n\n{locked_cta}" if narrative else locked_cta
+        rebuilt_draft = {
+            "version": str(original_draft.get("version") or "1.0"),
+            "preset_id": str(patch.get("preset_id") or original_draft.get("preset_id") or "").strip(),
+            "selected_angle_id": str(patch.get("selected_angle_id") or original_draft.get("selected_angle_id") or "").strip(),
+            "used_hook_ids": list(patch.get("used_hook_ids") or original_draft.get("used_hook_ids") or []),
+            "subject": str(original_draft.get("subject") or "").strip(),
+            "body": rebuilt_body,
+        }
+        return rebuilt_draft, {
+            "rewrite_patch_operation_count": len(list(patch.get("sentence_operations") or [])),
+            "rewrite_patch_preserve_count": len(preserve_indexes),
+            "rewrite_patch_dropped_operations": dropped_operations,
+        }
+
     def _budget_plan(
         self,
         *,
@@ -274,6 +542,7 @@ class AIOrchestrator:
             "preset_id",
             "selected_angle_id",
             "opener_atom",
+            "opener_line",
             "value_atom",
             "proof_atom",
             "cta_atom",
@@ -296,6 +565,14 @@ class AIOrchestrator:
         if used_hook_ids != list(out.get("used_hook_ids") or []):
             trace.add_postprocess_step("normalize_used_hook_ids")
         out["used_hook_ids"] = used_hook_ids
+        out["canonical_hook_ids"] = [
+            str(item or "").strip()
+            for item in (out.get("canonical_hook_ids") or [])
+            if str(item or "").strip()
+        ]
+        out["opener_contract"] = dict(out.get("opener_contract") or opener_contract())
+        out["proof_basis"] = dict(out.get("proof_basis") or {})
+        out["cta_lock"] = dict(out.get("cta_lock") or build_cta_lock(out.get("required_cta_line") or out.get("cta_atom") or ""))
         if str(out.get("proof_atom") or "") == "":
             trace.add_postprocess_step("normalize_proof_atom_empty")
         return out
@@ -337,6 +614,7 @@ class AIOrchestrator:
             "preset_id",
             "selected_angle_id",
             "opener_atom",
+            "opener_line",
             "value_atom",
             "proof_atom",
             "cta_atom",
@@ -349,22 +627,16 @@ class AIOrchestrator:
                 actions.append(f"normalize_{field}_whitespace")
             out[field] = normalized
 
-        raw_hook_ids = list(out.get("used_hook_ids") or [])
-        used_hook_ids: list[str] = []
-        seen_hook_ids: set[str] = set()
-        for raw_item in raw_hook_ids:
-            item = str(raw_item or "").strip()
-            if not item or item in seen_hook_ids:
-                continue
-            seen_hook_ids.add(item)
-            used_hook_ids.append(item)
-        if used_hook_ids != raw_hook_ids:
-            actions.append("normalize_used_hook_ids")
         selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
-        if selected_hook_id and selected_hook_id not in used_hook_ids:
-            used_hook_ids.insert(0, selected_hook_id)
-            actions.append("restore_selected_hook_id")
+        raw_hook_ids = list(out.get("used_hook_ids") or [])
+        used_hook_ids, hook_actions = resolve_hook_ids(
+            raw_hook_ids,
+            messaging_brief=messaging_brief,
+            selected_hook_id=selected_hook_id,
+        )
+        actions.extend(hook_actions)
         out["used_hook_ids"] = used_hook_ids
+        out["canonical_hook_ids"] = canonical_hook_ids(messaging_brief)
 
         expected_preset_id = str(preset_id or "").strip()
         if str(out.get("preset_id") or "") != expected_preset_id:
@@ -376,13 +648,28 @@ class AIOrchestrator:
             out["selected_angle_id"] = expected_angle_id
             actions.append("lock_atoms_selected_angle_id")
 
-        locked_cta = str(cta_line or "").strip()
+        locked_cta = normalize_cta_text(cta_line)
         if str(out.get("cta_atom") or "") != locked_cta:
             out["cta_atom"] = locked_cta
             actions.append("lock_atoms_cta_atom")
         if str(out.get("required_cta_line") or "") != locked_cta:
             out["required_cta_line"] = locked_cta
             actions.append("lock_atoms_required_cta_line")
+        cta_lock = build_cta_lock(locked_cta)
+        if dict(out.get("cta_lock") or {}) != cta_lock:
+            out["cta_lock"] = cta_lock
+            actions.append("lock_atoms_cta_lock")
+
+        simplified_opener = self._simplify_opener_text(out.get("opener_atom") or "")
+        if simplified_opener and simplified_opener != str(out.get("opener_atom") or ""):
+            out["opener_atom"] = simplified_opener
+            actions.append("simplify_opener_atom")
+        if str(out.get("opener_line") or "") != str(out.get("opener_atom") or ""):
+            out["opener_line"] = str(out.get("opener_atom") or "")
+            actions.append("lock_atoms_opener_line")
+        if dict(out.get("opener_contract") or {}) != opener_contract():
+            out["opener_contract"] = opener_contract()
+            actions.append("lock_atoms_opener_contract")
 
         facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
         seller_proof_texts = [
@@ -391,12 +678,39 @@ class AIOrchestrator:
             if str(item.get("fact_kind") or "").strip() == "seller_proof" and str(item.get("text") or "").strip()
         ]
         proof_atom = str(out.get("proof_atom") or "").strip()
-        if proof_atom and not seller_proof_texts:
+        proof_basis = dict(out.get("proof_basis") or selected_angle.get("proof_basis") or {})
+        if not proof_basis:
+            proof_basis = build_proof_basis(
+                proof_atom,
+                messaging_brief=messaging_brief,
+                selected_hook_id=selected_hook_id,
+                selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
+            )
+            actions.append("derive_atoms_proof_basis")
+        if str(proof_basis.get("kind") or "") not in {"hard_proof", "soft_signal"}:
+            if proof_atom:
+                out["proof_atom"] = ""
+                proof_atom = ""
+                actions.append("clear_atoms_proof_for_nonproof_basis")
+            if str(proof_basis.get("kind") or "") != "none":
+                proof_basis = build_proof_basis(
+                    "",
+                    messaging_brief=messaging_brief,
+                    selected_hook_id=selected_hook_id,
+                    selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
+                )
+                actions.append("downgrade_atoms_proof_basis_to_none")
+        elif proof_atom and (not seller_proof_texts or not self._proof_atom_has_seller_grounding(proof_atom, seller_proof_texts)):
             out["proof_atom"] = ""
-            actions.append("clear_atoms_proof_without_seller_proof")
-        elif proof_atom and not self._proof_atom_has_seller_grounding(proof_atom, seller_proof_texts):
-            out["proof_atom"] = ""
+            proof_atom = ""
+            proof_basis = build_proof_basis(
+                "",
+                messaging_brief=messaging_brief,
+                selected_hook_id=selected_hook_id,
+                selected_fit_hypothesis_id=str(selected_angle.get("selected_fit_hypothesis_id") or "").strip(),
+            )
             actions.append("clear_atoms_ungrounded_proof_atom")
+        out["proof_basis"] = proof_basis
 
         target_word_budget = int(budget_plan.get("target_total_words") or 0)
         if target_word_budget and int(out.get("target_word_budget") or 0) != target_word_budget:
@@ -463,11 +777,15 @@ class AIOrchestrator:
                 "preset_id": str(atoms.get("preset_id") or "").strip(),
                 "selected_angle_id": str(atoms.get("selected_angle_id") or "").strip(),
                 "used_hook_ids": list(atoms.get("used_hook_ids") or []),
+                "canonical_hook_ids": list(atoms.get("canonical_hook_ids") or []),
                 "opener_atom": str(atoms.get("opener_atom") or "").strip(),
+                "opener_line": str(atoms.get("opener_line") or "").strip(),
                 "value_atom": str(atoms.get("value_atom") or "").strip(),
                 "proof_atom": str(atoms.get("proof_atom") or "").strip(),
+                "proof_basis": dict(atoms.get("proof_basis") or {}),
                 "cta_atom": str(atoms.get("cta_atom") or "").strip(),
                 "required_cta_line": str(atoms.get("required_cta_line") or "").strip(),
+                "cta_lock": dict(atoms.get("cta_lock") or {}),
             },
         )
 
@@ -820,6 +1138,7 @@ class AIOrchestrator:
             brief=messaging_brief,
             cta_final_line=cta_line,
             sliders=slider_params,
+            message_atoms=atoms,
             preset_contract=preset_contract,
             budget_plan=budget_plan,
         )
@@ -999,6 +1318,7 @@ class AIOrchestrator:
                 brief=messaging_brief,
                 cta_final_line=cta_line,
                 sliders=slider_params,
+                message_atoms=atoms,
                 preset_contract=preset_contract,
                 budget_plan=budget_plan,
             )
@@ -1078,13 +1398,18 @@ class AIOrchestrator:
             if qa.get("pass_rewrite_needed") or validation_codes:
                 rewrite_applied = True
                 rewrite_stage = self._trace_stage_name(STAGES["E"])
-                draft = await self._run_stage(
+                rewrite_context = self._build_rewrite_context(
+                    draft=draft,
+                    qa_report=qa,
+                    cta_line=cta_line,
+                )
+                rewrite_patch = await self._run_stage(
                     trace=trace,
                     config=StageConfig(
                         stage=STAGES["E"],
                         max_tokens=800,
                         reasoning_effort=self.settings.openai_reasoning_low,
-                        response_format=RF_EMAIL_DRAFT,
+                        response_format=RF_EMAIL_REWRITE_PATCH,
                     ),
                     messages=stage_e.build_messages(
                         email_draft=draft,
@@ -1092,16 +1417,25 @@ class AIOrchestrator:
                         messaging_brief=messaging_brief,
                         message_atoms=atoms,
                         cta_final_line=cta_line,
+                        rewrite_context=rewrite_context,
                         preset_contract=preset_contract,
                         budget_plan=budget_plan,
                         sliders=slider_params,
                     ),
+                    postprocess=lambda payload: self._sanitize_rewrite_patch_payload(
+                        payload,
+                        original_draft=draft,
+                        atoms=atoms,
+                        cta_line=cta_line,
+                    ),
                     validator=None,
                     trace_stage=rewrite_stage,
                 )
-                draft.setdefault("preset_id", ctx.preset_id)
-                draft.setdefault("selected_angle_id", selected_angle_id)
-                draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+                draft, rewrite_patch_details = self._reconstruct_draft_from_patch(
+                    patch=rewrite_patch,
+                    original_draft=draft,
+                    cta_line=cta_line,
+                )
                 rewrite_pre_details = {
                     "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                     "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1122,6 +1456,7 @@ class AIOrchestrator:
                     brief=messaging_brief,
                     cta_final_line=cta_line,
                     sliders=slider_params,
+                    message_atoms=atoms,
                     preset_contract=preset_contract,
                     budget_plan=budget_plan,
                 )
@@ -1136,6 +1471,7 @@ class AIOrchestrator:
                     budget_plan=budget_plan,
                     stage_details={
                         **rewrite_pre_details,
+                        **rewrite_patch_details,
                         "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                         "dominant_failing_rule": dominant_validation_code(final_codes),
                         "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
@@ -1262,6 +1598,7 @@ class AIOrchestrator:
             ),
             messages=stage_b.build_messages(messaging_brief),
             validator=lambda payload: validate_fit_map(payload, messaging_brief),
+            postprocess=lambda payload: self._sanitize_fit_map_payload(payload, messaging_brief=messaging_brief),
         )
 
         angle_set = await self._run_stage(
@@ -1274,6 +1611,11 @@ class AIOrchestrator:
             ),
             messages=stage_b0.build_messages(messaging_brief, fit_map),
             validator=lambda payload: validate_angle_set(payload, messaging_brief, fit_map),
+            postprocess=lambda payload: self._sanitize_angle_set_payload(
+                payload,
+                messaging_brief=messaging_brief,
+                fit_map=fit_map,
+            ),
         )
 
         self.brief_cache.set(
@@ -1451,6 +1793,7 @@ class AIOrchestrator:
                         brief=messaging_brief,
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
+                        message_atoms=atoms,
                         preset_contract=preset_contract,
                         budget_plan=budget_plan,
                     )
@@ -1528,13 +1871,18 @@ class AIOrchestrator:
                     rewrite_applied = False
                     if qa.get("pass_rewrite_needed") or validation_codes:
                         rewrite_applied = True
-                        draft = await self._run_stage(
+                        rewrite_context = self._build_rewrite_context(
+                            draft=draft,
+                            qa_report=qa,
+                            cta_line=cta_line,
+                        )
+                        rewrite_patch = await self._run_stage(
                             trace=trace,
                             config=StageConfig(
                                 stage=STAGES["E"],
                                 max_tokens=800,
                                 reasoning_effort=self.settings.openai_reasoning_low,
-                                response_format=RF_EMAIL_DRAFT,
+                                response_format=RF_EMAIL_REWRITE_PATCH,
                             ),
                             messages=stage_e.build_messages(
                                 email_draft=draft,
@@ -1542,16 +1890,25 @@ class AIOrchestrator:
                                 messaging_brief=messaging_brief,
                                 message_atoms=atoms,
                                 cta_final_line=cta_line,
+                                rewrite_context=rewrite_context,
                                 preset_contract=preset_contract,
                                 budget_plan=budget_plan,
                                 sliders=variant_sliders,
                             ),
+                            postprocess=lambda payload, original=draft, atom_payload=atoms: self._sanitize_rewrite_patch_payload(
+                                payload,
+                                original_draft=original,
+                                atoms=atom_payload,
+                                cta_line=cta_line,
+                            ),
                             validator=None,
                             trace_stage=rewrite_stage,
                         )
-                        draft["preset_id"] = str(requested_id)
-                        draft["selected_angle_id"] = selected_angle_id
-                        draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+                        draft, rewrite_patch_details = self._reconstruct_draft_from_patch(
+                            patch=rewrite_patch,
+                            original_draft=draft,
+                            cta_line=cta_line,
+                        )
                         rewrite_pre_details = {
                             "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                             "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
@@ -1573,6 +1930,7 @@ class AIOrchestrator:
                             brief=messaging_brief,
                             cta_final_line=cta_line,
                             sliders=variant_sliders,
+                            message_atoms=atoms,
                             preset_contract=preset_contract,
                             budget_plan=budget_plan,
                         )
@@ -1587,6 +1945,7 @@ class AIOrchestrator:
                             budget_plan=budget_plan,
                             stage_details={
                                 **rewrite_pre_details,
+                                **rewrite_patch_details,
                                 "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                                 "dominant_failing_rule": dominant_validation_code(final_codes),
                                 "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
@@ -1635,6 +1994,7 @@ class AIOrchestrator:
                         brief=messaging_brief,
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
+                        message_atoms=atoms,
                         preset_contract=preset_contract,
                         budget_plan=budget_plan,
                     )
@@ -1721,10 +2081,11 @@ class AIOrchestrator:
         if isinstance((budget_plan or {}).get("allowed_max_words"), int):
             max_words = int((budget_plan or {}).get("allowed_max_words") or max_words)
         legacy = LegacyEmailDraft(subject=str(draft.get("subject") or ""), body=str(draft.get("body") or ""))
+        normalized_cta = normalize_cta_text(cta_line)
         result = deterministic_postprocess_draft(
             legacy,
             max_words=max_words,
-            cta_line=cta_line,
+            cta_line=normalized_cta,
             subject_limit=70,
         )
         for step in result.applied:

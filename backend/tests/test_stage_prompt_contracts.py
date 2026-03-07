@@ -1,21 +1,70 @@
 from __future__ import annotations
 
 from app.engine.prompts import stage_a, stage_b, stage_c, stage_c0, stage_d, stage_e
+from app.engine.validators import PROOF_GAP_TEXT, build_cta_lock, opener_contract
 
 
 def _messaging_brief() -> dict:
     return {
         "version": "1",
         "brief_id": "brief_1",
-        "facts_from_input": [],
-        "hooks": [],
+        "facts_from_input": [
+            {
+                "fact_id": "fact_1",
+                "source_field": "research_text",
+                "fact_kind": "prospect_context",
+                "text": "Nimbus expanded RevOps ownership in January 2026.",
+            },
+            {
+                "fact_id": "fact_2",
+                "source_field": "proof_points",
+                "fact_kind": "seller_proof",
+                "text": "A fintech team lifted meetings after sequence QA.",
+            },
+        ],
+        "hooks": [{"hook_id": "hook_1", "supported_by_fact_ids": ["fact_1"], "seller_fact_ids": ["fact_2"]}],
+        "hook_lineage": {
+            "canonical_hook_ids": ["hook_1"],
+            "hook_alias_map": {"hook_1": "hook_1"},
+        },
+    }
+
+
+def _proof_basis(*, kind: str, fact_ids: list[str] | None = None, source_text: str = "", proof_gap: bool = False) -> dict:
+    return {
+        "kind": kind,
+        "source_fact_ids": list(fact_ids or []),
+        "source_hook_ids": ["hook_1"],
+        "source_fit_hypothesis_id": "fit_1",
+        "grounded_span": source_text[:240],
+        "source_text": source_text[:240],
+        "proof_gap": proof_gap,
     }
 
 
 def _fit_map() -> dict:
     return {
         "version": "1",
-        "hypotheses": [],
+        "hypotheses": [
+            {
+                "fit_hypothesis_id": "fit_1",
+                "rank": 1,
+                "selected_hook_id": "hook_1",
+                "pain": "Sequence drift can creep in during RevOps expansion.",
+                "impact": "That can make pipeline quality less consistent.",
+                "value": "Tighter QA keeps messaging execution more consistent.",
+                "proof": "A fintech team lifted meetings after sequence QA.",
+                "proof_basis": _proof_basis(
+                    kind="soft_signal",
+                    fact_ids=["fact_2"],
+                    source_text="A fintech team lifted meetings after sequence QA.",
+                ),
+                "supporting_fact_ids": ["fact_1", "fact_2"],
+                "why_now": "The January 2026 RevOps expansion makes execution drift more visible.",
+                "confidence": 0.82,
+                "risk_flags": [],
+            }
+        ],
     }
 
 
@@ -25,8 +74,27 @@ def _angle_set() -> dict:
         "angles": [
             {
                 "angle_id": "angle_1",
+                "angle_type": "problem_led",
+                "rank": 1,
+                "persona_fit_score": 0.86,
+                "selected_hook_id": "hook_1",
+                "selected_fit_hypothesis_id": "fit_1",
+                "pain": "RevOps expansion can expose workflow drift.",
+                "impact": "That can show up as inconsistent reply quality.",
                 "value": "Protect forecast consistency",
                 "proof": "A SaaS team improved reply quality after tightening QA.",
+                "proof_basis": _proof_basis(
+                    kind="soft_signal",
+                    fact_ids=["fact_2"],
+                    source_text="A fintech team lifted meetings after sequence QA.",
+                ),
+                "primary_pain": "workflow drift",
+                "primary_value_motion": "protect forecast consistency",
+                "primary_proof_basis": "soft_signal|fact_2|hook_1|a fintech team lifted meetings after sequence qa",
+                "framing_type": "problem_led",
+                "risk_level": "low",
+                "cta_question_suggestion": "Open to a quick chat to see if this is relevant?",
+                "risk_flags": [],
             }
         ],
     }
@@ -34,17 +102,31 @@ def _angle_set() -> dict:
 
 def _atoms(*, proof_gap: bool) -> dict:
     proof_atom = "" if proof_gap else "A fintech team lifted meetings after sequence QA."
+    proof_basis = (
+        _proof_basis(kind="none", source_text="", proof_gap=True)
+        if proof_gap
+        else _proof_basis(
+            kind="soft_signal",
+            fact_ids=["fact_2"],
+            source_text="A fintech team lifted meetings after sequence QA.",
+        )
+    )
     return {
         "version": "1",
         "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
         "opener_atom": "Nimbus expanded RevOps ownership in January 2026.",
+        "opener_line": "Nimbus expanded RevOps ownership in January 2026.",
+        "opener_contract": opener_contract(),
         "value_atom": "RevOps teams cut forecasting variance in one quarter.",
         "proof_atom": proof_atom,
+        "proof_basis": proof_basis,
         "cta_atom": "Open to a quick chat to see if this is relevant?",
         "cta_intent": "Ask whether a quick chat is relevant.",
         "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "cta_lock": build_cta_lock("Open to a quick chat to see if this is relevant?"),
         "target_word_budget": 61,
         "target_sentence_budget": 3 if proof_gap else 4,
     }
@@ -287,8 +369,9 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
 
     assert "RULE 7 - PRESET CONTRACT IS ACTIVE." in rewrite_system
     assert "RULE 4 - CTA LOCK." in rewrite_system
-    assert "Map each rewrite_plan action object to the exact quoted target before editing." in rewrite_user
-    assert "Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target." in rewrite_user
+    assert "Return EmailRewritePatch JSON with preserve_sentence_indexes and sentence_operations." in rewrite_system
+    assert "Map each rewrite_plan action object to the exact sentence indexes in rewrite_context before editing." in rewrite_user
+    assert "Validate the patch against schema, atoms grounding, preserve list discipline, CTA lock, preset contract, and budget plan." in rewrite_user
     assert "This is not a fresh rewrite." in salvage_system
     assert "RULE 6 - BUDGET PLAN IS ACTIVE." in salvage_system
     assert "Do not replace the draft with a new template or canned preset body." in salvage_user

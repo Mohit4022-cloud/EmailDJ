@@ -13,6 +13,8 @@ def build_messages(messaging_brief: dict[str, Any], fit_map: dict[str, Any]) -> 
         "Your job is not to write an email. Produce 3-5 genuinely distinct angles for the same campaign.\\n\\n"
         "RULE 1 - DISTINCTNESS.\\n"
         "Angles must start from meaningfully different entry points in the prospect world.\\n\\n"
+        "RULE 1A - DISTINCTNESS MUST BE EXPLICIT.\\n"
+        "Each angle must expose primary_pain, primary_value_motion, primary_proof_basis, framing_type, and risk_level so the next stage can depend on the exact chosen angle.\\n\\n"
         "RULE 2 - FITMAP AS COMPASS.\\n"
         "Use fit hypotheses and ranks as primary guidance, but allow justified rank overrides.\\n\\n"
         "RULE 3 - RISK FLAGS MUST TRAVEL.\\n"
@@ -58,6 +60,12 @@ For each angle include:
 - selected_hook_id (must exist in brief.hooks)
 - selected_fit_hypothesis_id (must exist in fit_map.hypotheses)
 - pain, impact, value, proof
+- proof_basis copied/adapted honestly from the selected fit hypothesis
+- primary_pain
+- primary_value_motion
+- primary_proof_basis
+- framing_type
+- risk_level
 - cta_question_suggestion
 - risk_flags (inherited + new)
 
@@ -69,6 +77,7 @@ If override needed, add risk flag rank_override:<reason>.
 STEP 5 - DISTINCTNESS SELF-AUDIT
 - No duplicate angle types.
 - No duplicate selected_hook_id.
+- No duplicate effective tuple: primary_pain + primary_value_motion + primary_proof_basis + framing_type.
 - No near-duplicate entry point.
 - At least one skeptical score (<0.65) when signal is medium/low.
 - All IDs resolve to source structures.

@@ -47,6 +47,10 @@ COMMON_DEFS = {
         "type": "string",
         "enum": ["low", "medium", "high"],
     },
+    "RiskLevel": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+    },
     "AngleType": {
         "type": "string",
         "enum": [
@@ -56,6 +60,21 @@ COMMON_DEFS = {
             "proof_led",
             "objection_prebunk",
         ],
+    },
+    "FramingType": {
+        "type": "string",
+        "enum": [
+            "why_you_why_now",
+            "why_now",
+            "problem_led",
+            "outcome_led",
+            "proof_led",
+            "objection_prebunk",
+        ],
+    },
+    "ProofBasisKind": {
+        "type": "string",
+        "enum": ["hard_proof", "soft_signal", "capability_statement", "assumption", "none"],
     },
     "IssueType": {
         "type": "string",
@@ -84,6 +103,89 @@ COMMON_DEFS = {
     "TargetSectionStr": {"type": "string", "minLength": 1, "maxLength": 240},
     "WhyItFailsStr": {"type": "string", "minLength": 1, "maxLength": 400},
     "ExpectedEffectStr": {"type": "string", "minLength": 1, "maxLength": 240},
+    "HookLineage": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["canonical_hook_ids", "hook_alias_map"],
+        "properties": {
+            "canonical_hook_ids": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/IdStr"},
+            },
+            "hook_alias_map": {
+                "type": "object",
+                "additionalProperties": {"$ref": "#/$defs/IdStr"},
+            },
+        },
+    },
+    "ProofBasis": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "kind",
+            "source_fact_ids",
+            "source_hook_ids",
+            "source_fit_hypothesis_id",
+            "grounded_span",
+            "source_text",
+            "proof_gap",
+        ],
+        "properties": {
+            "kind": {"$ref": "#/$defs/ProofBasisKind"},
+            "source_fact_ids": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/IdStr"},
+            },
+            "source_hook_ids": {
+                "type": "array",
+                "items": {"$ref": "#/$defs/IdStr"},
+            },
+            "source_fit_hypothesis_id": {"type": "string", "maxLength": 128},
+            "grounded_span": {"type": "string", "maxLength": 240},
+            "source_text": {"type": "string", "maxLength": 240},
+            "proof_gap": {"type": "boolean"},
+        },
+    },
+    "CtaLock": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["final_line", "normalized_final_line"],
+        "properties": {
+            "final_line": {"$ref": "#/$defs/NonEmptyStr"},
+            "normalized_final_line": {"$ref": "#/$defs/NonEmptyStr"},
+        },
+    },
+    "OpenerContract": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": [
+            "max_words",
+            "max_commas",
+            "plain_english_required",
+            "allow_leading_subordinate_clause",
+        ],
+        "properties": {
+            "max_words": {"type": "integer", "minimum": 1, "maximum": 30},
+            "max_commas": {"type": "integer", "minimum": 0, "maximum": 2},
+            "plain_english_required": {"type": "boolean"},
+            "allow_leading_subordinate_clause": {"type": "boolean"},
+        },
+    },
+    "RewritePatchAction": {
+        "type": "string",
+        "enum": ["keep", "rewrite", "insert_after", "delete"],
+    },
+    "RewriteSentenceOperation": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["issue_code", "action", "target_sentence_index", "text"],
+        "properties": {
+            "issue_code": {"$ref": "#/$defs/IssueCodeStr"},
+            "action": {"$ref": "#/$defs/RewritePatchAction"},
+            "target_sentence_index": {"type": "integer", "minimum": 0, "maximum": 64},
+            "text": {"type": "string", "maxLength": 800},
+        },
+    },
     "Fact": {
         "type": "object",
         "additionalProperties": False,
@@ -185,6 +287,7 @@ MESSAGING_BRIEF_SCHEMA = {
             "minItems": 1,
             "items": {"$ref": "#/$defs/Hook"},
         },
+        "hook_lineage": {"$ref": "#/$defs/HookLineage"},
         "persona_cues": {
             "type": "object",
             "additionalProperties": False,
@@ -255,6 +358,7 @@ FIT_MAP_SCHEMA = {
                     "impact",
                     "value",
                     "proof",
+                    "proof_basis",
                     "supporting_fact_ids",
                     "why_now",
                     "confidence",
@@ -268,6 +372,7 @@ FIT_MAP_SCHEMA = {
                     "impact": {"$ref": "#/$defs/NonEmptyStr"},
                     "value": {"$ref": "#/$defs/NonEmptyStr"},
                     "proof": {"$ref": "#/$defs/NonEmptyStr"},
+                    "proof_basis": {"$ref": "#/$defs/ProofBasis"},
                     "supporting_fact_ids": {
                         "type": "array",
                         "minItems": 1,
@@ -308,6 +413,12 @@ ANGLE_SET_SCHEMA = {
                     "impact",
                     "value",
                     "proof",
+                    "proof_basis",
+                    "primary_pain",
+                    "primary_value_motion",
+                    "primary_proof_basis",
+                    "framing_type",
+                    "risk_level",
                     "cta_question_suggestion",
                     "risk_flags",
                 ],
@@ -322,6 +433,12 @@ ANGLE_SET_SCHEMA = {
                     "impact": {"$ref": "#/$defs/NonEmptyStr"},
                     "value": {"$ref": "#/$defs/NonEmptyStr"},
                     "proof": {"$ref": "#/$defs/NonEmptyStr"},
+                    "proof_basis": {"$ref": "#/$defs/ProofBasis"},
+                    "primary_pain": {"$ref": "#/$defs/NonEmptyStr"},
+                    "primary_value_motion": {"$ref": "#/$defs/NonEmptyStr"},
+                    "primary_proof_basis": {"$ref": "#/$defs/NonEmptyStr"},
+                    "framing_type": {"$ref": "#/$defs/FramingType"},
+                    "risk_level": {"$ref": "#/$defs/RiskLevel"},
                     "cta_question_suggestion": {"type": "string", "minLength": 1, "maxLength": 160},
                     "risk_flags": {"type": "array", "items": {"$ref": "#/$defs/RiskFlag"}},
                 },
@@ -339,12 +456,17 @@ MESSAGE_ATOMS_SCHEMA = {
         "preset_id",
         "selected_angle_id",
         "used_hook_ids",
+        "canonical_hook_ids",
         "opener_atom",
+        "opener_line",
+        "opener_contract",
         "value_atom",
         "proof_atom",
+        "proof_basis",
         "cta_atom",
         "cta_intent",
         "required_cta_line",
+        "cta_lock",
         "target_word_budget",
         "target_sentence_budget",
     ],
@@ -358,12 +480,21 @@ MESSAGE_ATOMS_SCHEMA = {
             "minItems": 1,
             "items": {"$ref": "#/$defs/IdStr"},
         },
+        "canonical_hook_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/IdStr"},
+        },
         "opener_atom": {"type": "string", "minLength": 1, "maxLength": 220},
+        "opener_line": {"type": "string", "minLength": 1, "maxLength": 220},
+        "opener_contract": {"$ref": "#/$defs/OpenerContract"},
         "value_atom": {"type": "string", "minLength": 1, "maxLength": 220},
         "proof_atom": {"type": "string", "minLength": 0, "maxLength": 220},
+        "proof_basis": {"$ref": "#/$defs/ProofBasis"},
         "cta_atom": {"type": "string", "minLength": 1, "maxLength": 240},
         "cta_intent": {"type": "string", "minLength": 1, "maxLength": 240},
         "required_cta_line": {"type": "string", "minLength": 1, "maxLength": 240},
+        "cta_lock": {"$ref": "#/$defs/CtaLock"},
         "target_word_budget": {"type": "integer", "minimum": 1, "maximum": 400},
         "target_sentence_budget": {"type": "integer", "minimum": 1, "maximum": 12},
     },
@@ -511,6 +642,41 @@ QA_REPORT_SCHEMA = {
     },
 }
 
+EMAIL_REWRITE_PATCH_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "version",
+        "preset_id",
+        "selected_angle_id",
+        "used_hook_ids",
+        "cta_lock",
+        "preserve_sentence_indexes",
+        "sentence_operations",
+    ],
+    "$defs": {**COMMON_DEFS},
+    "properties": {
+        "version": {"type": "string", "minLength": 1, "maxLength": 32},
+        "preset_id": {"type": "string", "minLength": 1, "maxLength": 64},
+        "selected_angle_id": {"$ref": "#/$defs/IdStr"},
+        "used_hook_ids": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"$ref": "#/$defs/IdStr"},
+        },
+        "cta_lock": {"$ref": "#/$defs/CtaLock"},
+        "preserve_sentence_indexes": {
+            "type": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 64},
+        },
+        "sentence_operations": {
+            "type": "array",
+            "items": {"$ref": "#/$defs/RewriteSentenceOperation"},
+        },
+    },
+}
+
 JUDGE_RESULT_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
@@ -604,6 +770,7 @@ RF_FIT_MAP = response_format("FitMap", FIT_MAP_SCHEMA)
 RF_ANGLE_SET = response_format("AngleSet", ANGLE_SET_SCHEMA)
 RF_MESSAGE_ATOMS = response_format("MessageAtoms", MESSAGE_ATOMS_SCHEMA)
 RF_EMAIL_DRAFT = response_format("EmailDraft", EMAIL_DRAFT_SCHEMA)
+RF_EMAIL_REWRITE_PATCH = response_format("EmailRewritePatch", EMAIL_REWRITE_PATCH_SCHEMA)
 RF_BATCH_VARIANTS = response_format("BatchVariants", BATCH_VARIANTS_SCHEMA)
 RF_QA_REPORT = response_format("QAReport", QA_REPORT_SCHEMA)
 RF_JUDGE_RESULT = response_format("JudgeResult", JUDGE_RESULT_SCHEMA)

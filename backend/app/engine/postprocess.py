@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 
 from .types import EmailDraft
+from .validators import normalize_cta_text
 
 
 WORD_TOKEN_RE = re.compile(r"\b[\w']+\b")
@@ -102,7 +103,7 @@ def _join_narrative_parts(greeting_line: str, narrative_text: str) -> str:
 
 
 def _compose_body(narrative: str, cta_line: str) -> str:
-    cta = str(cta_line or "").strip()
+    cta = normalize_cta_text(cta_line)
     if not cta:
         return narrative.strip()
     if not narrative.strip():
@@ -125,6 +126,7 @@ def deterministic_budget_clamp(
         applied.append("normalize_whitespace")
 
     cta = str(cta_line or "").strip()
+    cta = normalize_cta_text(cta)
     lines = normalized.split("\n") if normalized else []
 
     if cta:

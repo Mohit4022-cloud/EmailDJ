@@ -670,6 +670,15 @@ def sanitize_stage_a_brief(
         source_text=source_text,
         source_payload=source_payload,
     )
+    canonical_hook_ids = [
+        str(item.get("hook_id") or "").strip()
+        for item in (sanitized.get("hooks") or [])
+        if isinstance(item, dict) and str(item.get("hook_id") or "").strip()
+    ]
+    sanitized["hook_lineage"] = {
+        "canonical_hook_ids": canonical_hook_ids,
+        "hook_alias_map": {hook_id: hook_id for hook_id in canonical_hook_ids},
+    }
     after_summary = _summary_snapshot(sanitized)
 
     semantic_change_reasons = [

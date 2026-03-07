@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 
 from evals import stage_judge
+from app.engine.validators import build_cta_lock, opener_contract
 
 
 class DummyOpenAI:
@@ -23,6 +24,26 @@ def _all_pass_payload(stage: str) -> dict[str, Any]:
         "hard_fail_criteria": [],
         "failures": [],
         "warnings": [],
+    }
+
+
+def _proof_basis(
+    *,
+    kind: str,
+    fact_ids: list[str] | None = None,
+    source_text: str = "",
+    proof_gap: bool = False,
+    hook_ids: list[str] | None = None,
+    fit_hypothesis_id: str = "fit_1",
+) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "source_fact_ids": list(fact_ids or []),
+        "source_hook_ids": list(hook_ids or ["hook_1"]),
+        "source_fit_hypothesis_id": fit_hypothesis_id,
+        "grounded_span": source_text[:240],
+        "source_text": source_text[:240],
+        "proof_gap": proof_gap,
     }
 
 
@@ -115,18 +136,24 @@ async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch:
 
     brief = {
         "hooks": [{"hook_id": "hook_1"}],
+        "hook_lineage": {"canonical_hook_ids": ["hook_1"], "hook_alias_map": {"hook_1": "hook_1"}},
         "facts_from_input": [{"source_field": "research_text", "fact_kind": "prospect_context", "text": "Company: Nimbus Health"}],
     }
     atoms = {
         "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
         "opener_atom": "Noticed your RevOps scope expanded this quarter.",
+        "opener_line": "Noticed your RevOps scope expanded this quarter.",
+        "opener_contract": opener_contract(),
         "value_atom": "[Persona's team] improves process quality with our platform.",
         "proof_atom": "",
+        "proof_basis": _proof_basis(kind="none", proof_gap=True),
         "cta_atom": "Open to a quick chat to see if this is relevant?",
         "cta_intent": "Ask whether a quick chat is relevant.",
         "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "cta_lock": build_cta_lock("Open to a quick chat to see if this is relevant?"),
         "target_word_budget": 61,
         "target_sentence_budget": 3,
     }
@@ -152,8 +179,10 @@ async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pyte
 
     brief = {
         "hooks": [{"hook_id": "hook_1"}],
+        "hook_lineage": {"canonical_hook_ids": ["hook_1"], "hook_alias_map": {"hook_1": "hook_1"}},
         "facts_from_input": [
             {
+                "fact_id": "fact_1",
                 "source_field": "research_text",
                 "fact_kind": "prospect_context",
                 "text": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
@@ -164,12 +193,21 @@ async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pyte
         "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
+        "canonical_hook_ids": ["hook_1"],
         "opener_atom": "Noticed Nimbus Health expanded RevOps ownership.",
+        "opener_line": "Noticed Nimbus Health expanded RevOps ownership.",
+        "opener_contract": opener_contract(),
         "value_atom": "Teams cut handoff delays by 18% in one quarter.",
         "proof_atom": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
+        "proof_basis": _proof_basis(
+            kind="hard_proof",
+            fact_ids=["fact_1"],
+            source_text="Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
+        ),
         "cta_atom": "Open to a quick chat to see if this is relevant?",
         "cta_intent": "Ask whether a quick chat is relevant.",
         "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "cta_lock": build_cta_lock("Open to a quick chat to see if this is relevant?"),
         "target_word_budget": 61,
         "target_sentence_budget": 4,
     }
@@ -198,7 +236,12 @@ async def test_judge_email_draft_hard_fail_on_cta_mismatch(monkeypatch: pytest.M
             "subject": "RevOps quality idea",
             "body": "Hi Jordan\n\nTightening consistency can protect forecast confidence.\n\nWould you be open to a call next week?",
         },
-        {"proof_atom": ""},
+        {
+            "proof_atom": "",
+            "proof_basis": _proof_basis(kind="none", proof_gap=True),
+            "opener_line": "Tightening consistency can protect forecast confidence.",
+            "value_atom": "Tightening consistency can protect forecast confidence.",
+        },
         {},
         cta_final_line="Open to a quick chat to see if this is relevant?",
         proof_gap=True,
@@ -517,14 +560,27 @@ async def test_judge_angle_set_restores_grounded_why_you_why_now(monkeypatch: py
             {
                 "hook_id": "hook_1",
                 "supported_by_fact_ids": ["fact_1"],
-            }
+            },
+            {
+                "hook_id": "hook_2",
+                "supported_by_fact_ids": ["fact_1"],
+            },
+            {
+                "hook_id": "hook_3",
+                "supported_by_fact_ids": ["fact_1"],
+            },
         ],
+        "hook_lineage": {
+            "canonical_hook_ids": ["hook_1", "hook_2", "hook_3"],
+            "hook_alias_map": {"hook_1": "hook_1", "hook_2": "hook_2", "hook_3": "hook_3"},
+        },
     }
     fit_map = {
         "hypotheses": [
             {
                 "fit_hypothesis_id": "hyp_1",
                 "supporting_fact_ids": ["fact_1"],
+                "risk_flags": [],
             }
         ]
     }
@@ -533,26 +589,75 @@ async def test_judge_angle_set_restores_grounded_why_you_why_now(monkeypatch: py
             {
                 "angle_id": "angle_1",
                 "angle_type": "why_you_why_now",
+                "rank": 1,
+                "persona_fit_score": 0.91,
                 "selected_hook_id": "hook_1",
                 "selected_fit_hypothesis_id": "hyp_1",
                 "pain": "The February 2026 audit makes handoff latency newly urgent.",
                 "impact": "Workflow friction stays visible during the audit window.",
                 "proof": "The audit itself is the timing signal.",
+                "proof_basis": _proof_basis(
+                    kind="soft_signal",
+                    fact_ids=["fact_1"],
+                    source_text="Pillar Circuit launched a February 2026 workflow audit focused on handoff latency.",
+                    hook_ids=["hook_1"],
+                    fit_hypothesis_id="hyp_1",
+                ),
+                "primary_pain": "handoff latency",
+                "primary_value_motion": "respond before the audit window closes",
+                "primary_proof_basis": "soft_signal|fact_1|hook_1|workflow_audit",
+                "framing_type": "why_you_why_now",
+                "risk_level": "low",
                 "cta_question_suggestion": "Would a short comparison be useful?",
+                "risk_flags": [],
             },
             {
                 "angle_id": "angle_2",
                 "angle_type": "problem_led",
+                "rank": 2,
+                "persona_fit_score": 0.84,
                 "selected_hook_id": "hook_2",
                 "selected_fit_hypothesis_id": "hyp_1",
+                "pain": "Manual handoff review creates workflow drag.",
+                "impact": "That can keep latency hidden until later stages.",
+                "proof": "Workflow QA gives managers a tighter review loop.",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="Workflow QA gives managers a tighter review loop.",
+                    hook_ids=["hook_2"],
+                    fit_hypothesis_id="hyp_1",
+                ),
+                "primary_pain": "manual handoff review",
+                "primary_value_motion": "tighten review loops",
+                "primary_proof_basis": "capability_statement|hook_2|review_loop",
+                "framing_type": "problem_led",
+                "risk_level": "medium",
                 "cta_question_suggestion": "Would a short comparison be useful?",
+                "risk_flags": [],
             },
             {
                 "angle_id": "angle_3",
                 "angle_type": "outcome_led",
+                "rank": 3,
+                "persona_fit_score": 0.79,
                 "selected_hook_id": "hook_3",
                 "selected_fit_hypothesis_id": "hyp_1",
+                "pain": "Audit pressure can delay handoff fixes.",
+                "impact": "That can keep review cycles slow.",
+                "proof": "Workflow QA helps surface review gaps earlier.",
+                "proof_basis": _proof_basis(
+                    kind="capability_statement",
+                    source_text="Workflow QA helps surface review gaps earlier.",
+                    hook_ids=["hook_3"],
+                    fit_hypothesis_id="hyp_1",
+                ),
+                "primary_pain": "audit pressure",
+                "primary_value_motion": "surface review gaps earlier",
+                "primary_proof_basis": "capability_statement|hook_3|review_gaps",
+                "framing_type": "outcome_led",
+                "risk_level": "medium",
                 "cta_question_suggestion": "Would a short comparison be useful?",
+                "risk_flags": [],
             },
         ]
     }
@@ -560,7 +665,7 @@ async def test_judge_angle_set_restores_grounded_why_you_why_now(monkeypatch: py
     result = await stage_judge.judge_angle_set(angle_set, brief, fit_map, openai=DummyOpenAI())
 
     assert result["scores"]["why_you_why_now_earned"] == 1
-    assert "deterministic_override:why_you_why_now_earned" in result["warnings"]
+    assert "deterministic_override:angle_contract_checks" in result["warnings"]
 
 
 @pytest.mark.asyncio
@@ -649,7 +754,7 @@ async def test_judge_rewritten_draft_restores_objective_rewrite_scores(monkeypat
     }
     rewritten = {
         "subject": "Workflow QA for Pillar Circuit",
-        "body": "Pillar Circuit's February 2026 audit signals handoff latency. Diagnostics-driven QA helps revops teams tighten reviews without adding review drag. That gives managers a cleaner way to act on handoff gaps before they reach forecast discussions.\n\nWould a quick comparison of workflow QA approaches be useful?",
+        "body": "Pillar Circuit's February 2026 audit signals handoff latency. Diagnostics-driven QA helps revops teams tighten reviews. That gives managers a cleaner way to act on handoff gaps before they reach forecast discussions.\n\nWould a quick comparison of workflow QA approaches be useful?",
         "preset_id": "direct",
         "selected_angle_id": "angle_01",
         "used_hook_ids": ["hook_01"],
@@ -659,16 +764,31 @@ async def test_judge_rewritten_draft_restores_objective_rewrite_scores(monkeypat
             {
                 "issue_code": "word_count_out_of_band",
                 "severity": "high",
+                "offending_span_or_target_section": "Pillar Circuit's audit signals handoff latency.",
+                "evidence_quote": "Pillar Circuit's audit signals handoff latency.",
                 "fix_instruction": "Expand only the body before the locked CTA by adding one grounded middle sentence.",
             }
-        ]
+        ],
+        "rewrite_plan": [
+            {
+                "issue_code": "word_count_out_of_band",
+                "target": "Pillar Circuit's audit signals handoff latency.",
+                "action": "Rewrite the opener slightly and insert one grounded middle sentence after the preserved value sentence.",
+                "replacement_guidance": "Keep the QA value sentence unchanged and add one concrete sentence before the CTA.",
+            }
+        ],
     }
 
     result = await stage_judge.judge_rewritten_draft(
         rewritten,
         original,
         qa,
-        {"proof_atom": ""},
+        {
+            "proof_atom": "",
+            "proof_basis": _proof_basis(kind="none", proof_gap=True),
+            "opener_line": "Pillar Circuit's audit signals handoff latency.",
+            "value_atom": "Diagnostics-driven QA helps revops teams tighten reviews.",
+        },
         cta_final_line="Would a quick comparison of workflow QA approaches be useful?",
         proof_gap=True,
         openai=DummyOpenAI(),
@@ -678,6 +798,7 @@ async def test_judge_rewritten_draft_restores_objective_rewrite_scores(monkeypat
     assert result["scores"]["metadata_preserved"] == 1
     assert result["scores"]["high_issues_resolved"] == 1
     assert result["scores"]["no_new_content"] == 1
+    assert result["scores"]["untouched_sentences_preserved"] == 1
     assert result["pass"] is True
     assert "deterministic_override:rewrite_objective_checks" in result["warnings"]
 

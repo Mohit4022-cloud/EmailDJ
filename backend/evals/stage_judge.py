@@ -17,10 +17,27 @@ from app.engine.brief_honesty import (
     fact_map_by_id,
     hook_is_prospect_as_proof,
     hook_support_posture,
+    normalize_text_key,
 )
 from app.engine.schemas import JUDGE_RESULT_SCHEMA, RF_JUDGE_RESULT
 from app.engine.stage_runner import _extract_message_text, _parse_message_content, _validate_schema
-from app.engine.validators import ValidationIssue, validate_messaging_brief
+from app.engine.validators import (
+    PROOF_GAP_TEXT,
+    ValidationIssue,
+    _contains_unsupported_proof_sentence as runtime_contains_unsupported_proof_sentence,
+    build_cta_lock,
+    build_proof_basis,
+    canonical_hook_ids,
+    normalize_cta_text,
+    opener_contract,
+    opener_is_simple,
+    proof_basis_key,
+    proof_is_vague,
+    resolve_hook_ids,
+    validate_angle_set,
+    validate_fit_map,
+    validate_messaging_brief,
+)
 from app.openai_client import ENFORCED_OPENAI_MODEL, OpenAIClient
 
 
@@ -258,6 +275,107 @@ def _opener_clause_count(text: str) -> tuple[int, int]:
     return opener.count(","), len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
 
 
+def _grounding_tokens(text: str) -> set[str]:
+    return {token for token in re.findall(r"[a-z0-9']+", str(text or "").lower()) if len(token) >= 4}
+
+
+def _proof_basis_for_artifact(
+    *,
+    proof_text: Any,
+    proof_basis: dict[str, Any] | None,
+    brief: dict[str, Any] | None,
+    selected_hook_id: str = "",
+    selected_fit_hypothesis_id: str = "",
+) -> dict[str, Any]:
+    provided = dict(proof_basis or {})
+    if provided:
+        return provided
+    return build_proof_basis(
+        proof_text,
+        messaging_brief=brief or {},
+        selected_hook_id=selected_hook_id,
+        selected_fit_hypothesis_id=selected_fit_hypothesis_id,
+    )
+
+
+def _has_weak_proof_basis(proof_basis: dict[str, Any] | None, *, proof_gap: bool) -> bool:
+    if proof_gap:
+        return True
+    kind = str(dict(proof_basis or {}).get("kind") or "").strip()
+    return kind in {"none", "capability_statement", "assumption"}
+
+
+def _angle_distinctness_signature(angle: dict[str, Any]) -> tuple[str, str, str, str]:
+    proof_basis = dict(angle.get("proof_basis") or {})
+    return (
+        normalize_text_key(str(angle.get("primary_pain") or angle.get("pain") or "")),
+        normalize_text_key(str(angle.get("primary_value_motion") or angle.get("value") or "")),
+        normalize_text_key(str(angle.get("primary_proof_basis") or proof_basis_key(proof_basis))),
+        normalize_text_key(str(angle.get("framing_type") or angle.get("angle_type") or "")),
+    )
+
+
+def _body_sentences_without_cta(body: str, *, cta_final_line: str) -> list[str]:
+    locked_cta = normalize_cta_text(cta_final_line)
+    narrative_lines = [
+        line.strip()
+        for line in str(body or "").splitlines()
+        if line.strip() and normalize_cta_text(line) != locked_cta
+    ]
+    narrative = " ".join(narrative_lines).strip()
+    if not narrative:
+        return []
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", narrative) if part.strip()]
+
+
+def _matching_sentence_indexes(sentences: list[str], *candidates: Any) -> list[int]:
+    normalized_sentences = [normalize_cta_text(sentence).lower() for sentence in sentences]
+    indexes: list[int] = []
+    for raw_candidate in candidates:
+        candidate = normalize_cta_text(raw_candidate).lower()
+        if not candidate:
+            continue
+        for idx, sentence in enumerate(normalized_sentences):
+            if candidate in sentence or sentence in candidate:
+                indexes.append(idx)
+    return list(dict.fromkeys(indexes))
+
+
+def _untouched_sentences_preserved(
+    qa_report: dict[str, Any] | None,
+    original_draft: dict[str, Any] | None,
+    rewritten: dict[str, Any] | None,
+    *,
+    cta_final_line: str,
+) -> bool:
+    original_sentences = _body_sentences_without_cta(str((original_draft or {}).get("body") or ""), cta_final_line=cta_final_line)
+    if not original_sentences:
+        return True
+    targeted: list[int] = []
+    for issue in (qa_report or {}).get("issues") or []:
+        if not isinstance(issue, dict):
+            continue
+        targeted.extend(
+            _matching_sentence_indexes(
+                original_sentences,
+                issue.get("evidence_quote"),
+                issue.get("offending_span_or_target_section"),
+            )
+        )
+    for action in _rewrite_plan_actions((qa_report or {}).get("rewrite_plan")):
+        targeted.extend(_matching_sentence_indexes(original_sentences, action.get("target")))
+    targeted_indexes = set(targeted)
+    rewritten_sentences = {
+        normalize_cta_text(sentence)
+        for sentence in _body_sentences_without_cta(str((rewritten or {}).get("body") or ""), cta_final_line=cta_final_line)
+    }
+    return all(
+        normalize_cta_text(sentence) in rewritten_sentences
+        for idx, sentence in enumerate(original_sentences)
+        if idx not in targeted_indexes
+    )
+
+
 def _rewrite_high_issues_resolved(
     qa_report: dict[str, Any] | None,
     original_draft: dict[str, Any] | None,
@@ -307,7 +425,7 @@ def _rewrite_high_issues_resolved(
                 return False
             continue
         if code == "cta_not_in_expected_form":
-            if _extract_last_nonempty_line(rewritten_body) != str(cta_final_line or "").strip():
+            if normalize_cta_text(_extract_last_nonempty_line(rewritten_body)) != normalize_cta_text(cta_final_line):
                 return False
             continue
         return False
@@ -318,6 +436,8 @@ def _rewrite_no_new_content(
     rewritten: dict[str, Any] | None,
     *,
     proof_gap: bool,
+    atoms: dict[str, Any] | None = None,
+    cta_final_line: str = "",
 ) -> bool:
     body = str((rewritten or {}).get("body") or "")
     lowered = body.lower()
@@ -325,7 +445,11 @@ def _rewrite_no_new_content(
         return False
     if _count_questions(body) != 1:
         return False
-    if proof_gap and "peer" in lowered:
+    if proof_gap and runtime_contains_unsupported_proof_sentence(
+        body,
+        cta_final_line=cta_final_line,
+        message_atoms=atoms,
+    ):
         return False
     return True
 
@@ -915,6 +1039,120 @@ async def judge_fit_map(
         payload_id=payload_id,
     )
 
+    forced: list[tuple[str, str]] = []
+    objective_true: set[str] = set()
+    hypotheses = [item for item in (fit_map.get("hypotheses") or []) if isinstance(item, dict)]
+    fact_ids = {
+        str(item.get("fact_id") or "").strip()
+        for item in (brief or {}).get("facts_from_input") or []
+        if isinstance(item, dict) and str(item.get("fact_id") or "").strip()
+    }
+
+    try:
+        validate_fit_map(deepcopy(fit_map), deepcopy(brief or {}))
+    except ValidationIssue as exc:
+        for code in exc.codes:
+            if code in {"fit_unknown_hook_id"}:
+                forced.append(("hook_ids_valid", code))
+            elif code in {"fit_missing_supporting_facts", "fit_unknown_supporting_fact_id"}:
+                forced.append(("hypotheses_grounded", code))
+            elif code in {
+                "fit_missing_proof_basis",
+                "fit_proof_basis_missing_source_fact",
+                "fit_proof_basis_unknown_fact_id",
+                "fit_proof_gap_text_mismatch",
+                "fit_proof_not_specific",
+            }:
+                forced.append(("proof_specific", code))
+
+    hooks_valid = True
+    hypotheses_grounded = True
+    proof_specific = True
+    ranked_hypotheses = sorted(
+        hypotheses,
+        key=lambda item: (int(item.get("rank") or 999), -float(item.get("confidence") or 0.0)),
+    )
+    if ranked_hypotheses:
+        top = ranked_hypotheses[0]
+        top_confidence = float(top.get("confidence") or 0.0)
+        max_confidence = max(float(item.get("confidence") or 0.0) for item in ranked_hypotheses)
+        if top_confidence >= max_confidence:
+            objective_true.add("ranking_justified")
+
+    for hyp in hypotheses:
+        selected_hook_id = str(hyp.get("selected_hook_id") or "").strip()
+        fit_hypothesis_id = str(hyp.get("fit_hypothesis_id") or "").strip()
+        resolved_hook_ids, _ = resolve_hook_ids(
+            [selected_hook_id],
+            messaging_brief=brief or {},
+            selected_hook_id=selected_hook_id,
+        )
+        if not resolved_hook_ids:
+            hooks_valid = False
+
+        supporting_fact_ids = [
+            str(item or "").strip()
+            for item in (hyp.get("supporting_fact_ids") or [])
+            if str(item or "").strip()
+        ]
+        if not supporting_fact_ids or any(item not in fact_ids for item in supporting_fact_ids):
+            hypotheses_grounded = False
+
+        proof_text = str(hyp.get("proof") or "").strip()
+        proof_basis = _proof_basis_for_artifact(
+            proof_text=proof_text,
+            proof_basis=dict(hyp.get("proof_basis") or {}),
+            brief=brief,
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=fit_hypothesis_id,
+        )
+        basis_kind = str(proof_basis.get("kind") or "").strip()
+        basis_fact_ids = [
+            str(item or "").strip()
+            for item in (proof_basis.get("source_fact_ids") or [])
+            if str(item or "").strip()
+        ]
+        derived_basis = build_proof_basis(
+            proof_text,
+            messaging_brief=brief or {},
+            selected_hook_id=selected_hook_id,
+            selected_fit_hypothesis_id=fit_hypothesis_id,
+        )
+        if basis_kind == "none":
+            if proof_text != PROOF_GAP_TEXT:
+                proof_specific = False
+        else:
+            if proof_is_vague(proof_text):
+                proof_specific = False
+            if basis_kind in {"hard_proof", "soft_signal"} and (
+                not basis_fact_ids
+                or any(item not in fact_ids for item in basis_fact_ids)
+                or str(derived_basis.get("kind") or "").strip() not in {"hard_proof", "soft_signal"}
+            ):
+                proof_specific = False
+
+    if hooks_valid:
+        objective_true.add("hook_ids_valid")
+    else:
+        forced.append(("hook_ids_valid", "selected_hook_id does not resolve to canonical brief hooks"))
+
+    if hypotheses_grounded:
+        objective_true.add("hypotheses_grounded")
+    else:
+        forced.append(("hypotheses_grounded", "supporting_fact_ids do not map to brief facts"))
+
+    if proof_specific:
+        objective_true.add("proof_specific")
+    else:
+        forced.append(("proof_specific", "proof basis is vague, mismatched, or ungrounded"))
+
+    result = _apply_failures(result, forced_failures=forced)
+    if objective_true:
+        result = _override_scores(
+            result,
+            force_true=objective_true,
+            warning="deterministic_override:fit_contract_checks",
+        )
     return result
 
 
@@ -951,8 +1189,8 @@ async def judge_angle_set(
     )
 
     forced: list[tuple[str, str]] = []
-    seen_types: set[str] = set()
-    seen_hooks: set[str] = set()
+    objective_true: set[str] = set()
+    seen_signatures: set[tuple[str, str, str, str]] = set()
     fact_map = fact_map_by_id((brief or {}).get("facts_from_input") or [])
     hypothesis_map = {
         str(item.get("fit_hypothesis_id") or ""): item
@@ -960,20 +1198,61 @@ async def judge_angle_set(
         if isinstance(item, dict)
     }
     why_now_grounded = False
+    hooks_valid = True
+    hypothesis_ids_valid = True
+    risk_flags_inherited = True
+    cta_bridge_natural = True
+    if len(list(angle_set.get("angles") or [])) < 3:
+        forced.append(("angles_distinct", "angle_set must contain at least three angles"))
+
+    try:
+        validate_angle_set(deepcopy(angle_set), deepcopy(brief or {}), deepcopy(fit_map or {}))
+    except ValidationIssue as exc:
+        for code in exc.codes:
+            if code in {"angle_set_too_small", "angle_duplicate_distinctness_signature"}:
+                forced.append(("angles_distinct", code))
+            elif code in {"angle_unknown_hook_id"}:
+                forced.append(("hook_ids_valid", code))
+            elif code in {"angle_unknown_fit_hypothesis_id"}:
+                forced.append(("hypothesis_ids_valid", code))
+
     for angle in angle_set.get("angles") or []:
         if not isinstance(angle, dict):
             continue
         angle_type = str(angle.get("angle_type") or "")
         hook_id = str(angle.get("selected_hook_id") or "")
-        if angle_type and angle_type in seen_types:
-            forced.append(("angles_distinct", f"duplicate angle_type '{angle_type}'"))
-        if hook_id and hook_id in seen_hooks:
-            forced.append(("angles_distinct", f"duplicate selected_hook_id '{hook_id}'"))
-        seen_types.add(angle_type)
-        seen_hooks.add(hook_id)
+        resolved_hook_ids, _ = resolve_hook_ids(
+            [hook_id],
+            messaging_brief=brief or {},
+            selected_hook_id=hook_id,
+        )
+        if not resolved_hook_ids:
+            hooks_valid = False
+        signature = _angle_distinctness_signature(angle)
+        if signature in seen_signatures:
+            forced.append(("angles_distinct", f"duplicate distinctness signature for '{str(angle.get('angle_id') or '')}'"))
+        else:
+            seen_signatures.add(signature)
+        hypothesis = hypothesis_map.get(str(angle.get("selected_fit_hypothesis_id") or ""), {})
+        if not hypothesis:
+            hypothesis_ids_valid = False
+        else:
+            inherited = {
+                str(item or "").strip()
+                for item in (hypothesis.get("risk_flags") or [])
+                if str(item or "").strip()
+            }
+            current = {
+                str(item or "").strip()
+                for item in (angle.get("risk_flags") or [])
+                if str(item or "").strip()
+            }
+            if not inherited.issubset(current):
+                risk_flags_inherited = False
         cta = str(angle.get("cta_question_suggestion") or "").strip()
         if cta and (not cta.endswith("?") or len(cta) > 160):
             forced.append(("cta_bridge_natural", "cta_question_suggestion must be <=160 chars and end with ?"))
+            cta_bridge_natural = False
         if angle_type == "why_you_why_now":
             referenced_text: list[str] = [
                 str(angle.get("pain") or ""),
@@ -1001,11 +1280,23 @@ async def judge_angle_set(
                 why_now_grounded = True
 
     result = _apply_failures(result, forced_failures=forced)
+    if hooks_valid:
+        objective_true.add("hook_ids_valid")
+    if hypothesis_ids_valid:
+        objective_true.add("hypothesis_ids_valid")
+    if risk_flags_inherited:
+        objective_true.add("risk_flags_inherited")
+    if cta_bridge_natural:
+        objective_true.add("cta_bridge_natural")
+    if len(seen_signatures) == len([item for item in (angle_set.get("angles") or []) if isinstance(item, dict)]) and len(seen_signatures) >= 3:
+        objective_true.add("angles_distinct")
     if why_now_grounded:
+        objective_true.add("why_you_why_now_earned")
+    if objective_true:
         result = _override_scores(
             result,
-            force_true={"why_you_why_now_earned"},
-            warning="deterministic_override:why_you_why_now_earned",
+            force_true=objective_true,
+            warning="deterministic_override:angle_contract_checks",
         )
     return result
 
@@ -1051,11 +1342,22 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     )
 
     forced: list[tuple[str, str]] = []
-    opener_line = str(atoms.get("opener_atom") or "")
+    objective_true: set[str] = set()
+    selected_hook_id = str((angle or {}).get("selected_hook_id") or "")
+    cta_lock = build_cta_lock(locked_cta)
+    opener_line = str(atoms.get("opener_line") or atoms.get("opener_atom") or "")
     value_line = str(atoms.get("value_atom") or "")
     proof_line = str(atoms.get("proof_atom") or "")
     cta_line = str(atoms.get("cta_atom") or "")
     required_cta_line = str(atoms.get("required_cta_line") or "")
+    proof_basis = _proof_basis_for_artifact(
+        proof_text=proof_line,
+        proof_basis=dict(atoms.get("proof_basis") or {}),
+        brief=brief,
+        selected_hook_id=selected_hook_id,
+        selected_fit_hypothesis_id=str((angle or {}).get("selected_fit_hypothesis_id") or ""),
+    )
+    atoms_cta_lock = dict(atoms.get("cta_lock") or {})
 
     if _check_bracket_placeholder(opener_line) or _check_bracket_placeholder(value_line):
         forced.append(("value_outcome_not_mechanism", "placeholder bracket token leaked in atoms"))
@@ -1066,22 +1368,52 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     if proof_line and _proof_looks_circular(proof_line, brief or {}, angle=angle or {}):
         forced.append(("proof_not_circular", "proof_line appears circular or prospect-derived"))
 
-    if cta_line.strip() != str(locked_cta or "").strip() or required_cta_line.strip() != str(locked_cta or "").strip():
+    if (
+        normalize_cta_text(cta_line) != cta_lock["final_line"]
+        or normalize_cta_text(required_cta_line) != cta_lock["final_line"]
+        or normalize_cta_text(atoms_cta_lock.get("final_line") or "") != cta_lock["final_line"]
+    ):
         forced.append(("cta_locked", "atoms CTA fields do not match locked CTA"))
+    else:
+        objective_true.add("cta_locked")
 
-    comma_count = opener_line.count(",")
-    connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener_line.lower()))
-    if comma_count > 1 or connector_count > 1:
+    if not opener_is_simple(opener_line, contract=dict(atoms.get("opener_contract") or opener_contract())):
         forced.append(("opener_simple", "opener contains too many clauses"))
+    else:
+        objective_true.add("opener_simple")
 
-    hook_ids = {str(item.get("hook_id") or "") for item in (brief or {}).get("hooks") or [] if isinstance(item, dict)}
     used_hook_ids = [str(item or "") for item in atoms.get("used_hook_ids") or []]
-    if any(hook_id and hook_id not in hook_ids for hook_id in used_hook_ids):
-        forced.append(("hook_ids_valid", "used_hook_ids contains unknown hook id"))
+    resolved_hook_ids, repair_actions = resolve_hook_ids(
+        used_hook_ids,
+        messaging_brief=brief or {},
+        selected_hook_id=selected_hook_id,
+    )
+    canonical_hooks = set(canonical_hook_ids(brief or {}))
+    canonical_hook_ids_in_atoms = [str(item or "").strip() for item in (atoms.get("canonical_hook_ids") or []) if str(item or "").strip()]
+    if (
+        len(resolved_hook_ids) != len({item for item in used_hook_ids if item})
+        and not repair_actions
+    ) or any(item not in canonical_hooks for item in canonical_hook_ids_in_atoms):
+        forced.append(("hook_ids_valid", "used_hook_ids do not resolve to canonical brief hooks"))
     if len(set(used_hook_ids)) != len(used_hook_ids):
         forced.append(("hook_ids_valid", "used_hook_ids contains duplicate hook ids"))
+    elif resolved_hook_ids and set(canonical_hook_ids_in_atoms or resolved_hook_ids).issubset(canonical_hooks):
+        objective_true.add("hook_ids_valid")
 
-    return _apply_failures(result, forced_failures=forced)
+    if proof_line and _check_outcome_like(proof_line):
+        if str(proof_basis.get("kind") or "").strip() in {"none", "capability_statement", "assumption"}:
+            forced.append(("proof_not_circular", "proof line overclaims beyond grounded proof basis"))
+    elif not proof_line:
+        objective_true.add("proof_not_circular")
+
+    result = _apply_failures(result, forced_failures=forced)
+    if objective_true:
+        result = _override_scores(
+            result,
+            force_true=objective_true,
+            warning="deterministic_override:atoms_contract_checks",
+        )
+    return result
 
 
 async def judge_email_draft(
@@ -1134,30 +1466,67 @@ FAIL no_banned_phrases: includes "touch base" or "quick question".
     )
 
     forced: list[tuple[str, str]] = []
+    objective_true: set[str] = set()
     subject = str(draft.get("subject") or "").strip()
     body = str(draft.get("body") or "")
-    last_line = _extract_last_nonempty_line(body)
+    cta_lock = build_cta_lock(cta_final_line)
+    last_line = normalize_cta_text(_extract_last_nonempty_line(body))
+    proof_basis = _proof_basis_for_artifact(
+        proof_text=str((atoms or {}).get("proof_atom") or ""),
+        proof_basis=dict((atoms or {}).get("proof_basis") or {}),
+        brief=brief,
+        selected_hook_id=str(((atoms or {}).get("used_hook_ids") or [""])[0] or ""),
+        selected_fit_hypothesis_id=str((atoms or {}).get("selected_angle_id") or ""),
+    )
 
     if len(subject) > 70:
         forced.append(("subject_length", "subject exceeds 70 characters"))
 
-    if last_line != str(cta_final_line or "").strip():
+    if last_line != cta_lock["final_line"]:
         forced.append(("cta_exact", "final body line does not exactly match locked CTA"))
+    else:
+        objective_true.add("cta_exact")
 
     lowered_text = f"{subject}\n{body}".lower()
     for banned in BANNED_PHRASES:
         if banned in lowered_text:
             forced.append(("no_banned_phrases", f"contains banned phrase '{banned}'"))
             break
+    else:
+        objective_true.add("no_banned_phrases")
 
-    if _count_questions(body) != 1:
+    cta_line_count = sum(1 for line in body.splitlines() if normalize_cta_text(line) == cta_lock["final_line"])
+    if _count_questions(body) != 1 or cta_line_count != 1:
         forced.append(("no_double_cta", "body must contain exactly one question mark"))
+    else:
+        objective_true.add("no_double_cta")
 
-    proof_atom_missing = str((atoms or {}).get("proof_atom") or "").strip() == ""
-    if proof_gap and proof_atom_missing and "peer" in body.lower():
+    if _has_weak_proof_basis(proof_basis, proof_gap=proof_gap) and runtime_contains_unsupported_proof_sentence(
+        body,
+        cta_final_line=cta_lock["final_line"],
+        message_atoms=atoms,
+    ):
         forced.append(("proof_respected", "proof sentence appears despite proof_gap"))
+    else:
+        proof_atom = str((atoms or {}).get("proof_atom") or "").strip()
+        if proof_atom and not _has_weak_proof_basis(proof_basis, proof_gap=proof_gap):
+            proof_tokens = _grounding_tokens(proof_atom)
+            body_sentences = _body_sentences_without_cta(body, cta_final_line=cta_lock["final_line"])
+            if not any(len(_grounding_tokens(sentence) & proof_tokens) >= 2 for sentence in body_sentences):
+                forced.append(("proof_respected", "grounded proof atom is not represented in the body"))
+            else:
+                objective_true.add("proof_respected")
+        else:
+            objective_true.add("proof_respected")
 
-    return _apply_failures(result, forced_failures=forced)
+    result = _apply_failures(result, forced_failures=forced)
+    if objective_true:
+        result = _override_scores(
+            result,
+            force_true=objective_true,
+            warning="deterministic_override:generation_contract_checks",
+        )
+    return result
 
 
 async def judge_qa_report(
@@ -1288,9 +1657,20 @@ FAIL cta_exact: CTA wording changed.
     )
 
     forced: list[tuple[str, str]] = []
-    last_line = _extract_last_nonempty_line(str(rewritten.get("body") or ""))
-    if last_line != str(cta_final_line or "").strip():
+    objective_true: set[str] = set()
+    cta_lock = build_cta_lock(cta_final_line)
+    last_line = normalize_cta_text(_extract_last_nonempty_line(str(rewritten.get("body") or "")))
+    proof_basis = _proof_basis_for_artifact(
+        proof_text=str((atoms or {}).get("proof_atom") or ""),
+        proof_basis=dict((atoms or {}).get("proof_basis") or {}),
+        brief={},
+        selected_hook_id=str(((atoms or {}).get("used_hook_ids") or [""])[0] or ""),
+        selected_fit_hypothesis_id=str((atoms or {}).get("selected_angle_id") or ""),
+    )
+    if last_line != cta_lock["final_line"]:
         forced.append(("cta_exact", "rewritten final line does not exactly match locked CTA"))
+    else:
+        objective_true.add("cta_exact")
 
     for key in ("preset_id", "selected_angle_id"):
         if str((rewritten or {}).get(key) or "") != str((original_draft or {}).get(key) or ""):
@@ -1302,14 +1682,14 @@ FAIL cta_exact: CTA wording changed.
     if rewritten_hooks != original_hooks:
         forced.append(("metadata_preserved", "used_hook_ids changed in rewritten draft"))
 
-    proof_atom_missing = str((atoms or {}).get("proof_atom") or "").strip() == ""
-    if proof_gap and proof_atom_missing and "peer" in str(rewritten.get("body") or "").lower():
+    if _has_weak_proof_basis(proof_basis, proof_gap=proof_gap) and runtime_contains_unsupported_proof_sentence(
+        str(rewritten.get("body") or ""),
+        cta_final_line=cta_lock["final_line"],
+        message_atoms=atoms,
+    ):
         forced.append(("no_new_content", "proof sentence introduced despite proof_gap"))
 
     result = _apply_failures(result, forced_failures=forced)
-    objective_true: set[str] = set()
-    if last_line == str(cta_final_line or "").strip():
-        objective_true.add("cta_exact")
     if (
         str((rewritten or {}).get("preset_id") or "") == str((original_draft or {}).get("preset_id") or "")
         and str((rewritten or {}).get("selected_angle_id") or "") == str((original_draft or {}).get("selected_angle_id") or "")
@@ -1318,8 +1698,20 @@ FAIL cta_exact: CTA wording changed.
         objective_true.add("metadata_preserved")
     if _rewrite_high_issues_resolved(qa_report, original_draft, rewritten, cta_final_line=cta_final_line):
         objective_true.add("high_issues_resolved")
-    if _rewrite_no_new_content(rewritten, proof_gap=proof_gap):
+    if _rewrite_no_new_content(
+        rewritten,
+        proof_gap=_has_weak_proof_basis(proof_basis, proof_gap=proof_gap),
+        atoms=atoms,
+        cta_final_line=cta_lock["final_line"],
+    ):
         objective_true.add("no_new_content")
+    if _untouched_sentences_preserved(qa_report, original_draft, rewritten, cta_final_line=cta_lock["final_line"]):
+        objective_true.add("untouched_sentences_preserved")
+    else:
+        result = _apply_failures(
+            result,
+            forced_failures=[("untouched_sentences_preserved", "untargeted original sentences were not preserved")],
+        )
     if objective_true:
         result = _override_scores(
             result,
