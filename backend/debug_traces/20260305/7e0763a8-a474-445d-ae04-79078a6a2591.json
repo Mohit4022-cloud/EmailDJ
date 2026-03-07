@@ -1,0 +1,101 @@
+{
+  "trace_id": "7e0763a8-a474-445d-ae04-79078a6a2591",
+  "app_env": "local",
+  "started_at": 1772748061.852176,
+  "finished_at": 1772748076.245152,
+  "duration_ms": 14393,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 14390,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fact_source_field_not_allowed",
+          "fact_not_grounded_in_input"
+        ],
+        "rejected_facts": [
+          {
+            "code": "fact_source_field_not_allowed",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "team",
+              "text_preview": "None provided"
+            }
+          },
+          {
+            "code": "fact_not_grounded_in_input",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "team",
+              "text_preview": "None provided"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "codes": [
+        "fact_source_field_not_allowed",
+        "fact_not_grounded_in_input"
+      ],
+      "details": {
+        "rejected_facts": [
+          {
+            "code": "fact_source_field_not_allowed",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "team",
+              "text_preview": "None provided"
+            }
+          },
+          {
+            "code": "fact_not_grounded_in_input",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "team",
+              "text_preview": "None provided"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "fc94a2be506e6a812dd759a14d6edd57afb1731beb6404ac2238874bb463a98b"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "fc94a2be506e6a812dd759a14d6edd57afb1731beb6404ac2238874bb463a98b"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

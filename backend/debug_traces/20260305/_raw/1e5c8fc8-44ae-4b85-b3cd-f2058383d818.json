@@ -1,0 +1,462 @@
+{
+  "trace_id": "1e5c8fc8-44ae-4b85-b3cd-f2058383d818",
+  "app_env": "local",
+  "started_at": 1772696549.743244,
+  "finished_at": 1772696590.5098681,
+  "duration_ms": 40767,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "fc94a2be506e6a812dd759a14d6edd57afb1731beb6404ac2238874bb463a98b"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Irene Fox"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Revenue Enablement Lead"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Slate Orbit"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Would it be helpful to share a quick framework for outbound consistency checks?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "product_summary",
+            "text": "Enablement QA Layer"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "icp_description",
+            "text": "Helps enablement leaders keep outbound messaging consistent."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "differentiators",
+            "text": "- Ramp-quality checks\n- Manager review dashboards"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "proof_points",
+            "text": "- Ramp-quality checks\n- Manager review dashboards\n- Helps enablement leaders keep outbound messaging consistent."
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "company_notes",
+            "text": "Helps enablement leaders keep outbound messaging consistent."
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "research_text",
+            "text": "Slate Orbit is exploring tighter outbound process consistency for new reps."
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "do_not_say",
+            "text": "just wanted to; checking in; touch base; circle back; synergy; leverage; game-changer; revolutionary; I hope this email finds you; I wanted to reach out; just checking in"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Slate Orbit is exploring tighter outbound process consistency for new reps (research_text) and would benefit from structured outbound consistency checks (cta_final_line).",
+            "supported_by_fact_ids": [
+              "fact_11",
+              "fact_05"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Enablement leaders need ramp-quality checks and manager review dashboards to keep messaging consistent (differentiators, proof_points).",
+            "supported_by_fact_ids": [
+              "fact_08",
+              "fact_09",
+              "fact_03"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Provide a quick framework for outbound consistency checks that aligns with a Revenue Enablement Lead's priorities (title, icp_description).",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_07",
+              "fact_05"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "outbound win rate",
+            "message consistency",
+            "onboarding ramp time"
+          ],
+          "likely_initiatives": [
+            "develop outbound messaging guardrails",
+            "introduce QA checks for reps",
+            "embed dashboard visibility for managers"
+          ],
+          "day_to_day": [
+            "monitoring outbound performance",
+            "coaching reps on messaging",
+            "collaborating with enablement managers"
+          ],
+          "tools_stack": [
+            "CRM",
+            "messaging QA tools",
+            "analytics dashboards"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "prospect_notes",
+            "research_text",
+            "product_summary",
+            "icp_description",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 12,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_02",
+            "pain": "Enablement leaders need ramp-quality checks and manager review dashboards to keep messaging consistent.",
+            "impact": "Missed quota due to inconsistent outbound messaging across new reps; extra coaching time; slower onboarding ramp.",
+            "value": "A structured QA layer and dashboards enable faster ramp, higher outbound win rate, and consistent messaging.",
+            "proof": "fact_08 (differentiators) + fact_09 (proof_points) + fact_03 (Slate Orbit)",
+            "supporting_fact_ids": [
+              "fact_08",
+              "fact_09",
+              "fact_03"
+            ],
+            "why_now": "fact_11 indicates Slate Orbit is actively seeking tighter outbound process consistency for new reps.",
+            "confidence": 0.82,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_01",
+            "pain": "Research shows Slate Orbit is pursuing tighter outbound process consistency for new reps; lack of structured checkpoints creates ambiguity in onboarding.",
+            "impact": "Longer ramp time for new reps; variability in messaging reduces pipeline velocity.",
+            "value": "Provides a concrete framework and checks that align with current priorities, reducing ramp time and boosting consistency.",
+            "proof": "fact_11 (research_text) + fact_05 (cta_final_line) + fact_06 (Enablement QA Layer)",
+            "supporting_fact_ids": [
+              "fact_11",
+              "fact_05",
+              "fact_06"
+            ],
+            "why_now": "fact_11 plus fact_05 show urgency to implement consistency checks now.",
+            "confidence": 0.78,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "Revenue Enablement Lead needs tooling-aligned guidance that matches title and ICP narrative.",
+            "impact": "Misalignment between messaging and leadership priorities, causing inefficient resource allocation and coaching.",
+            "value": "Quick framework delivers aligned messaging and governance that resonates with the role\u2019s priorities.",
+            "proof": "fact_02 (title) + fact_07 (icp_description) + fact_05 (cta_final_line)",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_07",
+              "fact_05"
+            ],
+            "why_now": "evergreen with alignment needs; no explicit trigger beyond ongoing priorities.",
+            "confidence": 0.7,
+            "risk_flags": [
+              "timing_signal"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Enablement leaders need ramp-quality checks and manager review dashboards to keep messaging consistent.",
+            "impact": "Missed quota due to inconsistent outbound messaging across new reps; extra coaching time; slower onboarding ramp.",
+            "value": "A structured QA layer and dashboards enable faster ramp, higher outbound win rate, and consistent messaging.",
+            "proof": "fact_08 (differentiators) + fact_09 (proof_points) + fact_03 (Slate Orbit)",
+            "cta_question_suggestion": "Would you be open to a quick 15-minute framework review to see how QA checks could fit Slate Orbit's onboarding ramp timeline?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Research shows Slate Orbit is pursuing tighter outbound process consistency for new reps; lack of structured checkpoints creates ambiguity in onboarding.",
+            "impact": "Longer ramp time for new reps; variability in messaging reduces pipeline velocity.",
+            "value": "Provides a concrete framework and checks that align with current priorities, reducing ramp time and boosting consistency.",
+            "proof": "fact_11 (research_text) + fact_05 (cta_final_line) + fact_06 (Enablement QA Layer)",
+            "cta_question_suggestion": "Would it help to review a starter framework that aligns with your current onboarding timeline and metrics?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.76,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Revenue Enablement Lead needs tooling-aligned guidance that matches title and ICP narrative.",
+            "impact": "Misalignment between messaging and leadership priorities, causing inefficient resource allocation and coaching.",
+            "value": "Quick framework delivers aligned messaging and governance that resonates with the role\u2019s priorities.",
+            "proof": "fact_02 (title) + fact_07 (icp_description) + fact_05 (cta_final_line)",
+            "cta_question_suggestion": "Would you be open to a short alignment session to connect the framework to Slate Orbit\u2019s ICP and leadership priorities?",
+            "risk_flags": [
+              "timing_signal"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "opener_line": "Slate Orbit is exploring tighter outbound process consistency for new reps and would benefit from ramp-quality checks and manager review dashboards.",
+        "value_line": "Slate Orbit gains faster ramp and higher outbound win rate without sacrificing message consistency.",
+        "proof_line": "A B2B enablement team achieved faster ramp and higher win rate after implementing ramp-quality checks and manager review dashboards.",
+        "cta_line": "Would it be helpful to share a quick framework for outbound consistency checks?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "subject": "Ramp-quality checks and dashboards to speed Slate Orbit\u2019s onboarding",
+        "body": "Slate Orbit is exploring tighter outbound process consistency for new reps and would benefit from ramp-quality checks and manager review dashboards. Slate Orbit gains faster ramp and higher outbound win rate without sacrificing message consistency. A B2B enablement team achieved faster ramp and higher win rate after implementing ramp-quality checks and manager review dashboards. Would it be helpful to share a quick framework for outbound consistency checks?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "\"Would it be helpful to share a quick framework for outbound consistency checks?\""
+            ],
+            "fix_instruction": "Rewrite subject and body to include a clear, single CTA and a concrete next-step line; source replacement: use a direct ask from the do_not_say list replaced with a value-driven CTA. Rationale: the current CTA is vague and risks low engagement."
+          },
+          {
+            "type": "cta",
+            "severity": "high",
+            "evidence": [
+              "\"Would it be helpful to share a quick framework for outbound consistency checks?\""
+            ],
+            "fix_instruction": "Replace CTA with a specific action, e.g., \"Are you open to a 15-min call next week to review the framework?\"; replacement source: locked_cta field and do_not_say constraints; why: improves clarity and commitment."
+          },
+          {
+            "type": "personalization",
+            "severity": "high",
+            "evidence": [
+              "\"Slate Orbit is exploring tighter outbound process consistency for new reps\"",
+              "\"A B2B enablement team achieved faster ramp\""
+            ],
+            "fix_instruction": "Limit personalization to allowed_fact_sources only; remove research-text style phrases that imply new facts; source: replace with neutral, generic framing or remove the sentence; why: no ungrounded personalization risk."
+          },
+          {
+            "type": "grammar",
+            "severity": "low",
+            "evidence": [
+              "\"Slate Orbit gains faster ramp and higher outbound win rate without sacrificing message consistency.\""
+            ],
+            "fix_instruction": "Polish sentence for conciseness: \"Slate Orbit gains faster ramp and higher outbound win rate while preserving message consistency.\""
+          },
+          {
+            "type": "length",
+            "severity": "low",
+            "evidence": [
+              "\"Slate Orbit is exploring tighter outbound process consistency for new reps and would benefit from ramp-quality checks and manager review dashboards. Slate Orbit gains faster ramp and higher outbound\""
+            ],
+            "fix_instruction": "Trim redundancy by merging into two concise sentences; why: improves skim-ability."
+          },
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "\"A B2B enablement team achieved faster ramp and higher win rate\""
+            ],
+            "fix_instruction": "Adjust to neutral professional tone; replace with factual, non-promotional phrasing."
+          }
+        ],
+        "risk_flags": [
+          "ungrounded_personalization",
+          "deep_structural_failure",
+          "hallucinated_proof",
+          "cta_mismatch",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "1. Replace vague CTA with a concrete next-step line.",
+          "2. Remove or neutralize ungrounded personalization; constrain facts to allowed sources.",
+          "3. Shorten and polish sentences for clarity and tone.",
+          "4. Rework hook text to align with a single, coherent CTA.",
+          "5. Ensure no do_not_say phrases appear in body.",
+          "6. Validate length under 150-180 words.",
+          "7. Return a clean, executable rewritten email draft."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_01",
+          "hook_03"
+        ],
+        "subject": "Ramp-quality checks and dashboards to speed Slate Orbit\u2019s onboarding",
+        "body": "Slate Orbit is refining outbound process consistency for new reps and would benefit from ramp-quality checks and manager review dashboards. These enable quicker ramp and higher outbound win rate while preserving message consistency. A B2B enablement team achieved faster ramp and higher win rate after implementing ramp-quality checks and manager review dashboards.\n\nAre you open to a 15-minute call next week to review the framework?"
+      }
+    }
+  ]
+}

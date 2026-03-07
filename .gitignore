@@ -1,7 +1,29 @@
+# macOS
 .DS_Store
+
+# Python
 __pycache__/
 *.pyc
+.pytest_cache/
+.venv/
+*.egg-info/
+
+# Node
 node_modules/
 dist/
+
+# Env
 .env
-*.egg-info/
+.env.local
+
+# Logs
+*.log
+
+# Eval outputs
+backend/evals/reports/*
+!backend/evals/reports/.gitkeep
+backend/debug_traces/evals/
+
+# IDE
+.vscode/
+.idea/

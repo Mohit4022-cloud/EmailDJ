@@ -1,0 +1,1497 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 ArialMT;\f1\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;}
+{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\deftab720
+\pard\pardeftab720\partightenfactor0
+
+\f0\fs29\fsmilli14667 \cf0 \expnd0\expndtw0\kerning0
+\outl0\strokewidth0 \strokec2 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 EMAILDJ SDR-BRAIN \'97 MASTER CODEX PROMPT (AI-ONLY STAGED PIPELINE)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Version: 1.0 | Use with: Codex CLI or any coding agent
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 You are a principal full-stack + LLM systems engineer. Your job is to refactor
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 the repo emaildj-mvp-0.5 into an AI-only, multi-stage, fail-closed outbound
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 email generation system with preset browsing, sliders, and full observability.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Read this entire prompt before writing a single line of code.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 0 \'97 REPO REALITY (WHERE WE ARE)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Current flow:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Frontend \uc0\u8594  POST /web/v1/generate \u8594  \{session_id, request_id, stream_url\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Frontend \uc0\u8594  GET /web/v1/stream/\{request_id\} \u8594  SSE stream
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Backend runs: normalize \uc0\u8594  deterministic planning \u8594  deterministic draft first
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\uc0\u8594  optional LLM draft only if configured \u8594  validate/repair with fallback
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - SSE done returns \{subject, body\} even if it came from a deterministic fallback
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Problems to eliminate:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Template-feel outputs
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Hallucinated personalization ("saw your post", "congrats on the funding")
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Silent fallback behavior (template email returned as if AI wrote it)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - Brittle paraphrase-based personalization checks
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 - No per-stage observability
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 1 \'97 HARD CONSTRAINTS (NON-NEGOTIABLE)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 1. AI-ONLY OUTPUTS
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- If an email subject/body is returned to the user, it MUST be LLM-generated.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Mechanical postprocess allowed ONLY for: exact CTA enforcement, subject
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0trim to 70 chars, sentence-aware word budget trim, CTA deduplication.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- No deterministic subject/body generation on any runtime path.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 2. FAIL-CLOSED
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- If any stage fails after one JSON repair attempt \uc0\u8594  return ok:false error.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- If final validation fails \uc0\u8594  return ok:false error.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Error SSE done payload MUST NOT contain subject or body fields.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- No "safe fallback" draft on failure. Ever.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 3. STRICT JSON AT EVERY STAGE
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Use response_format json_schema (strict: true) for all LLM calls.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Validate schema deterministically after every stage.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- One JSON repair attempt allowed per stage. Second failure = pipeline error.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 4. PRESETS ARE STYLE MODIFIERS, NOT TEMPLATES
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Presets change tone/structure/framing/stance only.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Presets MUST NOT inject canned copy or hard-coded company examples.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- All preset definitions stored as JSON data files, not code strings.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 5. SLIDERS PRESERVE NARRATIVE CORE
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Sliders adjust: tone (formal\uc0\u8596 casual), framing (problem\u8596 outcome),
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0length (short\uc0\u8596 long), stance (bold\u8596 diplomatic).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Sliders MUST NOT change selected_angle_id or core facts.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 6. TRACING REQUIRED ON EVERY REQUEST
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Every request gets a unique trace_id (UUID4).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Per-stage logs: stage name, model, elapsed_ms, schema_ok,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0validation_error_codes[], postprocess_steps[], output_hash (PII-safe).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0- Dev/local: write to backend/debug_traces/YYYYMMDD/<trace_id>.json
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 2 \'97 STAGED PIPELINE ARCHITECTURE
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Pipeline sequence (single generate):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Stage A \uc0\u8594  Stage B \u8594  Stage B0 \u8594  Stage C0 \u8594  Stage C \u8594  Stage D \u8594  Stage E
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 For preset browse batch:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Stage A \uc0\u8594  Stage B \u8594  Stage B0 \u8594  Stage C0 \u8594  Stage C (batch) \u8594  [per-variant D+E]
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE A \'97 CONTEXT_SYNTHESIS \uc0\u8594  MessagingBrief
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o | Temperature: 0.3 | max_tokens: 1800
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input fields:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- user_company: \{name, product_summary, icp_description, differentiators[],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0proof_points[], do_not_say[], company_notes\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- prospect: \{name, title, company, industry, notes, research_text\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- cta: \{cta_type, cta_final_line\}\'a0 \uc0\u8592  LOCKED, never modified
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions (include verbatim):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"You are building a reusable sales intelligence document.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0ONLY include facts explicitly present in the input fields.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0NEVER invent facts about the prospect.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Label ALL inferences as assumptions with a confidence score 0-1.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Any hook referencing prospect behavior (posts, announcements, hires) MUST
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0cite a fact_id from facts_from_input or be flagged as assumption.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON matching the MessagingBrief schema. No commentary."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validator:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- facts_from_input.length >= 1
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- hooks.length >= 1
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- assumption with confidence > 0.8 must have based_on_fact_ids.length > 0
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE B \'97 FIT_REASONING \uc0\u8594  FitMap
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o | Temperature: 0.2 | max_tokens: 1200
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input: MessagingBrief (full JSON)
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Map the prospect's likely pains to your product's value using ONLY facts
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0and labeled assumptions from the MessagingBrief.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Every hypothesis must reference at least one supporting_fact_id.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Rank by confidence and persona relevance.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validator:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Every hypothesis.selected_hook_id must exist in MessagingBrief.hooks[].hook_id
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Every hypothesis.supporting_fact_ids must reference valid fact_ids
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE B0 \'97 ANGLE_PICKER \uc0\u8594  AngleSet
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o | Temperature: 0.4 | max_tokens: 1000
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input: MessagingBrief + FitMap
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Angle types: why_you_why_now | problem_led | outcome_led | proof_led | objection_prebunk
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Pick 3-5 distinct pitch angles. Do NOT pick angles requiring facts you
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0don't have. Flag assumption-heavy angles with risk_flags.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Each angle must reference a hook_id that exists in the MessagingBrief.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validator:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Each angle.selected_hook_id must exist in brief.hooks[].hook_id
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Each angle.selected_fit_hypothesis_id must exist in FitMap hypotheses
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- angles.length >= 3
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE C0 \'97 ONE_LINER_COMPRESSOR \uc0\u8594  MessageAtoms
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o-mini | Temperature: 0.5 | max_tokens: 400
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input: MessagingBrief + FitMap + AngleSet + \{selected_angle_id, slider_params\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0Note: selected_angle_id defaults to angles[0].angle_id
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Write ONE punchy sentence for each atom. Opener must not be generic.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Value line must reference a specific outcome, not a feature.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Proof line must cite a real proof point from the brief or be omitted.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0CTA line MUST be exactly: '\{cta_final_line\}' \'97 copy it verbatim.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validator (CRITICAL):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- atoms.cta_line must exactly equal input cta_final_line (string equality)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- If mismatch: mechanical postprocess overwrites cta_line (do NOT fail)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- used_hook_ids must be non-empty
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- opener_line must not match brief.forbidden_claim_patterns
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE C \'97 EMAIL_GENERATION \uc0\u8594  EmailDraft or BatchVariants
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o | Temperature: 0.7
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 max_tokens: 800 (single) | 2400 (batch)
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 SINGLE MODE prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Write a cold outbound email using the atoms and angle provided.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Apply the style rules from the preset. Do NOT add facts not in the brief.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Do NOT use phrases in the do_not_say list.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Subject must be under 70 characters.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Body must end with this exact CTA line: '\{cta_final_line\}'
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 BATCH MODE prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Generate one email variant per preset in the variants array.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Each variant is independently styled. Use the SAME angle and atoms for all.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0If you cannot generate a valid email for a preset, return an error object
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0for that preset only \'97 do not omit it or substitute another preset's output.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validators:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- subject.length <= 70
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- body ends with exact cta_final_line
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- No banned phrases: ["touch base", "circle back", "synergy", "leverage",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"game-changer", "revolutionary", "I hope this email finds you",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"I wanted to reach out", "just checking in"]
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Ungrounded personalization: if body contains ["saw your post", "noticed you",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"congrats on", "just came across"] verify corresponding fact exists in
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0brief.facts_from_input; otherwise fail validation
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Repetition detection: no paragraph appears more than once (similarity >= 0.85)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Length slider enforcement:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0short:\'a0 40-80 words
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0medium: 80-140 words
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0long: \'a0 140-220 words (excludes subject line)
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE D \'97 EMAIL_QA \uc0\u8594  QAReport
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o-mini | Temperature: 0.2 | max_tokens: 800
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input: EmailDraft + MessagingBrief
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Critique this cold email like a senior SDR manager reviewing a rep's work.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Flag: AI tells (fluff, vague openers, generic value props), credibility risks,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0specificity gaps, structure issues, spam triggers.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0For each issue: provide evidence quote (<15 words) and exact fix instruction.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Set pass_rewrite_needed: true if ANY high-severity issue exists.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Deterministic validator:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- If pass_rewrite_needed is false but issues contains severity:high \uc0\u8594  override to true
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- rewrite_plan must be non-empty if pass_rewrite_needed is true
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 STAGE E \'97 EMAIL_REWRITE \uc0\u8594  final EmailDraft
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ------------------------------------------------------------
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Model: gpt-4o | Temperature: 0.6 | max_tokens: 800
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Input: EmailDraft + QAReport + MessagingBrief + MessageAtoms
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Key prompt instructions:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"Rewrite this email following the rewrite_plan steps exactly.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Do NOT introduce new facts. Do NOT change the selected angle.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Body must end with this exact CTA line: '\{cta_final_line\}'
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0Output strict JSON. No preamble."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Post-Stage E: run ALL Stage C validators again.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0If still fails \uc0\u8594  pipeline returns ok:false. No subject/body returned.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 If QAReport.pass_rewrite_needed is false \uc0\u8594  skip Stage E, use Stage C output.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 3 \'97 PRESETS SYSTEM
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Location: backend/app/engine/presets/
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Files:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0registry.py\'a0 \'a0 \'a0 \uc0\u8592  loads + validates all preset JSON files
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0base.json\'a0 \'a0 \'a0 \'a0 \uc0\u8592  shared defaults
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0direct.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0challenger.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0storyteller.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0proof_first.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0executive.json
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Each preset JSON must include exactly these fields:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"preset_id": "direct",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"name": "Direct",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"tone_descriptor": "confident, clear, no fluff",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"style_rules": [
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"Open with a direct observation or question, not a compliment",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"No filler sentences between value and CTA",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"Single idea per sentence"
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"structure_rules": [
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"opener \uc0\u8594  value \u8594  proof \u8594  CTA (4 sentences max for short/medium)",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"No bullet points unless long format"
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"banned_phrases_additions": ["I wanted to reach out", "just wanted to"],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"formatting_hints": "Plain text, no em dashes, no exclamation marks"
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 CRITICAL: Preset files must never contain company names, industry-specific copy,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 or templated sentences that could appear verbatim in an email output.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 4 \'97 SLIDER SPECIFICATIONS
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Slider contract (pass as structured params, not free-text):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"tone": 0.0-1.0, \'a0 \'a0 \'a0 // 0.0 = very formal, 1.0 = very casual
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"framing": 0.0-1.0,\'a0 \'a0 // 0.0 = problem-led, 1.0 = outcome-led
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"length": "short" | "medium" | "long",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"stance": 0.0-1.0\'a0 \'a0 \'a0 // 0.0 = diplomatic, 1.0 = bold/direct
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Defaults: \{ tone: 0.4, framing: 0.5, length: "medium", stance: 0.5 \}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Slider \uc0\u8594  prompt instruction mapping (inject dynamically into Stage C):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0tone < 0.3:\'a0 \'a0 "Use formal business language. No contractions."
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0tone 0.3-0.7:\'a0 "Use professional but conversational tone."
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0tone > 0.7:\'a0 \'a0 "Write like a peer, not a salesperson. Contractions OK."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0framing < 0.3: "Lead with the problem/pain the prospect likely faces."
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0framing > 0.7: "Lead with the outcome/result the prospect could achieve."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0stance < 0.3:\'a0 "Be tentative. Suggest, don't assert."
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0stance > 0.7:\'a0 "Be direct and confident. State your point of view."
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0length: enforce word bands per Stage C validators above.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 5 \'97 BRIEF CACHE
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Cache key: SHA256 of normalized dict containing ONLY:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- user_company: name, product_summary, icp, differentiators, proof_points
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- prospect: name, title, company, industry, notes, research_text
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- cta.cta_final_line
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 EXCLUDE from cache key: sliders, preset_id, timestamp, trace_id
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Implementation (MVP):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- In-memory LRU, max 200 entries, TTL 30 minutes
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Cache hit: skip Stages A, B, B0 \'97 start from Stage C0
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Cache miss: run full pipeline from Stage A
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 6 \'97 API & SSE CONTRACT
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 POST /web/v1/generate \'97 new payload fields:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"preset_id": "direct", \'a0 \'a0 \'a0 \'a0 \'a0 \'a0 \'a0 \'a0 \'a0 // single mode
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"preset_ids": ["direct", "challenger"],\'a0 // browse mode (triggers batch)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"mode": "single" | "preset_browse",\'a0 \'a0 \'a0 // default: single
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0"sliders": \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"tone": 0.5,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"framing": 0.5,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"length": "medium",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"stance": 0.5
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 SSE events:
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0event: stage\'a0 (REQUIRED \'97 not optional)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0data: \{"trace_id":"...","stage":"CONTEXT_SYNTHESIS","status":"started","elapsed_ms":0\}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0event: stage
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0data: \{"trace_id":"...","stage":"CONTEXT_SYNTHESIS","status":"complete","elapsed_ms":843\}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0event: done\'a0 (SUCCESS \'97 single)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0data: \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"ok": true,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"trace_id": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"subject": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"body": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"provenance": \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"preset_id": "direct",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"selected_angle_id": "angle_001",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"used_hook_ids": ["hook_001"],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"rewrite_applied": true
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\},
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"stage_stats": [
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\{"stage": "CONTEXT_SYNTHESIS", "elapsed_ms": 843, "model": "gpt-4o"\},
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\{"stage": "FIT_REASONING", "elapsed_ms": 612, "model": "gpt-4o"\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0]
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0event: done\'a0 (SUCCESS \'97 preset browse)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0data: \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"ok": true,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"trace_id": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"variants": [
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"preset_id": "direct",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"subject": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"body": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"used_hook_ids": ["hook_001"],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"selected_angle_id": "angle_001"
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\},
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"preset_id": "challenger",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0"error": \{"code": "VALIDATION_FAILED", "message": "Body exceeded word budget after repair"\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0],
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"stage_stats": [...]
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\}
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 \'a0\'a0event: done\'a0 (FAILURE)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0data: \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"ok": false,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"trace_id": "...",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0"error": \{
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"code": "STAGE_FAILED",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"message": "Stage EMAIL_GENERATION failed after repair attempt",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"stage": "EMAIL_GENERATION",
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0"details": \{\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\}
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\uc0\u8592  CRITICAL: No subject or body field in error payloads. Ever.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 7 \'97 MODEL ASSIGNMENT & COST GUARDRAILS
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ALL stages use: gpt-5-nano
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 (Use this exact model string on every OpenAI API call. No exceptions.)
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Stage A\'a0 CONTEXT_SYNTHESIS:\'a0 \'a0 gpt-5-nano, max_tokens: 1800, reasoning_effort: low
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage B\'a0 FIT_REASONING:\'a0 \'a0 \'a0 \'a0 gpt-5-nano, max_tokens: 1200, reasoning_effort: high
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage B0 ANGLE_PICKER: \'a0 \'a0 \'a0 \'a0 gpt-5-nano, max_tokens: 1000, reasoning_effort: high
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage C0 ONE_LINER_COMPRESSOR: gpt-5-nano, max_tokens: 400,\'a0 reasoning_effort: low
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage C\'a0 EMAIL_GENERATION: \'a0 \'a0 gpt-5-nano, max_tokens: 800 / 2400 (batch), reasoning_effort: low
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage D\'a0 EMAIL_QA: \'a0 \'a0 \'a0 \'a0 \'a0 \'a0 gpt-5-nano, max_tokens: 800,\'a0 reasoning_effort: high
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Stage E\'a0 EMAIL_REWRITE:\'a0 \'a0 \'a0 \'a0 gpt-5-nano, max_tokens: 800,\'a0 reasoning_effort: low
+\f1\fs24 \
+\
+\
+
+\f0\fs29\fsmilli14667 Per-stage timeout: 25 seconds
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Total pipeline timeout: 90 seconds \uc0\u8594  fail-closed with PIPELINE_TIMEOUT error
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Rate limiting (MVP):
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a010 requests per user per minute (in-memory counter keyed by session_id)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0On exceed: return ok:false, error code RATE_LIMITED before pipeline starts
+\f1\fs24 \
+\
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 8 \'97 FILE STRUCTURE
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 NEW FILES:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/schemas.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/ai_orchestrator.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/brief_cache.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/stage_runner.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/validators.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/postprocess.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/tracer.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_a.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_b.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_b0.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_c0.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_c.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_d.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/prompts/stage_e.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/registry.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/direct.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/challenger.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/storyteller.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/proof_first.json
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/presets/executive.json
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 MODIFY:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/server.py\'a0 \'a0 \'a0 \'a0 \'a0 \uc0\u8592  wire orchestrator, update SSE emitter
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0backend/app/engine/pipeline.py \uc0\u8592  remove deterministic draft fallback
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0frontend/src/client.js \'a0 \'a0 \'a0 \'a0 \uc0\u8592  handle ok:false, handle variants[]
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 DELETE / DISABLE:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Any function that generates fallback subject/body when LLM fails
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Any function that returns deterministic email copy to the user
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 9 \'97 IMPLEMENTATION STEPS (EXECUTE IN ORDER)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 1: Repo scan
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Map every code path in pipeline.py, server.py, llm_realizer.py,
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0validate.py, postprocess.py that can return subject/body to the user.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Document before touching anything.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 2: Schemas
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Create schemas.py with all JSON Schemas + response_format RF_* wrappers.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Use the schemas provided in the attached schemas.py reference.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 3: Stage prompts
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Create one prompt builder per stage (prompts/stage_*.py).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Each builder: takes structured inputs, returns messages[] array.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0All prompts must state: "Output JSON only, no preamble, no commentary."
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0All prompts must include grounding/forbidden instructions.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 4: Stage runner + repair
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Create stage_runner.py with run_stage(stage_name, messages, response_format, trace).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Logic: LLM call \uc0\u8594  schema validate \u8594  if fail, one JSON repair attempt \u8594 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0\'a0if still fail, raise StageError(stage_name, error_code).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0JSON repair prompt: "The following JSON is invalid or missing required fields.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Fix it to match the schema and return only the corrected JSON: \{raw_output\}"
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 5: Orchestrator
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Create ai_orchestrator.py with run_pipeline_single() and run_pipeline_presets().
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Handle StageError \uc0\u8594  return ErrorResult (no subject/body).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Handle ValidationError \uc0\u8594  return ErrorResult (no subject/body).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Build and finalize trace throughout.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 6: Remove fallback from pipeline.py
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Strip all deterministic email generation from runtime success path.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Keep normalize.py input structuring that feeds Stage A.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Ensure no fallback subject/body can leak into done payload.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 7: Preset system
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Implement registry.py with load_preset(id) and load_all_presets().
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Validate preset JSON on load (required fields check).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Wire preset_style_block into Stage C prompt builder.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 8: Brief cache
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Implement brief_cache.py: compute_brief_cache_key(payload) \uc0\u8594  SHA256 hex.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0LRU max 200, TTL 30 min.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Cache hit \uc0\u8594  skip Stages A/B/B0, trace records cache_hit: true.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 9: Tracer
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Implement tracer.py Trace class.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Methods: start_stage(), end_stage(), add_validation_error(), add_postprocess_step().
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0finalize() \uc0\u8594  writes debug_traces/YYYYMMDD/<trace_id>.json (dev mode only).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0PII safety: SHA256 hash all prospect-identifying strings. Never log raw emails.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 10: SSE + server wiring
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Update server.py to call orchestrator.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Stage SSE events are REQUIRED (not optional).
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0done payload always has ok field.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0ok:false payloads never contain subject or body.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 11: Frontend
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Update SSE handler to check ok field.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0ok:false: display error message + trace_id.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0ok:true with variants[]: render browse preset grid.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0Update generate payload: mode, preset_id(s), sliders.
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 Step 12: Tests
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Stage A returns invalid JSON \uc0\u8594  ok:false, no subject/body \u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Stage E fails validation \uc0\u8594  ok:false, no subject/body \u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Batch browse: one preset fails, others succeed \uc0\u8594  mixed variants[] \u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- CTA final line always preserved (mechanical postprocess) \uc0\u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- subject never exceeds 70 chars \uc0\u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Banned phrase "touch base" triggers validation failure \uc0\u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Length slider "short" \uc0\u8594  word count 40-80 \u10003 
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0- Cache hit \uc0\u8594  Stages A/B/B0 not called again (verify via trace) \u10003 
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 10 \'97 ACCEPTANCE CRITERIA
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 You are done when ALL are true:
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 [ ] Successful email responses are always LLM-generated (trace confirms it)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] ok:false responses never contain subject or body
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Preset browse returns variants[] with per-preset success or per-preset error
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Sliders change tone/length but selected_angle_id stays stable
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] subject always <= 70 chars
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] body always ends with exact cta_final_line
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Repetition detection catches duplicated paragraphs
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] "saw your post" blocked unless grounded in facts_from_input
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Banned phrases list enforced
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Every request writes a trace file in dev mode
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] Brief cache works \'97 second call with same context hits cache (trace confirms)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 [ ] All 8 tests pass
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 SECTION 11 \'97 OUTPUT REQUIRED FROM YOU (CODEX)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 After implementing all changes, provide:
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 1. Summary of all files changed or created
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 2. New POST /web/v1/generate request payload shape
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 3. Example SSE done payloads for:
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0a. Single generate success
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0b. Single generate failure (stage error)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \'a0\'a0\'a0c. Preset browse success (2 presets, one with error)
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 4. Command to run smoke test locally
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 5. Command to run full test suite
+\f1\fs24 \
+\
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 NOW EXECUTE.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Read the repo first. Build in the order above. Do not skip steps.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 Do not generate fallback emails. Fail closed or succeed.
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 ================================================================================
+\f1\fs24 \
+
+\f0\fs29\fsmilli14667 \uc0\u8232 \u8232 
+\f1\fs24 \
+}

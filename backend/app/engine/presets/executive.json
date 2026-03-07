@@ -1,0 +1,43 @@
+{
+  "preset_id": "executive",
+  "name": "Executive",
+  "tone_descriptor": "strategic, terse, outcome-focused",
+  "style_rules": [
+    "Prioritize business outcomes over feature details",
+    "Use short decisive sentences",
+    "Keep language formal-professional"
+  ],
+  "output_contract": {
+    "tone": "strategic and terse",
+    "assertiveness": "high",
+    "opener_directness": "direct",
+    "cta_placement": "final_exact",
+    "proof_density": "tight",
+    "lengths": {
+      "short": {
+        "target_word_range": {"min": 42, "max": 62},
+        "hard_word_range": {"min": 38, "max": 70},
+        "sentence_count_guidance": {"target_min": 3, "target_max": 4, "hard_max": 5}
+      },
+      "medium": {
+        "target_word_range": {"min": 74, "max": 96},
+        "hard_word_range": {"min": 68, "max": 108},
+        "sentence_count_guidance": {"target_min": 4, "target_max": 5, "hard_max": 6}
+      },
+      "long": {
+        "target_word_range": {"min": 108, "max": 140},
+        "hard_word_range": {"min": 100, "max": 154},
+        "sentence_count_guidance": {"target_min": 5, "target_max": 6, "hard_max": 7}
+      }
+    }
+  },
+  "structure_rules": [
+    "outcome -> risk/cost -> proof -> CTA",
+    "Short mode should stay under 5 concise sentences"
+  ],
+  "banned_phrases_additions": [
+    "hope this finds you well",
+    "reach out"
+  ],
+  "formatting_hints": "Plain text, no contractions in formal tone"
+}

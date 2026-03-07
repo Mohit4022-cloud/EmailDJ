@@ -1,0 +1,36 @@
+{
+  "trace_id": "b1b9c993-2ad0-499f-b13c-04ab0dd29f72",
+  "app_env": "local",
+  "started_at": 1772690971.8373408,
+  "finished_at": 1772690973.969642,
+  "duration_ms": 2132,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.44999999999999996,
+      "framing": 0.45,
+      "length": "short",
+      "stance": 0.6
+    },
+    "cache_hit": true,
+    "brief_cache_key": "baae6a75e63decf51a426040710516535e5fabab22f8f7959a976fe907b7f9da"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ONE_LINER_COMPRESSOR failed after repair attempt",
+    "stage": "ONE_LINER_COMPRESSOR"
+  },
+  "stage_payloads": [
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+        "first_error": "Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+      }
+    }
+  ]
+}

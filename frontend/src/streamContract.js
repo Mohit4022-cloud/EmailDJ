@@ -1,0 +1,129 @@
+export function createStreamState() {
+  return {
+    activeGenerationId: null,
+    activeDraftId: null,
+    streamBuffer: '',
+    tokenCount: 0,
+    expectedChunkIndex: 0,
+    chunkSequenceMismatch: false,
+    doneData: null,
+    streamError: '',
+    stageEvents: [],
+  };
+}
+
+function _eventGenerationId(msg) {
+  const id = msg?.data?.generation_id;
+  return typeof id === 'string' && id.trim() ? id.trim() : null;
+}
+
+function _eventDraftId(msg) {
+  const id = msg?.data?.draft_id;
+  return typeof id === 'number' ? id : null;
+}
+
+function _isStaleGeneration(state, msg) {
+  const eventGenerationId = _eventGenerationId(msg);
+  if (!eventGenerationId || !state.activeGenerationId) return false;
+  return eventGenerationId !== state.activeGenerationId;
+}
+
+export function applyStreamEvent(state, msg) {
+  if (!msg || typeof msg !== 'object') return { accepted: false };
+
+  if (msg.event === 'start') {
+    const generationId = _eventGenerationId(msg);
+    const draftId = _eventDraftId(msg);
+    let reset = false;
+    if (generationId && state.activeGenerationId && generationId !== state.activeGenerationId) {
+      // Mid-stream preset switch: reset stream assembly on the new generation.
+      state.streamBuffer = '';
+      state.tokenCount = 0;
+      state.expectedChunkIndex = 0;
+      state.chunkSequenceMismatch = false;
+      state.doneData = null;
+      reset = true;
+    }
+    if (generationId) state.activeGenerationId = generationId;
+    if (draftId !== null) state.activeDraftId = draftId;
+    return { accepted: true, event: 'start', reset };
+  }
+
+  if (msg.event === 'token') {
+    if (_isStaleGeneration(state, msg)) {
+      return { accepted: false, stale: true };
+    }
+    const generationId = _eventGenerationId(msg);
+    if (!state.activeGenerationId && generationId) {
+      state.activeGenerationId = generationId;
+    }
+    const draftId = _eventDraftId(msg);
+    if (draftId !== null && state.activeDraftId === null) {
+      state.activeDraftId = draftId;
+    }
+
+    const chunkIndex = msg.data?.chunk_index;
+    if (typeof chunkIndex === 'number') {
+      if (chunkIndex !== state.expectedChunkIndex) state.chunkSequenceMismatch = true;
+      state.expectedChunkIndex = chunkIndex + 1;
+    }
+
+    const token = msg.data?.token || '';
+    if (!token) return { accepted: false };
+    state.tokenCount += 1;
+    state.streamBuffer += token;
+    return { accepted: true, appendToken: token };
+  }
+
+  if (msg.event === 'done') {
+    if (_isStaleGeneration(state, msg)) {
+      return { accepted: false, stale: true };
+    }
+    const generationId = _eventGenerationId(msg);
+    if (!state.activeGenerationId && generationId) {
+      state.activeGenerationId = generationId;
+    }
+    const draftId = _eventDraftId(msg);
+    if (draftId !== null && state.activeDraftId === null) {
+      state.activeDraftId = draftId;
+    }
+    state.doneData = msg.data || null;
+    const variants = Array.isArray(msg?.data?.variants) ? msg.data.variants : [];
+    const firstSuccessVariant = variants.find(
+      (item) =>
+        typeof item?.subject === 'string' &&
+        item.subject.trim() &&
+        typeof item?.body === 'string' &&
+        item.body.trim()
+    );
+    const finalSubject =
+      typeof msg?.data?.subject === 'string'
+        ? msg.data.subject
+        : typeof msg?.data?.final?.subject === 'string'
+        ? msg.data.final.subject
+        : typeof firstSuccessVariant?.subject === 'string'
+        ? firstSuccessVariant.subject
+        : null;
+    const finalBody =
+      typeof msg?.data?.body === 'string'
+        ? msg.data.body
+        : typeof msg?.data?.final?.body === 'string'
+        ? msg.data.final.body
+        : typeof firstSuccessVariant?.body === 'string'
+        ? firstSuccessVariant.body
+        : null;
+    return { accepted: true, done: true, finalBody, finalSubject, doneData: state.doneData };
+  }
+
+  if (msg.event === 'error') {
+    state.streamError = String(msg.data?.error || 'Draft generation failed during stream.');
+    return { accepted: true, error: state.streamError };
+  }
+
+  if (msg.event === 'stage') {
+    state.stageEvents.push(msg.data || {});
+    return { accepted: true, stage: msg.data || null };
+  }
+
+  return { accepted: false };
+}

@@ -1,0 +1,471 @@
+{
+  "trace_id": "451a19be-cec1-4ee8-8279-2bbc143b2b7c",
+  "app_env": "local",
+  "started_at": 1772695409.531858,
+  "finished_at": 1772695444.309315,
+  "duration_ms": 34777,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "a3b32c2b7e1378182b1cc32b0b0f3460606d5b90bc7036658f854f03686e4f56"
+  },
+  "outcome": {
+    "ok": true,
+    "subject_hash": "f8bb991f096bb32d0e0d985faf86aed85b29e219133cc1f4c9c5acf5c2e6a5a1"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Dane Miller"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Head of Pipeline Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Nova Claims"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "product_summary",
+            "text": "Pipeline QA Controls"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "icp_description",
+            "text": "Pipeline-quality tooling for operations teams."
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "Handoff checks"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "differentiators",
+            "text": "Sequence drift alerts"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "proof_points",
+            "text": "Handoff checks"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "proof_points",
+            "text": "Sequence drift alerts"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "proof_points",
+            "text": "Pipeline-quality tooling for operations teams."
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_18",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_19",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_20",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_21",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          },
+          {
+            "fact_id": "fact_22",
+            "source_field": "research_text",
+            "text": "Nova Claims has been discussing pipeline quality and outbound process discipline."
+          },
+          {
+            "fact_id": "fact_23",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_24",
+            "source_field": "cta_final_line",
+            "text": "Open to a quick comparison of your current pipeline QA approach?"
+          },
+          {
+            "fact_id": "fact_25",
+            "source_field": "company_notes",
+            "text": "Pipeline-quality tooling for operations teams."
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption_id": "ass_01",
+            "text": "Nova Claims prospects prioritize pipeline quality and outbound process discipline, based on research_text.",
+            "confidence": 0.72,
+            "based_on_fact_ids": [
+              "fact_22"
+            ]
+          },
+          {
+            "assumption_id": "ass_02",
+            "text": "Dane Miller as Head of Pipeline Operations is a senior buyer likely concerned with end-to-end pipeline quality and tooling differentiation.",
+            "confidence": 0.6,
+            "based_on_fact_ids": [
+              "fact_02",
+              "fact_03",
+              "fact_05"
+            ]
+          },
+          {
+            "assumption_id": "ass_03",
+            "text": "Nova Claims may compare current pipeline QA approaches, given the locked CTA asking for a quick comparison.",
+            "confidence": 0.65,
+            "based_on_fact_ids": [
+              "fact_24",
+              "fact_25"
+            ]
+          }
+        ],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nova Claims is discussing pipeline quality and outbound process discipline (research_text).",
+            "supported_by_fact_ids": [
+              "fact_22"
+            ],
+            "risk_flags": [
+              "low"
+            ]
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Handoff checks and sequence drift alerts are core differentiators you already have (differentiators;proof_points).",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_07",
+              "fact_10",
+              "fact_09"
+            ],
+            "risk_flags": [
+              "low"
+            ]
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "tooling",
+            "hook_text": "Your pipeline-quality tooling for operations teams aligns with the strength of your differentiators (product_summary;differentiators).",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06",
+              "fact_07",
+              "fact_10"
+            ],
+            "risk_flags": [
+              "low"
+            ]
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "pipeline quality metrics",
+            "handoff success rate",
+            "drift alert responsiveness"
+          ],
+          "likely_initiatives": [
+            "implement/end-to-end pipeline QA",
+            "improve outbound process discipline"
+          ],
+          "day_to_day": [
+            "monitor pipeline quality",
+            "coordinate with ops on checks and alerts"
+          ],
+          "tools_stack": [
+            "unknown"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "research_text",
+            "name",
+            "title",
+            "company",
+            "product_summary",
+            "icp_description",
+            "differentiators",
+            "proof_points",
+            "do_not_say"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 13,
+          "assumption_count": 3,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.85,
+          "signal_strength": "high",
+          "quality_notes": [
+            "All facts explicitly grounded to input fields.",
+            "Hooks grounded to facts with clear relation to prospect and product.",
+            "No ungrounded claims or assumptions beyond provided research_text and inferred buyer context."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "fit_hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_02",
+            "pain": "Nova Claims lacks visibility into posture of pipeline quality due to handoff checks and sequence drift alerts being core differentiators, yet current outbound/QA discipline may be inconsistent.",
+            "impact": "Missed SLAs on pipeline quality, increased rework and churn in ops, and potential revenue risk from errors in claims processing due to drift.",
+            "value": "A unified pipeline QA discipline with reliable handoff checks and drift alerts reduces rework, shortens cycle times, and improves billing/claims accuracy.",
+            "proof": "Handoff checks and sequence drift alerts are core differentiators you already have (differentiators;proof_points).",
+            "supporting_fact_ids": [
+              "fact_06",
+              "fact_07",
+              "fact_09",
+              "fact_10"
+            ],
+            "why_now": "CTA explicitly asks for a quick comparison of current pipeline QA approach, signaling evaluators are considering improvements now.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "fit_hyp_02",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "Current tooling description suggests Nova Claims could benefit from stronger pipeline-quality tooling alignment to ops needs, yet no explicit current tooling enhancement plan is stated.",
+            "impact": "Opportunity to reduce downtime in pipeline checks and improve operator efficiency across the QA lifecycle.",
+            "value": "Validated tooling alignment with differentiators enhances operator trust and adoption, accelerating ROI.",
+            "proof": "Your pipeline-quality tooling for operations teams aligns with the strength of your differentiators (product_summary;differentiators).",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06",
+              "fact_07",
+              "fact_10"
+            ],
+            "why_now": "Nova Claims is evaluating pipeline QA approaches as per the research and CTA for a quick comparison, indicating readiness to adopt an improved tooling stack.",
+            "confidence": 0.72,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "fit_hyp_03",
+            "rank": 6,
+            "selected_hook_id": "hook_01",
+            "pain": "Executive-level concern about pipeline quality and outbound process discipline without a ready-to-compare solution in place yet.",
+            "impact": "Potential strategic misalignment or delay in achieving end-to-end pipeline QA milestones.",
+            "value": "Clear, structured comparison could surface gaps and accelerate decision on adopting a QA discipline capable of end-to-end control.",
+            "proof": "Nova Claims is discussing pipeline quality and outbound process discipline (research_text).",
+            "supporting_fact_ids": [
+              "fact_22"
+            ],
+            "why_now": "Research indicates current priority, and the CTAs imply immediacy for a quick comparison.",
+            "confidence": 0.7,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "fit_hyp_03",
+            "pain": "Executive-level concern about pipeline quality and outbound process discipline without a ready-to-compare solution in place yet.",
+            "impact": "Potential strategic misalignment or delay in achieving end-to-end pipeline QA milestones.",
+            "value": "Clarifies priority and accelerates decision with a concrete quick-compare option.",
+            "proof": "Nova Claims is discussing pipeline quality and outbound process discipline (research_text).",
+            "cta_question_suggestion": "Open to a quick comparison of your current pipeline QA approach?",
+            "risk_flags": [
+              "low",
+              "risk flag:rank_override due to strong timing signal"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 8,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "fit_hyp_01",
+            "pain": "Nova Claims lacks visibility into posture of pipeline quality due to handoff checks and sequence drift alerts being core differentiators, yet current outbound/QA discipline may be inconsistent.",
+            "impact": "Missed SLAs on pipeline quality, increased rework and churn in ops, and potential revenue risk from errors in claims processing due to drift.",
+            "value": "A unified pipeline QA discipline with reliable handoff checks and drift alerts reduces rework, shortens cycle times, and improves billing/claims accuracy.",
+            "proof": "Handoff checks and sequence drift alerts are core differentiators you already have (differentiators;proof_points).",
+            "cta_question_suggestion": "Would you consider a quick comparison to validate current vs. proposed QA discipline?",
+            "risk_flags": [
+              "medium"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 7,
+            "persona_fit_score": 0.76,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "fit_hyp_02",
+            "pain": "Current tooling description suggests Nova Claims could benefit from stronger pipeline-quality tooling alignment to ops needs, yet no explicit current tooling enhancement plan is stated.",
+            "impact": "Opportunity to reduce downtime in pipeline checks and improve operator efficiency across the QA lifecycle.",
+            "value": "Validated tooling alignment with differentiators enhances operator trust and adoption, accelerating ROI.",
+            "proof": "Your pipeline-quality tooling for operations teams aligns with the strength of your differentiators (product_summary;differentiators).",
+            "cta_question_suggestion": "Would a quick tooling comparison help validate if your stack matches your QA discipline goals?",
+            "risk_flags": [
+              "low"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Nova Claims is evaluating pipeline quality and outbound process discipline, and you\u2019re at the point where a quick comparison could surface gaps before you commit.",
+        "value_line": "Nova Claims\u2019s pipeline team reduces cycle time and rework by clarifying gaps in end-to-end QA within a quick comparison.",
+        "proof_line": "a healthcare operations team achieved faster time-to-value in their QA discipline after implementing a structured comparison and mapping exercise.",
+        "cta_line": "Open to a quick comparison of your current pipeline QA approach?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Quick comparison of Nova Claims pipeline QA approach",
+        "body": "Nova Claims is evaluating pipeline quality and outbound process discipline, and you\u2019re at the point where a quick comparison could surface gaps before you commit. Nova Claims\u2019s pipeline team reduces cycle time and rework by clarifying gaps in end-to-end QA within a quick comparison. a healthcare operations team achieved faster time-to-value in their QA discipline after implementing a structured comparison and mapping exercise. Open to a quick comparison of your current pipeline QA approach?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [],
+        "risk_flags": [],
+        "rewrite_plan": []
+      }
+    }
+  ]
+}

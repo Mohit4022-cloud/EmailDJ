@@ -1,0 +1,36 @@
+{
+  "trace_id": "ef1fd11c-92f5-4d00-95a3-d15ae2f41e35",
+  "app_env": "local",
+  "started_at": 1772741204.3531048,
+  "finished_at": 1772741204.363395,
+  "duration_ms": 10,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "a4fc30b41ea2455b2c12c96c0a91ca7cba695f4cf3376a14afd10ac9eccbc6c8"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "[Errno 8] nodename nor servname provided, or not known",
+        "first_error": "[Errno 8] nodename nor servname provided, or not known"
+      }
+    }
+  ]
+}

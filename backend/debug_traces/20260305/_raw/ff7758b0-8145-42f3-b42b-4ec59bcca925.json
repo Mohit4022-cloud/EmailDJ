@@ -1,0 +1,430 @@
+{
+  "trace_id": "ff7758b0-8145-42f3-b42b-4ec59bcca925",
+  "app_env": "local",
+  "started_at": 1772748645.770688,
+  "finished_at": 1772748676.8268049,
+  "duration_ms": 31056,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "94ec72665804b38ca5ede4041a0c670f44710ac65cbb873629eb24113e56530b"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "BRIEF-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Alina Boyd"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Sales Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Vector Source"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "EmailDJ"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "- Source-attributed messaging\n- Prompt-stage validators\n- Sequence QA traces"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "proof_points",
+            "text": "- Source-attributed messaging\n- Prompt-stage validators\n- Sequence QA traces\n- EmailDJ prevents generic copy drift and keeps outreach tied to source facts."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "company_notes",
+            "text": "EmailDJ prevents generic copy drift and keeps outreach tied to source facts."
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "cta_final_line",
+            "text": "Would a short walkthrough of grounded outbound QA be useful?"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes, signaling a top priority to improve outbound QA.",
+            "supported_by_fact_ids": [
+              "fact_04"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "tooling",
+            "hook_text": "EmailDJ differentiates with Source-attributed messaging and prompt-stage validators, aligning with Vector Source's QA traces for outbound.",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "trigger_event",
+            "hook_text": "VP Sales Operations at Vector Source is focused on auditing outbound handoff quality\u2014align outreach with grounded QA practices.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_04",
+              "fact_06"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "outbound conversion rate",
+            "handoff quality",
+            "meeting outcomes"
+          ],
+          "likely_initiatives": [
+            "grounded outbound QA",
+            "source-attributed messaging",
+            "sequence QA traces"
+          ],
+          "day_to_day": [
+            "monitoring QA across sequences",
+            "validating messages against grounded facts"
+          ],
+          "tools_stack": [
+            "CRM with QA validation",
+            "outbound sequencing tools"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "product_summary",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 11,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hypo_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "Outbound handoff quality is currently uneven, leading to suboptimal meeting outcomes and wasted rep time.",
+            "impact": "Increased follow-up work and longer cycle times; potential revenue leakage from missed or misaligned conversations.",
+            "value": "Improved outbound QA and grounded messaging that aligns with source facts, reducing wasted emails and increasing meeting-to-close rate.",
+            "proof": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes (fact_04). EmailDJ provides Source-attributed messaging and QA traces that map to this need (fact_07, fact_06).",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "Vector Source explicitly notes auditing outbound handoff quality as a top priority, making this a time-sensitive initiative.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hypo_02",
+            "rank": 7,
+            "selected_hook_id": "hook_02",
+            "pain": "Current outbound tooling may not enforce source-attributed messaging and validation across sequences.",
+            "impact": "Chance of generic copy drift and misalignment with facts, leading to lower credibility and engagement in outreach.",
+            "value": "Differentiation via EmailDJ\u2019s source-attributed messaging and prompt-stage validators strengthens QA traces and consistency across sequences.",
+            "proof": "EmailDJ differentiates with Source-attributed messaging and prompt-stage validators, aligning with QA traces (fact_06, fact_07).",
+            "supporting_fact_ids": [
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "QA improvement initiative is already underway per the priority hook, making tooling alignment timely.",
+            "confidence": 0.72,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hypo_03",
+            "rank": 6,
+            "selected_hook_id": "hook_03",
+            "pain": "Executive focus on outbound QA may not yet be fully aligned with day-to-day messaging constraints.",
+            "impact": "Potential misalignment between executive intent and frontline execution, slowing adoption of grounded QA practices.",
+            "value": "Bringing grounded outbound QA into practice with alignment to Vector Source\u2019s focus and research text.",
+            "proof": "VP Sales Operations focus on auditing outbound handoff quality and grounded QA practices (fact_02, fact_04, fact_06).",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_04",
+              "fact_06"
+            ],
+            "why_now": "Directly tied to the VP-level focus and ongoing QA alignment signal.",
+            "confidence": 0.7,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hypo_01",
+            "pain": "Outbound handoff quality is currently uneven, leading to suboptimal meeting outcomes and wasted rep time.",
+            "impact": "Increased follow-up work and longer cycle times; potential revenue leakage from missed or misaligned conversations.",
+            "value": "Improved outbound QA and grounded messaging that aligns with source facts, reducing wasted emails and increasing meeting-to-close rate.",
+            "proof": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes (fact_04). EmailDJ provides Source-attributed messaging and QA traces that map to this need (fact_07, fact_06).",
+            "cta_question_suggestion": "Would a short walkthrough of grounded outbound QA be useful?",
+            "risk_flags": [
+              "risk_mbqid_01"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.76,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hypo_02",
+            "pain": "Current outbound tooling may not enforce source-attributed messaging and validation across sequences.",
+            "impact": "Chance of generic copy drift and misalignment with facts, leading to lower credibility and engagement in outreach.",
+            "value": "Differentiation via EmailDJ\u2019s source-attributed messaging and prompt-stage validators strengthens QA traces and consistency across sequences.",
+            "proof": "EmailDJ differentiates with Source-attributed messaging and prompt-stage validators, aligning with QA traces (fact_06, fact_07).",
+            "cta_question_suggestion": "Would you like to see how source attribution reduces drift across a sample sequence?",
+            "risk_flags": [
+              "risk_spread_risk"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.72,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hypo_03",
+            "pain": "Executive focus on outbound QA may not yet be fully aligned with day-to-day messaging constraints.",
+            "impact": "Potential misalignment between executive intent and frontline execution, slowing adoption of grounded QA practices.",
+            "value": "Bringing grounded outbound QA into practice with alignment to Vector Source\u2019s focus and research text.",
+            "proof": "VP Sales Operations focus on auditing outbound handoff quality and grounded QA practices (fact_02, fact_04, fact_06).",
+            "cta_question_suggestion": "Would a brief pilot that ties QA practices to real outbound examples help accelerate adoption?",
+            "risk_flags": [
+              "risk_exec_misalignment"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01"
+        ],
+        "opener_line": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes, signaling a top priority to improve outbound QA.",
+        "value_line": "Vector Source\u2019s outbound QA improvements reduce wasted emails and raise meeting-to-close rates.",
+        "proof_line": "A financial services team achieved higher meeting-to-close rates after implementing source-attributed messaging and QA traces.",
+        "cta_line": "Would a short walkthrough of grounded outbound QA be useful?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01"
+        ],
+        "subject": "Vector Source: audit-driven outbound QA to fix uneven handoffs",
+        "body": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes, signaling a top priority to improve outbound QA. Vector Source\u2019s outbound QA improvements reduce wasted emails and raise meeting-to-close rates. A financial services team achieved higher meeting-to-close rates after implementing source-attributed messaging and QA traces. Would a short walkthrough of grounded outbound QA be useful?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "Three or more abstract nouns in a sentence: 'outbound handoff quality after uneven meeting outcomes' maybe not; check for jargon stacking."
+            ],
+            "fix_instruction": "Change tone to concrete, reduce abstract nouns. Replace sentences with plain language: 'We\u2019re checking handoff quality after uneven meetings to improve outbound QA.' Replace with source of benefit in simple terms."
+          },
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "No explicit CTA alignment",
+              "CTA is a question not a direct call to action."
+            ],
+            "fix_instruction": "Make CTA concrete and time-bound; replace final line with: 'Are you available for a 15-minute walkthrough next week? I can adapt to your schedule.' Use source facts as support in a short bullet."
+          },
+          {
+            "type": "personalization",
+            "severity": "medium",
+            "evidence": [
+              "Grounding policy allows personalization from name/title/company; however no direct personalization beyond claims."
+            ],
+            "fix_instruction": "Add one sentence tailored to Alina Boyd\u2019s role: 'As VP Sales Operations at Vector Source, your priority on handoff quality aligns with our grounded QA approach.' Use fact-text from fact_02."
+          },
+          {
+            "type": "credibility",
+            "severity": "high",
+            "evidence": [
+              "Fact-based hooks rely on internal claims without external proof."
+            ],
+            "fix_instruction": "Cite specific metrics or cite external source if possible; replace generic claims with quantified outcomes and place a plausible range."
+          },
+          {
+            "type": "specificity",
+            "severity": "medium",
+            "evidence": [
+              "'a short walkthrough' is vague."
+            ],
+            "fix_instruction": "Specify duration and format; replace with '15-minute walkthrough via Zoom on Tue or Thu.'"
+          }
+        ],
+        "risk_flags": [
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "1. Replace subject/body to remove buzzwords and align with grounding policy.",
+          "2. Tighten opener to state purpose and avoid vague claims.",
+          "3. Introduce concrete proof with quantified outcome or remove claims lacking evidence.",
+          "4. Redesign CTA to be time-bound and actionable.",
+          "5. Simplify tone to avoid excessive corporate nouns/notions.",
+          "6. Add one-personalized sentence referencing fact_02 with name/title/company.",
+          "7. Ensure do_not_say phrases are excluded from text.",
+          "8. Provide executable version for reviewer."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01"
+        ],
+        "subject": "Vector Source: audit-driven outbound QA to fix uneven handoffs",
+        "body": "Vector Source is auditing outbound handoff quality after uneven meeting outcomes, signaling a top priority to improve outbound QA. Vector Source\u2019s outbound QA improvements reduce wasted emails and raise meeting-to-close rates. A financial services team achieved higher meeting-to-close rates after implementing source-attributed messaging and QA traces.\n\nAre you available for a 15-minute walkthrough next week? I can adapt to your schedule."
+      }
+    }
+  ]
+}

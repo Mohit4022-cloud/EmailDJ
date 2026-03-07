@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmailDJ Copy QA Reviewer"
+  short_description: "Review EmailDJ final copy for QA and drift issues"
+  default_prompt: "Use $emaildj-copy-qa-reviewer to review this EmailDJ draft for copy QA issues and CTA drift."

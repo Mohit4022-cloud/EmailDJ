@@ -1,0 +1,287 @@
+{
+  "trace_id": "b03c88bd-a189-491d-b21f-1dea2125f6d5",
+  "app_env": "local",
+  "started_at": 1772747962.9144478,
+  "finished_at": 1772747995.647226,
+  "duration_ms": 32733,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 9602,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2164,
+        "completion_tokens": 1394,
+        "total_tokens": 3558,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 4338,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2484,
+        "completion_tokens": 789,
+        "total_tokens": 3273,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 4772,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 3321,
+        "completion_tokens": 614,
+        "total_tokens": 3935,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 2349,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 3630,
+        "completion_tokens": 138,
+        "total_tokens": 3768,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 2125,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 4040,
+        "completion_tokens": 146,
+        "total_tokens": 4186,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 3603,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2812,
+        "completion_tokens": 546,
+        "total_tokens": 3358,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 5938,
+      "schema_ok": true,
+      "attempt_count": 2,
+      "usage": {
+        "prompt_tokens": 1361,
+        "completion_tokens": 69,
+        "total_tokens": 1430,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "VALIDATION",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "error_code": "VALIDATION_FAILED",
+      "details": {
+        "codes": [
+          "word_count_out_of_band"
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "EMAIL_GENERATION",
+      "codes": [
+        "word_count_out_of_band"
+      ],
+      "details": {}
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "codes": [
+        "word_count_out_of_band"
+      ],
+      "details": {}
+    }
+  ],
+  "postprocess_steps": [
+    "set_atoms_proof_gap_false",
+    "enforce_cta_final_line",
+    "remove_inline_cta_echo"
+  ],
+  "hashes": {
+    "request:normalized": "4667f616a5ca3e1f3acc22dce07ad92e88d59ca0209d56f92756c21405be901d",
+    "output:CONTEXT_SYNTHESIS": "6176e6bdde74f3328a6af0b196a0d5552e1f0215f77f22a5381cf3dcd00d0405",
+    "output:FIT_REASONING": "8fa6f3b5881ca6e14345b44a6712a2b8b3902d6bc70659a4f4033338fca78ed3",
+    "output:ANGLE_PICKER": "3b49e1cb5938058ec59fcd5c873453c77b653dba3ed90f9566cbaf3e56f88cb0",
+    "output:ONE_LINER_COMPRESSOR": "67862bc6aa9943e1c3585e0d2cfe159334bb40ca2e6f4872332dc52e568a670b",
+    "output:EMAIL_GENERATION": "7c4180a23c37a8c1e0d928d7e3928ce8c9d8daaeba27748e8bf8b76b36e6c6d9",
+    "output:EMAIL_QA": "03ac857f31642c5f2e9734a8bc44408aa4faa28850261e9a8b9938744ecb2d41",
+    "output:EMAIL_REWRITE": "3bcbca3a084903b6d72d30ef26d3e5087d36edf475188dead1aba8d12c40cd46"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "4667f616a5ca3e1f3acc22dce07ad92e88d59ca0209d56f92756c21405be901d"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  }
+}

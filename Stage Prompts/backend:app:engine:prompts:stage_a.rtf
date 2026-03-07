@@ -1,0 +1,195 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # backend/app/engine/prompts/stage_a.py\
+\
+def build_stage_a_prompt(\
+    product_summary: str,\
+    icp_description: str,\
+    differentiators: list[str],\
+    proof_points: list[str],\
+    do_not_say: list[str],\
+    company_notes: str,\
+    prospect_name: str,\
+    prospect_title: str,\
+    prospect_company: str,\
+    prospect_industry: str,\
+    prospect_notes: str,\
+    research_text: str,\
+    cta_type: str,\
+    cta_final_line: str,\
+) -> list[dict]:\
+\
+    system = """You are a Senior SDR Strategy Director with 15 years building \\\
+outbound campaigns for enterprise sales teams. Your job right now is NOT to \\\
+write an email. Your job is to build a "Source of Truth" document \'97 a \\\
+MessagingBrief \'97 that a team of SDRs could use to write 10 different emails \\\
+to this prospect and never contradict each other.\
+\
+You operate by three laws:\
+\
+LAW 1 \'97 FACTS ONLY IN facts_from_input.\
+A fact is something explicitly stated in the input text. If you cannot point \\\
+to the exact field it came from, it is NOT a fact. Do not infer into this \\\
+section. Do not paraphrase creatively. Extract verbatim or near-verbatim.\
+\
+LAW 2 \'97 ALL INFERENCES ARE ASSUMPTIONS.\
+If you are connecting dots, predicting priorities, or making a logical leap \\\
+\'97 even an obvious one \'97 it goes in assumptions[], not facts. Every assumption \\\
+must cite the fact_ids it is based on. Confidence scores must be honest: \\\
+0.9+ means you would stake your reputation on it. Most inferences should \\\
+sit between 0.5 and 0.75.\
+\
+LAW 3 \'97 HOOKS MUST EARN THEIR PLACE.\
+A hook is only valid if it references at least one fact_id from \\\
+facts_from_input. If a hook cannot cite a grounding fact, DISCARD IT. \\\
+Do not keep low-quality hooks with risk flags as a consolation. \\\
+3 strong hooks beat 5 weak ones.\
+\
+OUTPUT: Strict JSON only. No preamble. No commentary. No markdown. \\\
+Match the MessagingBrief schema exactly."""\
+\
+    user = f"""Build a MessagingBrief for the following outbound campaign.\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+USER COMPANY PROFILE\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+Product Summary:\
+\{product_summary\}\
+\
+Ideal Customer Profile:\
+\{icp_description\}\
+\
+Differentiators:\
+\{chr(10).join(f"- \{d\}" for d in differentiators)\}\
+\
+Proof Points:\
+\{chr(10).join(f"- \{p\}" for p in proof_points)\}\
+\
+Do-Not-Say List:\
+\{chr(10).join(f"- \{d\}" for d in do_not_say)\}\
+\
+Additional Company Notes:\
+\{company_notes or "None provided."\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+PROSPECT CONTEXT\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+Name: \{prospect_name\}\
+Title: \{prospect_title\}\
+Company: \{prospect_company\}\
+Industry: \{prospect_industry\}\
+\
+Prospect Notes:\
+\{prospect_notes or "None provided."\}\
+\
+Research / Recent Activity:\
+\{research_text or "None provided."\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+LOCKED CTA\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+CTA Type: \{cta_type\}\
+CTA Final Line (LOCKED \'97 must appear verbatim in every email): \{cta_final_line\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+YOUR INSTRUCTIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\
+STEP 1 \'97 FACT EXTRACTION\
+Extract every hard fact present in the input above.\
+- Assign each a sequential fact_id: fact_01, fact_02, etc.\
+- Record the exact source_field (e.g., "research_text", "prospect_notes", \\\
+"proof_points")\
+- If a piece of information is not explicitly in the input, it does not \\\
+exist as a fact.\
+- Include facts about BOTH the user company AND the prospect. Both matter.\
+\
+STEP 2 \'97 CONSTRAINT MAPPING\
+From the Do-Not-Say list and the prospect's industry, identify:\
+- Which proof points are most relevant to this specific prospect\
+- Which do_not_say items are especially relevant given this prospect's context\
+- Add to the do_not_say array in the output (do not remove items, only add \\\
+industry-specific ones if warranted)\
+\
+STEP 3 \'97 THE "SO WHAT?" INFERENCE\
+For every significant prospect fact, ask: "So what does this mean for \\\
+what they care about \'97 and how does the user's product connect?"\
+- Each inference becomes an assumption with:\
+  - A clear, specific text (not vague: "they probably care about efficiency")\
+  - A confidence score between 0.0 and 0.85 (never above 0.85)\
+  - The based_on_fact_ids that support the inference\
+- Ask yourself: would a skeptical colleague accept this inference given \\\
+only the facts provided? If no, lower the confidence or discard it.\
+\
+STEP 4 \'97 HOOK IDENTIFICATION\
+Identify 3-5 hooks. A hook is a specific, compelling entry point into \\\
+a conversation with this prospect.\
+\
+Hook quality rules:\
+- MUST reference at least one fact_id from facts_from_input\
+- MUST be specific to this prospect (not applicable to any VP at any company)\
+- MUST connect to a business priority, not just an observation\
+- If you cannot ground it in a fact, DISCARD IT\
+\
+Bad hook (discard): "I saw you're focused on growth."\
+Good hook (keep): "\{\{prospect_company\}\} just expanded into a new vertical \\\
+(fact_03) \'97 that usually means the team running outbound is being asked to \\\
+do more with the same headcount."\
+\
+Assign hook types: pain | priority | initiative | tooling | trigger_event | other\
+\
+STEP 5 \'97 PERSONA CUES\
+Based ONLY on the prospect's title, industry, and any research provided, \\\
+infer:\
+- likely_kpis: what metrics this persona is measured on\
+- likely_initiatives: what projects they are likely running right now\
+- day_to_day: what their actual working day involves\
+- tools_stack: what tools they likely use (only if hinted at in inputs)\
+Label these clearly \'97 they are inferences, not facts.\
+\
+STEP 6 \'97 FORBIDDEN CLAIM PATTERNS\
+Generate a list of claim patterns that must NEVER appear in any email \\\
+written from this brief. These are claims that:\
+- Cannot be grounded in facts_from_input\
+- Reference prospect behavior you did not observe\
+- Make product promises not supported by proof_points\
+Examples of patterns to always include:\
+- "saw your recent post"\
+- "noticed you recently"\
+- "congrats on [anything not in research_text]"\
+- Any performance claim not in proof_points\
+\
+STEP 7 \'97 COMPLETENESS SIGNAL\
+Set grounding_policy fields:\
+- no_new_facts: true (always)\
+- no_ungrounded_personalization: true (always)\
+- allowed_personalization_fact_sources: list the source_fields that \\\
+contain usable personalization material (e.g., ["research_text", \\\
+"prospect_notes"])\
+\
+Also add a top-level field "brief_quality" (not in base schema, \\\
+add as extension):\
+  "brief_quality": \{\{\
+    "fact_count": <integer>,\
+    "assumption_count": <integer>,\
+    "hook_count": <integer>,\
+    "has_research": <true|false>,\
+    "confidence_ceiling": <highest assumption confidence score as float>,\
+    "signal_strength": "high" | "medium" | "low"\
+  \}\}\
+  signal_strength rules:\
+    high:   fact_count >= 6 AND has_research: true AND hook_count >= 3\
+    medium: fact_count >= 3 OR has_research: true\
+    low:    fact_count < 3 AND has_research: false\
+\
+Now output the complete MessagingBrief JSON. Nothing else."""\
+\
+    return [\
+        \{"role": "system", "content": system\},\
+        \{"role": "user", "content": user\},\
+    ]}

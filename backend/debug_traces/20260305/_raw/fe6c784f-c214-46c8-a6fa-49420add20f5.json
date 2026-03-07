@@ -1,0 +1,351 @@
+{
+  "trace_id": "fe6c784f-c214-46c8-a6fa-49420add20f5",
+  "app_env": "local",
+  "started_at": 1772696592.5181088,
+  "finished_at": 1772696722.242201,
+  "duration_ms": 129724,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "a3b32c2b7e1378182b1cc32b0b0f3460606d5b90bc7036658f854f03686e4f56"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ONE_LINER_COMPRESSOR failed after repair attempt",
+    "stage": "ONE_LINER_COMPRESSOR"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Dane Miller"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Head of Pipeline Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Nova Claims"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Nova Claims has been discussing pipeline quality and outbound process discipline."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "Pipeline QA Controls"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "Handoff checks; Sequence drift alerts"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "proof_points",
+            "text": "Handoff checks; Sequence drift alerts; Pipeline-quality tooling for operations teams."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "cta_final_line",
+            "text": "Open to a quick comparison of your current pipeline QA approach?"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nova Claims is focused on pipeline quality and outbound process discipline, which aligns with our pipeline QA controls (fact_04).",
+            "supported_by_fact_ids": [
+              "fact_04"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "tooling",
+            "hook_text": "Differentiators include handoff checks and sequence drift alerts, which address Nova Claims' needs for end-to-end quality controls (fact_06).",
+            "supported_by_fact_ids": [
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "trigger_event",
+            "hook_text": "Proof points include pipeline-quality tooling for operations teams, suggesting a maturity in QA processes that we can benchmark against (fact_07).",
+            "supported_by_fact_ids": [
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_04",
+            "hook_type": "pain",
+            "hook_text": "Your outbound process discipline is a known focus area for Nova Claims; our controls can reduce drift and improve handoffs.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_06"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "pipeline velocity",
+            "handoff quality",
+            "drift reduction"
+          ],
+          "likely_initiatives": [
+            "implementing QA checks",
+            "alerting on sequence drift"
+          ],
+          "day_to_day": [
+            "monitor pipeline stages",
+            "review handoffs",
+            "triage defects"
+          ],
+          "tools_stack": [
+            "pipeline management tooling",
+            "outbound process tooling"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you well",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "product_summary",
+            "differentiators",
+            "proof_points",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 6,
+          "assumption_count": 0,
+          "hook_count": 4,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded: facts from input fields",
+            "No extrapolated assumptions in this version"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_01",
+            "pain": "Nova Claims is focused on pipeline quality and outbound process discipline, which implies friction with current pipeline QA practices and handoffs that may be error-prone or drifting.",
+            "impact": "Risk of slowed throughput and increased defect leakage due to drift in sequence and handoffs across stages, leading to rework and missed SLA targets.",
+            "value": "Improved pipeline velocity and handoff quality through automated QA checks and drift alerts, reducing rework and accelerating outbound cycles.",
+            "proof": "Nova Claims is focused on pipeline quality and outbound process discipline (fact_04) and differentiators include handoff checks; sequence drift alerts (fact_06).",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_06"
+            ],
+            "why_now": "Nova Claims has expressed maturity in QA tooling and pipeline-quality tooling for operations teams (fact_07), suggesting readiness to benchmark and adopt improved controls now.",
+            "confidence": 0.82,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_02",
+            "pain": "Current end-to-end quality controls may be fragmented, causing blind spots in drift and handoffs that slow outbound velocity.",
+            "impact": "Time spent triaging handoffs and addressing drift in multiple tools, reducing pipeline velocity and increasing defect risk.",
+            "value": "A unified QA controls approach with drift alerts reduces manual triage time and accelerates decisioning on stage transitions.",
+            "proof": "Differentiators include handoff checks and sequence drift alerts, addressing end-to-end quality controls (fact_06).",
+            "supporting_fact_ids": [
+              "fact_06"
+            ],
+            "why_now": "Hook 02 aligns with a current focus on tooling around end-to-end quality controls (fact_06) and supports Nova Claims' pursuit of pipeline quality.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "There is an inferred maturity in QA processes but lack of explicit benchmarking against a mature tooling baseline may slow validation of improvements.",
+            "impact": "Missed benchmarking against established QA tooling could delay value realization and ROI validation.",
+            "value": "Clear proof points to benchmark against, enabling faster ROI realization through proven tooling.",
+            "proof": "Proof points include pipeline-quality tooling for operations teams, suggesting maturity in QA processes to benchmark against (fact_07).",
+            "supporting_fact_ids": [
+              "fact_07"
+            ],
+            "why_now": "Trigger event framing via proof points about pipeline-quality tooling acts as a signal of readiness to benchmark now.",
+            "confidence": 0.65,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_04",
+            "rank": 6,
+            "selected_hook_id": "hook_04",
+            "pain": "Outbound process discipline is a known focus area; without improved controls, drift and suboptimal handoffs persist.",
+            "impact": "Sustained drift can lead to slower outbound cycles, increased defects at handoffs, and lower customer experience.",
+            "value": "Directly addresses the pain with targeted controls to reduce drift and improve handoffs, constraining risk and time-to-market.",
+            "proof": "Outbound process discipline focus and drift considerations are highlighted by facts 04 and 06.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_06"
+            ],
+            "why_now": "Evergreen framing: organizations often pursue QA and process discipline improvements; this is grounded in current focus but not a new timing signal.",
+            "confidence": 0.58,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Nova Claims is focused on pipeline quality and outbound process discipline, which implies friction with current pipeline QA practices and handoffs that may be error-prone or drifting.",
+            "impact": "Risk of slowed throughput and increased defect leakage due to drift in sequence and handoffs across stages, leading to rework and missed SLA targets.",
+            "value": "Improved pipeline velocity and handoff quality through automated QA checks and drift alerts, reducing rework and accelerating outbound cycles.",
+            "proof": "Nova Claims is focused on pipeline quality and outbound process discipline (fact_04) and differentiators include handoff checks; sequence drift alerts (fact_06).",
+            "cta_question_suggestion": "Open to a quick comparison of your current pipeline QA approach?",
+            "risk_flags": [
+              "risk_main:high_confidence",
+              "ranking_bias:high"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 8,
+            "persona_fit_score": 0.79,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Current end-to-end quality controls may be fragmented, causing blind spots in drift and handoffs that slow outbound velocity.",
+            "impact": "Time spent triaging handoffs and addressing drift in multiple tools, reducing pipeline velocity and increasing defect risk.",
+            "value": "A unified QA controls approach with drift alerts reduces manual triage time and accelerates decisioning on stage transitions.",
+            "proof": "Differentiators include handoff checks and sequence drift alerts, addressing end-to-end quality controls (fact_06).",
+            "cta_question_suggestion": "Would a unified drift-alert QA suite fit your next outbound quality sprint?",
+            "risk_flags": [
+              "risk_flags:tooling_overlap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 7,
+            "persona_fit_score": 0.76,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "There is an inferred maturity in QA processes but lack of explicit benchmarking against a mature tooling baseline may slow validation of improvements.",
+            "impact": "Missed benchmarking against established QA tooling could delay value realization and ROI validation.",
+            "value": "Clear proof points to benchmark against, enabling faster ROI realization through proven tooling.",
+            "proof": "Proof points include pipeline-quality tooling for operations teams, suggesting maturity in QA processes to benchmark against (fact_07).",
+            "cta_question_suggestion": "Shall we benchmark your current tooling against a proven QA baseline?",
+            "risk_flags": [
+              "risk_flags:credibility_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_04",
+            "angle_type": "proof_led",
+            "rank": 6,
+            "persona_fit_score": 0.72,
+            "selected_hook_id": "hook_04",
+            "selected_fit_hypothesis_id": "hyp_04",
+            "pain": "Outbound process discipline is a known focus area; without improved controls, drift and suboptimal handoffs persist.",
+            "impact": "Sustained drift can lead to slower outbound cycles, increased defects at handoffs, and lower customer experience.",
+            "value": "Directly addresses the pain with targeted controls to reduce drift and improve handoffs, constraining risk and time-to-market.",
+            "proof": "Outbound process discipline focus and drift considerations are highlighted by facts 04 and 06.",
+            "cta_question_suggestion": "Interested in a quick pilot to test drift reduction in your pipeline stages?",
+            "risk_flags": [
+              "risk_flags:proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "",
+        "repair_codes": [
+          "atoms_cta_mismatch"
+        ]
+      }
+    }
+  ]
+}

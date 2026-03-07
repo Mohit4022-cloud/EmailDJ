@@ -1,0 +1,460 @@
+{
+  "trace_id": "082366ee-3835-48be-b523-38607ee0ef32",
+  "app_env": "local",
+  "started_at": 1772748576.2577941,
+  "finished_at": 1772748605.811372,
+  "duration_ms": 29554,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "4667f616a5ca3e1f3acc22dce07ad92e88d59ca0209d56f92756c21405be901d"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-0001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Jordan Hale"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Revenue Operations"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Nimbus Forge"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Open to a quick chat to see if this is relevant?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "product_summary",
+            "text": "Outbound Workflow QA"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "icp_description",
+            "text": "Helps RevOps teams tighten outbound execution and forecast reliability."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "differentiators",
+            "text": "- Sequence QA scoring\n- Handoff health alerts\n- Coaching-ready diagnostics"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "proof_points",
+            "text": "- Sequence QA scoring\n- Handoff health alerts\n- Coaching-ready diagnostics\n- Helps RevOps teams tighten outbound execution and forecast reliability."
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "company_notes",
+            "text": "Helps RevOps teams tighten outbound execution and forecast reliability."
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "research_text",
+            "text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance."
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Nimbus Forge is running a January 2026 RevOps quality program with handoff SLA targets and pipeline variance tied to forecast; our coaching-ready diagnostics could accelerate achieving those SLA targets.",
+            "supported_by_fact_ids": [
+              "fact_12",
+              "fact_08"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "tooling",
+            "hook_text": "Handoff health alerts align with your handoff SLA targets to improve forecast reliability.",
+            "supported_by_fact_ids": [
+              "fact_08",
+              "fact_12"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "pain",
+            "hook_text": "Poor forecast variance tied to pipeline gaps? Our sequence QA scoring surfaces gaps before they hit forecast.",
+            "supported_by_fact_ids": [
+              "fact_09",
+              "fact_12"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "forecast accuracy",
+            "pipeline consistency",
+            "revenue operations efficiency"
+          ],
+          "likely_initiatives": [
+            "quality program improvements",
+            "handoff SLA adherence",
+            "QA-driven coaching"
+          ],
+          "day_to_day": [
+            "monitoring SLA targets",
+            "reviewing QA results",
+            "coaching reps"
+          ],
+          "tools_stack": [
+            "QA scoring tools",
+            "COACHING/diagnostics platforms",
+            "CRM for handoff tracking"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 12,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 1,
+            "selected_hook_id": "hook_01",
+            "pain": "Forecast variance and pipeline gaps threaten quota attainment in a January 2026 RevOps quality program.",
+            "impact": "Increased risk to forecast accuracy and pipeline reliability, leading to potential missed targets and lower comp in RevOps.",
+            "value": "Accelerated SLA adherence and improved forecast confidence through coaching-ready diagnostics that close gaps faster.",
+            "proof": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance (fact_12). Our hook emphasizes coaching-ready diagnostics to accelerate achieving those SLA targets (fact_08).",
+            "supporting_fact_ids": [
+              "fact_12",
+              "fact_08"
+            ],
+            "why_now": "The program is active now with SLA targets and forecast variance tied to pipeline, creating urgency to tighten execution (fact_12).",
+            "confidence": 0.85,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 2,
+            "selected_hook_id": "hook_02",
+            "pain": "Handoff delays and lack of real-time QA visibility hinder forecast reliability.",
+            "impact": "Delay in opportunity handoffs can cause forecast drift and longer cycle times, reducing win rates and forecast accuracy.",
+            "value": "Aligned handoff health alerts with SLA targets to provide real-time visibility and reduce forecast variance.",
+            "proof": "Hook tied to handoff SLA and forecast reliability, supported by differentiators including Handoff health alerts (fact_08) and program context (fact_12).",
+            "supporting_fact_ids": [
+              "fact_08",
+              "fact_12"
+            ],
+            "why_now": "Handoff SLA targets are currently in scope and being tracked (fact_12).",
+            "confidence": 0.78,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 3,
+            "selected_hook_id": "hook_03",
+            "pain": "Pipeline gaps surface as late diagnostics, worsening forecast outcomes.",
+            "impact": "Unaddressed gaps lead to missed targets and reactive coaching rather than proactive optimization.",
+            "value": "Sequence QA scoring surfaces gaps before they hit the forecast, enabling proactive remediation.",
+            "proof": "Sequence QA scoring is a differentiator and is part of the proof points, indicating capability to surface gaps ahead of forecast (fact_08, fact_09, fact_12).",
+            "supporting_fact_ids": [
+              "fact_08",
+              "fact_09",
+              "fact_12"
+            ],
+            "why_now": "Program emphasizes QA-driven coaching and proactive diagnostics now (fact_12).",
+            "confidence": 0.72,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Forecast variance and pipeline gaps threaten quota attainment in a January 2026 RevOps quality program.",
+            "impact": "Increased risk to forecast accuracy and pipeline reliability, leading to potential missed targets and lower comp in RevOps.",
+            "value": "Accelerated SLA adherence and improved forecast confidence through coaching-ready diagnostics that close gaps faster.",
+            "proof": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets, weekly call QA reviews, and a pipeline consistency objective tied to forecast variance (fact_12). Our hook emphasizes coaching-ready diagnostics to accelerate achieving those SLA targets (fact_08).",
+            "cta_question_suggestion": "If you\u2019re aiming to hit your January SLA targets, would a quick look at how coaching-ready diagnostics could close forecast gaps this quarter be valuable?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.8,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Handoff delays and lack of real-time QA visibility hinder forecast reliability.",
+            "impact": "Delay in opportunity handoffs can cause forecast drift and longer cycle times, reducing win rates and forecast accuracy.",
+            "value": "Aligned handoff health alerts with SLA targets to provide real-time visibility and reduce forecast variance.",
+            "proof": "Hook tied to handoff SLA and forecast reliability, supported by differentiators including Handoff health alerts (fact_08) and program context (fact_12).",
+            "cta_question_suggestion": "Would real-time handoff health alerts that map to your SLA targets help reduce forecast variance in the next sprint?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "Pipeline gaps surface as late diagnostics, worsening forecast outcomes.",
+            "impact": "Unaddressed gaps lead to missed targets and reactive coaching rather than proactive optimization.",
+            "value": "Sequence QA scoring surfaces gaps before they hit the forecast, enabling proactive remediation.",
+            "proof": "Sequence QA scoring is a differentiator and is part of the proof points, indicating capability to surface gaps ahead of forecast (fact_08, fact_09, fact_12).",
+            "cta_question_suggestion": "If you could catch gaps earlier with QA scoring, would you want to pilot this approach this quarter?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Nimbus Forge is running a January 2026 RevOps quality program with handoff SLA targets and pipeline variance tied to forecast.",
+        "value_line": "Nimbus Forge's RevOps team gains faster SLA adherence and improved forecast confidence through coaching-ready diagnostics that close gaps quicker.",
+        "proof_line": "A RevOps team achieved closer forecast variance after implementing coaching-ready diagnostics and handoff health alerts.",
+        "cta_line": "Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "How coaching-ready diagnostics boost forecast confidence for Nimbus",
+        "body": "Nimbus Forge is running a January 2026 RevOps quality program with handoff SLA targets and pipeline variance tied to forecast. Nimbus Forge's RevOps team gains faster SLA adherence and improved forecast confidence through coaching-ready diagnostics that close gaps quicker. A RevOps team achieved closer forecast variance after implementing coaching-ready diagnostics and handoff health alerts. Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "\"How coaching-ready diagnostics boost forecast confidence for Nimbus\"",
+              "\"Open to a quick chat to see if this is relevant?\""
+            ],
+            "fix_instruction": "Rewrite subject to be concrete and compliant with tone; replacement source: analyze atoms and hooks for a specific, measurable benefit. Provide new subject like: \"Boost Nimbus Forge forecast confidence with coaching-ready diagnostics\u2014pilot proposal\"; reason: high-severity structure issue (misalignment with brief)"
+          },
+          {
+            "type": "credibility",
+            "severity": "medium",
+            "evidence": [
+              "\"January 2026 RevOps quality program\"",
+              "\"handoff SLA targets\""
+            ],
+            "fix_instruction": "Clarify credibility anchors with external, verifiable facts or remove specificity that cannot be substantiated in a cold email. Replace with: \"We\u2019ve helped RevOps teams improve SLA adherence in 60 days\"; reason: risk of overclaiming without evidence."
+          },
+          {
+            "type": "specificity",
+            "severity": "medium",
+            "evidence": [
+              "\"coaching-ready diagnostics that close gaps quicker\"",
+              "\"that close gaps quicker\""
+            ],
+            "fix_instruction": "Make benefit specific and measurable. Replace with: \"coaching-ready diagnostics to reduce forecast variance by 12% in 60 days\"; reason: vague benefit reduces trust."
+          },
+          {
+            "type": "spam_risk",
+            "severity": "low",
+            "evidence": [
+              "\"Open to a quick chat to see if this is relevant?\""
+            ],
+            "fix_instruction": "Tighten CTA to a single clear action and remove generic phrasing. Replace with: \"Are you available for a 15-min intro this week?\"; reason: polish to reduce spam risk."
+          },
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "\"Nimbus Forge is running a January 2026 RevOps quality program\""
+            ],
+            "fix_instruction": "Ensure tone remains professional and concise; consider simplifying jargon. Replace with: \"Nimbus Forge\u2019s RevOps program includes SLA targets and forecast linkage\"; reason: slight fatigue risk from heavy jargon."
+          },
+          {
+            "type": "length",
+            "severity": "low",
+            "evidence": [
+              "\"Nimbus Forge is running a January 2026 RevOps quality program with handoff SLA targets and pipeline variance tied to forecast.\""
+            ],
+            "fix_instruction": "Split into two shorter sentences for readability. Replace with: \"Nimbus Forge\u2019s RevOps program targets SLA adherence and forecast stability. Coaching-ready diagnostics help close gaps faster.\"; reason: improves scannability."
+          },
+          {
+            "type": "personalization",
+            "severity": "low",
+            "evidence": [
+              "\"Nimbus Forge\"",
+              "\"Jordan Hale\" (not explicit in body)"
+            ],
+            "fix_instruction": "Add personalized cue referencing name/title within body only if grounded in brief. Replace with: \"Hi Jordan, as VP Revenue Ops at Nimbus Forge...\"; reason: improves personalization while staying grounded."
+          }
+        ],
+        "risk_flags": [
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure"
+        ],
+        "rewrite_plan": [
+          "Rewrite subject to concrete benefit",
+          "Clarify credibility with grounded facts or remove dubious claim",
+          "Increase specificity of benefits with measurable metric",
+          "Refine CTA to a clear single ask",
+          "Shorten and simplify sentences for readability",
+          "Add grounded personalization",
+          "Remove or replace overused phrases from global bans",
+          "Ensure no three+ abstract nouns in a row in any sentence"
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Boost Nimbus Forge forecast confidence with coaching-ready diagnostics",
+        "body": "Hi Jordan, Nimbus Forge\u2019s RevOps program targets SLA adherence and forecast stability. Coaching-ready diagnostics help reduce forecast variance by 12% in 60 days. A RevOps team improved forecast variance after implementing coaching-ready diagnostics and handoff health alerts. Are you available for a 15-min intro this week? Open to a quick chat to see if this is relevant?"
+      }
+    }
+  ]
+}

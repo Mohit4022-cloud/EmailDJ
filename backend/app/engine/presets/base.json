@@ -1,0 +1,40 @@
+{
+  "preset_id": "base",
+  "name": "Base",
+  "tone_descriptor": "clear, specific, grounded",
+  "style_rules": [
+    "Use concrete language and avoid buzzwords",
+    "Keep one core point per sentence",
+    "Avoid generic compliments and flattery"
+  ],
+  "output_contract": {
+    "tone": "grounded and specific",
+    "assertiveness": "medium",
+    "opener_directness": "balanced",
+    "cta_placement": "final_exact",
+    "proof_density": "balanced",
+    "lengths": {
+      "short": {
+        "target_word_range": {"min": 45, "max": 70},
+        "hard_word_range": {"min": 38, "max": 80},
+        "sentence_count_guidance": {"target_min": 3, "target_max": 4, "hard_max": 5}
+      },
+      "medium": {
+        "target_word_range": {"min": 80, "max": 120},
+        "hard_word_range": {"min": 72, "max": 132},
+        "sentence_count_guidance": {"target_min": 4, "target_max": 5, "hard_max": 6}
+      },
+      "long": {
+        "target_word_range": {"min": 130, "max": 185},
+        "hard_word_range": {"min": 118, "max": 205},
+        "sentence_count_guidance": {"target_min": 5, "target_max": 7, "hard_max": 8}
+      }
+    }
+  },
+  "structure_rules": [
+    "opener -> value -> proof -> CTA",
+    "Keep paragraph count proportional to requested length"
+  ],
+  "banned_phrases_additions": [],
+  "formatting_hints": "Plain text, no markdown, no emoji"
+}

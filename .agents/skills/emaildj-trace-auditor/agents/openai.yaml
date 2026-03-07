@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmailDJ Trace Auditor"
+  short_description: "Audit EmailDJ debug traces by stage and root cause"
+  default_prompt: "Use $emaildj-trace-auditor to inspect this EmailDJ trace and classify the failure by stage and root cause."

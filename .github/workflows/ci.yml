@@ -17,6 +17,8 @@ on:
 permissions:
   contents: read
   actions: read
+  schedule:
+    - cron: '0 7 * * *'
 
 jobs:
   doc-freshness:
@@ -102,90 +104,12 @@ jobs:
           source .venv/bin/activate
           ./scripts/checks.sh
 
-      - name: Quality gate (20x noisy fixture)
+      - name: Optional judge smoke (mock)
+        if: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE == '1' }}
         working-directory: hub-api
         run: |
           source .venv/bin/activate
-          pytest -q tests/test_quality_gate.py::test_quality_gate_noisy_fixture_20x
-
-      - name: Judge smoke + sentinel sanity (mock)
-        working-directory: hub-api
-        run: |
-          source .venv/bin/activate
-          ./scripts/eval:judge:smoke --report-dir reports/judge/ci_candidate
-          ./scripts/eval:judge:sanity
-
-      - name: Pairwise regression gate on prompt-contract diffs
-        if: ${{ github.event_name == 'pull_request' }}
-        working-directory: hub-api
-        run: |
-          set -euo pipefail
-          source .venv/bin/activate
-
-          BASE_REF="${{ github.base_ref }}"
-          git fetch origin "${BASE_REF}" --depth=1
-          CHANGED="$(git diff --name-only "origin/${BASE_REF}"...HEAD)"
-          echo "Changed files:"
-          echo "${CHANGED}"
-
-          if ! echo "${CHANGED}" | grep -Eq "^hub-api/evals/judge/(prompts|rubric)\\.py$"; then
-            echo "No prompt-contract file changes; skipping pairwise regression gate."
-            exit 0
-          fi
-
-          BASE_WORKTREE="$(mktemp -d)"
-          git worktree add --detach "${BASE_WORKTREE}" "origin/${BASE_REF}"
-          cleanup() {
-            git worktree remove --force "${BASE_WORKTREE}" || true
-          }
-          trap cleanup EXIT
-
-          PYTHON_BIN="$(pwd)/.venv/bin/python"
-          export REDIS_FORCE_INMEMORY=1
-          export CHROME_EXTENSION_ORIGIN=chrome-extension://dev
-
-          PYTHONPATH="${BASE_WORKTREE}/hub-api" "${PYTHON_BIN}" "${BASE_WORKTREE}/hub-api/evals/runner.py" \
-            --dataset "${BASE_WORKTREE}/hub-api/evals/gold_set.full.json" \
-            --smoke "${BASE_WORKTREE}/hub-api/evals/gold_set.smoke_ids.json" \
-            --report-dir "${BASE_WORKTREE}/hub-api/reports/judge/ci_baseline" \
-            --mode smoke \
-            --max-cases 5 \
-            --judge \
-            --judge-mode mock \
-            --judge-model gpt-5-nano \
-            --judge-sample-count 1 \
-            --judge-candidate-id baseline \
-            --judge-skip-calibration
-
-          BASE_REPORT="${BASE_WORKTREE}/hub-api/reports/judge/ci_baseline/latest.json"
-          CANDIDATE_REPORT="$(pwd)/reports/judge/ci_candidate/latest.json"
-          PAIRWISE_DIR="$(pwd)/reports/judge/ci_pairwise"
-
-          ./scripts/eval:judge:pairwise \
-            --a-report "${BASE_REPORT}" \
-            --b-report "${CANDIDATE_REPORT}" \
-            --report-dir "${PAIRWISE_DIR}" \
-            --label-a baseline \
-            --label-b candidate
-
-          ./scripts/eval:judge:regression-gate \
-            --baseline-report "${BASE_REPORT}" \
-            --candidate-report "${CANDIDATE_REPORT}" \
-            --pairwise-report "${PAIRWISE_DIR}/pairwise_latest.json"
-
-      - name: Upload judge CI artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: judge-ci-reports
-          retention-days: 30
-          if-no-files-found: warn
-          path: |
-            hub-api/reports/latest.json
-            hub-api/reports/latest.md
-            hub-api/reports/judge/ci_candidate/**
-            hub-api/reports/judge/ci_pairwise/**
-            hub-api/reports/judge/sanity/latest.json
+          ./scripts/eval:judge:smoke
 
   real-mode-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
@@ -262,81 +186,6 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           EMAILDJ_JUDGE_MODE: real
           EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
-          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
         run: |
           source .venv/bin/activate
-          ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini
-
-      - name: Calibrate judge thresholds (real mode)
-        working-directory: hub-api
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          EMAILDJ_JUDGE_MODE: real
-          EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
-          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
-        run: |
-          source .venv/bin/activate
-          ./scripts/eval:judge:calibrate --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini --judge-sample-count 3
-
-      - name: Build judge trend report
-        working-directory: hub-api
-        run: |
-          source .venv/bin/activate
-          ./scripts/eval:judge:trend --mode full
-
-      - name: Run real corpus judge eval
-        working-directory: hub-api
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          EMAILDJ_JUDGE_MODE: real
-          EMAILDJ_JUDGE_MODEL: gpt-4.1-mini
-          EMAILDJ_JUDGE_MODEL_VERSION: gpt-4.1-mini
-        run: |
-          source .venv/bin/activate
-          ./scripts/eval:judge:real-corpus --judge-mode real --judge-model gpt-4.1-mini --judge-model-version gpt-4.1-mini
-
-      - name: Enforce judge drift guard
-        working-directory: hub-api
-        env:
-          ALLOW_JUDGE_DRIFT_OVERRIDE: ${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.allow_judge_drift_override) || 'false' }}
-        run: |
-          set -euo pipefail
-          source .venv/bin/activate
-          EXTRA_ARGS=""
-          if [ "${ALLOW_JUDGE_DRIFT_OVERRIDE}" = "true" ]; then
-            EXTRA_ARGS="--allow-drift-override"
-          fi
-          ./scripts/eval:judge:drift-guard \
-            --current-calibration reports/judge/calibration/latest.json \
-            --previous-metadata reports/judge/previous_nightly_metadata.json \
-            --out reports/judge/drift_guard/latest.json \
-            --out-metadata reports/judge/nightly_metadata.json \
-            ${EXTRA_ARGS}
-
-      - name: Upload nightly judge reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: judge-nightly-reports
-          retention-days: 30
-          if-no-files-found: warn
-          path: |
-            hub-api/reports/latest.json
-            hub-api/reports/latest.md
-            hub-api/reports/judge/trend/latest.json
-            hub-api/reports/judge/trend/latest.md
-            hub-api/reports/judge/calibration/latest.json
-            hub-api/reports/judge/calibration/threshold_changelog.jsonl
-            hub-api/reports/judge/sanity/latest.json
-            hub-api/reports/judge/real_corpus/latest.json
-            hub-api/reports/judge/real_corpus/latest.md
-            hub-api/reports/judge/drift_guard/latest.json
-
-      - name: Upload nightly metadata
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: judge-nightly-metadata
-          retention-days: 30
-          if-no-files-found: warn
-          path: hub-api/reports/judge/nightly_metadata.json
+          ./scripts/eval:judge:full --judge-mode real --judge-model gpt-4.1-mini

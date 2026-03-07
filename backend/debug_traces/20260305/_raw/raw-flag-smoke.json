@@ -1,0 +1,22 @@
+{
+  "trace_id": "raw-flag-smoke",
+  "app_env": "local",
+  "started_at": 1772690737.1218612,
+  "finished_at": 1772690737.1219058,
+  "duration_ms": 0,
+  "meta": {},
+  "outcome": {
+    "ok": true
+  },
+  "stage_payloads": [
+    {
+      "stage": "TEST_STAGE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "k": "v"
+      }
+    }
+  ]
+}

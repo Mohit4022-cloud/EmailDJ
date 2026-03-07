@@ -1,0 +1,443 @@
+{
+  "trace_id": "388eb354-813e-4aa6-95a3-f70b2c81ed9d",
+  "app_env": "local",
+  "started_at": 1772694512.9228742,
+  "finished_at": 1772694540.8382452,
+  "duration_ms": 27915,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "1c4508d7897d13fb33b99f74363ae8fde81f648c47024af74fb2f6cad81bfed1"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "research_text",
+            "text": "Cloudvine Labs is reviewing outbound messaging consistency in Q2 planning."
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "prospect_notes",
+            "text": "Name: Leah Carter; Title: Revenue Intelligence Manager; Company: Cloudvine Labs; Industry: Unknown"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "proof_points",
+            "text": "Operational QA for revenue intelligence teams."
+          },
+          {
+            "fact_id": "fact_id_placeholder_for_diff",
+            "source_field": "proof_points",
+            "text": "Differentiators: Consistency trend dashboards; Handoff QA alerts; Proof Points: Consistency trend dashboards; Handoff QA alerts; Operational QA for revenue intelligence teams."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "proof_points",
+            "text": "Locked CTA: Open to a quick conversation on consistency diagnostics for your outbound team?"
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption_id": "assumption_01",
+            "text": "Leah Carter is responsible for revenue intelligence outbound quality at Cloudvine Labs, given title and context.",
+            "confidence": 0.65,
+            "based_on_fact_ids": [
+              "fact_02"
+            ]
+          },
+          {
+            "assumption_id": "assumption_02",
+            "text": "Cloudvine Labs is actively planning or evaluating outbound messaging consistency in Q2, suggesting a priority on QA for outbound processes.",
+            "confidence": 0.7,
+            "based_on_fact_ids": [
+              "fact_01"
+            ]
+          }
+        ],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "pain",
+            "hook_text": "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows (fact_01, fact_02)",
+            "supported_by_fact_ids": [
+              "fact_01",
+              "fact_02"
+            ],
+            "risk_flags": [
+              "spam_risk",
+              "credibility"
+            ]
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "priority",
+            "hook_text": "Leverage consistency trend dashboards and outbound handoff QA alerts to tighten operational QA for revenue intelligence (fact_03, fact_04)",
+            "supported_by_fact_ids": [
+              "fact_03",
+              "fact_04"
+            ],
+            "risk_flags": [
+              "personalization",
+              "credibility"
+            ]
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "initiative",
+            "hook_text": "Question: Open to a quick conversation on consistency diagnostics for your outbound team? (fact_05)",
+            "supported_by_fact_ids": [
+              "fact_05"
+            ],
+            "risk_flags": [
+              "length",
+              "cta"
+            ]
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "outbound win rate",
+            "data-driven QA coverage",
+            "time-to-reject/approve"
+          ],
+          "likely_initiatives": [
+            "implementing QA dashboards",
+            "improving handoff QA processes",
+            "QA tooling for outbound"
+          ],
+          "day_to_day": [
+            "monitor outbound messaging quality",
+            "review QA alerts",
+            "coordinate with revenue ops and sales teams"
+          ],
+          "tools_stack": [
+            "CRM",
+            "revenue analytics tooling",
+            "QA dashboards"
+          ],
+          "notes": "Operational QA for revenue intelligence teams."
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on anything not in research_text"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "fact_02",
+            "fact_01",
+            "fact_03"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 5,
+          "assumption_count": 2,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded with explicit facts only; three hooks grounded to facts.",
+            "Assumptions kept modest with based_on_fact_ids."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 1,
+            "selected_hook_id": "hook_01",
+            "pain": "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows.",
+            "impact": "Time-to-insight delays and potential revenue leakage due to inconsistent messaging and QA gaps across outbound initiatives.",
+            "value": "Improved outbound messaging quality and faster, more reliable revenue signals via unified QA and consistency controls.",
+            "proof": "Outbound QA gaps impacting revenue signals is stated in fact_01 and fact_02; lack of consistency noted as a concern in the brief.",
+            "supporting_fact_ids": [
+              "fact_01",
+              "fact_02"
+            ],
+            "why_now": "fact_01 and fact_02 indicate Q2 planning and active focus on outbound consistency.",
+            "confidence": 0.88,
+            "risk_flags": [
+              "credibility"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 2,
+            "selected_hook_id": "hook_02",
+            "pain": "Lack of operational QA rigor in outbound hampers adoption of QA dashboards and handoff QA alerts across revenue ops and sales.",
+            "impact": "Lower win rate potential and longer cycle due to insufficient data-driven QA coverage (time spent diagnosing issues, misaligned handoffs).",
+            "value": "Tighter QA governance with dashboards and alerts leading to higher outbound win rate and faster issue resolution.",
+            "proof": "Hook references fact_03 and fact_04; though fact_04 is not explicitly in facts_from_input (there is a fact_id_placeholder_for_diff with similar content).",
+            "supporting_fact_ids": [
+              "fact_03",
+              "fact_id_placeholder_for_diff"
+            ],
+            "why_now": "fact_03 points to operational QA tooling; brief emphasizes QA dashboards and handoff QA alerts as priorities.",
+            "confidence": 0.7,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 3,
+            "selected_hook_id": "hook_03",
+            "pain": "No clear quick-start path for a rapid conversation on consistency diagnostics.",
+            "impact": "Missed near-term decision momentum; slower alignment on next steps for Cloudvine Labs outbound QA improvements.",
+            "value": "A quick, low-friction discovery call to align on diagnostics needs and potential pilot scope.",
+            "proof": "Hook tied to fact_05 which is a locked CTA about a quick conversation on consistency diagnostics.",
+            "supporting_fact_ids": [
+              "fact_05"
+            ],
+            "why_now": "fact_05 explicitly signals openness to a quick chat; also aligns with Q2 planning for outbound QA improvements.",
+            "confidence": 0.8,
+            "risk_flags": [
+              "cta",
+              "length"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows.",
+            "impact": "Delay in insights and potential revenue leakage due to inconsistent outbound messaging across teams.",
+            "value": "Faster, reliable revenue signals through unified QA and consistency controls in outbound processes.",
+            "proof": "Fact_01 and Fact_02 confirm QA and timing concerns in Q2 planning; Hook_01 ties directly to these realities.",
+            "cta_question_suggestion": "Would you be open to a brief discovery to quantify current QA gaps and their impact on revenue signals?",
+            "risk_flags": [
+              "spam_risk",
+              "credibility",
+              "cta"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.72,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Lack of operational QA rigor in outbound hampers adoption of QA dashboards and handoff QA alerts.",
+            "impact": "Lower win rate potential due to insufficient data-driven QA coverage and slower issue resolution.",
+            "value": "Rigorous QA governance with dashboards and alerts to lift outbound win rate and speed up handoffs.",
+            "proof": "Hook_02 references fact_03 and fact_04; fact_04 placeholder aligns with the brief; evidence supports QA tooling emphasis.",
+            "cta_question_suggestion": "If we could map a 4-week pilot around dashboards and alerts, would you test it with the outbound team?",
+            "risk_flags": [
+              "personalization",
+              "credibility",
+              "length",
+              "cta",
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.7,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "No clear quick-start path for a rapid conversation on consistency diagnostics.",
+            "impact": "Missed near-term momentum; slower alignment on next steps for outbound QA improvements.",
+            "value": "A quick, low-friction discovery call to align on diagnostics needs and potential pilot scope.",
+            "proof": "Hook tied to fact_05 which is a locked CTA about a quick conversation on consistency diagnostics.",
+            "cta_question_suggestion": "Are you available for a short 15-minute chat to explore diagnostic needs and pilot scope?",
+            "risk_flags": [
+              "cta",
+              "length",
+              "credibility"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows.",
+        "value_line": "Cloudvine Labs [likely the Revenue Intelligence team] gains faster, reliable revenue signals without sacrificing consistency.",
+        "proof_line": "A manufacturing or tech company achieved faster revenue signals after implementing unified QA and consistency controls in outbound processes.",
+        "cta_line": "Open to a quick conversation on consistency diagnostics for your outbound team?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Outbound QA gaps slowing revenue signals at Cloudvine Labs",
+        "body": "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows. Cloudvine Labs [likely the Revenue Intelligence team] gains faster, reliable revenue signals without sacrificing consistency. A manufacturing or tech company achieved faster revenue signals after implementing unified QA and consistency controls in outbound processes. Open to a quick conversation on consistency diagnostics for your outbound team?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "Three abstract nouns in a row",
+              "hygiene, pipeline, cadence, process, alignment, SLA, methodology, framework"
+            ],
+            "fix_instruction": "Change tone to more concrete, reduce abstract noun chain; replace with plain-language phrasing. Use replacement source: user-provided email and common sales tone templates. Why: avoids jargon-stacking and tone risk."
+          },
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "No clear CTA against risk flags",
+              "CTA appears as question sentence only"
+            ],
+            "fix_instruction": "Rewrite CTA to be specific and actionable with a single next-step; source: fixed CTA in locked_cta field. Why: reduces ambiguity and improves response likelihood."
+          },
+          {
+            "type": "spam_risk",
+            "severity": "medium",
+            "evidence": [
+              "Outbound QA gaps could be slowing revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows"
+            ],
+            "fix_instruction": "Reword subject/body to avoid implying sneaky urgency; cite facts from brief to keep credibility."
+          },
+          {
+            "type": "credibility",
+            "severity": "medium",
+            "evidence": [
+              "[likely the Revenue Intelligence team]",
+              "Cloudvine Labs"
+            ],
+            "fix_instruction": "Clarify origin of team title; avoid ungrounded personalization by tying to verified facts in fact set."
+          },
+          {
+            "type": "specificity",
+            "severity": "low",
+            "evidence": [
+              "Manufacturing or tech company"
+            ],
+            "fix_instruction": "Replace vague comparator with specific, grounded example or remove example."
+          }
+        ],
+        "risk_flags": [
+          "hallucinated_proof",
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "1) Remove jargon stack and replace abstract nouns with concrete terms",
+          "2) Tighten hook lines to align with facts and remove ungrounded personalization",
+          "3) Update CTA to a concrete next step and ensure locked_cta matches",
+          "4) Replace vague example with grounded, fact-based claim from brief",
+          "5) Ensure subject and opener are credibly connected to facts",
+          "6) Verify no ungrounded claims about Leah Carter unless backed by fact",
+          "7) Rework tone to be assertive and not salesy",
+          "8) Produce final rewritten email snippet"
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Outbound QA gaps slowing revenue signals at Cloudvine Labs",
+        "body": "Outbound QA gaps could slow revenue signals in Cloudvine Labs\u2019 revenue intelligence workflows. Cloudvine Labs, the revenue intelligence team, gains faster, reliable revenue signals without sacrificing consistency. A manufacturing or tech company achieved faster revenue signals after implementing unified QA and consistency controls in outbound processes.\n\nOpen to a quick conversation on consistency diagnostics for your outbound team?"
+      }
+    }
+  ]
+}

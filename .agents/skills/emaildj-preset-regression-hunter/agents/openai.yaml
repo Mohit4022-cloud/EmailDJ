@@ -1,0 +1,4 @@
+interface:
+  display_name: "EmailDJ Preset Regression Hunter"
+  short_description: "Compare EmailDJ preset and slider behavior safely"
+  default_prompt: "Use $emaildj-preset-regression-hunter to compare preset or slider outputs and flag unexpected drift."

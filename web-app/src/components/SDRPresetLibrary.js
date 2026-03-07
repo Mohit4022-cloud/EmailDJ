@@ -36,9 +36,30 @@ function statusLabel(status) {
   return '';
 }
 
-function previewFallbackSubject(context) {
-  const company = context?.prospect?.company || context?.company_context?.company_name || 'your team';
-  return `Quick idea for ${company}`;
+function buildSafeProspect(context) {
+  return {
+    name: context.prospect.name || 'there',
+    title: context.prospect.title || 'Revenue Leader',
+    company: context.prospect.company || 'your company',
+    linkedin_url: context.prospect.linkedin_url || null,
+  };
+}
+
+function buildSafeResearchText(context, preset) {
+  const research = context.research_text;
+  const presetGuidance = [
+    `Preset style: ${preset.name}.`,
+    `Vibe guidance: ${preset.vibe || 'Use a clear SDR style tailored to this preset.'}`,
+    `Keep the output specific, factual, and non-generic.`,
+  ].join(' ');
+
+  const combined = [research, presetGuidance].filter(Boolean).join('\n\n').trim();
+  if (combined.length >= 20) return combined;
+  return [
+    'No deep research was provided. Use the prospect and company context only.',
+    presetGuidance,
+    'Return a realistic SDR subject and body with no placeholders.',
+  ].join(' ');
 }
 
 export function presetToSliderState(preset) {
@@ -414,11 +435,34 @@ export class SDRPresetLibrary {
           });
           continue;
         }
+        if (source.error) {
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: String(source.error.message || 'Generation failed'),
+          });
+          continue;
+        }
 
+        const sanitized = sanitizePreviewEmail(
+          {
+            subject: source.subject || '',
+            body: source.body || '',
+          },
+          context
+        );
+        if (!sanitized.subject || !sanitized.body) {
+          this.previewEntries.set(String(preset.id), {
+            ...base,
+            status: 'error',
+            errorMessage: 'AI preview returned incomplete email',
+          });
+          continue;
+        }
         const preview = {
           ...base,
-          subject: String(source.subject || '').trim() || previewFallbackSubject(context),
-          body: String(source.body || '').trim(),
+          subject: sanitized.subject,
+          body: sanitized.body,
           vibeLabel: String(source.vibeLabel || base.vibeLabel || ''),
           vibeTags:
             Array.isArray(source.vibeTags) && source.vibeTags.length > 0
@@ -440,7 +484,71 @@ export class SDRPresetLibrary {
       if (unresolved.length > 0) {
         return { ok: false, error: `Missing batch previews for ${unresolved.join(', ')}.` };
       }
-      return { ok: true };
+      return true;
+    } catch {
+      return false;
+    } finally {
+      this.inflightBatches.delete(batchKey);
+    }
+  }
+
+  buildPreviewPayload(preset, context) {
+    const effectiveSliders = resolveEffectiveSliderState(context.global_slider_state, preset);
+    const offerLock = context.company_context.current_product || context.company_context.company_name || 'Current offering';
+    return {
+      prospect: buildSafeProspect(context),
+      research_text: buildSafeResearchText(context, preset),
+      offer_lock: offerLock,
+      cta_offer_lock: context.company_context.cta_offer_lock || null,
+      cta_type: context.company_context.cta_type || null,
+      style_profile: styleToPayload(effectiveSliders),
+      company_context: {
+        company_name: context.company_context.company_name || undefined,
+        company_url: context.company_context.company_url || undefined,
+        current_product: context.company_context.current_product || undefined,
+        cta_offer_lock: context.company_context.cta_offer_lock || undefined,
+        cta_type: context.company_context.cta_type || undefined,
+        other_products: context.company_context.other_products || undefined,
+        company_notes: context.company_context.company_notes || undefined,
+      },
+    };
+  }
+
+  async generatePreviewForPreset(preset, context, contextHash) {
+    const key = buildPreviewCacheKey(contextHash, preset.id);
+    let promise = this.inflightPreviews.get(key);
+
+    if (!promise) {
+      promise = (async () => {
+        const payload = this.buildPreviewPayload(preset, context);
+        const draft = await this.generatePreviewDraft(payload);
+        const parsed = parseGeneratedDraft(draft, context.prospect.company);
+        const sanitized = sanitizePreviewEmail(parsed, context);
+        if (!sanitized.subject || !sanitized.body) {
+          throw new Error('AI preview returned incomplete email');
+        }
+        const preview = {
+          ...this.buildBasePreviewEntry(preset, context),
+          subject: sanitized.subject,
+          body: sanitized.body,
+        };
+        this.previewCache.set(key, preview);
+        return preview;
+      })();
+      this.inflightPreviews.set(key, promise);
+    }
+
+    try {
+      const preview = await promise;
+      if (contextHash !== this.activeContextHash) return;
+      this.previewEntries.set(String(preset.id), {
+        ...this.buildBasePreviewEntry(preset, context),
+        ...preview,
+        status: 'ready',
+        errorMessage: '',
+      });
+      this.renderPresetList();
+      if (this.previewPresetId === preset.id) this.renderPreview(preset);
     } catch (error) {
       return { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
     } finally {

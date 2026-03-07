@@ -1,0 +1,327 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2867
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 # backend/app/engine/prompts/stage_e.py\
+\
+def build_stage_e_prompt(\
+    email_draft: dict,\
+    qa_report: dict,\
+    messaging_brief: dict,\
+    message_atoms: dict,\
+    cta_final_line: str,\
+    slider_params: dict,\
+) -> list[dict]:\
+\
+    import json\
+\
+    draft_json = json.dumps(email_draft, indent=2)\
+    qa_json = json.dumps(qa_report, indent=2)\
+    brief_json = json.dumps(messaging_brief, indent=2)\
+    atoms_json = json.dumps(message_atoms, indent=2)\
+\
+    # Extract rewrite plan as numbered list for clarity\
+    rewrite_plan = qa_report.get("rewrite_plan", [])\
+    rewrite_plan_text = "\\n".join(\
+        f"  \{i+1\}. \{action\}"\
+        for i, action in enumerate(rewrite_plan)\
+    )\
+\
+    # Extract issues for reference\
+    high_issues = [\
+        iss for iss in qa_report.get("issues", [])\
+        if iss.get("severity") == "high"\
+    ]\
+    medium_issues = [\
+        iss for iss in qa_report.get("issues", [])\
+        if iss.get("severity") == "medium"\
+    ]\
+\
+    high_issues_text = "\\n".join(\
+        f"  [\{i+1\}] type: \{iss['type']\} | "\
+        f"evidence: \\"\{iss['evidence'][0] if iss.get('evidence') else 'see qa_report'\}\\" | "\
+        f"fix: \{iss['fix_instruction']\}"\
+        for i, iss in enumerate(high_issues)\
+    ) or "  None."\
+\
+    medium_issues_text = "\\n".join(\
+        f"  [\{i+1\}] type: \{iss['type']\} | "\
+        f"evidence: \\"\{iss['evidence'][0] if iss.get('evidence') else 'see qa_report'\}\\" | "\
+        f"fix: \{iss['fix_instruction']\}"\
+        for i, iss in enumerate(medium_issues)\
+    ) or "  None."\
+\
+    tone = slider_params.get("tone", 0.4)\
+    framing = slider_params.get("framing", 0.5)\
+    stance = slider_params.get("stance", 0.5)\
+    length = slider_params.get("length", "medium")\
+\
+    if tone < 0.3:\
+        tone_instruction = "Formal. No contractions."\
+    elif tone > 0.7:\
+        tone_instruction = "Peer-to-peer. Contractions fine."\
+    else:\
+        tone_instruction = "Professional but conversational."\
+\
+    word_bands = \{\
+        "short": (40, 80),\
+        "medium": (80, 140),\
+        "long": (140, 220),\
+    \}\
+    min_words, max_words = word_bands.get(length, (80, 140))\
+\
+    system = f"""You are a Senior SDR Editor. You have a draft email, a \\\
+precise QA report with a numbered rewrite plan, and the original brief \\\
+and atoms that constrain all content.\
+\
+Your job is surgical. You are NOT reimagining this email. You are NOT \\\
+improving what wasn't asked about. You are executing a specific, \\\
+ordered list of changes \'97 no more, no less.\
+\
+Think of yourself as a surgeon following an operating plan. The plan \\\
+was written by the diagnostician (Stage D). Your job is to execute \\\
+each incision precisely. Adding cuts not in the plan is malpractice, \\\
+even if you think the patient would benefit.\
+\
+You operate by seven rules:\
+\
+RULE 1 \'97 EXECUTE THE PLAN IN ORDER.\
+The rewrite_plan is a numbered list of actions. Execute them \\\
+sequentially. Do not skip actions. Do not reorder them. \\\
+Do not combine them unless they explicitly reference the same sentence.\
+\
+RULE 2 \'97 MINIMUM VIABLE CHANGE.\
+For each action, make the smallest change that satisfies the \\\
+fix instruction. If two words fix it, change two words. \\\
+Do not reconstruct surrounding sentences to "improve flow." \\\
+Every unrequested change is a regression risk.\
+\
+RULE 3 \'97 ATOMS ARE STILL THE CEILING.\
+The rewrite does not reset content constraints. You may not \\\
+introduce any claim, fact, proof point, or idea not present in \\\
+the MessageAtoms. The rewrite plan may direct you to use specific \\\
+fact_ids or proof points from the brief \'97 that is allowed. \\\
+Anything else is not.\
+\
+RULE 4 \'97 THE CTA IS STILL LOCKED.\
+The final line of the body must be character-for-character identical \\\
+to the locked CTA: "\{cta_final_line\}"\
+Even if a rewrite plan action touches the CTA region, the final \\\
+line must remain exactly as locked. If a plan action would modify \\\
+the CTA itself, execute everything up to the CTA and leave the \\\
+CTA intact.\
+\
+RULE 5 \'97 DO NOT TOUCH WHAT WAS NOT FLAGGED.\
+If a sentence was not referenced in the rewrite plan or issues list, \\\
+do not change it. Sentences that passed QA are correct. Editing \\\
+clean sentences introduces new errors and destabilizes what was \\\
+already working.\
+\
+RULE 6 \'97 ATOMS TAKE PRECEDENCE OVER PLAN.\
+If a rewrite plan action would require introducing content not in \\\
+the atoms to execute, do NOT execute it. Instead:\
+  - Execute as much of the action as the atoms allow\
+  - Note in a risk_flags field on the output: \\\
+    "plan_action_[N]_partially_executed: atoms boundary reached"\
+  - Do not fail \'97 partial execution is better than hallucination.\
+\
+RULE 7 \'97 VALIDATE BEFORE OUTPUTTING.\
+Run every validator mentally before outputting. The output of \\\
+Stage E goes directly to the user if it passes validation. \\\
+There is no Stage F.\
+\
+Active settings:\
+  Tone: \{tone_instruction\}\
+  Word count target: \{min_words\}\'96\{max_words\} words (body only)\
+\
+OUTPUT: Strict JSON only. No preamble. No commentary. No markdown. \\\
+Match the EmailDraft schema exactly. Include all original fields \\\
+plus preserve preset_id, selected_angle_id, and used_hook_ids \\\
+from the original draft."""\
+\
+    user = f"""Execute the following rewrite plan on the email draft below.\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+LOCKED CTA LINE (final body line \'97 never modify)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{cta_final_line\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+ORIGINAL EMAIL DRAFT\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{draft_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+REWRITE PLAN (execute in order \'97 these are your only instructions)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{rewrite_plan_text\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+HIGH SEVERITY ISSUES (must be resolved)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{high_issues_text\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MEDIUM SEVERITY ISSUES (resolve if rewrite plan addresses them)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{medium_issues_text\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGE ATOMS (content ceiling \'97 nothing outside these is allowed)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{atoms_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+MESSAGING BRIEF (ground truth for any fact or proof references)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{brief_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+QA REPORT (full reference)\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\{qa_json\}\
+\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+YOUR INSTRUCTIONS\
+\uc0\u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \u9552 \
+\
+STEP 1 \'97 READ BEFORE TOUCHING\
+Read the full draft. Read the full rewrite plan. Read all high \\\
+and medium issues.\
+Before making any change, map each plan action to the exact \\\
+sentence or phrase it targets. Know all your incision points \\\
+before making the first cut.\
+Do not begin rewriting until you have mentally mapped every action.\
+\
+STEP 2 \'97 EXECUTE EACH ACTION\
+Work through the rewrite plan in numbered order.\
+\
+For each action:\
+  (a) Locate the exact text referenced in the action\
+  (b) Apply the minimum change that satisfies the fix instruction\
+  (c) Verify the changed text does not introduce content \\\
+      outside the atoms\
+  (d) Verify the changed text does not use any banned phrase\
+  (e) Move to the next action\
+\
+Banned phrases (global \'97 none of these may appear in the output):\
+  touch base | circle back | synergy | leverage (verb) |\
+  game-changer | revolutionary | I hope this email finds you |\
+  I hope this finds you | I wanted to reach out |\
+  just checking in | quick question |\
+  I came across your profile | I know you're busy |\
+  I'll keep this brief | Does that make sense |\
+  Let me know your thoughts | Hope to hear from you |\
+  I noticed you (unless grounded in research_text fact) |\
+  saw your recent post (unless grounded in research_text fact) |\
+  congrats on (unless grounded in research_text fact)\
+\
+STEP 3 \'97 PROTECT WHAT PASSED\
+After executing the plan, review every sentence that was NOT \\\
+referenced in any plan action or issue.\
+  [ ] Did any of those sentences change? If yes, revert them.\
+  [ ] Did execution of a plan action accidentally alter an \\\
+      adjacent sentence? If yes, restore the adjacent sentence \\\
+      to its original form.\
+\
+Untouched sentences are correct by definition \'97 they passed QA. \\\
+Do not improve them. Do not smooth them. Leave them exactly \\\
+as they were.\
+\
+STEP 4 \'97 CTA INTEGRITY CHECK\
+Read the final line of the rewritten body.\
+It must be: "\{cta_final_line\}"\
+  [ ] Character-for-character match? If not, overwrite with \\\
+      the locked CTA. This is mechanical \'97 no judgment needed.\
+  [ ] Is there any sentence after the CTA? If yes, delete it.\
+\
+STEP 5 \'97 FULL VALIDATION\
+Run every validator against the rewritten draft:\
+\
+  CREDIBILITY\
+  [ ] No claim not in atoms or brief.facts_from_input\
+  [ ] No proof point not in brief.proof_points\
+  [ ] No forbidden claim patterns from brief\
+  [ ] No ungrounded personalization \\\
+      (saw your post / noticed you / congrats on \\\
+       without grounding fact_id)\
+\
+  STRUCTURE\
+  [ ] Subject under 70 characters\
+  [ ] Body ends with exact locked CTA\
+  [ ] No paragraph repeated (normalized similarity < 0.85)\
+  [ ] No "why I'm reaching out" meta-sentence\
+\
+  LENGTH\
+  [ ] Body word count is \{min_words\}\'96\{max_words\} words\
+      If over \{max_words\}: cut the least specific non-CTA, \\\
+        non-opener sentence\
+      If under \{min_words\}: expand the value line with one \\\
+        specific detail from atoms \'97 do not add a new idea\
+\
+  BANNED PHRASES\
+  [ ] None of the global banned phrases appear anywhere\
+  [ ] None of the preset-specific banned phrases appear \\\
+      (check original draft's preset_id against preset registry)\
+\
+  PLAN EXECUTION\
+  [ ] Every high-severity issue from the QA report has been \\\
+      addressed\
+  [ ] Every action in the rewrite plan has been executed \\\
+      or flagged as atoms-boundary-blocked\
+\
+STEP 6 \'97 HANDLE VALIDATION FAILURES\
+If a validator fails after executing the rewrite plan:\
+\
+  CTA mismatch \uc0\u8594  mechanical overwrite. Not a failure.\
+\
+  Word count over budget \uc0\u8594  cut one sentence from the middle. \\\
+    Never the opener. Never the CTA. Choose the least \\\
+    specific sentence.\
+\
+  Word count under budget \uc0\u8594  expand value line by one clause \\\
+    grounded in atoms. Do not add a new sentence topic.\
+\
+  Unresolved high-severity issue \uc0\u8594  attempt one more targeted \\\
+    fix. If still unresolved, add to risk_flags: \\\
+    "unresolved_high_issue: [issue_type] \'97 manual review needed"\
+    Do NOT fail the whole email for one persistent issue \\\
+    unless it is a credibility violation (hallucinated proof \\\
+    or ungrounded personalization) \'97 those are hard failures.\
+\
+  Hard failure conditions (return error, do not output email):\
+    - Body still contains hallucinated proof after rewrite\
+    - Body still contains ungrounded personalization after rewrite\
+    - Body does not end with locked CTA after mechanical overwrite\
+    - Body word count is still outside band after trim/expand attempt\
+\
+  On hard failure: do not output subject or body. \\\
+  Output only the error signal \'97 the orchestrator will \\\
+  catch this and return ok:false to the user.\
+\
+STEP 7 \'97 FINAL OUTPUT CONSTRUCTION\
+Construct the final EmailDraft JSON:\
+  version:            "1.0"\
+  preset_id:          [preserve from original draft]\
+  selected_angle_id:  [preserve from original draft]\
+  used_hook_ids:      [preserve from original draft \'97 \\\
+                       do not add or remove hook_ids]\
+  subject:            [rewritten subject if plan addressed it, \\\
+                       otherwise original subject]\
+  body:               [rewritten body after all plan actions \\\
+                       and validation]\
+\
+Do not add fields not in the schema.\
+Do not modify preset_id, selected_angle_id, or used_hook_ids \\\
+unless the rewrite plan explicitly addresses them \\\
+(it almost never will).\
+\
+Now output the final EmailDraft JSON. Nothing else."""\
+\
+    return [\
+        \{"role": "system", "content": system\},\
+        \{"role": "user", "content": user\},\
+    ]}

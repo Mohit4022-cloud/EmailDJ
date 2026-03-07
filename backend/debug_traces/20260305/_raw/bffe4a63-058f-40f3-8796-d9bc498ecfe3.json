@@ -1,0 +1,393 @@
+{
+  "trace_id": "bffe4a63-058f-40f3-8796-d9bc498ecfe3",
+  "app_env": "local",
+  "started_at": 1772696468.423771,
+  "finished_at": 1772696507.5400221,
+  "duration_ms": 39116,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "7cc330828f5655f07fa29c3edd6f89c507a7a1d346bb78b50415c50e03306afc"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Mara Singh"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "VP Demand Generation"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Northline Bio"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Northline Bio rolled out a cross-team outbound workflow standard after seeing handoff rework. Leadership emphasized measurable execution consistency before scaling volume."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "differentiators",
+            "text": "- Sequence QA checks\n- Forecast-risk flags\n- Execution playbook scoring"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "proof_points",
+            "text": "- Sequence QA checks\n- Forecast-risk flags\n- Execution playbook scoring\n- Supports outbound leaders with measurable quality controls."
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "product_summary",
+            "text": "Pipeline Hygiene QA"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "icp_description",
+            "text": "Supports outbound leaders with measurable quality controls."
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "cta_final_line",
+            "text": "Open to a 15-minute working session on execution consistency next week?"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Northline Bio recently rolled out a cross-team outbound workflow standard and seeks measurable execution consistency before scaling, which aligns with our execution playbook scoring and forecasting-risk flags.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Leadership emphasized measurable execution consistency; our Sequence QA checks help ensure quality controls are met as volume increases.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "trigger_event",
+            "hook_text": "Given the move to standardized outbound workflow, a 15-minute session could validate execution consistency across teams using our playbook scoring.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_11"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "quality of outbound sequences",
+            "handoff accuracy",
+            "execution consistency"
+          ],
+          "likely_initiatives": [
+            "implement QA checks",
+            "forecast-risk flagging",
+            "execution playbook adoption"
+          ],
+          "day_to_day": [
+            "managing demand gen programs",
+            "cross-team coordination",
+            "scaling outbound volume with quality controls"
+          ],
+          "tools_stack": [
+            "unknown"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "industry",
+            "prospect_notes",
+            "research_text",
+            "product_summary",
+            "icp_description",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes",
+            "cta_type",
+            "cta_final_line"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 9,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.6,
+          "signal_strength": "medium",
+          "quality_notes": [
+            "Grounded in explicit input fields; no ungrounded inference."
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hypo_01",
+            "rank": 1,
+            "selected_hook_id": "hook_01",
+            "pain": "Leadership wants measurable execution consistency as outbound volume scales, but current process relies on manual checks and lacks standardized QA across teams.",
+            "impact": "Higher risk of misaligned handoffs and inconsistent outbound quality as volume increases, leading to lower forecast accuracy and potential revenue leakage.",
+            "value": "A standardized, measurable QA framework (Pipeline Hygiene QA) reduces variance, improves execution confidence, and enables scalable outbound without sacrificing quality.",
+            "proof": "fact_04 describes cross-team outbound workflow standard and leadership emphasis on measurable execution consistency; fact_05 and fact_06 describe differentiators including Sequence QA checks and execution playbook scoring.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06"
+            ],
+            "why_now": "Yes\u2014Northline Bio has recently implemented a cross-team outbound workflow standard and is explicitly seeking measurable execution consistency before scaling, which aligns with our playbook scoring and forecast-risk flags.",
+            "confidence": 0.92,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hypo_02",
+            "rank": 2,
+            "selected_hook_id": "hook_02",
+            "pain": "Direct link between outbound quality control gaps and the risk of failed handoffs and missed quotas as volume grows.",
+            "impact": "Increased manual checks add time-to-campaign and could slow velocity; poor sequence quality can degrade engagement, reducing pipeline velocity.",
+            "value": "Our Sequence QA checks embed quality controls directly into outbound sequences, preventing quality regressions and ensuring consistency at scale.",
+            "proof": "fact_04 and fact_05 emphasize the need for measurable execution and QA checks; fact_06 notes proof points including \u201cSupports outbound leaders with measurable quality controls.\u201d",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06"
+            ],
+            "why_now": "Yes\u2014ongoing rollout of standardized outbound workflow increases need for embedded QA to preserve quality with volume.",
+            "confidence": 0.85,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hypo_03",
+            "rank": 3,
+            "selected_hook_id": "hook_03",
+            "pain": "Opportunity to validate cross-team consistency quickly through a short session rather than longer commitments.",
+            "impact": "Low commitment but potentially high clarity on current gaps; risk of stale insights if not followed by action.",
+            "value": "A 15-minute working session can validate execution consistency and surface actionable next steps using the execution playbook scoring.",
+            "proof": "fact_11 specifies a 15-minute working session; fact_04 and fact_11 show relevance to execution consistency and the need for a quick validation.",
+            "supporting_fact_ids": [
+              "fact_11",
+              "fact_04"
+            ],
+            "why_now": "Yes\u2014the move to standardized outbound workflow creates a natural moment to validate consistency via a brief session.",
+            "confidence": 0.8,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.92,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hypo_01",
+            "pain": "Leadership wants measurable execution consistency as outbound volume scales, but current process relies on manual checks and lacks standardized QA across teams.",
+            "impact": "Higher risk of misaligned handoffs and inconsistent outbound quality as volume increases, leading to lower forecast accuracy and potential revenue leakage.",
+            "value": "A standardized, measurable QA framework (Pipeline Hygiene QA) reduces variance, improves execution confidence, and enables scalable outbound without sacrificing quality.",
+            "proof": "Northline Bio recently rolled out a cross-team outbound workflow standard and leadership emphasis on measurable execution consistency; our differentiators include Sequence QA checks and execution playbook scoring.",
+            "cta_question_suggestion": "Would you be open to a 15-minute session to review how Pipeline Hygiene QA could align with Northline Bio's new workflow standard?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.85,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hypo_02",
+            "pain": "Direct link between outbound quality control gaps and the risk of failed handoffs and missed quotas as volume grows.",
+            "impact": "Increased manual checks add time-to-campaign and could slow velocity; poor sequence quality can degrade engagement, reducing pipeline velocity.",
+            "value": "Our Sequence QA checks embed quality controls directly into outbound sequences, preventing quality regressions and ensuring consistency at scale.",
+            "proof": "Fact_04 and fact_05 emphasize the need for measurable execution and QA checks; fact_06 notes proof points including \"Supports outbound leaders with measurable quality controls.\"",
+            "cta_question_suggestion": "Are you available for a 15-minute session to explore how QA checks can protect handoffs during scale?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.8,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hypo_03",
+            "pain": "Opportunity to validate cross-team consistency quickly through a short session rather than longer commitments.",
+            "impact": "Low commitment but potentially high clarity on current gaps; risk of stale insights if not followed by action.",
+            "value": "A 15-minute working session can validate execution consistency and surface actionable next steps using the execution playbook scoring.",
+            "proof": "Fact_11 specifies a 15-minute working session; fact_04 and fact_11 show relevance to execution consistency and the need for a quick validation.",
+            "cta_question_suggestion": "Would a 15-minute working session next week help validate Northline Bio's cross-team consistency with our playbook scoring?",
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "opener_line": "Northline Bio has rolled out a cross-team outbound workflow standard and now needs measurable execution consistency before scaling.",
+        "value_line": "Northline Bio\u2019s team gains reduced variance in outbound quality without sacrificing speed.",
+        "proof_line": "A healthcare outbound team achieved measurable quality controls and improved forecast confidence after implementing a cross-team QA framework and execution playbook scoring.",
+        "cta_line": "Open to a 15-minute working session on execution consistency next week?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Northline Bio: standardized QA to scale outbound without quality loss",
+        "body": "Northline Bio has rolled out a cross-team outbound workflow standard and now needs measurable execution consistency before scaling. Northline Bio\u2019s team gains reduced variance in outbound quality without sacrificing speed. A healthcare outbound team achieved measurable quality controls and improved forecast confidence after implementing a cross-team QA framework and execution playbook scoring. Open to a 15-minute working session on execution consistency next week?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": false,
+        "issues": [],
+        "risk_flags": [],
+        "rewrite_plan": []
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_01",
+          "hook_02",
+          "hook_03"
+        ],
+        "subject": "Northline Bio: standardized QA to scale outbound without quality loss",
+        "body": "Northline Bio has rolled out a cross-team outbound workflow standard and now needs measurable execution consistency before scaling. Northline Bio\u2019s team gains reduced variance in outbound quality without sacrificing speed. A healthcare outbound team achieved measurable quality controls and improved forecast confidence after implementing a cross-team QA framework and execution playbook scoring.\n\nOpen to a 15-minute working session on execution consistency next week?"
+      }
+    }
+  ]
+}

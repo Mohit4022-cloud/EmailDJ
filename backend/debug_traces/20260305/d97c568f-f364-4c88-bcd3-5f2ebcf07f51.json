@@ -1,0 +1,51 @@
+{
+  "trace_id": "d97c568f-f364-4c88-bcd3-5f2ebcf07f51",
+  "app_env": "local",
+  "started_at": 1772695794.78435,
+  "finished_at": 1772695827.391432,
+  "duration_ms": 32607,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 32606,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed"
+      }
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "d0af6695fd8fa5803b5b37cda1c2a926a57097b1c6b788dafb5873c491b8b33d"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "d0af6695fd8fa5803b5b37cda1c2a926a57097b1c6b788dafb5873c491b8b33d"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "trace_id": "672a7fa4-ab23-4ae8-ac47-35a22affc732",
+  "app_env": "local",
+  "started_at": 1772750109.722999,
+  "finished_at": 1772750123.883926,
+  "duration_ms": 14161,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 14160,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "first_raw": "{\"version\":\"1.0\",\"brief_id\":\"MB-001\",\"facts_from_input\":[{\"fact_id\":\"fact_01\",\"source_field\":\"name\",\"text\":\"Alex Quinn\"},{\"fact_id\":\"fact_02\",\"source_field\":\"title\",\"text\":\"VP Sales\"},{\"fact_id\":\"fact_03\",\"source_field\":\"company\",\"text\":\"Plainfield Tech\"},{\"fact_id\":\"fact_id_04\",\"source_field\":\"cta_type\",\"text\":\"question\"},{\"fact_id\":\"fact_05\",\"source_field\":\"cta_final_line\",\"text\":\"Open to a quick chat to see if this is relevant?\"},{\"fact_id\":\"fact_06\",\"source_field\":\"product_summary\",\"text\":\"Outbound QA Toolkit\"},{\"fact_id\":\"fact_07\",\"source_field\":\"do_not_say\",\"text\":\"just wanted to\"},{\"fact_id\":\"fact_08\",\"source_field\":\"do_not_say\",\"text\":\"checking in\"},{\"fact_id\":\"fact_09\",\"source_field\":\"do_not_say\",\"text\":\"touch base\"},{\"fact_id\":\"fact_10\",\"source_field\":\"do_not_say\",\"text\":\"circle back\"},{\"fact_id\":\"fact_11\",\"source_field\":\"do_not_say\",\"text\":\"synergy\"},{\"fact_id\":\"fact_12\",\"source_field\":\"do_not_say\",\"text\":\"leverage\"},{\"fact_id\":\"fact_13\",\"source_field\":\"do_not_say\",\"text\":\"game-changer\"},{\"fact_id\":\"fact_14\",\"source_field\":\"do_not_say\",\"text\":\"revolutionary\"},{\"fact_id\":\"fact_15\",\"source_field\":\"do_not_say\",\"text\":\"I hope this email finds you\"},{\"fact_id\":\"fact_16\",\"source_field\":\"do_not_say\",\"text\":\"I wanted to reach out\"},{\"fact_id\":\"fact_17\",\"source_field\":\"do_not_say\",\"text\":\"just checking in\"},{\"fact_id\":\"fact_18\",\"source_field\":\"prospect_notes\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_19\",\"source_field\":\"research_text\",\"text\":\"No verifiable external research provided.\"},{\"fact_id\":\"fact_20\",\"source_field\":\"differentiators\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_21\",\"source_field\":\"proof_points\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_22\",\"source_field\":\"icp_description\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_23\",\"source_field\":\"industry\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_24\",\"source_field\":\"company_notes\",\"text\":\"None provided.\"}],\"assumptions\":[],\"hooks\":[{\"hook_id\":\"hook_01\",\"hook_type\":\"priority\",\"hook_text\":\"The product is an Outsource QA Toolkit and the VP Sales role signals a focus on pipeline quality and rep performance, which aligns with a need to improve QA processes to accelerate deals.\",\"supported_by_fact_ids\":[\"fact_06\",\"fact_02\",\"fact_01\"],\"risk_flags\":[\"spam_risk\"]},{\"hook_id\":\"hook_02\",\"hook_type\":\"pain\",\"hook_text\":\"As VP Sales at Plainfield Tech, Alex Quinn likely manages forecasting and quota attainment; a faster, more reliable QA process could reduce deal cycle friction.\",\"supported_by_fact_ids\":[\"fact_02\",\"fact_06\",\"fact_01\"],\"risk_flags\":[\"credibility\"]},{\"hook_id\":\"hook_03\",\"hook_type\":\"trigger_event\",\"hook_text\":\"Open to a quick chat to see if this is relevant?\",\"supported_by_fact_ids\":[\"fact_05\",\"fact_01\",\"fact_02\"],\"risk_flags\":[\"personalization\"]}],\"persona_cues\":{\"likely_kpis\":[\"quota attainment\",\"forecast accuracy\",\"sales cycle length\",\"win rate\"],\"likely_initiatives\":[\"QA tooling\",\"quality gates for opportunities\",\"rep onboarding and enablement\"],\"day_to_day\":[\"manage pipeline\",\"review forecast\",\"coach reps\"],\"tools_stack\":[\"CRM\",\"QA/testing tools\"],\"notes\":\"\"},\"do_not_say\":[\"just wanted to\",\"checking in\",\"touch base\",\"circle back\",\"synergy\",\"leverage\",\"game-changer\",\"revolutionary\",\"I hope this email finds you\",\"I wanted to reach out\",\"just checking in\"],\"forbidden_claim_patterns\":[\"saw your recent post\",\"noticed you recently\",\"congrats on [anything not in research_text]\"],\"grounding_policy\":{\"no_new_facts\":true,\"no_ungrounded_personalization\":true,\"allowed_personalization_fact_sources\":[\"name\",\"title\",\"company\",\"cta_type\",\"cta_final_line\",\"prospect_notes\",\"research_text\",\"product_summary\",\"icp_description\",\"differentiators\",\"proof_points\",\"do_not_say\",\"company_notes\"]},\"brief_quality\":{\"fact_count\":23,\"assumption_count\":0,\"hook_count\":3,\"has_research\":false,\"confidence_ceiling\":0.75,\"signal_strength\":\"low\",\"quality_notes\":[\"Sparse input results in low signal strength; facts are heavily grounded but some fields contain placeholder values like None provided.\",\"Grounding policy adhered; no new facts inferred beyond provided facts.\",\"Three hooks grounded to explicit facts.\"]}}",
+        "repair_raw": "{\"version\":\"1.0\",\"brief_id\":\"MB-001\",\"facts_from_input\":[{\"fact_id\":\"fact_01\",\"source_field\":\"name\",\"text\":\"Alex Quinn\"},{\"fact_id\":\"fact_02\",\"source_field\":\"title\",\"text\":\"VP Sales\"},{\"fact_id\":\"fact_03\",\"source_field\":\"company\",\"text\":\"Plainfield Tech\"},{\"fact_id\":\"fact_04\",\"source_field\":\"cta_type\",\"text\":\"question\"},{\"fact_id\":\"fact_05\",\"source_field\":\"cta_final_line\",\"text\":\"Open to a quick chat to see if this is relevant?\"},{\"fact_id\":\"fact_06\",\"source_field\":\"product_summary\",\"text\":\"Outbound QA Toolkit\"},{\"fact_id\":\"fact_07\",\"source_field\":\"do_not_say\",\"text\":\"just wanted to\"},{\"fact_id\":\"fact_08\",\"source_field\":\"do_not_say\",\"text\":\"checking in\"},{\"fact_id\":\"fact_09\",\"source_field\":\"do_not_say\",\"text\":\"touch base\"},{\"fact_id\":\"fact_10\",\"source_field\":\"do_not_say\",\"text\":\"circle back\"},{\"fact_id\":\"fact_11\",\"source_field\":\"do_not_say\",\"text\":\"synergy\"},{\"fact_id\":\"fact_12\",\"source_field\":\"do_not_say\",\"text\":\"leverage\"},{\"fact_id\":\"fact_13\",\"source_field\":\"do_not_say\",\"text\":\"game-changer\"},{\"fact_id\":\"fact_14\",\"source_field\":\"do_not_say\",\"text\":\"revolutionary\"},{\"fact_id\":\"fact_15\",\"source_field\":\"do_not_say\",\"text\":\"I hope this email finds you\"},{\"fact_id\":\"fact_16\",\"source_field\":\"do_not_say\",\"text\":\"I wanted to reach out\"},{\"fact_id\":\"fact_17\",\"source_field\":\"do_not_say\",\"text\":\"just checking in\"},{\"fact_id\":\"fact_18\",\"source_field\":\"prospect_notes\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_19\",\"source_field\":\"research_text\",\"text\":\"No verifiable external research provided.\"},{\"fact_id\":\"fact_20\",\"source_field\":\"differentiators\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_21\",\"source_field\":\"proof_points\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_22\",\"source_field\":\"icp_description\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_23\",\"source_field\":\"industry\",\"text\":\"None provided.\"},{\"fact_id\":\"fact_24\",\"source_field\":\"company_notes\",\"text\":\"None provided.\"}],\"assumptions\":[],\"hooks\":[{\"hook_id\":\"hook_01\",\"hook_type\":\"priority\",\"hook_text\":\"The product is an Outsource QA Toolkit and the VP Sales role signals a focus on pipeline quality and rep performance, which aligns with a need to improve QA processes to accelerate deals.\",\"supported_by_fact_ids\":[\"fact_06\",\"fact_02\",\"fact_01\"],\"risk_flags\":[\"spam_risk\"]},{\"hook_id\":\"hook_02\",\"hook_type\":\"pain\",\"hook_text\":\"As VP Sales at Plainfield Tech, Alex Quinn likely manages forecasting and quota attainment; a faster, more reliable QA process could reduce deal cycle friction.\",\"supported_by_fact_ids\":[\"fact_02\",\"fact_06\",\"fact_01\"],\"risk_flags\":[\"credibility\"]},{\"hook_id\":\"hook_03\",\"hook_type\":\"trigger_event\",\"hook_text\":\"Open to a quick chat to see if this is relevant?\",\"supported_by_fact_ids\":[\"fact_05\",\"fact_01\",\"fact_02\"],\"risk_flags\":[\"personalization\"]}],\"persona_cues\":{\"likely_kpis\":[\"quota attainment\",\"forecast accuracy\",\"sales cycle length\",\"win rate\"],\"likely_initiatives\":[\"QA tooling\",\"quality gates for opportunities\",\"rep onboarding and enablement\"],\"day_to_day\":[\"manage pipeline\",\"review forecast\",\"coach reps\"],\"tools_stack\":[\"CRM\",\"QA/testing tools\"],\"notes\":\"\"},\"do_not_say\":[\"just wanted to\",\"checking in\",\"touch base\",\"circle back\",\"synergy\",\"leverage\",\"game-changer\",\"revolutionary\",\"I hope this email finds you\",\"I wanted to reach out\",\"just checking in\"],\"forbidden_claim_patterns\":[\"saw your recent post\",\"noticed you recently\",\"congrats on [anything not in research_text]\"],\"grounding_policy\":{\"no_new_facts\":true,\"no_ungrounded_personalization\":true,\"allowed_personalization_fact_sources\":[\"name\",\"title\",\"company\",\"cta_type\",\"cta_final_line\",\"prospect_notes\",\"research_text\",\"product_summary\",\"icp_description\",\"differentiators\",\"proof_points\",\"do_not_say\",\"company_notes\"]},\"brief_quality\":{\"fact_count\":24,\"assumption_count\":0,\"hook_count\":3,\"has_research\":false,\"confidence_ceiling\":0.75,\"signal_strength\":\"low\",\"quality_notes\":[\"Sparse input results in low signal strength; facts are heavily grounded but some fields contain placeholder values like None provided.\",\"Grounding policy adhered; no new facts inferred beyond provided facts.\",\"Three hooks grounded to explicit facts.\"]}}",
+        "codes": [
+          "fact_placeholder_text"
+        ],
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_18",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "codes": [
+        "fact_placeholder_text"
+      ],
+      "details": {
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_18",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "0f13032fe3cb20377c5b12b908cf395c1ebc14490f6f59370e9dc9c7a3b6e9ca"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "0f13032fe3cb20377c5b12b908cf395c1ebc14490f6f59370e9dc9c7a3b6e9ca"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

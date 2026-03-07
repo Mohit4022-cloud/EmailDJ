@@ -1,0 +1,51 @@
+{
+  "trace_id": "90e2a758-e8a2-4ebd-8c9c-0b6c28060b1f",
+  "app_env": "local",
+  "started_at": 1772741204.3034,
+  "finished_at": 1772741204.312243,
+  "duration_ms": 9,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 9,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "[Errno 8] nodename nor servname provided, or not known",
+        "first_error": "[Errno 8] nodename nor servname provided, or not known"
+      }
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "acc723dd399d0c316b8ebd8e3ae10a4686e4ea44b4794cf208ebaed2d8b9d201"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "acc723dd399d0c316b8ebd8e3ae10a4686e4ea44b4794cf208ebaed2d8b9d201"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

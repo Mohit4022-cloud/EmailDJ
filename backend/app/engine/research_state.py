@@ -1,0 +1,120 @@
+from __future__ import annotations
+
+import re
+from typing import Literal
+
+
+ResearchState = Literal["no_research", "sparse", "grounded"]
+
+PLACEHOLDER_FACT_TEXTS = {
+    "",
+    "/",
+    "-",
+    "(blank)",
+    "blank",
+    "n/a",
+    "na",
+    "no_research",
+    "null",
+    "nil",
+    "none",
+    "none provided",
+    "none provided.",
+    "not provided",
+    "not available",
+    "unknown",
+}
+_FIELD_LABEL_PLACEHOLDER_RE = re.compile(
+    r"^(name|title|company|industry|prospect_notes|research_text|product_summary|icp_description|differentiators|proof_points|do_not_say|company_notes|cta_type|cta_final_line)\s*:$"
+)
+
+PLACEHOLDER_RESEARCH_TEXTS = {
+    *PLACEHOLDER_FACT_TEXTS,
+    "limited public context.",
+    "limited public context",
+    "no research.",
+    "no research",
+    "no specific research available for this account.",
+    "no specific research available for this account",
+    "no verifiable external research provided.",
+    "no verifiable external research provided",
+    "no verifiable research available.",
+    "no verifiable research available",
+}
+
+
+def normalize_placeholder_text(text: object) -> str:
+    return re.sub(r"\s+", " ", str(text or "").strip().lower())
+
+
+def is_placeholder_fact_text(text: object) -> bool:
+    normalized = normalize_placeholder_text(text)
+    if normalized in PLACEHOLDER_FACT_TEXTS:
+        return True
+    if "placeholder" in normalized and re.search(r"(?:^|[\s_])placeholder$|placeholder$", normalized):
+        return True
+    if normalized and _FIELD_LABEL_PLACEHOLDER_RE.fullmatch(normalized):
+        return True
+    return bool(normalized) and not re.search(r"[a-z0-9]", normalized)
+
+
+def is_semantic_no_research(text: object) -> bool:
+    return normalize_placeholder_text(text) in PLACEHOLDER_RESEARCH_TEXTS
+
+
+def usable_research_text(text: object) -> str:
+    cleaned = str(text or "").strip()
+    return "" if is_semantic_no_research(cleaned) else cleaned
+
+
+def classify_research_state(text: object) -> ResearchState:
+    cleaned = usable_research_text(text)
+    if not cleaned:
+        return "no_research"
+
+    lowered = cleaned.lower()
+    if any(
+        token in lowered
+        for token in (
+            "http://",
+            "https://",
+            "announced",
+            "launched",
+            "hired",
+            "funding",
+            "posted",
+            "published",
+            "rolled out",
+            "expanded",
+            "centralized",
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "2024",
+            "2025",
+            "2026",
+        )
+    ):
+        return "grounded"
+
+    if len(re.findall(r"\b\w+\b", lowered)) >= 12:
+        return "grounded"
+
+    return "sparse"
+
+
+def has_meaningful_research(text: object) -> bool:
+    return classify_research_state(text) != "no_research"
+
+
+def has_grounded_research_signal(text: object) -> bool:
+    return classify_research_state(text) == "grounded"

@@ -1,0 +1,264 @@
+{
+  "trace_id": "4b1cf03c-de1e-4158-bfa1-0b4f34333ddc",
+  "app_env": "local",
+  "started_at": 1772748313.110136,
+  "finished_at": 1772748598.180224,
+  "duration_ms": 285070,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "95b108b2c76e393f18a5ffa3dc6e055eb51064a5d1acfdde8e6e59dfa1381c64"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ANGLE_PICKER failed after repair attempt",
+    "stage": "ANGLE_PICKER"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Renee Patel"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Chief Marketing Officer"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Healmark Systems"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Would it be useful to share a framework for campaign-to-outbound quality continuity?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "product_summary",
+            "text": "Marketing-to-Sales QA"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "icp_description",
+            "text": "CMOs need signal that messaging quality supports pipeline trust."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "differentiators",
+            "text": "- Continuity scoring\n- Message quality observability"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "proof_points",
+            "text": "- Continuity scoring\n- Message quality observability\n- CMOs need signal that messaging quality supports pipeline trust."
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "company_notes",
+            "text": "CMOs need signal that messaging quality supports pipeline trust."
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "research_text",
+            "text": "Healmark Systems is tightening campaign-to-outbound continuity to improve enterprise pipeline confidence."
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Healmark Systems is tightening campaign-to-outbound continuity to improve enterprise pipeline confidence (fact_11).",
+            "supported_by_fact_ids": [
+              "fact_11"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "CMOs need signal that messaging quality supports pipeline trust (fact_07).",
+            "supported_by_fact_ids": [
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "initiative",
+            "hook_text": "Continuity scoring and message quality observability are differentiators the team can leverage (fact_08).",
+            "supported_by_fact_ids": [
+              "fact_08"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "campaign-to-outbound continuity",
+            "pipeline confidence",
+            "message quality observability"
+          ],
+          "likely_initiatives": [
+            "strengthen messaging quality",
+            "implement continuity framework"
+          ],
+          "day_to_day": [
+            "overseeing marketing operations",
+            "aligning marketing to sales signals"
+          ],
+          "tools_stack": [
+            "unknown"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "cta_type",
+            "cta_final_line",
+            "do_not_say",
+            "differentiators",
+            "proof_points",
+            "product_summary",
+            "icp_description",
+            "cuers"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 11,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.6,
+          "signal_strength": "medium",
+          "quality_notes": [
+            "Facts grounded from explicit fields",
+            "Hooks grounded to facts",
+            "No new facts introduced"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hypo_01",
+            "rank": 9,
+            "selected_hook_id": "hook_02",
+            "pain": "CMOs lack a trustworthy signal that messaging quality supports pipeline trust, risking wasted spend on campaigns that underperform downstream.",
+            "impact": "Time spent by marketing leadership aligning messaging quality with pipeline metrics; potential revenue risk from misaligned campaigns; increased cycle time to prove ROI to executives.",
+            "value": "A concrete, observable metric set (continuity scoring + message observability) that demonstrates messaging quality directly correlating to pipeline confidence, enabling faster, more informed budget decisions.",
+            "proof": "fact_07 confirms the need for a signal that messaging quality supports pipeline trust; fact_09 links proof points to continuity scoring and observability; hook_02 explicitly states the pain.",
+            "supporting_fact_ids": [
+              "fact_07",
+              "fact_09"
+            ],
+            "why_now": "Healmark Systems is actively tightening campaign-to-outbound continuity to improve enterprise pipeline confidence (fact_11).",
+            "confidence": 0.86,
+            "risk_flags": [
+              "low_persona_fit"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "hypo_02",
+            "rank": 8,
+            "selected_hook_id": "hook_03",
+            "pain": "Disjointed messaging across channels slows speed-to-income and creates pipeline gaps; lack of continuity scoring delays remediation.",
+            "impact": "Missed or delayed opportunities due to inconsistent messaging; slowed time-to-value for campaigns; potential misallocation of marketing resources.",
+            "value": "A differentiator (continuity scoring + message quality observability) that enables proactive fixes, reducing waste and accelerating revenue signaling.",
+            "proof": "fact_08 identifies continuity scoring and message quality observability as differentiators; fact_11 notes tightening to improve pipeline confidence.",
+            "supporting_fact_ids": [
+              "fact_08",
+              "fact_11"
+            ],
+            "why_now": "The initiative is already underway to tighten continuity (fact_11) and is aligned with a need for signals (fact_07).",
+            "confidence": 0.8,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hypo_03",
+            "rank": 7,
+            "selected_hook_id": "hook_01",
+            "pain": "Leadership priority to demonstrate progress on campaign-to-outbound continuity to stakeholders and board.",
+            "impact": "Executive-level scrutiny and potential pressure to show tangible improvements in pipeline metrics.",
+            "value": "A framework that ties messaging quality to pipeline outcomes, enabling clear progress reporting and justification of investments.",
+            "proof": "fact_11 ties leadership priority to tightening continuity; hook_01 explicitly references this priority.",
+            "supporting_fact_ids": [
+              "fact_11"
+            ],
+            "why_now": "Evergreen priority reinforced by current tightening efforts; no explicit deadline, but current activity makes it relevant now.",
+            "confidence": 0.72,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "",
+        "repair_codes": [
+          "angle_unknown_hook_id"
+        ]
+      }
+    }
+  ]
+}

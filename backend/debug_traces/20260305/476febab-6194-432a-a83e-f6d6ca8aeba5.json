@@ -1,0 +1,147 @@
+{
+  "trace_id": "476febab-6194-432a-a83e-f6d6ca8aeba5",
+  "app_env": "local",
+  "started_at": 1772690862.391885,
+  "finished_at": 1772690886.164453,
+  "duration_ms": 23773,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 11281,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 1750,
+        "completion_tokens": 1282,
+        "total_tokens": 3032,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 5736,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2365,
+        "completion_tokens": 572,
+        "total_tokens": 2937,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 5448,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 3139,
+        "completion_tokens": 719,
+        "total_tokens": 3858,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 1306,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400",
+        "first_error": "Client error '400 Bad Request' for url 'https://api.openai.com/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400"
+      }
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "baae6a75e63decf51a426040710516535e5fabab22f8f7959a976fe907b7f9da",
+    "output:CONTEXT_SYNTHESIS": "695ffceb29ac91ce74a92bc8e0cfb04316c379867ebbbe08d15eb5a2e5a762dd",
+    "output:FIT_REASONING": "28ecc151164b330e4c056fed08e30931aa67dcf277cf9187e89b3c3df1411106",
+    "output:ANGLE_PICKER": "7365ba915ce0d7f35a663c877c41213ba09574c1826d5980b38987dfd4cb1ff6"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.44999999999999996,
+      "framing": 0.45,
+      "length": "short",
+      "stance": 0.6
+    },
+    "cache_hit": false,
+    "brief_cache_key": "baae6a75e63decf51a426040710516535e5fabab22f8f7959a976fe907b7f9da"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "ONE_LINER_COMPRESSOR failed after repair attempt",
+    "stage": "ONE_LINER_COMPRESSOR"
+  }
+}

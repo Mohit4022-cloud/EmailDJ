@@ -1,0 +1,83 @@
+{
+  "trace_id": "ab957593-0b12-4430-8a2c-52d9f0d04804",
+  "app_env": "local",
+  "started_at": 1772748101.453894,
+  "finished_at": 1772748114.159499,
+  "duration_ms": 12706,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 12704,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fact_placeholder_text"
+        ],
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "codes": [
+        "fact_placeholder_text"
+      ],
+      "details": {
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "daae3a0e8f78335fd49b6350431de343d9d6db988f99db94e5913e9f0d7af97f"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "daae3a0e8f78335fd49b6350431de343d9d6db988f99db94e5913e9f0d7af97f"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

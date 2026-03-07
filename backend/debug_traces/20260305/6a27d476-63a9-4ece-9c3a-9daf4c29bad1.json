@@ -1,0 +1,51 @@
+{
+  "trace_id": "6a27d476-63a9-4ece-9c3a-9daf4c29bad1",
+  "app_env": "local",
+  "started_at": 1772672112.602019,
+  "finished_at": 1772672130.804348,
+  "duration_ms": 18202,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 18200,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "schema_validation_failed:version:required_missing; brief_id:required_missing; facts_from_input:required_missing; assumptions:required_missing; hooks:required_missing; persona_cues:required_missing; do_not_say:required_missing; forbidden_claim_patterns:required_missing"
+      }
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "ea5a0f820592a4427a11664417a06d9b4f0b119dcd6df2c420b4817bbf21019d"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.5,
+      "framing": 0.4,
+      "length": "medium",
+      "stance": 0.55
+    },
+    "cache_hit": false,
+    "brief_cache_key": "ea5a0f820592a4427a11664417a06d9b4f0b119dcd6df2c420b4817bbf21019d"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

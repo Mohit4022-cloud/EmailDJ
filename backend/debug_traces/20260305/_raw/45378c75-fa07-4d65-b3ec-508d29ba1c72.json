@@ -1,0 +1,276 @@
+{
+  "trace_id": "45378c75-fa07-4d65-b3ec-508d29ba1c72",
+  "app_env": "local",
+  "started_at": 1772748213.1674979,
+  "finished_at": 1772748229.944184,
+  "duration_ms": 16777,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "570c063e58a2bdf64be7d39926a480335f7839b372e9b08cdd7e354edafbe808"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "FIT_REASONING failed after repair attempt",
+    "stage": "FIT_REASONING"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Hugo Park"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Director, Sales Excellence"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Kelvin Path"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "research_text",
+            "text": "Kelvin Path is improving outbound quality controls this quarter."
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "product_summary",
+            "text": "Sales Excellence QA"
+          },
+          {
+            "fact_id": "fact_id_06",
+            "source_field": "differentiators",
+            "text": "Scoring workflow"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "differentiators",
+            "text": "Process dashboard"
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "differentiators",
+            "text": "QA platform modules"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "proof_points",
+            "text": "Scoring workflow"
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "proof_points",
+            "text": "Process dashboard"
+          },
+          {
+            "fact_id": "fact_11",
+            "source_field": "proof_points",
+            "text": "QA platform modules"
+          },
+          {
+            "fact_id": "fact_12",
+            "source_field": "proof_points",
+            "text": "Proof points should be outcome-oriented, not feature-only."
+          },
+          {
+            "fact_id": "fact_13",
+            "source_field": "company_notes",
+            "text": "Proof points should be outcome-oriented, not feature-only."
+          },
+          {
+            "fact_id": "fact_14",
+            "source_field": "do_not_say",
+            "text": "just wanted to"
+          },
+          {
+            "fact_id": "fact_15",
+            "source_field": "do_not_say",
+            "text": "checking in"
+          },
+          {
+            "fact_id": "fact_16",
+            "source_field": "do_not_say",
+            "text": "touch base"
+          },
+          {
+            "fact_id": "fact_17",
+            "source_field": "do_not_say",
+            "text": "circle back"
+          },
+          {
+            "fact_id": "fact_18",
+            "source_field": "do_not_say",
+            "text": "synergy"
+          },
+          {
+            "fact_id": "fact_19",
+            "source_field": "do_not_say",
+            "text": "leverage"
+          },
+          {
+            "fact_id": "fact_20",
+            "source_field": "do_not_say",
+            "text": "game-changer"
+          },
+          {
+            "fact_id": "fact_21",
+            "source_field": "do_not_say",
+            "text": "revolutionary"
+          },
+          {
+            "fact_id": "fact_22",
+            "source_field": "do_not_say",
+            "text": "I hope this email finds you"
+          },
+          {
+            "fact_id": "fact_23",
+            "source_field": "do_not_say",
+            "text": "I wanted to reach out"
+          },
+          {
+            "fact_id": "fact_24",
+            "source_field": "do_not_say",
+            "text": "just checking in"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Kelvin Path is focusing on outbound quality controls this quarter (research_text).",
+            "supported_by_fact_ids": [
+              "fact_04"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "pain",
+            "hook_text": "Directors of Sales Excellence are likely concerned with proof strategy and QA coverage to improve outcomes (product_summary, proof_points).",
+            "supported_by_fact_ids": [
+              "fact_01",
+              "fact_02",
+              "fact_08",
+              "fact_11",
+              "fact_12"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "initiative",
+            "hook_text": "Leverage scored workflow and process dashboard to show tangible QA improvements (differentiators, proof_points).",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_07",
+              "fact_10",
+              "fact_11"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "outbound quality",
+            "QA coverage",
+            "proof strategy efficacy"
+          ],
+          "likely_initiatives": [
+            "improve outbound quality controls",
+            "enhance proof strategy",
+            "optimize QA workflow"
+          ],
+          "day_to_day": [
+            "reviewing outbound quality measures",
+            "overseeing sales excellence programs",
+            "analyzing workflow efficiency"
+          ],
+          "tools_stack": [
+            "QA platform modules",
+            "process dashboard",
+            "scoring workflow"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "research_text",
+            "product_summary",
+            "differentiators",
+            "proof_points",
+            "do_not_say",
+            "company_notes"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 13,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Grounded in prospect-specific facts",
+            "3 strong hooks derived from explicit facts"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "failed",
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fit_unknown_supporting_fact_id"
+        ]
+      }
+    }
+  ]
+}

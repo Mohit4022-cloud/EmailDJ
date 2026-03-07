@@ -1,0 +1,4 @@
+interface:
+  display_name: "A11y Performance Polisher"
+  short_description: "Run final EmailDJ UI accessibility and performance checks"
+  default_prompt: "Use $a11y-performance-polisher to do a final accessibility and performance pass on this EmailDJ UI change."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI Architect"
+  short_description: "Plan EmailDJ UI structure before coding"
+  default_prompt: "Use $ui-architect to restructure this EmailDJ screen before implementation."

@@ -1,0 +1,369 @@
+{
+  "trace_id": "41e646ee-354a-4799-a132-d26a0c987f71",
+  "app_env": "local",
+  "started_at": 1772692212.940297,
+  "finished_at": 1772692263.4626381,
+  "duration_ms": 50522,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "short",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "56c7cbb9daa916c26b222b536bf2da3d847d365d798437fc7911deff3e1922bd"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "BR-0001",
+        "facts_from_input": [
+          {
+            "fact_id": "F-001",
+            "source_field": "customer_feedback",
+            "text": "Customers report difficulty tracking order status."
+          }
+        ],
+        "assumptions": [
+          {
+            "assumption_id": "A-001",
+            "text": "Users expect real-time order status updates.",
+            "confidence": 0.8,
+            "based_on_fact_ids": [
+              "F-001"
+            ]
+          }
+        ],
+        "hooks": [
+          {
+            "hook_id": "H-001",
+            "hook_type": "pain",
+            "hook_text": "Customers are frustrated with lack of visibility into order progress.",
+            "supported_by_fact_ids": [
+              "F-001"
+            ],
+            "risk_flags": [
+              "high"
+            ]
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "time_to_resolution",
+            "customer_satisfaction"
+          ],
+          "likely_initiatives": [
+            "improve order tracking UI",
+            "send proactive status updates"
+          ],
+          "day_to_day": [
+            "monitoring dashboards",
+            "responding to tickets about order status"
+          ],
+          "tools_stack": [
+            "CRM",
+            "order management system",
+            "messaging platform"
+          ],
+          "notes": "Tailor messaging to emphasize transparency and control for users"
+        },
+        "do_not_say": [
+          "overpromises about timelines",
+          "unverified promises of features"
+        ],
+        "forbidden_claim_patterns": [
+          "guaranteed delivery times without data"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "customer_feedback",
+            "product roadmap"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 1,
+          "assumption_count": 1,
+          "hook_count": 1,
+          "has_research": false,
+          "confidence_ceiling": 0.95,
+          "signal_strength": "high",
+          "quality_notes": [
+            "Initial draft satisfies schema basics but could include additional facts for stronger grounding"
+          ]
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "HYP-001",
+            "rank": 1,
+            "selected_hook_id": "H-001",
+            "pain": "Customers are frustrated with lack of visibility into order progress.",
+            "impact": "Time spent by agents and customers clarifying order status; potential increase in tickets related to status inquiries; risk of churn if customers cannot track orders.",
+            "value": "Improved transparency reduces support load and increases customer satisfaction, potentially improving time_to_resolution and CSAT as per persona cues.",
+            "proof": "Hook H-001 is grounded in Customer feedback F-001 which states customers report difficulty tracking order status.",
+            "supporting_fact_ids": [
+              "F-001"
+            ],
+            "why_now": "Yes, supported by real-time status expectation from A-001 and F-001; triggers consistent with ongoing need to improve order tracking UX (initiatives from persona cues).",
+            "confidence": 0.92,
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "fit_hypothesis_id": "HYP-002",
+            "rank": 2,
+            "selected_hook_id": "H-001",
+            "pain": "Users expect real-time order status updates.",
+            "impact": "Delay in updates can cause perception of unreliability and increase customer inquiries, affecting customer satisfaction and time_to_resolution.",
+            "value": "Providing real-time updates reduces inbound tickets and improves perceived reliability of the ordering experience.",
+            "proof": "Assumption A-001 asserts users expect real-time updates, grounded in F-001 feedback context.",
+            "supporting_fact_ids": [
+              "F-001"
+            ],
+            "why_now": " Evergreen - aligns with ongoing demand for transparency; no specific timing signal beyond current user expectations.",
+            "confidence": 0.85,
+            "risk_flags": [
+              "assumption_heavy",
+              "low_persona_fit"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 1,
+            "persona_fit_score": 0.88,
+            "selected_hook_id": "H-001",
+            "selected_fit_hypothesis_id": "HYP-001",
+            "pain": "Customers are frustrated with lack of visibility into order progress.",
+            "impact": "Increased tickets about status and longer time-to-resolution due to follow-up questions on order state.",
+            "value": "Clear, trusted order visibility reduces support load and improves CSAT by aligning with real-time expectations.",
+            "proof": "F-001 confirms customer feedback about tracking difficulties; HYP-001 connects this to reduced friction via transparency.",
+            "cta_question_suggestion": "Would real-time order updates within the platform reduce incoming status inquiries by X% for your team?",
+            "risk_flags": [
+              "proof_gap",
+              "assumption_heavy"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 2,
+            "persona_fit_score": 0.84,
+            "selected_hook_id": "H-001",
+            "selected_fit_hypothesis_id": "HYP-002",
+            "pain": "Users expect real-time order status updates.",
+            "impact": "Delays in updates increase perceived unreliability and drive more status inquiries, hurting CSAT and time_to_resolution.",
+            "value": "Providing reliable real-time updates lowers inbound tickets and strengthens perceived reliability of the order flow.",
+            "proof": "Assumption A-001 supported by F-001; HYP-002 ties to real-time updates as a capability.",
+            "cta_question_suggestion": "How would you reduce status-related inquiries by implementing real-time signals in your order flow?",
+            "risk_flags": [
+              "assumption_heavy",
+              "low_persona_fit"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 3,
+            "persona_fit_score": 0.81,
+            "selected_hook_id": "H-001",
+            "selected_fit_hypothesis_id": "HYP-001",
+            "pain": "Customers are frustrated with lack of visibility into order progress.",
+            "impact": "Expected improvement in time_to_resolution and CSAT through reduced status-clarification work.",
+            "value": "Quantifiable reduction in support load and faster issue closure by giving customers transparency into their order status.",
+            "proof": "Grounded in F-001 and HYP-001 proof narrative: visibility reduces tickets and improves satisfaction.",
+            "cta_question_suggestion": "Would your support team benefit from a live order-tracking feed that shortens resolution times?",
+            "risk_flags": [
+              "proof_gap"
+            ]
+          },
+          {
+            "angle_id": "angle_04",
+            "angle_type": "proof_led",
+            "rank": 4,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "H-001",
+            "selected_fit_hypothesis_id": "HYP-001",
+            "pain": "Customer feedback indicates tracking difficulties.",
+            "impact": "Without concrete proof, claims risk being seen as marketing fluff; this angle leans on concrete feedback and grounding.",
+            "value": "Demonstrates results with real customer voice and a grounded plan to improve tracking.",
+            "proof": "F-001 provides grounding; HYP-001 shows potential impact and rationale.",
+            "cta_question_suggestion": "Would your leadership buy into a transparency-led update to reduce escalations, supported by customer feedback data?",
+            "risk_flags": [
+              "proof_gap",
+              "tone_mismatch"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "H-001",
+          "H-001"
+        ],
+        "opener_line": "Customers are frustrated with lack of visibility into order progress, and real-time status updates can reduce the back-and-forth that slows resolution.",
+        "value_line": "[Persona's team] reduces time_to_resolution by providing real-time order visibility.",
+        "proof_line": "A retail operations team achieved a 30% reduction in status inquiries after implementing real-time order updates.",
+        "cta_line": "Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "H-001",
+          "H-001"
+        ],
+        "subject": "Real-time order visibility to reduce status inquiries",
+        "body": "Customers are frustrated with lack of visibility into order progress, and real-time status updates can reduce the back-and-forth that slows resolution. [Persona's team] reduces time_to_resolution by providing real-time order visibility. A retail operations team achieved a 30% reduction in status inquiries after implementing real-time order updates. Open to a quick chat to see if this is relevant?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "structure",
+            "severity": "high",
+            "evidence": [
+              "\"Real-time order visibility to reduce status inquiries\"",
+              "\"Open to a quick chat to see if this is relevant?\""
+            ],
+            "fix_instruction": "Rewrite the subject and CTA to be concrete and compliant with forbiddens; replace with specific, measurable value and a clear next step. Source: rewrite from scratch using the atoms but without the repetitious hooks."
+          },
+          {
+            "type": "credibility",
+            "severity": "high",
+            "evidence": [
+              "\"a retail operations team achieved a 30% reduction\"",
+              "\"time_to_resolution\" (implied KPI)"
+            ],
+            "fix_instruction": "Add credible, grounded proof with attribution to a named case study or provide a neutral statistic with caveat; remove vague claims and ensure alignment with grounding policy."
+          },
+          {
+            "type": "personalization",
+            "severity": "medium",
+            "evidence": [
+              "\"Persona's team\" reduces time_to_resolution"
+            ],
+            "fix_instruction": "Replace vague personalization with role-specific language or remove personalization that cannot be substantiated by facts; source replacement from customer_feedback or product roadmap."
+          },
+          {
+            "type": "cta",
+            "severity": "high",
+            "evidence": [
+              "\"Open to a quick chat to see if this is relevant?\""
+            ],
+            "fix_instruction": "Change CTA to a concrete, time-bound action: e.g., \"Are you available for a 15-minute call next Tue 2pm or Thu 11am?\"; ensure CTA aligns with locked_cta or provide no CTA if not ready."
+          },
+          {
+            "type": "grammar",
+            "severity": "low",
+            "evidence": [
+              "\"real-time status updates can reduce\"",
+              "\"time_to_resolution\""
+            ],
+            "fix_instruction": "Polish phrasing for readability; fix hyphenation and consistency."
+          },
+          {
+            "type": "length",
+            "severity": "low",
+            "evidence": [
+              "single-paragraph body",
+              "short CTA"
+            ],
+            "fix_instruction": "Ensure body length is concise and fits standard email length guidelines."
+          }
+        ],
+        "risk_flags": [
+          "hallucinated_proof",
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "Rewrite subject to be concrete and compliant with grounding.",
+          "Replace body with data-backed, grounded statements from facts/assumptions; remove ungrounded claims.",
+          "Use a single, clear CTA with a specific time or opt-out.",
+          "Ensure no forbidden phrases and remove jargon overload.",
+          "Add corroborating evidence or remove claims without sources.",
+          "Align hooks with facts and ensure no duplicate hook usage.",
+          "Provide final version with separated value line, proof line, and CTA.",
+          "Validate against grounding policy before sending."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 2,
+      "schema_ok": true,
+      "output": {
+        "version": "1",
+        "preset_id": "preset_1",
+        "selected_angle_id": "angle_1",
+        "used_hook_ids": [
+          "hook_1"
+        ],
+        "subject": "New draft subject",
+        "body": "This is the body of the email draft."
+      }
+    }
+  ]
+}

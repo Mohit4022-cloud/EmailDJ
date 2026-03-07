@@ -1,0 +1,83 @@
+{
+  "trace_id": "772625ec-e4c4-4389-a021-23f62f010a9b",
+  "app_env": "local",
+  "started_at": 1772748273.100678,
+  "finished_at": 1772748286.4767082,
+  "duration_ms": 13376,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 13371,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fact_placeholder_text"
+        ],
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "codes": [
+        "fact_placeholder_text"
+      ],
+      "details": {
+        "rejected_facts": [
+          {
+            "code": "fact_placeholder_text",
+            "rejected_fact": {
+              "fact_id": "fact_04",
+              "source_field": "prospect_notes",
+              "text_preview": "None provided."
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "a4fc30b41ea2455b2c12c96c0a91ca7cba695f4cf3376a14afd10ac9eccbc6c8"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "a4fc30b41ea2455b2c12c96c0a91ca7cba695f4cf3376a14afd10ac9eccbc6c8"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "CONTEXT_SYNTHESIS failed after repair attempt",
+    "stage": "CONTEXT_SYNTHESIS"
+  }
+}

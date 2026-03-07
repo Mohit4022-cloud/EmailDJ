@@ -1,0 +1,96 @@
+{
+  "trace_id": "45378c75-fa07-4d65-b3ec-508d29ba1c72",
+  "app_env": "local",
+  "started_at": 1772748213.1674979,
+  "finished_at": 1772748229.944184,
+  "duration_ms": 16777,
+  "stage_stats": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 6949,
+      "schema_ok": true,
+      "attempt_count": 1,
+      "usage": {
+        "prompt_tokens": 2136,
+        "completion_tokens": 1001,
+        "total_tokens": 3137,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "audio_tokens": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "audio_tokens": 0,
+          "accepted_prediction_tokens": 0,
+          "rejected_prediction_tokens": 0
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "started",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "schema_ok": false,
+      "attempt_count": 0
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 9826,
+      "error_code": "STAGE_JSON_OR_VALIDATION_FAILED",
+      "details": {
+        "error": "validation_failed",
+        "first_error": "validation_failed",
+        "codes": [
+          "fit_unknown_supporting_fact_id"
+        ]
+      }
+    }
+  ],
+  "validation_errors": [
+    {
+      "stage": "FIT_REASONING",
+      "codes": [
+        "fit_unknown_supporting_fact_id"
+      ],
+      "details": {
+        "rejected_facts": []
+      }
+    }
+  ],
+  "postprocess_steps": [],
+  "hashes": {
+    "request:normalized": "570c063e58a2bdf64be7d39926a480335f7839b372e9b08cdd7e354edafbe808",
+    "output:CONTEXT_SYNTHESIS": "192ead4d924f0da88fb41a1bc2d0d781dc3747f1386984560af4408770a27cb1"
+  },
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "570c063e58a2bdf64be7d39926a480335f7839b372e9b08cdd7e354edafbe808"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "STAGE_JSON_OR_VALIDATION_FAILED",
+    "message": "FIT_REASONING failed after repair attempt",
+    "stage": "FIT_REASONING"
+  }
+}

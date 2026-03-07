@@ -1,0 +1,454 @@
+{
+  "trace_id": "52b3614e-93cf-4e6d-8e00-1b0258a2aaca",
+  "app_env": "local",
+  "started_at": 1772748678.3580549,
+  "finished_at": 1772748720.452472,
+  "duration_ms": 42094,
+  "meta": {
+    "mode": "single",
+    "preset_id": "direct",
+    "sliders": {
+      "tone": 0.55,
+      "framing": 0.45,
+      "length": "medium",
+      "stance": 0.4
+    },
+    "cache_hit": false,
+    "brief_cache_key": "0c0f521342db855ee56c1bfa2b9015a7a56b77af783507eb7fa3ab7f0de1c282"
+  },
+  "outcome": {
+    "ok": false,
+    "code": "VALIDATION_FAILED",
+    "message": "Final validation failed",
+    "stage": "VALIDATION"
+  },
+  "stage_payloads": [
+    {
+      "stage": "CONTEXT_SYNTHESIS",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "brief_id": "MB-001-LatticeHarbor",
+        "facts_from_input": [
+          {
+            "fact_id": "fact_01",
+            "source_field": "name",
+            "text": "Gabe Ellis"
+          },
+          {
+            "fact_id": "fact_02",
+            "source_field": "title",
+            "text": "Head of Sales Enablement"
+          },
+          {
+            "fact_id": "fact_03",
+            "source_field": "company",
+            "text": "Lattice Harbor"
+          },
+          {
+            "fact_id": "fact_04",
+            "source_field": "cta_type",
+            "text": "question"
+          },
+          {
+            "fact_id": "fact_05",
+            "source_field": "cta_final_line",
+            "text": "Open to comparing enablement-focused outbound QA guardrails?"
+          },
+          {
+            "fact_id": "fact_06",
+            "source_field": "differentiators",
+            "text": "- Message atom constraints\n- Enablement-safe draft checks"
+          },
+          {
+            "fact_id": "fact_07",
+            "source_field": "proof_points",
+            "text": "- Message atom constraints\n- Enablement-safe draft checks\n- EmailDJ translates sparse context into constrained atoms before drafting."
+          },
+          {
+            "fact_id": "fact_08",
+            "source_field": "product_summary",
+            "text": "EmailDJ"
+          },
+          {
+            "fact_id": "fact_09",
+            "source_field": "research_text",
+            "text": "Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts."
+          },
+          {
+            "fact_id": "fact_10",
+            "source_field": "do_not_say",
+            "text": "- just wanted to\n- checking in\n- touch base\n- circle back\n- synergy\n- leverage\n- game-changer\n- revolutionary\n- I hope this email finds you\n- I wanted to reach out\n- just checking in"
+          }
+        ],
+        "assumptions": [],
+        "hooks": [
+          {
+            "hook_id": "hook_01",
+            "hook_type": "priority",
+            "hook_text": "Gabe Ellis leads Sales Enablement at Lattice Harbor and is focused on reducing outbound inconsistency for new-hire cohorts.",
+            "supported_by_fact_ids": [
+              "fact_02",
+              "fact_09"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_02",
+            "hook_type": "tooling",
+            "hook_text": "EmailDJ enables enablement-safe draft checks and message atom constraints, aligning with enablement needs.",
+            "supported_by_fact_ids": [
+              "fact_06",
+              "fact_07"
+            ],
+            "risk_flags": []
+          },
+          {
+            "hook_id": "hook_03",
+            "hook_type": "trigger_event",
+            "hook_text": "Open to comparing enablement-focused outbound QA guardrails? aligns with a decision point on guardrails.",
+            "supported_by_fact_ids": [
+              "fact_04",
+              "fact_05"
+            ],
+            "risk_flags": []
+          }
+        ],
+        "persona_cues": {
+          "likely_kpis": [
+            "outbound consistency",
+            "new-hire ramp effectiveness",
+            "enablement impact"
+          ],
+          "likely_initiatives": [
+            "standardize outbound QA",
+            "reduce drafting variability",
+            "scaling enablement processes"
+          ],
+          "day_to_day": [
+            "coaching, playbook enforcement, QA checks"
+          ],
+          "tools_stack": [
+            "CRM",
+            "enablement tooling",
+            "communication drafting aids"
+          ],
+          "notes": ""
+        },
+        "do_not_say": [
+          "just wanted to",
+          "checking in",
+          "touch base",
+          "circle back",
+          "synergy",
+          "leverage",
+          "game-changer",
+          "revolutionary",
+          "I hope this email finds you",
+          "I wanted to reach out",
+          "just checking in"
+        ],
+        "forbidden_claim_patterns": [
+          "saw your recent post",
+          "noticed you recently",
+          "congrats on [anything not in research_text]"
+        ],
+        "grounding_policy": {
+          "no_new_facts": true,
+          "no_ungrounded_personalization": true,
+          "allowed_personalization_fact_sources": [
+            "name",
+            "title",
+            "company",
+            "cta_type",
+            "cta_final_line",
+            "differentiators",
+            "proof_points",
+            "product_summary",
+            "research_text",
+            "do_not_say",
+            "company_notes"
+          ]
+        },
+        "brief_quality": {
+          "fact_count": 10,
+          "assumption_count": 0,
+          "hook_count": 3,
+          "has_research": true,
+          "confidence_ceiling": 0.75,
+          "signal_strength": "high",
+          "quality_notes": []
+        }
+      }
+    },
+    {
+      "stage": "FIT_REASONING",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "hypotheses": [
+          {
+            "fit_hypothesis_id": "hyp_01",
+            "rank": 9,
+            "selected_hook_id": "hook_02",
+            "pain": "Gabe Ellis is focused on reducing outbound inconsistency for new-hire cohorts, implying current drafting variability and lack of guardrails across outbound content.",
+            "impact": "Excess drafting variability leads to increased time spent coaching and reviewing emails, reducing ramp efficiency for new-hire cohorts and risking inconsistent messaging across reps.",
+            "value": "A scalable, enablement-safe drafting process with atom constraints reduces coaching time and accelerates consistent outbound quality across new-hire cohorts.",
+            "proof": "fact_09 (research_text) states Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts; fact_06 and fact_07 show EmailDJ provides enablement-safe draft checks and message atom constraints.",
+            "supporting_fact_ids": [
+              "fact_09",
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "Evergreen framing: there is a standing objective to standardize outbound QA and reduce drafting variability; no explicit timing event in brief.",
+            "confidence": 0.88,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_02",
+            "rank": 8,
+            "selected_hook_id": "hook_01",
+            "pain": "Enablement leadership is measured by outbound consistency and ramp effectiveness**, suggesting current tooling may not fully support scalable guardrails.",
+            "impact": "Without robust guardrails, onboarding and ongoing coaching take longer, delaying time-to-value for new-hire productivity and increasing variance in outcomes.",
+            "value": "EmailDJ translates sparse context into constrained atoms before drafting, enabling consistent and faster outbound drafts at scale.",
+            "proof": "fact_02 (title) confirms Gabe is Head of Sales Enablement; fact_09 confirms focus on outbound consistency; fact_07 mentions EmailDJ translates sparse context into constrained atoms.",
+            "supporting_fact_ids": [
+              "fact_02",
+              "fact_09",
+              "fact_07"
+            ],
+            "why_now": "Evergreen framing: ongoing enablement optimization is a continuous priority; no discrete trigger in brief.",
+            "confidence": 0.78,
+            "risk_flags": []
+          },
+          {
+            "fit_hypothesis_id": "hyp_03",
+            "rank": 7,
+            "selected_hook_id": "hook_03",
+            "pain": "There is a decision point on guardrails for enablement-focused outbound QA, suggesting a window to compare guardrail tooling.",
+            "impact": "Clarifies buy-in and accelerates procurement if guardrails tooling proves value, reducing time-to-implement for standardized outbound QA.",
+            "value": "EmailDJ aligns with guardrail needs (enablement-safe draft checks, constraints) and can be a decision-point enabler.",
+            "proof": "fact_04 (cta_type) is question; fact_05 (cta_final_line) references openness to comparing enablement-focused outbound QA guardrails; fact_06 and fact_07 describe capabilities aligned with guardrails.",
+            "supporting_fact_ids": [
+              "fact_04",
+              "fact_05",
+              "fact_06",
+              "fact_07"
+            ],
+            "why_now": "Trigger_event framing shows a decision point on guardrails; however, the brief does not specify a concrete date, so evergreen framing with explicit decision-point potential.",
+            "confidence": 0.72,
+            "risk_flags": []
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ANGLE_PICKER",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "angles": [
+          {
+            "angle_id": "angle_01",
+            "angle_type": "why_you_why_now",
+            "rank": 9,
+            "persona_fit_score": 0.85,
+            "selected_hook_id": "hook_02",
+            "selected_fit_hypothesis_id": "hyp_01",
+            "pain": "Gabe Ellis is focused on reducing outbound inconsistency for new-hire cohorts, implying current drafting variability and lack of guardrails across outbound content.",
+            "impact": "Excess drafting variability leads to increased time spent coaching and reviewing emails, reducing ramp efficiency for new-hire cohorts and risking inconsistent messaging across reps.",
+            "value": "A scalable, enablement-safe drafting process with atom constraints reduces coaching time and accelerates consistent outbound quality across new-hire cohorts.",
+            "proof": "fact_09 (research_text) states Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts; fact_06 and fact_07 show EmailDJ provides enablement-safe draft checks and message atom constraints.",
+            "cta_question_suggestion": "Would you be open to a quick 15-min discussion on how enablement-safe draft checks could reduce coaching time for your new-hire cohorts?",
+            "risk_flags": [
+              "risk_acting_on_undefined_timing"
+            ]
+          },
+          {
+            "angle_id": "angle_02",
+            "angle_type": "problem_led",
+            "rank": 8,
+            "persona_fit_score": 0.82,
+            "selected_hook_id": "hook_01",
+            "selected_fit_hypothesis_id": "hyp_02",
+            "pain": "Enablement leadership is measured by outbound consistency and ramp effectiveness**, suggesting current tooling may not fully support scalable guardrails.",
+            "impact": "Without robust guardrails, onboarding and ongoing coaching take longer, delaying time-to-value for new-hire productivity and increasing variance in outcomes.",
+            "value": "EmailDJ translates sparse context into constrained atoms before drafting, enabling consistent and faster outbound drafts at scale.",
+            "proof": "fact_02 (title) confirms Gabe is Head of Sales Enablement; fact_09 confirms focus on outbound consistency; fact_07 mentions EmailDJ translates sparse context into constrained atoms.",
+            "cta_question_suggestion": "If governance needs a check, would a 20-minute proof-of-concept call on enablement-safe drafts fit your calendar?",
+            "risk_flags": [
+              "risk_risks_of_over_promising"
+            ]
+          },
+          {
+            "angle_id": "angle_03",
+            "angle_type": "outcome_led",
+            "rank": 7,
+            "persona_fit_score": 0.78,
+            "selected_hook_id": "hook_03",
+            "selected_fit_hypothesis_id": "hyp_03",
+            "pain": "There is a decision point on guardrails for enablement-focused outbound QA, suggesting a window to compare guardrail tooling.",
+            "impact": "Clarifies buy-in and accelerates procurement if guardrails tooling proves value, reducing time-to-implement for standardized outbound QA.",
+            "value": "EmailDJ aligns with guardrail needs (enablement-safe draft checks, constraints) and can be a decision-point enabler.",
+            "proof": "fact_04 (cta_type) is question; fact_05 (cta_final_line) references openness to comparing enablement-focused outbound QA guardrails; fact_06 and fact_07 describe capabilities aligned with guardrails.",
+            "cta_question_suggestion": "Would you entertain a side-by-side guardrails comparison call to validate fit for Lattice Harbor?",
+            "risk_flags": [
+              "risk_delayed_decision_making"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "stage": "ONE_LINER_COMPRESSOR",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_03",
+          "hook_01"
+        ],
+        "opener_line": "Gabe Ellis leads Sales Enablement at Lattice Harbor and is focused on reducing outbound inconsistency for new-hire cohorts.",
+        "value_line": "Lattice Harbor gains enablement-safe drafting at scale without added coaching time.",
+        "proof_line": "a broader sales enablement team achieved faster email drafting cycles after implementing enablement-safe draft checks and constrained-atom drafting.",
+        "cta_line": "Open to comparing enablement-focused outbound QA guardrails?"
+      }
+    },
+    {
+      "stage": "EMAIL_GENERATION",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_03",
+          "hook_01"
+        ],
+        "subject": "Enablement-safe drafting at scale for new-hire cohorts",
+        "body": "Gabe Ellis leads Sales Enablement at Lattice Harbor and is focused on reducing outbound inconsistency for new-hire cohorts. Lattice Harbor gains enablement-safe drafting at scale without added coaching time. a broader sales enablement team achieved faster email drafting cycles after implementing enablement-safe draft checks and constrained-atom drafting. Open to comparing enablement-focused outbound QA guardrails?"
+      }
+    },
+    {
+      "stage": "EMAIL_QA",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "pass_rewrite_needed": true,
+        "issues": [
+          {
+            "type": "tone",
+            "severity": "low",
+            "evidence": [
+              "\"enablement-safe drafting at scale\"",
+              "\"Open to comparing enablement-focused outbound QA guardrails?\""
+            ],
+            "fix_instruction": "Replace pompous phrasing with concise, concrete benefit: \"Scale drafting with guardrails for new-hire emails\"; use replacement source from fact statements showing scale and guardrails."
+          },
+          {
+            "type": "structure",
+            "severity": "medium",
+            "evidence": [
+              "\"Gabe Ellis leads Sales Enablement at Lattice Harbor and is focused on reducing outbound inconsistency\"",
+              "\"Lattice Harbor gains enablement-safe drafting at scale without added coaching time\""
+            ],
+            "fix_instruction": "Split dense paragraph into two sentences: 1) establish role and objective; 2) state measurable outcome; cite fact IDs  f02 and f09."
+          },
+          {
+            "type": "credibility",
+            "severity": "high",
+            "evidence": [
+              "\"Gabe Ellis leads Sales Enablement at Lattice Harbor\"",
+              "\"Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts\""
+            ],
+            "fix_instruction": "Avoid ungrounded claim; verify with source facts and rephrase to avoid assuming current leadership role; replace with \"Gabe Ellis is Head of Sales Enablement at Lattice Harbor\" drawn from fact_02."
+          },
+          {
+            "type": "specificity",
+            "severity": "medium",
+            "evidence": [
+              "\"enablement-safe drafting at scale\"",
+              "\"constrained-atom drafting\""
+            ],
+            "fix_instruction": "Add concrete metrics or examples (e.g., draft cycle time reduced by X%); source from fact_points; incorporate specific metric placeholders."
+          },
+          {
+            "type": "cta",
+            "severity": "high",
+            "evidence": [
+              "\"Open to comparing enablement-focused outbound QA guardrails?\""
+            ],
+            "fix_instruction": "Clarify CTA with a concrete next step and owner: \"Would you be open to a 15-min call next week to review guardrails?\"; source: fact_05."
+          },
+          {
+            "type": "length",
+            "severity": "low",
+            "evidence": [
+              "Body contains multiple sentences and bullets?"
+            ],
+            "fix_instruction": "Trim redundant phrases; keep under 120-150 words; ensure CTA is last line."
+          },
+          {
+            "type": "personalization",
+            "severity": "medium",
+            "evidence": [
+              "\"Gabe Ellis leads Sales Enablement\"",
+              "\"Lattice Harbor\"\""
+            ],
+            "fix_instruction": "Limit personalization to verified facts; remove general claims like broad statements; cite facts 02,03."
+          }
+        ],
+        "risk_flags": [
+          "hallucinated_proof",
+          "ungrounded_personalization",
+          "cta_mismatch",
+          "deep_structural_failure",
+          "clean"
+        ],
+        "rewrite_plan": [
+          "1. Validate factual anchors against provided facts; replace with accurate identifiers.",
+          "2. Shorten email body; split into role, outcome, and CTA.",
+          "3. Reword for credibility: remove unverified claims about leadership scope.",
+          "4. Add concrete metrics or placeholders for success measures.",
+          "5. Fix CTA to a specific next step with time commitment.",
+          "6. Ensure no banned phrases remain and remove do-not-say list terms.",
+          "7. Ensure tone avoids jargon-stacking; reduce abstract nouns.",
+          "8. Confirm no new facts introduced beyond allowed sources."
+        ]
+      }
+    },
+    {
+      "stage": "EMAIL_REWRITE",
+      "status": "complete",
+      "attempt_count": 1,
+      "schema_ok": true,
+      "output": {
+        "version": "1.0",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": [
+          "hook_02",
+          "hook_03",
+          "hook_01"
+        ],
+        "subject": "Enablement-safe drafting at scale for new-hire cohorts",
+        "body": "Gabe Ellis is Head of Sales Enablement at Lattice Harbor and leads efforts to reduce outbound inconsistency for new-hire cohorts. Lattice Harbor gains enablement-safe drafting at scale with guardrails, without adding coaching time. A broader sales enablement team achieved faster email drafting cycles after implementing enablement-safe draft checks and constrained-atom drafting.\n\nWould you be open to a 15-minute call next week to review guardrails?"
+      }
+    }
+  ]
+}
