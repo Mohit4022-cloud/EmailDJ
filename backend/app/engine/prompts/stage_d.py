@@ -19,10 +19,12 @@ def build_messages(
     message_atoms: dict[str, Any] | None = None,
     cta_final_line: str | None = None,
     preset_contract: dict[str, Any] | None = None,
+    budget_plan: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     locked_cta = _infer_cta(email_draft, cta_final_line)
     atoms = dict(message_atoms or {})
     contract = dict(preset_contract or {})
+    plan = dict(budget_plan or {})
 
     system = (
         "You are a tough SDR QA reviewer. Your job is not to rewrite the email; "
@@ -39,6 +41,8 @@ def build_messages(
         "If rewrite is needed, provide ordered, concrete, independently executable steps.\\n\\n"
         "RULE 6 - PRESET CONTRACT IS ACTIVE.\\n"
         "Evaluate the draft against the preset contract, not generic email taste.\\n\\n"
+        "RULE 7 - BUDGET PLAN IS ACTIVE.\\n"
+        "Determine whether the plan itself was unrealistic or whether generation drifted from it.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match QAReport schema exactly."
     )
 
@@ -47,6 +51,7 @@ def build_messages(
         "messaging_brief": messaging_brief,
         "message_atoms": atoms,
         "preset_contract": contract,
+        "budget_plan": plan,
         "locked_cta": locked_cta,
         "global_banned_phrases": [
             "touch base",
@@ -73,12 +78,15 @@ def build_messages(
         "3) pass_rewrite_needed=true if any high-severity issue exists.\\n"
         "4) rewrite_plan: if rewrite needed, ordered action list (max 8 actions); else single no-rewrite entry.\\n"
         "5) risk_flags: include hallucinated_proof / ungrounded_personalization / cta_mismatch / deep_structural_failure / clean where applicable.\\n"
-        "6) Jargon-stacking check: if any sentence contains three or more abstract corporate nouns in sequence "
+        "6) State whether budget failure came from bad planning or generation drift whenever word count or sentence count is at issue.\\n"
+        "7) Use budget_plan.target_total_words and budget_plan.target_sentence_count when judging plan-following, "
+        "while preset_contract remains the hard outer contract.\\n"
+        "8) Jargon-stacking check: if any sentence contains three or more abstract corporate nouns in sequence "
         "(hygiene, pipeline, cadence, process, alignment, SLA, methodology, framework), flag as tone severity high.\\n"
-        "7) Use these preset-specific issue types when they apply: "
+        "9) Use these preset-specific issue types when they apply: "
         "word_count_out_of_band, opener_too_soft_for_preset, proof_density_too_low, "
         "too_many_sentences_for_preset, tone_mismatch_for_preset, cta_not_in_expected_form.\\n"
-        "8) Self-audit: every issue has quoted evidence + actionable fix instruction.\\n\\n"
+        "10) Self-audit: every issue has quoted evidence + actionable fix instruction.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete QAReport JSON only."
     )

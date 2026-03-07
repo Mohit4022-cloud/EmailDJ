@@ -33,15 +33,44 @@ def _angle_set() -> dict:
 
 
 def _atoms(*, proof_gap: bool) -> dict:
+    proof_atom = "" if proof_gap else "A fintech team lifted meetings after sequence QA."
     return {
         "version": "1",
+        "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
-        "opener_line": "Nimbus expanded RevOps ownership in January 2026.",
-        "value_line": "RevOps teams cut forecasting variance in one quarter.",
-        "proof_line": "" if proof_gap else "A fintech team lifted meetings after sequence QA.",
-        "proof_gap": proof_gap,
-        "cta_line": "Open to a quick chat to see if this is relevant?",
+        "opener_atom": "Nimbus expanded RevOps ownership in January 2026.",
+        "value_atom": "RevOps teams cut forecasting variance in one quarter.",
+        "proof_atom": proof_atom,
+        "cta_atom": "Open to a quick chat to see if this is relevant?",
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "target_word_budget": 61,
+        "target_sentence_budget": 3 if proof_gap else 4,
+    }
+
+
+def _budget_plan(*, proof_gap: bool) -> dict:
+    return {
+        "preset_id": "challenger",
+        "length": "short",
+        "target_total_words": 61,
+        "allowed_min_words": 46,
+        "allowed_max_words": 88,
+        "target_sentence_count": 3 if proof_gap else 4,
+        "target_sentence_floor": 3 if proof_gap else 4,
+        "allowed_max_sentences": 5,
+        "per_atom_word_guidance": {
+            "opener_atom": 14,
+            "value_atom": 20,
+            "proof_atom": 10 if not proof_gap else 0,
+            "cta_atom": 11,
+        },
+        "atom_structure": ["opener", "value", "cta"] if proof_gap else ["opener", "value", "proof", "cta"],
+        "atom_total_words": 0,
+        "atom_total_sentences": 0,
+        "feasibility_status": "feasible",
+        "feasibility_reason": "atoms_fit_current_contract",
     }
 
 
@@ -61,19 +90,23 @@ def _preset_contract() -> dict:
 
 def test_stage_c0_prompt_contains_value_formula_and_external_proof_rule() -> None:
     messages = stage_c0.build_messages(
-        _messaging_brief(),
-        _fit_map(),
-        _angle_set(),
-        "angle_1",
-        {"tone": 0.5, "framing": 0.5, "stance": 0.5, "length": "short"},
-        "Open to a quick chat to see if this is relevant?",
+        messaging_brief=_messaging_brief(),
+        fit_map=_fit_map(),
+        angle_set=_angle_set(),
+        selected_angle_id="angle_1",
+        preset_id="challenger",
+        preset_contract=_preset_contract(),
+        budget_plan=_budget_plan(proof_gap=False),
+        sliders={"tone": 0.5, "framing": 0.5, "stance": 0.5, "length": "short"},
+        cta_final_line="Open to a quick chat to see if this is relevant?",
     )
     user_prompt = messages[1]["content"]
 
-    assert "value_line formula (use this structure exactly)" in user_prompt
+    assert "value_atom formula (use this structure exactly)" in user_prompt
     assert "[Persona's team] [specific verb: cut/reduced/protected/freed]" in user_prompt
-    assert "If no brief proof point supports this formula, set proof_line to empty string \"\"." in user_prompt
+    assert "If no brief proof point supports this formula, set proof_atom to empty string \"\"." in user_prompt
     assert "never use the prospect's own facts as proof" in user_prompt
+    assert "target_word_budget: copy budget_plan.target_total_words exactly." in user_prompt
 
 
 def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
@@ -131,16 +164,18 @@ def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:
         angle_set=_angle_set(),
         message_atoms=_atoms(proof_gap=True),
         preset={"banned_phrases_additions": [], "output_contract": {"lengths": {}}},
+        preset_contract=_preset_contract(),
+        budget_plan=_budget_plan(proof_gap=True),
         sliders={"tone": 0.5, "framing": 0.5, "stance": 0.5, "length": "short"},
         cta_final_line="Open to a quick chat to see if this is relevant?",
     )
     system_prompt = messages[0]["content"]
     user_prompt = messages[1]["content"]
 
-    assert "If message_atoms.proof_gap is true, omit proof sentence entirely." in system_prompt
+    assert "If message_atoms.proof_atom is empty, omit proof sentence entirely." in system_prompt
     assert "RULE 5 - PRESET CONTRACT IS ACTIVE." in system_prompt
     assert "write a three-sentence email: opener -> value -> CTA line" in user_prompt
-    assert "Keep body within preset_contract target_word_range and sentence_count_guidance." in user_prompt
+    assert "Keep body within budget_plan allowed_min_words/allowed_max_words" in user_prompt
     assert "Do not convert prospect facts into proof." in user_prompt
 
 
@@ -151,6 +186,7 @@ def test_stage_c_batch_prompt_mentions_proof_gap_behavior() -> None:
         angle_set=_angle_set(),
         message_atoms=_atoms(proof_gap=True),
         presets=[{"preset_id": "direct", "banned_phrases_additions": [], "output_contract": {"lengths": {}}}],
+        budget_plan_by_preset={"direct": _budget_plan(proof_gap=True)},
         sliders={"tone": 0.5, "framing": 0.5, "stance": 0.5, "length": "short"},
         cta_final_line="Open to a quick chat to see if this is relevant?",
     )
@@ -158,9 +194,10 @@ def test_stage_c_batch_prompt_mentions_proof_gap_behavior() -> None:
     user_prompt = messages[1]["content"]
 
     assert "RULE 6 - PRESET CONTRACTS ARE ACTIVE." in system_prompt
-    assert "RULE 9 - PROOF GAP HANDLING." in system_prompt
-    assert "If message_atoms.proof_gap is true, omit proof sentence across all successful variants." in system_prompt
-    assert "If message_atoms.proof_gap is true, do not invent proof and do not reuse prospect facts as proof." in user_prompt
+    assert "RULE 7 - BUDGET PLANS ARE ACTIVE." in system_prompt
+    assert "RULE 10 - PROOF GAP HANDLING." in system_prompt
+    assert "If message_atoms.proof_atom is empty, omit proof sentence across all successful variants." in system_prompt
+    assert "If message_atoms.proof_atom is empty, do not invent proof and do not reuse prospect facts as proof." in user_prompt
 
 
 def test_stage_d_prompt_requires_preset_specific_issue_types() -> None:
@@ -170,12 +207,15 @@ def test_stage_d_prompt_requires_preset_specific_issue_types() -> None:
         message_atoms=_atoms(proof_gap=False),
         cta_final_line="Open to a quick chat to see if this is relevant?",
         preset_contract=_preset_contract(),
+        budget_plan=_budget_plan(proof_gap=False),
     )
     system_prompt = messages[0]["content"]
     user_prompt = messages[1]["content"]
 
     assert "RULE 6 - PRESET CONTRACT IS ACTIVE." in system_prompt
+    assert "RULE 7 - BUDGET PLAN IS ACTIVE." in system_prompt
     assert "word_count_out_of_band, opener_too_soft_for_preset" in user_prompt
+    assert "\"budget_plan\"" in user_prompt
     assert "\"preset_contract\"" in user_prompt
 
 
@@ -193,6 +233,7 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
         message_atoms=_atoms(proof_gap=False),
         cta_final_line="Open to a quick chat to see if this is relevant?",
         preset_contract=_preset_contract(),
+        budget_plan=_budget_plan(proof_gap=False),
         sliders={"tone": 0.5, "length": "short"},
     )
     salvage_messages = stage_e.build_salvage_messages(
@@ -201,6 +242,7 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
         messaging_brief=_messaging_brief(),
         cta_final_line="Open to a quick chat to see if this is relevant?",
         preset_contract=_preset_contract(),
+        budget_plan=_budget_plan(proof_gap=False),
         failure_code="word_count_out_of_band",
     )
 
@@ -210,6 +252,7 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
     salvage_user = salvage_messages[1]["content"]
 
     assert "RULE 7 - PRESET CONTRACT IS ACTIVE." in rewrite_system
-    assert "Make the revised draft satisfy preset_contract target_word_range" in rewrite_user
+    assert "Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target." in rewrite_user
     assert "This is not a fresh rewrite." in salvage_system
+    assert "RULE 6 - BUDGET PLAN IS ACTIVE." in salvage_system
     assert "Do not replace the draft with a new template or canned preset body." in salvage_user

@@ -8,6 +8,12 @@ from app.config import Settings
 from app.openai_client import ENFORCED_OPENAI_MODEL, OpenAIClient
 from app.schemas import WebGenerateRequest
 
+from .budget_planner import (
+    atom_structure,
+    cta_alignment_status,
+    draft_cta_alignment_status,
+    plan_budget,
+)
 from .brief_cache import BriefCache, compute_brief_cache_key
 from .normalize import normalize_generate_request
 from .postprocess import deterministic_postprocess_draft
@@ -227,28 +233,104 @@ class AIOrchestrator:
             "cta": {"cta_final_line": cta_line},
         }
 
-    def _normalize_message_atoms(self, atoms: dict[str, Any], *, cta_line: str, trace: Trace) -> dict[str, Any]:
+    def _select_angle(self, *, angle_set: dict[str, Any], selected_angle_id: str) -> dict[str, Any]:
+        angles = list(angle_set.get("angles") or [])
+        if selected_angle_id:
+            for angle in angles:
+                if str(angle.get("angle_id") or "") == str(selected_angle_id or ""):
+                    return dict(angle)
+        return dict(angles[0]) if angles else {}
+
+    def _budget_plan(
+        self,
+        *,
+        preset_id: str,
+        preset_contract: dict[str, Any],
+        selected_angle: dict[str, Any],
+        message_atoms: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return plan_budget(
+            preset_id=str(preset_id or "").strip(),
+            preset_contract=preset_contract,
+            selected_angle=selected_angle,
+            message_atoms=message_atoms,
+        )
+
+    def _mark_budget_feasibility(self, *, trace: Trace, stage_name: str, budget_plan: dict[str, Any]) -> None:
+        if str(budget_plan.get("feasibility_status") or "") == "infeasible" and "first_budget_infeasible_stage" not in trace.meta:
+            trace.set_meta(
+                first_budget_infeasible_stage=stage_name,
+                first_budget_infeasible_reason=str(budget_plan.get("feasibility_reason") or ""),
+            )
+
+    def _normalize_message_atoms(self, atoms: dict[str, Any], *, trace: Trace) -> dict[str, Any]:
         out = dict(atoms)
-
-        if str(out.get("cta_line") or "").strip() != cta_line:
-            out["cta_line"] = cta_line
-            trace.add_postprocess_step("force_atoms_cta_lock")
-
-        raw_proof = out.get("proof_line")
-        proof_line = str(raw_proof or "").strip()
-        if proof_line:
-            if proof_line != str(raw_proof or ""):
-                trace.add_postprocess_step("normalize_atoms_proof_line_whitespace")
-            out["proof_line"] = proof_line
-            out["proof_gap"] = False
-            trace.add_postprocess_step("set_atoms_proof_gap_false")
-        else:
-            if str(raw_proof or "") != "":
-                trace.add_postprocess_step("normalize_atoms_proof_line_empty")
-            out["proof_line"] = ""
-            out["proof_gap"] = True
-            trace.add_postprocess_step("set_atoms_proof_gap_true")
+        for field in (
+            "preset_id",
+            "selected_angle_id",
+            "opener_atom",
+            "value_atom",
+            "proof_atom",
+            "cta_atom",
+            "cta_intent",
+            "required_cta_line",
+        ):
+            raw_value = out.get(field)
+            normalized = str(raw_value or "").strip()
+            if normalized != str(raw_value or ""):
+                trace.add_postprocess_step(f"normalize_{field}_whitespace")
+            out[field] = normalized
+        used_hook_ids = [str(item or "").strip() for item in (out.get("used_hook_ids") or []) if str(item or "").strip()]
+        if used_hook_ids != list(out.get("used_hook_ids") or []):
+            trace.add_postprocess_step("normalize_used_hook_ids")
+        out["used_hook_ids"] = used_hook_ids
+        if str(out.get("proof_atom") or "") == "":
+            trace.add_postprocess_step("normalize_proof_atom_empty")
         return out
+
+    def _annotate_atoms_stage(
+        self,
+        *,
+        trace: Trace,
+        stage_name: str,
+        atoms: dict[str, Any],
+        preset_contract: dict[str, Any],
+        budget_plan: dict[str, Any],
+        cta_line: str,
+    ) -> None:
+        self._mark_budget_feasibility(trace=trace, stage_name=stage_name, budget_plan=budget_plan)
+        trace.annotate_stage(
+            stage=stage_name,
+            details={
+                "preset_id": str(atoms.get("preset_id") or "").strip(),
+                "preset_contract": dict(preset_contract),
+                "preset_contract_hash": hash_json(preset_contract),
+                "budget_plan": dict(budget_plan),
+                "budget_plan_hash": hash_json(budget_plan),
+                "target_word_budget": int(atoms.get("target_word_budget") or 0),
+                "target_sentence_budget": int(atoms.get("target_sentence_budget") or 0),
+                "actual_pre_generation_atom_count": len(atom_structure(atoms)),
+                "actual_pre_generation_atom_structure": atom_structure(atoms),
+                "atom_validation_result": "passed",
+                "cta_alignment_status": cta_alignment_status(
+                    candidate=atoms.get("cta_atom"),
+                    required_cta_line=cta_line,
+                ),
+                "pre_generation_budget_feasibility": str(budget_plan.get("feasibility_status") or ""),
+                "pre_generation_budget_feasibility_reason": str(budget_plan.get("feasibility_reason") or ""),
+                "first_budget_infeasible_stage": trace.meta.get("first_budget_infeasible_stage"),
+            },
+            output={
+                "preset_id": str(atoms.get("preset_id") or "").strip(),
+                "selected_angle_id": str(atoms.get("selected_angle_id") or "").strip(),
+                "used_hook_ids": list(atoms.get("used_hook_ids") or []),
+                "opener_atom": str(atoms.get("opener_atom") or "").strip(),
+                "value_atom": str(atoms.get("value_atom") or "").strip(),
+                "proof_atom": str(atoms.get("proof_atom") or "").strip(),
+                "cta_atom": str(atoms.get("cta_atom") or "").strip(),
+                "required_cta_line": str(atoms.get("required_cta_line") or "").strip(),
+            },
+        )
 
     def _split_failed_stage_details(self, details: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any]]:
         raw_details = dict(details or {})
@@ -456,6 +538,7 @@ class AIOrchestrator:
         mechanical_steps: list[str],
         final_validation_status: str,
         preset_contract: dict[str, Any] | None = None,
+        budget_plan: dict[str, Any] | None = None,
         stage_details: dict[str, Any] | None = None,
     ) -> None:
         body = str(draft.get("body") or "").strip()
@@ -466,6 +549,15 @@ class AIOrchestrator:
         if preset_contract:
             details.setdefault("preset_contract", dict(preset_contract))
             details.setdefault("preset_contract_hash", hash_json(preset_contract))
+        if budget_plan:
+            self._mark_budget_feasibility(trace=trace, stage_name=stage_name, budget_plan=budget_plan)
+            details.setdefault("budget_plan", dict(budget_plan))
+            details.setdefault("budget_plan_hash", hash_json(budget_plan))
+            details.setdefault("target_word_budget", int(budget_plan.get("target_total_words") or 0))
+            details.setdefault("target_sentence_budget", int(budget_plan.get("target_sentence_count") or 0))
+            details.setdefault("pre_generation_budget_feasibility", str(budget_plan.get("feasibility_status") or ""))
+            details.setdefault("pre_generation_budget_feasibility_reason", str(budget_plan.get("feasibility_reason") or ""))
+        details.setdefault("first_budget_infeasible_stage", trace.meta.get("first_budget_infeasible_stage"))
         trace.annotate_stage(
             stage=stage_name,
             final_validation_status=final_validation_status,
@@ -499,6 +591,7 @@ class AIOrchestrator:
         stage_name: str,
         preset_id: str,
         preset_contract: dict[str, Any],
+        budget_plan: dict[str, Any],
         draft: dict[str, Any],
         qa_report: dict[str, Any],
         generation_validation_codes: list[str],
@@ -511,9 +604,16 @@ class AIOrchestrator:
                 "preset_id": str(preset_id or ""),
                 "preset_contract": dict(preset_contract),
                 "preset_contract_hash": hash_json(preset_contract),
+                "budget_plan": dict(budget_plan),
+                "budget_plan_hash": hash_json(budget_plan),
+                "target_word_budget": int(budget_plan.get("target_total_words") or 0),
+                "target_sentence_budget": int(budget_plan.get("target_sentence_count") or 0),
+                "pre_generation_budget_feasibility": str(budget_plan.get("feasibility_status") or ""),
+                "pre_generation_budget_feasibility_reason": str(budget_plan.get("feasibility_reason") or ""),
                 "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                 "pre_rewrite_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
                 "dominant_failing_rule": dominant_issue or dominant_validation_code(generation_validation_codes),
+                "first_budget_infeasible_stage": trace.meta.get("first_budget_infeasible_stage"),
                 "salvage_applied": False,
                 "salvage_result": "not_run",
             },
@@ -530,6 +630,7 @@ class AIOrchestrator:
         cta_line: str,
         slider_params: dict[str, Any],
         preset_contract: dict[str, Any],
+        budget_plan: dict[str, Any],
         final_codes: list[str],
     ) -> tuple[dict[str, Any], list[str], bool, str]:
         if not salvage_eligible_validation_codes(final_codes):
@@ -550,6 +651,7 @@ class AIOrchestrator:
                 messaging_brief=messaging_brief,
                 cta_final_line=cta_line,
                 preset_contract=preset_contract,
+                budget_plan=budget_plan,
                 failure_code=dominant_validation_code(final_codes) or "word_count_out_of_band",
             ),
             validator=None,
@@ -558,13 +660,28 @@ class AIOrchestrator:
         salvage_draft["preset_id"] = str(preset_id)
         salvage_draft["selected_angle_id"] = str(draft.get("selected_angle_id") or atoms.get("selected_angle_id") or "")
         salvage_draft["used_hook_ids"] = list(draft.get("used_hook_ids") or atoms.get("used_hook_ids") or [])
-        salvage_draft, salvage_steps = self._mechanical_postprocess(salvage_draft, slider_params, cta_line, trace)
+        salvage_pre_details = {
+            "pre_postprocess_word_count": preset_word_count(str(salvage_draft.get("body") or "").strip()),
+            "pre_postprocess_sentence_count": preset_sentence_count(str(salvage_draft.get("body") or "").strip()),
+            "pre_postprocess_cta_alignment_status": draft_cta_alignment_status(
+                body=salvage_draft.get("body"),
+                required_cta_line=cta_line,
+            ),
+        }
+        salvage_draft, salvage_steps = self._mechanical_postprocess(
+            salvage_draft,
+            slider_params,
+            cta_line,
+            trace,
+            budget_plan=budget_plan,
+        )
         salvage_codes = validate_email_draft(
             salvage_draft,
             brief=messaging_brief,
             cta_final_line=cta_line,
             sliders=slider_params,
             preset_contract=preset_contract,
+            budget_plan=budget_plan,
         )
         self._annotate_draft_stage(
             trace=trace,
@@ -574,11 +691,14 @@ class AIOrchestrator:
             mechanical_steps=salvage_steps,
             final_validation_status="failed" if salvage_codes else "passed",
             preset_contract=preset_contract,
+            budget_plan=budget_plan,
             stage_details={
+                **salvage_pre_details,
                 "dominant_failing_rule": dominant_validation_code(final_codes) or "word_count_out_of_band",
                 "salvage_applied": True,
                 "salvage_result": "failed" if salvage_codes else "passed",
                 "post_salvage_word_count": preset_word_count(str(salvage_draft.get("body") or "").strip()),
+                "cta_alignment_status": draft_cta_alignment_status(body=salvage_draft.get("body"), required_cta_line=cta_line),
             },
         )
         if salvage_codes:
@@ -626,7 +746,17 @@ class AIOrchestrator:
                     message="No angle available",
                     details={},
                 )
-
+            selected_angle = self._select_angle(angle_set=angle_set, selected_angle_id=selected_angle_id)
+            preset = load_preset(ctx.preset_id)
+            preset_contract = self._resolved_preset_contract(preset=preset, sliders=slider_params)
+            self._remember_preset_contract(trace=trace, preset_id=ctx.preset_id, preset_contract=preset_contract)
+            budget_seed_plan = self._budget_plan(
+                preset_id=ctx.preset_id,
+                preset_contract=preset_contract,
+                selected_angle=selected_angle,
+                message_atoms=None,
+            )
+            atoms_stage = self._trace_stage_name(STAGES["C0"])
             atoms = await self._run_stage(
                 trace=trace,
                 config=StageConfig(
@@ -636,24 +766,43 @@ class AIOrchestrator:
                     response_format=RF_MESSAGE_ATOMS,
                 ),
                 messages=stage_c0.build_messages(
-                    messaging_brief,
-                    fit_map,
-                    angle_set,
-                    selected_angle_id,
-                    slider_params,
-                    cta_line,
+                    messaging_brief=messaging_brief,
+                    fit_map=fit_map,
+                    angle_set=angle_set,
+                    selected_angle_id=selected_angle_id,
+                    preset_id=ctx.preset_id,
+                    preset_contract=preset_contract,
+                    budget_plan=budget_seed_plan,
+                    sliders=slider_params,
+                    cta_final_line=cta_line,
                 ),
                 validator=lambda payload: validate_message_atoms(
                     payload,
+                    preset_id=ctx.preset_id,
                     cta_final_line=cta_line,
+                    messaging_brief=messaging_brief,
+                    selected_angle=selected_angle,
+                    preset_contract=preset_contract,
                     forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
+                    budget_plan=budget_seed_plan,
                 ),
+                trace_stage=atoms_stage,
             )
-            atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
-
-            preset = load_preset(ctx.preset_id)
-            preset_contract = self._resolved_preset_contract(preset=preset, sliders=slider_params)
-            self._remember_preset_contract(trace=trace, preset_id=ctx.preset_id, preset_contract=preset_contract)
+            atoms = self._normalize_message_atoms(atoms, trace=trace)
+            budget_plan = self._budget_plan(
+                preset_id=ctx.preset_id,
+                preset_contract=preset_contract,
+                selected_angle=selected_angle,
+                message_atoms=atoms,
+            )
+            self._annotate_atoms_stage(
+                trace=trace,
+                stage_name=atoms_stage,
+                atoms=atoms,
+                preset_contract=preset_contract,
+                budget_plan=budget_plan,
+                cta_line=cta_line,
+            )
             generation_stage = self._trace_stage_name(STAGES["C"])
             draft = await self._run_stage(
                 trace=trace,
@@ -669,6 +818,8 @@ class AIOrchestrator:
                     angle_set=angle_set,
                     message_atoms=atoms,
                     preset=preset,
+                    preset_contract=preset_contract,
+                    budget_plan=budget_plan,
                     sliders=slider_params,
                     cta_final_line=cta_line,
                 ),
@@ -678,8 +829,22 @@ class AIOrchestrator:
             draft.setdefault("preset_id", ctx.preset_id)
             draft.setdefault("selected_angle_id", selected_angle_id)
             draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
+            generation_pre_details = {
+                "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
+                "pre_postprocess_cta_alignment_status": draft_cta_alignment_status(
+                    body=draft.get("body"),
+                    required_cta_line=cta_line,
+                ),
+            }
 
-            draft, generation_steps = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
+            draft, generation_steps = self._mechanical_postprocess(
+                draft,
+                slider_params,
+                cta_line,
+                trace,
+                budget_plan=budget_plan,
+            )
 
             validation_codes = validate_email_draft(
                 draft,
@@ -687,9 +852,10 @@ class AIOrchestrator:
                 cta_final_line=cta_line,
                 sliders=slider_params,
                 preset_contract=preset_contract,
+                budget_plan=budget_plan,
             )
             if validation_codes:
-                trace.add_validation_error(stage=STAGES["C"], codes=validation_codes)
+                trace.add_validation_error(stage=generation_stage, codes=validation_codes)
             self._annotate_draft_stage(
                 trace=trace,
                 stage_name=generation_stage,
@@ -698,8 +864,13 @@ class AIOrchestrator:
                 mechanical_steps=generation_steps,
                 final_validation_status="rewrite_required" if validation_codes else "passed",
                 preset_contract=preset_contract,
+                budget_plan=budget_plan,
                 stage_details={
+                    **generation_pre_details,
                     "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                    "actual_pre_generation_atom_count": len(atom_structure(atoms)),
+                    "actual_pre_generation_atom_structure": atom_structure(atoms),
+                    "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
                     "salvage_applied": False,
                     "salvage_result": "not_run",
                 },
@@ -714,7 +885,7 @@ class AIOrchestrator:
                     reasoning_effort=self.settings.openai_reasoning_high,
                     response_format=RF_QA_REPORT,
                 ),
-                messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract),
+                messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract, budget_plan),
                 validator=None,
                 trace_stage=qa_stage,
             )
@@ -724,6 +895,7 @@ class AIOrchestrator:
                 stage_name=qa_stage,
                 preset_id=ctx.preset_id,
                 preset_contract=preset_contract,
+                budget_plan=budget_plan,
                 draft=draft,
                 qa_report=qa,
                 generation_validation_codes=validation_codes,
@@ -736,6 +908,7 @@ class AIOrchestrator:
                 mechanical_steps=generation_steps,
                 final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
                 preset_contract=preset_contract,
+                budget_plan=budget_plan,
                 stage_details={
                     "dominant_failing_rule": dominant_validation_code(validation_codes)
                     or next(
@@ -764,6 +937,7 @@ class AIOrchestrator:
                         message_atoms=atoms,
                         cta_final_line=cta_line,
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                         sliders=slider_params,
                     ),
                     validator=None,
@@ -772,13 +946,28 @@ class AIOrchestrator:
                 draft.setdefault("preset_id", ctx.preset_id)
                 draft.setdefault("selected_angle_id", selected_angle_id)
                 draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
-                draft, rewrite_steps = self._mechanical_postprocess(draft, slider_params, cta_line, trace)
+                rewrite_pre_details = {
+                    "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                    "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
+                    "pre_postprocess_cta_alignment_status": draft_cta_alignment_status(
+                        body=draft.get("body"),
+                        required_cta_line=cta_line,
+                    ),
+                }
+                draft, rewrite_steps = self._mechanical_postprocess(
+                    draft,
+                    slider_params,
+                    cta_line,
+                    trace,
+                    budget_plan=budget_plan,
+                )
                 final_codes = validate_email_draft(
                     draft,
                     brief=messaging_brief,
                     cta_final_line=cta_line,
                     sliders=slider_params,
                     preset_contract=preset_contract,
+                    budget_plan=budget_plan,
                 )
                 self._annotate_draft_stage(
                     trace=trace,
@@ -788,9 +977,12 @@ class AIOrchestrator:
                     mechanical_steps=rewrite_steps,
                     final_validation_status="failed" if final_codes else "passed",
                     preset_contract=preset_contract,
+                    budget_plan=budget_plan,
                     stage_details={
+                        **rewrite_pre_details,
                         "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                         "dominant_failing_rule": dominant_validation_code(final_codes),
+                        "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
                         "salvage_applied": False,
                         "salvage_result": "not_run",
                     },
@@ -805,6 +997,7 @@ class AIOrchestrator:
                         cta_line=cta_line,
                         slider_params=slider_params,
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                         final_codes=final_codes,
                     )
                     trace.annotate_stage(
@@ -978,30 +1171,7 @@ class AIOrchestrator:
             selected_angle_id = str((angle_set.get("angles") or [{}])[0].get("angle_id") or "")
             if not selected_angle_id:
                 raise StageError(stage=STAGES["B0"], code="ANGLE_SELECTION_FAILED", message="No angle available", details={})
-
-            atoms = await self._run_stage(
-                trace=trace,
-                config=StageConfig(
-                    stage=STAGES["C0"],
-                    max_tokens=400,
-                    reasoning_effort=self.settings.openai_reasoning_low,
-                    response_format=RF_MESSAGE_ATOMS,
-                ),
-                messages=stage_c0.build_messages(
-                    messaging_brief,
-                    fit_map,
-                    angle_set,
-                    selected_angle_id,
-                    slider_params,
-                    cta_line,
-                ),
-                validator=lambda payload: validate_message_atoms(
-                    payload,
-                    cta_final_line=cta_line,
-                    forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
-                ),
-            )
-            atoms = self._normalize_message_atoms(atoms, cta_line=cta_line, trace=trace)
+            selected_angle = self._select_angle(angle_set=angle_set, selected_angle_id=selected_angle_id)
 
             output_variants: list[dict[str, Any]] = []
             for requested_id in preset_ids:
@@ -1014,6 +1184,59 @@ class AIOrchestrator:
                     )
                     preset_contract = self._resolved_preset_contract(preset=preset, sliders=variant_sliders)
                     self._remember_preset_contract(trace=trace, preset_id=str(requested_id), preset_contract=preset_contract)
+                    budget_seed_plan = self._budget_plan(
+                        preset_id=str(requested_id),
+                        preset_contract=preset_contract,
+                        selected_angle=selected_angle,
+                        message_atoms=None,
+                    )
+                    atoms_stage = self._trace_stage_name(STAGES["C0"], preset_id=requested_id)
+                    atoms = await self._run_stage(
+                        trace=trace,
+                        config=StageConfig(
+                            stage=STAGES["C0"],
+                            max_tokens=400,
+                            reasoning_effort=self.settings.openai_reasoning_low,
+                            response_format=RF_MESSAGE_ATOMS,
+                        ),
+                        messages=stage_c0.build_messages(
+                            messaging_brief=messaging_brief,
+                            fit_map=fit_map,
+                            angle_set=angle_set,
+                            selected_angle_id=selected_angle_id,
+                            preset_id=str(requested_id),
+                            preset_contract=preset_contract,
+                            budget_plan=budget_seed_plan,
+                            sliders=variant_sliders,
+                            cta_final_line=cta_line,
+                        ),
+                        validator=lambda payload, rid=str(requested_id), contract=preset_contract, seed=budget_seed_plan: validate_message_atoms(
+                            payload,
+                            preset_id=rid,
+                            cta_final_line=cta_line,
+                            messaging_brief=messaging_brief,
+                            selected_angle=selected_angle,
+                            preset_contract=contract,
+                            forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
+                            budget_plan=seed,
+                        ),
+                        trace_stage=atoms_stage,
+                    )
+                    atoms = self._normalize_message_atoms(atoms, trace=trace)
+                    budget_plan = self._budget_plan(
+                        preset_id=str(requested_id),
+                        preset_contract=preset_contract,
+                        selected_angle=selected_angle,
+                        message_atoms=atoms,
+                    )
+                    self._annotate_atoms_stage(
+                        trace=trace,
+                        stage_name=atoms_stage,
+                        atoms=atoms,
+                        preset_contract=preset_contract,
+                        budget_plan=budget_plan,
+                        cta_line=cta_line,
+                    )
                     generation_stage = self._trace_stage_name(STAGES["C"], preset_id=requested_id)
                     qa_stage = self._trace_stage_name(STAGES["D"], preset_id=requested_id)
                     rewrite_stage = self._trace_stage_name(STAGES["E"], preset_id=requested_id)
@@ -1032,6 +1255,8 @@ class AIOrchestrator:
                             angle_set=angle_set,
                             message_atoms=atoms,
                             preset=preset,
+                            preset_contract=preset_contract,
+                            budget_plan=budget_plan,
                             sliders=variant_sliders,
                             cta_final_line=cta_line,
                         ),
@@ -1041,7 +1266,21 @@ class AIOrchestrator:
                     draft.setdefault("preset_id", str(requested_id))
                     draft.setdefault("selected_angle_id", selected_angle_id)
                     draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
-                    draft, generation_steps = self._mechanical_postprocess(draft, variant_sliders, cta_line, trace)
+                    generation_pre_details = {
+                        "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                        "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
+                        "pre_postprocess_cta_alignment_status": draft_cta_alignment_status(
+                            body=draft.get("body"),
+                            required_cta_line=cta_line,
+                        ),
+                    }
+                    draft, generation_steps = self._mechanical_postprocess(
+                        draft,
+                        variant_sliders,
+                        cta_line,
+                        trace,
+                        budget_plan=budget_plan,
+                    )
 
                     validation_codes = validate_email_draft(
                         draft,
@@ -1049,6 +1288,7 @@ class AIOrchestrator:
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                     )
                     if validation_codes:
                         trace.add_validation_error(stage=generation_stage, codes=validation_codes)
@@ -1060,8 +1300,13 @@ class AIOrchestrator:
                         mechanical_steps=generation_steps,
                         final_validation_status="rewrite_required" if validation_codes else "passed",
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                         stage_details={
+                            **generation_pre_details,
                             "pre_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                            "actual_pre_generation_atom_count": len(atom_structure(atoms)),
+                            "actual_pre_generation_atom_structure": atom_structure(atoms),
+                            "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
                             "salvage_applied": False,
                             "salvage_result": "not_run",
                         },
@@ -1075,7 +1320,7 @@ class AIOrchestrator:
                             reasoning_effort=self.settings.openai_reasoning_high,
                             response_format=RF_QA_REPORT,
                         ),
-                        messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract),
+                        messages=stage_d.build_messages(draft, messaging_brief, atoms, cta_line, preset_contract, budget_plan),
                         validator=None,
                         trace_stage=qa_stage,
                     )
@@ -1085,6 +1330,7 @@ class AIOrchestrator:
                         stage_name=qa_stage,
                         preset_id=str(requested_id),
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                         draft=draft,
                         qa_report=qa,
                         generation_validation_codes=validation_codes,
@@ -1097,6 +1343,7 @@ class AIOrchestrator:
                         mechanical_steps=generation_steps,
                         final_validation_status="rewrite_required" if (validation_codes or qa.get("pass_rewrite_needed")) else "passed",
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                         stage_details={
                             "dominant_failing_rule": dominant_validation_code(validation_codes)
                             or next(
@@ -1124,6 +1371,7 @@ class AIOrchestrator:
                                 message_atoms=atoms,
                                 cta_final_line=cta_line,
                                 preset_contract=preset_contract,
+                                budget_plan=budget_plan,
                                 sliders=variant_sliders,
                             ),
                             validator=None,
@@ -1132,7 +1380,21 @@ class AIOrchestrator:
                         draft["preset_id"] = str(requested_id)
                         draft["selected_angle_id"] = selected_angle_id
                         draft.setdefault("used_hook_ids", list(atoms.get("used_hook_ids") or []))
-                        draft, rewrite_steps = self._mechanical_postprocess(draft, variant_sliders, cta_line, trace)
+                        rewrite_pre_details = {
+                            "pre_postprocess_word_count": preset_word_count(str(draft.get("body") or "").strip()),
+                            "pre_postprocess_sentence_count": preset_sentence_count(str(draft.get("body") or "").strip()),
+                            "pre_postprocess_cta_alignment_status": draft_cta_alignment_status(
+                                body=draft.get("body"),
+                                required_cta_line=cta_line,
+                            ),
+                        }
+                        draft, rewrite_steps = self._mechanical_postprocess(
+                            draft,
+                            variant_sliders,
+                            cta_line,
+                            trace,
+                            budget_plan=budget_plan,
+                        )
 
                         final_codes = validate_email_draft(
                             draft,
@@ -1140,6 +1402,7 @@ class AIOrchestrator:
                             cta_final_line=cta_line,
                             sliders=variant_sliders,
                             preset_contract=preset_contract,
+                            budget_plan=budget_plan,
                         )
                         self._annotate_draft_stage(
                             trace=trace,
@@ -1149,9 +1412,12 @@ class AIOrchestrator:
                             mechanical_steps=rewrite_steps,
                             final_validation_status="failed" if final_codes else "passed",
                             preset_contract=preset_contract,
+                            budget_plan=budget_plan,
                             stage_details={
+                                **rewrite_pre_details,
                                 "post_rewrite_word_count": preset_word_count(str(draft.get("body") or "").strip()),
                                 "dominant_failing_rule": dominant_validation_code(final_codes),
+                                "cta_alignment_status": draft_cta_alignment_status(body=draft.get("body"), required_cta_line=cta_line),
                                 "salvage_applied": False,
                                 "salvage_result": "not_run",
                             },
@@ -1166,6 +1432,7 @@ class AIOrchestrator:
                                 cta_line=cta_line,
                                 slider_params=variant_sliders,
                                 preset_contract=preset_contract,
+                                budget_plan=budget_plan,
                                 final_codes=final_codes,
                             )
                             trace.annotate_stage(
@@ -1197,6 +1464,7 @@ class AIOrchestrator:
                         cta_final_line=cta_line,
                         sliders=variant_sliders,
                         preset_contract=preset_contract,
+                        budget_plan=budget_plan,
                     )
                     if final_codes:
                         output_variants.append(
@@ -1274,9 +1542,12 @@ class AIOrchestrator:
         sliders: dict[str, Any],
         cta_line: str,
         trace: Trace,
+        *,
+        budget_plan: dict[str, Any] | None = None,
     ) -> tuple[dict[str, Any], list[str]]:
-        min_words, max_words = _length_band(str(sliders.get("length") or "medium"))
-        del min_words
+        _, max_words = _length_band(str(sliders.get("length") or "medium"))
+        if isinstance((budget_plan or {}).get("allowed_max_words"), int):
+            max_words = int((budget_plan or {}).get("allowed_max_words") or max_words)
         legacy = LegacyEmailDraft(subject=str(draft.get("subject") or ""), body=str(draft.get("body") or ""))
         result = deterministic_postprocess_draft(
             legacy,

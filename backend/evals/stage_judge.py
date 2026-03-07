@@ -796,7 +796,7 @@ async def judge_message_atoms(
 2) opener_simple: opener has <=1 comma and avoids stacked conjunctions.
 3) value_outcome_not_mechanism: value line states outcome, not mechanism or imperative.
 4) proof_not_circular: proof cannot restate prospect facts; empty proof is allowed.
-5) cta_locked: cta line must match locked CTA character-for-character.
+5) cta_locked: cta_atom and required_cta_line must match locked CTA character-for-character.
 6) hook_ids_valid: used_hook_ids are valid brief hook ids.
 """.strip()
 
@@ -818,10 +818,11 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     )
 
     forced: list[tuple[str, str]] = []
-    opener_line = str(atoms.get("opener_line") or "")
-    value_line = str(atoms.get("value_line") or "")
-    proof_line = str(atoms.get("proof_line") or "")
-    cta_line = str(atoms.get("cta_line") or "")
+    opener_line = str(atoms.get("opener_atom") or "")
+    value_line = str(atoms.get("value_atom") or "")
+    proof_line = str(atoms.get("proof_atom") or "")
+    cta_line = str(atoms.get("cta_atom") or "")
+    required_cta_line = str(atoms.get("required_cta_line") or "")
 
     if _check_bracket_placeholder(opener_line) or _check_bracket_placeholder(value_line):
         forced.append(("value_outcome_not_mechanism", "placeholder bracket token leaked in atoms"))
@@ -832,8 +833,8 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     if proof_line and _proof_looks_circular(proof_line, brief or {}, angle=angle or {}):
         forced.append(("proof_not_circular", "proof_line appears circular or prospect-derived"))
 
-    if cta_line.strip() != str(locked_cta or "").strip():
-        forced.append(("cta_locked", "atoms cta_line does not match locked CTA"))
+    if cta_line.strip() != str(locked_cta or "").strip() or required_cta_line.strip() != str(locked_cta or "").strip():
+        forced.append(("cta_locked", "atoms CTA fields do not match locked CTA"))
 
     comma_count = opener_line.count(",")
     connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener_line.lower()))
@@ -917,7 +918,8 @@ FAIL no_banned_phrases: includes "touch base" or "quick question".
     if _count_questions(body) != 1:
         forced.append(("no_double_cta", "body must contain exactly one question mark"))
 
-    if proof_gap and str((atoms or {}).get("proof_line") or "").strip() == "" and "peer" in body.lower():
+    proof_atom_missing = str((atoms or {}).get("proof_atom") or "").strip() == ""
+    if proof_gap and proof_atom_missing and "peer" in body.lower():
         forced.append(("proof_respected", "proof sentence appears despite proof_gap"))
 
     return _apply_failures(result, forced_failures=forced)
@@ -1035,7 +1037,8 @@ FAIL cta_exact: CTA wording changed.
     if rewritten_hooks != original_hooks:
         forced.append(("metadata_preserved", "used_hook_ids changed in rewritten draft"))
 
-    if proof_gap and str((atoms or {}).get("proof_line") or "").strip() == "" and "peer" in str(rewritten.get("body") or "").lower():
+    proof_atom_missing = str((atoms or {}).get("proof_atom") or "").strip() == ""
+    if proof_gap and proof_atom_missing and "peer" in str(rewritten.get("body") or "").lower():
         forced.append(("no_new_content", "proof sentence introduced despite proof_gap"))
 
     return _apply_failures(result, forced_failures=forced)

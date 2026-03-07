@@ -194,14 +194,40 @@ def _angles() -> dict[str, Any]:
 
 
 def _atoms() -> dict[str, Any]:
+    return _atoms_for("direct")
+
+
+def _atoms_for(
+    preset_id: str,
+    *,
+    proof_atom: str | None = None,
+    target_word_budget: int | None = None,
+    target_sentence_budget: int | None = None,
+) -> dict[str, Any]:
+    resolved_target_word_budget = target_word_budget
+    if resolved_target_word_budget is None:
+        resolved_target_word_budget = {
+            "direct": 51,
+            "challenger": 61,
+            "storyteller": 60,
+        }.get(str(preset_id), 51)
+    resolved_proof_atom = "Our workflow QA controls are designed for that consistency." if proof_atom is None else proof_atom
+    resolved_target_sentence_budget = target_sentence_budget
+    if resolved_target_sentence_budget is None:
+        resolved_target_sentence_budget = 3 if resolved_proof_atom.strip() == "" else 4
     return {
         "version": "1",
+        "preset_id": preset_id,
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
-        "opener_line": "Noticed Acme is prioritizing RevOps workflow consistency.",
-        "value_line": "Teams usually improve meeting quality when messaging execution is consistent.",
-        "proof_line": "Our workflow QA controls are designed for that consistency.",
-        "cta_line": CTA,
+        "opener_atom": "Noticed Acme is prioritizing RevOps workflow consistency.",
+        "value_atom": "Teams usually improve meeting quality when messaging execution is consistent.",
+        "proof_atom": resolved_proof_atom,
+        "cta_atom": CTA,
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": CTA,
+        "target_word_budget": resolved_target_word_budget,
+        "target_sentence_budget": resolved_target_sentence_budget,
     }
 
 
@@ -301,6 +327,31 @@ def test_stage_e_final_validation_failure_is_fail_closed() -> None:
     assert result.error["stage"] == "VALIDATION"
 
 
+def test_message_atoms_repair_recovers_one_cta_mismatch_case() -> None:
+    req = _request()
+    bad_atoms = _atoms()
+    bad_atoms["cta_atom"] = "Would you be open to a call next week?"
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        bad_atoms,
+        _atoms(),
+        _valid_draft(),
+        _qa(pass_rewrite_needed=False),
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    atom_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "ONE_LINER_COMPRESSOR" and item.get("status") == "complete"]
+    assert atom_entries[-1]["attempt_count"] == 2
+    assert atom_entries[-1]["final_validation_status"] == "passed_after_repair"
+    assert atom_entries[-1]["cta_alignment_status"] == "aligned"
+
+
 def test_preset_browse_returns_mixed_success_and_error_variants() -> None:
     req = _request().model_copy(update={"mode": "preset_browse", "preset_ids": ["direct", "challenger"]})
     orchestrator = _orchestrator([
@@ -310,6 +361,7 @@ def test_preset_browse_returns_mixed_success_and_error_variants() -> None:
         _atoms(),
         _valid_draft("direct"),
         _qa(pass_rewrite_needed=False),
+        _atoms_for("challenger"),
         {},
         {},
     ])
@@ -359,10 +411,9 @@ def test_cta_lock_mechanical_postprocess_preserves_exact_final_line() -> None:
     assert result.body.count(CTA) == 1
 
 
-def test_empty_proof_line_is_normalized_to_proof_gap_before_stage_c() -> None:
+def test_empty_proof_atom_is_normalized_before_stage_c() -> None:
     req = _request()
-    atoms_without_proof = _atoms()
-    atoms_without_proof["proof_line"] = "   "
+    atoms_without_proof = _atoms_for("direct", proof_atom="   ")
 
     orchestrator = _orchestrator([
         _brief(),
@@ -387,8 +438,8 @@ def test_empty_proof_line_is_normalized_to_proof_gap_before_stage_c() -> None:
 
     context = _extract_context_json_from_user_prompt(email_calls[0]["messages"][1]["content"])
     message_atoms = dict(context.get("message_atoms") or {})
-    assert message_atoms["proof_line"] == ""
-    assert message_atoms["proof_gap"] is True
+    assert message_atoms["proof_atom"] == ""
+    assert context["budget_plan"]["target_total_words"] == 51
 
 
 def test_brief_cache_hit_skips_stage_a_b_b0_on_second_request() -> None:
@@ -432,6 +483,7 @@ def test_preset_browse_applies_per_preset_slider_overrides_without_rebuilding_br
         _atoms(),
         _valid_draft("direct"),
         _qa(pass_rewrite_needed=False),
+        _atoms_for("challenger", target_word_budget=145),
         _valid_draft("challenger"),
         _qa(pass_rewrite_needed=False),
     ])
@@ -469,12 +521,15 @@ def test_preset_browse_applies_per_preset_slider_overrides_without_rebuilding_br
     assert second_context["preset"]["preset_id"] == "challenger"
     assert first_context["preset_contract"]["length"] == "short"
     assert second_context["preset_contract"]["length"] == "long"
+    assert first_context["budget_plan"]["target_total_words"] == 51
+    assert second_context["budget_plan"]["target_total_words"] == 145
 
     stage_starts = [str(item.get("stage") or "") for item in result.stage_stats if item.get("status") == "started"]
     assert stage_starts.count("CONTEXT_SYNTHESIS") == 1
     assert stage_starts.count("FIT_REASONING") == 1
     assert stage_starts.count("ANGLE_PICKER") == 1
-    assert stage_starts.count("ONE_LINER_COMPRESSOR") == 1
+    assert stage_starts.count("ONE_LINER_COMPRESSOR:direct") == 1
+    assert stage_starts.count("ONE_LINER_COMPRESSOR:challenger") == 1
 
 
 def test_slider_changes_keep_selected_angle_and_hook_ids_stable_on_cached_brief() -> None:
@@ -594,7 +649,7 @@ def test_challenger_salvage_rescues_slightly_over_band_and_preserves_metadata() 
         _brief(),
         _fit_map(),
         _angles(),
-        _atoms(),
+        _atoms_for("challenger"),
         over_band,
         _qa_with_issue("word_count_out_of_band"),
         over_band,
@@ -643,7 +698,7 @@ def test_challenger_salvage_rescues_slightly_under_band() -> None:
         _brief(),
         _fit_map(),
         _angles(),
-        _atoms(),
+        _atoms_for("challenger"),
         too_short,
         _qa_with_issue("word_count_out_of_band"),
         too_short,
@@ -680,7 +735,7 @@ def test_salvage_does_not_run_on_semantic_failure() -> None:
         _brief(),
         _fit_map(),
         _angles(),
-        _atoms(),
+        _atoms_for("challenger"),
         _valid_draft("challenger"),
         _qa_with_issue("tone_mismatch_for_preset"),
         bad_rewrite,
@@ -704,7 +759,7 @@ def test_preset_trace_fields_capture_contract_and_word_counts() -> None:
         _brief(),
         _fit_map(),
         _angles(),
-        _atoms(),
+        _atoms_for("challenger"),
         _valid_draft("challenger"),
         _qa_with_issue("opener_too_soft_for_preset", severity="medium"),
         _valid_draft("challenger"),
@@ -714,12 +769,19 @@ def test_preset_trace_fields_capture_contract_and_word_counts() -> None:
     result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="challenger", sliders=req.sliders.model_dump()))
 
     assert result.ok is True
+    atoms_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "ONE_LINER_COMPRESSOR" and item.get("status") == "complete"]
     generation_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_GENERATION" and item.get("status") == "complete"]
     qa_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_QA" and item.get("status") == "complete"]
     rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert atoms_entries[-1]["budget_plan_hash"]
+    assert atoms_entries[-1]["target_word_budget"] == 61
+    assert atoms_entries[-1]["cta_alignment_status"] == "aligned"
     assert generation_entries[-1]["preset_contract_hash"]
+    assert generation_entries[-1]["budget_plan_hash"]
     assert generation_entries[-1]["pre_rewrite_word_count"] > 0
+    assert generation_entries[-1]["pre_postprocess_word_count"] > 0
     assert qa_entries[-1]["preset_contract_hash"]
+    assert qa_entries[-1]["budget_plan_hash"]
     assert qa_entries[-1]["pre_rewrite_word_count"] > 0
     assert rewrite_entries[-1]["post_rewrite_word_count"] > 0
 

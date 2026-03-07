@@ -38,10 +38,14 @@ def _length_instruction(length: str) -> str:
 
 
 def build_messages(
+    *,
     messaging_brief: dict[str, Any],
     fit_map: dict[str, Any],
     angle_set: dict[str, Any],
     selected_angle_id: str,
+    preset_id: str,
+    preset_contract: dict[str, Any],
+    budget_plan: dict[str, Any],
     sliders: dict[str, Any],
     cta_final_line: str,
 ) -> list[dict[str, str]]:
@@ -59,53 +63,65 @@ def build_messages(
         "You are a master outbound copywriter focused on compression without information loss. "
         "Your job is not to write the final email. Build MessageAtoms that constrain the next stage.\\n\\n"
         "RULE 1 - ONE SENTENCE PER ATOM.\\n"
-        "Each non-empty atom is exactly one sentence. proof_line may be empty string when no external proof exists.\\n\\n"
+        "Each non-empty atom is exactly one sentence. proof_atom may be empty string when no external proof exists.\\n\\n"
         "RULE 2 - OPENER EARNS ATTENTION FAST.\\n"
         "No generic openers or vanity compliments. Start in the prospect world.\\n\\n"
-        "RULE 3 - VALUE LINE NAMES OUTCOME.\\n"
+        "RULE 3 - VALUE ATOM NAMES OUTCOME.\\n"
         "Value must be an outcome, not a product feature list.\\n\\n"
-        "RULE 4 - PROOF LINE IS HONEST.\\n"
+        "RULE 4 - PROOF ATOM IS HONEST.\\n"
         "Proof must come from external evidence; prospect facts are not proof. "
-        "Use a real proof point or set proof_line to empty string. Never invent proof.\\n\\n"
-        "RULE 5 - CTA LINE IS LOCKED.\\n"
-        "Copy CTA exactly; no edits.\\n\\n"
+        "Use a real proof point or set proof_atom to empty string. Never invent proof.\\n\\n"
+        "RULE 5 - CTA IDEA VS CTA LINE.\\n"
+        "cta_intent describes the ask concept in plain language. "
+        "cta_atom and required_cta_line must both equal the locked final CTA exactly; no edits.\\n\\n"
+        "RULE 6 - BUDGETS ARE LOCKED AT PLAN TIME.\\n"
+        "target_word_budget must copy the provided budget plan exactly. "
+        "target_sentence_budget must equal the number of non-empty atoms, counting CTA as one sentence.\\n\\n"
         f"Active sliders: tone={_tone_instruction(tone)} framing={_framing_instruction(framing)} "
         f"stance={_stance_instruction(stance)} target_length={_length_instruction(length)}.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match MessageAtoms schema exactly."
     )
 
+    user_payload = {
+        "preset_id": preset_id,
+        "locked_cta": cta_final_line,
+        "preset_contract": preset_contract,
+        "budget_plan": budget_plan,
+        "selected_angle": selected,
+        "messaging_brief": messaging_brief,
+        "fit_map": fit_map,
+    }
+
     user = (
         "Build MessageAtoms for this campaign.\\n\\n"
-        f"LOCKED CTA (copy verbatim):\\n{cta_final_line}\\n\\n"
-        "SELECTED ANGLE:\\n"
-        f"{json.dumps(selected, indent=2, ensure_ascii=True)}\\n\\n"
-        "MESSAGING BRIEF:\\n"
-        f"{json.dumps(messaging_brief, indent=2, ensure_ascii=True)}\\n\\n"
-        "FITMAP:\\n"
-        f"{json.dumps(fit_map, indent=2, ensure_ascii=True)}\\n\\n"
+        f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "INSTRUCTIONS:\\n"
-        "1) opener_line: one specific sentence tied to selected angle and grounded signal.\\n"
-        "   Complexity test: read opener_line aloud. If it contains more than one comma or more than one connecting word "
+        "1) opener_atom: one specific sentence tied to selected angle and grounded signal.\\n"
+        "   Complexity test: read opener_atom aloud. If it contains more than one comma or more than one connecting word "
         "(which, that, and, because, so), rewrite as two thoughts and keep only the stronger one.\\n"
-        "2) value_line formula (use this structure exactly): "
+        "2) value_atom formula (use this structure exactly): "
         "\"[Persona's team] [specific verb: cut/reduced/protected/freed] "
         "[specific metric or outcome] [timeframe if available from proof points].\"\\n"
         "   If no metric exists in brief proof points, use: "
         "\"[Persona] gains [specific capability] without [specific cost or tradeoff].\"\\n"
         "   If neither form is possible from brief facts, use a direct yes-question: "
         "\"Is [specific outcome] something your team is actively trying to nail this quarter?\"\\n"
-        "   value_line may never be imperative. It is never a command. It is always about them.\\n"
-        "3) proof_line: describe a result achieved by someone OTHER than the prospect. "
+        "   value_atom may never be imperative. It is never a command. It is always about them.\\n"
+        "3) proof_atom: describe a result achieved by someone OTHER than the prospect. "
         "This is external evidence that the seller's product works.\\n"
         "   Proof formula: "
         "\"[Named customer or 'a [industry] team'] [achieved specific result] [using/after specific action].\"\\n"
-        "   If no brief proof point supports this formula, set proof_line to empty string \"\".\\n"
+        "   If no brief proof point supports this formula, set proof_atom to empty string \"\".\\n"
         "   Fact IDs are for grounding only; never include fact_id references inline.\\n"
-        "   CRITICAL: never use the prospect's own facts as proof. Prospect context belongs in opener_line only.\\n"
-        "4) cta_line: exact locked CTA.\\n"
-        "5) selected_angle_id: preserve selected angle id.\\n"
-        "6) used_hook_ids: non-empty and resolved to brief.hooks[].hook_id.\\n"
-        "7) self-audit: no ungrounded claims, no generic opener, no CTA drift, no invented proof.\\n\\n"
+        "   CRITICAL: never use the prospect's own facts as proof. Prospect context belongs in opener_atom only.\\n"
+        "4) cta_intent: describe the ask concept in your own words without changing the final CTA line.\\n"
+        "5) cta_atom: exact locked CTA. required_cta_line: exact locked CTA.\\n"
+        "6) preset_id: copy preset_id exactly.\\n"
+        "7) selected_angle_id: preserve selected angle id.\\n"
+        "8) used_hook_ids: non-empty and resolved to brief.hooks[].hook_id. Include selected_angle.selected_hook_id.\\n"
+        "9) target_word_budget: copy budget_plan.target_total_words exactly.\\n"
+        "10) target_sentence_budget: count the non-empty atoms you produced, counting cta_atom as one sentence.\\n"
+        "11) self-audit: no ungrounded claims, no generic opener, no CTA drift, no invented proof, no duplicate atoms.\\n\\n"
         "Now output complete MessageAtoms JSON only."
     )
 

@@ -28,13 +28,18 @@ def build_messages(
     message_atoms: dict[str, Any],
     cta_final_line: str,
     preset_contract: dict[str, Any] | None = None,
+    budget_plan: dict[str, Any] | None = None,
     sliders: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     slider_payload = dict(sliders or {})
     contract = dict(preset_contract or {})
+    plan = dict(budget_plan or {})
     tone = float(slider_payload.get("tone", 0.4))
     length = str(slider_payload.get("length", "medium"))
     min_words, max_words = _length_band(length)
+    if isinstance(plan.get("allowed_min_words"), int) and isinstance(plan.get("allowed_max_words"), int):
+        min_words = int(plan["allowed_min_words"])
+        max_words = int(plan["allowed_max_words"])
 
     rewrite_plan = list(qa_report.get("rewrite_plan") or [])
 
@@ -55,9 +60,12 @@ def build_messages(
         "If action conflicts with atoms boundary, do partial safe execution and keep grounding intact.\\n\\n"
         "RULE 7 - PRESET CONTRACT IS ACTIVE.\\n"
         "Rewrite toward the preset contract for word band, sentence count, opener directness, proof density, and CTA placement.\\n\\n"
-        "RULE 8 - VALIDATE BEFORE OUTPUT.\\n"
-        "Check schema, banned phrases, CTA lock, preset contract, and unresolved high-severity failures.\\n\\n"
-        f"Active settings: tone={_tone_instruction(tone)} body_words={min_words}-{max_words}.\\n\\n"
+        "RULE 8 - BUDGET PLAN IS ACTIVE.\\n"
+        "Use budget_plan to tighten or expand only where needed. Preserve the authored narrative while bringing it back inside plan.\\n\\n"
+        "RULE 9 - VALIDATE BEFORE OUTPUT.\\n"
+        "Check schema, banned phrases, CTA lock, preset contract, budget plan, and unresolved high-severity failures.\\n\\n"
+        f"Active settings: tone={_tone_instruction(tone)} body_words={min_words}-{max_words} "
+        f"target_words={plan.get('target_total_words', '')} target_sentences={plan.get('target_sentence_count', '')}.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
     )
 
@@ -69,6 +77,7 @@ def build_messages(
         "message_atoms": message_atoms,
         "messaging_brief": messaging_brief,
         "preset_contract": contract,
+        "budget_plan": plan,
         "slider_rules": {
             "tone": _tone_instruction(tone),
             "length": length,
@@ -105,8 +114,10 @@ def build_messages(
         "4) Keep all untouched, non-flagged text identical.\\n"
         "5) Enforce exact locked CTA as final line; delete any trailing text after CTA.\\n"
         "6) Make the revised draft satisfy preset_contract target_word_range and sentence_count_guidance.\\n"
-        "7) Validate final draft for credibility, personalization grounding, banned phrases, schema, and preset contract.\\n"
-        "8) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
+        "7) Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target.\\n"
+        "8) Preserve message_atoms.required_cta_line exactly; cta_intent may not replace it.\\n"
+        "9) Validate final draft for credibility, personalization grounding, banned phrases, schema, preset contract, and budget plan.\\n"
+        "10) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete EmailDraft JSON only."
     )
@@ -124,9 +135,11 @@ def build_salvage_messages(
     messaging_brief: dict[str, Any],
     cta_final_line: str,
     preset_contract: dict[str, Any],
+    budget_plan: dict[str, Any],
     failure_code: str,
 ) -> list[dict[str, str]]:
     contract = dict(preset_contract or {})
+    plan = dict(budget_plan or {})
     system = (
         "You are doing one bounded salvage edit on an already-written SDR email. "
         "This is not a fresh rewrite. Adjust only enough to satisfy the preset contract.\\n\\n"
@@ -140,6 +153,8 @@ def build_salvage_messages(
         f"Final body line must remain exactly: {cta_final_line}\\n\\n"
         "RULE 5 - PRESERVE METADATA.\\n"
         "Keep preset_id, selected_angle_id, and used_hook_ids unchanged.\\n\\n"
+        "RULE 6 - BUDGET PLAN IS ACTIVE.\\n"
+        "Use the budget plan as the narrow edit target. Do not expand salvage into a second draft.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
     )
 
@@ -149,6 +164,7 @@ def build_salvage_messages(
         "message_atoms": message_atoms,
         "messaging_brief": messaging_brief,
         "preset_contract": contract,
+        "budget_plan": plan,
         "locked_cta": cta_final_line,
     }
 
@@ -159,7 +175,8 @@ def build_salvage_messages(
         "2) If under the preset contract band, expand only slightly using grounded wording already present in the draft or atoms.\\n"
         "3) Do not replace the draft with a new template or canned preset body.\\n"
         "4) Preserve the selected angle, used_hook_ids, and exact CTA line.\\n"
-        "5) Self-audit for word band, sentence count, grounding, and CTA exactness before output.\\n\\n"
+        "5) Use budget_plan.target_total_words as the preferred landing point and stay within budget_plan.allowed_min_words/allowed_max_words.\\n"
+        "6) Self-audit for word band, sentence count, grounding, and CTA exactness before output.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete EmailDraft JSON only."
     )

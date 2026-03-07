@@ -89,12 +89,17 @@ async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch:
         "facts_from_input": [{"source_field": "research_text", "fact_kind": "prospect_context", "text": "Company: Nimbus Health"}],
     }
     atoms = {
+        "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
-        "opener_line": "Noticed your RevOps scope expanded this quarter.",
-        "value_line": "[Persona's team] improves process quality with our platform.",
-        "proof_line": "",
-        "cta_line": "Open to a quick chat to see if this is relevant?",
+        "opener_atom": "Noticed your RevOps scope expanded this quarter.",
+        "value_atom": "[Persona's team] improves process quality with our platform.",
+        "proof_atom": "",
+        "cta_atom": "Open to a quick chat to see if this is relevant?",
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "target_word_budget": 61,
+        "target_sentence_budget": 3,
     }
 
     result = await stage_judge.judge_message_atoms(
@@ -127,18 +132,23 @@ async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pyte
         ],
     }
     atoms = {
+        "preset_id": "challenger",
         "selected_angle_id": "angle_1",
         "used_hook_ids": ["hook_1"],
-        "opener_line": "Noticed Nimbus Health expanded RevOps ownership.",
-        "value_line": "Teams cut handoff delays by 18% in one quarter.",
-        "proof_line": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
-        "cta_line": "Open to a quick chat to see if this is relevant?",
+        "opener_atom": "Noticed Nimbus Health expanded RevOps ownership.",
+        "value_atom": "Teams cut handoff delays by 18% in one quarter.",
+        "proof_atom": "Nimbus Health expanded RevOps ownership in January 2026 to improve pipeline hygiene.",
+        "cta_atom": "Open to a quick chat to see if this is relevant?",
+        "cta_intent": "Ask whether a quick chat is relevant.",
+        "required_cta_line": "Open to a quick chat to see if this is relevant?",
+        "target_word_budget": 61,
+        "target_sentence_budget": 4,
     }
 
     result = await stage_judge.judge_message_atoms(
         atoms,
         brief,
-        {"angle_id": "angle_1", "proof": atoms["proof_line"]},
+        {"angle_id": "angle_1", "proof": atoms["proof_atom"]},
         locked_cta="Open to a quick chat to see if this is relevant?",
         openai=DummyOpenAI(),
     )
@@ -159,7 +169,7 @@ async def test_judge_email_draft_hard_fail_on_cta_mismatch(monkeypatch: pytest.M
             "subject": "RevOps quality idea",
             "body": "Hi Jordan\n\nTightening consistency can protect forecast confidence.\n\nWould you be open to a call next week?",
         },
-        {"proof_line": ""},
+        {"proof_atom": ""},
         {},
         cta_final_line="Open to a quick chat to see if this is relevant?",
         proof_gap=True,

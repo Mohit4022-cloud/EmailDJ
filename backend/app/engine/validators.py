@@ -5,6 +5,12 @@ import re
 from difflib import SequenceMatcher
 from typing import Any
 
+from .budget_planner import (
+    atom_structure,
+    atom_word_counts,
+    cta_alignment_status,
+    plan_budget,
+)
 from .preset_contract import sentence_count as contract_sentence_count
 
 from .brief_honesty import (
@@ -674,20 +680,168 @@ def validate_angle_set(angle_set: dict[str, Any], messaging_brief: dict[str, Any
     _codes_or_raise(codes)
 
 
-def validate_message_atoms(atoms: dict[str, Any], *, cta_final_line: str, forbidden_patterns: list[str]) -> None:
+def validate_message_atoms(
+    atoms: dict[str, Any],
+    *,
+    preset_id: str,
+    cta_final_line: str,
+    messaging_brief: dict[str, Any],
+    selected_angle: dict[str, Any],
+    preset_contract: dict[str, Any],
+    forbidden_patterns: list[str],
+    budget_plan: dict[str, Any],
+) -> None:
     codes: list[str] = []
-    if str(atoms.get("cta_line") or "").strip() != str(cta_final_line or "").strip():
+    details: list[dict[str, Any]] = []
+    normalized_atoms = {
+        "preset_id": str(atoms.get("preset_id") or "").strip(),
+        "selected_angle_id": str(atoms.get("selected_angle_id") or "").strip(),
+        "used_hook_ids": [str(item or "").strip() for item in (atoms.get("used_hook_ids") or []) if str(item or "").strip()],
+        "opener_atom": str(atoms.get("opener_atom") or "").strip(),
+        "value_atom": str(atoms.get("value_atom") or "").strip(),
+        "proof_atom": str(atoms.get("proof_atom") or "").strip(),
+        "cta_atom": str(atoms.get("cta_atom") or "").strip(),
+        "cta_intent": str(atoms.get("cta_intent") or "").strip(),
+        "required_cta_line": str(atoms.get("required_cta_line") or "").strip(),
+        "target_word_budget": int(atoms.get("target_word_budget") or 0),
+        "target_sentence_budget": int(atoms.get("target_sentence_budget") or 0),
+    }
+
+    if normalized_atoms["preset_id"] != str(preset_id or "").strip():
+        codes.append("atoms_preset_mismatch")
+        _append_detail(
+            details,
+            "atoms_preset_mismatch",
+            offending_text=normalized_atoms["preset_id"],
+            expected_preset_id=str(preset_id or "").strip(),
+        )
+
+    expected_angle_id = str(selected_angle.get("angle_id") or "").strip()
+    if normalized_atoms["selected_angle_id"] != expected_angle_id:
+        codes.append("atoms_selected_angle_mismatch")
+        _append_detail(
+            details,
+            "atoms_selected_angle_mismatch",
+            offending_text=normalized_atoms["selected_angle_id"],
+            expected_angle_id=expected_angle_id,
+        )
+
+    cta_status = cta_alignment_status(candidate=normalized_atoms["cta_atom"], required_cta_line=cta_final_line)
+    if normalized_atoms["required_cta_line"] != str(cta_final_line or "").strip():
+        codes.append("atoms_required_cta_mismatch")
+        _append_detail(
+            details,
+            "atoms_required_cta_mismatch",
+            offending_text=normalized_atoms["required_cta_line"],
+            expected_cta=str(cta_final_line or "").strip(),
+        )
+    if cta_status != "aligned":
         codes.append("atoms_cta_mismatch")
-    used_hooks = list(atoms.get("used_hook_ids") or [])
+        _append_detail(
+            details,
+            "atoms_cta_mismatch",
+            offending_text=normalized_atoms["cta_atom"],
+            cta_alignment_status=cta_status,
+            expected_cta=str(cta_final_line or "").strip(),
+        )
+
+    used_hooks = normalized_atoms["used_hook_ids"]
     if len(used_hooks) < 1:
         codes.append("atoms_missing_used_hook_ids")
-    opener = str(atoms.get("opener_line") or "").lower()
+        _append_detail(details, "atoms_missing_used_hook_ids", offending_text="")
+    hook_ids = {
+        str(item.get("hook_id") or "").strip()
+        for item in (messaging_brief.get("hooks") or [])
+        if isinstance(item, dict)
+    }
+    if any(hook_id and hook_id not in hook_ids for hook_id in used_hooks):
+        codes.append("atoms_unknown_hook_id")
+        _append_detail(details, "atoms_unknown_hook_id", available_fact_ids=used_hooks)
+    selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
+    if selected_hook_id and selected_hook_id not in used_hooks:
+        codes.append("atoms_selected_hook_not_preserved")
+        _append_detail(
+            details,
+            "atoms_selected_hook_not_preserved",
+            offending_text=selected_hook_id,
+            available_fact_ids=used_hooks,
+        )
+
+    opener = normalized_atoms["opener_atom"].lower()
     for pattern in forbidden_patterns:
         token = str(pattern or "").strip().lower()
         if token and token in opener:
             codes.append("atoms_forbidden_opener_pattern")
+            _append_detail(details, "atoms_forbidden_opener_pattern", offending_text=token)
             break
-    _codes_or_raise(codes)
+
+    atom_fields = ("opener_atom", "value_atom", "proof_atom", "cta_atom")
+    duplicate_map: dict[str, str] = {}
+    for field in atom_fields:
+        text = normalized_atoms[field]
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in duplicate_map:
+            codes.append("atoms_duplicate_or_conflicting")
+            _append_detail(
+                details,
+                "atoms_duplicate_or_conflicting",
+                offending_text=text[:160],
+                duplicate_field=duplicate_map[lowered],
+                duplicate_with=field,
+            )
+            break
+        duplicate_map[lowered] = field
+
+    expected_budget = plan_budget(
+        preset_id=str(preset_id or "").strip(),
+        preset_contract=preset_contract,
+        selected_angle=selected_angle,
+        message_atoms=normalized_atoms,
+    )
+    if normalized_atoms["target_word_budget"] != int(expected_budget.get("target_total_words") or 0):
+        codes.append("atoms_target_word_budget_mismatch")
+        _append_detail(
+            details,
+            "atoms_target_word_budget_mismatch",
+            offending_text=str(normalized_atoms["target_word_budget"]),
+            expected_target=int(expected_budget.get("target_total_words") or 0),
+        )
+    if normalized_atoms["target_sentence_budget"] != int(expected_budget.get("target_sentence_count") or 0):
+        codes.append("atoms_target_sentence_budget_mismatch")
+        _append_detail(
+            details,
+            "atoms_target_sentence_budget_mismatch",
+            offending_text=str(normalized_atoms["target_sentence_budget"]),
+            expected_target=int(expected_budget.get("target_sentence_count") or 0),
+        )
+    if int(expected_budget.get("target_total_words") or 0) != int(budget_plan.get("target_total_words") or 0):
+        codes.append("atoms_budget_seed_mismatch")
+        _append_detail(
+            details,
+            "atoms_budget_seed_mismatch",
+            offending_text=str(normalized_atoms["target_word_budget"]),
+            expected_target=int(budget_plan.get("target_total_words") or 0),
+        )
+    if str(expected_budget.get("feasibility_status") or "") == "infeasible":
+        codes.append("atoms_budget_infeasible")
+        _append_detail(
+            details,
+            "atoms_budget_infeasible",
+            offending_text=str(expected_budget.get("feasibility_reason") or ""),
+        )
+
+    words_by_atom = atom_word_counts(normalized_atoms)
+    if words_by_atom.get("cta_atom", 0) >= int(expected_budget.get("target_total_words") or 0):
+        codes.append("atoms_budget_infeasible")
+        _append_detail(
+            details,
+            "atoms_budget_infeasible",
+            offending_text="cta_atom_consumes_budget",
+        )
+
+    _codes_or_raise(list(dict.fromkeys(codes)), details=details)
 
 
 def _word_count(text: str) -> int:
@@ -742,6 +896,7 @@ def validate_email_draft(
     cta_final_line: str,
     sliders: dict[str, Any],
     preset_contract: dict[str, Any] | None = None,
+    budget_plan: dict[str, Any] | None = None,
     personalization_threshold: float = 0.65,
 ) -> list[str]:
     codes: list[str] = []
@@ -781,6 +936,7 @@ def validate_email_draft(
             break
 
     contract = dict(preset_contract or {})
+    plan = dict(budget_plan or {})
     hard_word_range = dict(contract.get("hard_word_range") or {})
     sentence_guidance = dict(contract.get("sentence_count_guidance") or {})
 
@@ -789,11 +945,16 @@ def validate_email_draft(
     if isinstance(hard_word_range.get("min"), int) and isinstance(hard_word_range.get("max"), int):
         min_words = int(hard_word_range["min"])
         max_words = int(hard_word_range["max"])
+    if isinstance(plan.get("allowed_min_words"), int) and isinstance(plan.get("allowed_max_words"), int):
+        min_words = int(plan["allowed_min_words"])
+        max_words = int(plan["allowed_max_words"])
     wc = _word_count(body)
     if wc < min_words or wc > max_words:
         codes.append("word_count_out_of_band")
 
     hard_sentence_max = sentence_guidance.get("hard_max")
+    if isinstance(plan.get("allowed_max_sentences"), int):
+        hard_sentence_max = int(plan["allowed_max_sentences"])
     if isinstance(hard_sentence_max, int) and contract_sentence_count(body) > hard_sentence_max:
         codes.append("too_many_sentences_for_preset")
 

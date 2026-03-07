@@ -94,18 +94,18 @@ def build_single_messages(
     angle_set: dict[str, Any],
     message_atoms: dict[str, Any],
     preset: dict[str, Any],
+    preset_contract: dict[str, Any],
+    budget_plan: dict[str, Any],
     sliders: dict[str, Any],
     cta_final_line: str,
 ) -> list[dict[str, str]]:
     selected_angle = _select_angle(angle_set, message_atoms)
     slider_rules = _slider_instructions(sliders)
-    preset_contract = resolve_output_contract(preset, length=slider_rules["length"])
     banned = _global_banned_phrases() + [
         str(item).strip().lower() for item in (preset.get("banned_phrases_additions") or []) if str(item).strip()
     ]
     target_word_range = dict(preset_contract.get("target_word_range") or {})
     sentence_guidance = dict(preset_contract.get("sentence_count_guidance") or {})
-
     system = (
         "You are a Senior SDR writing one outbound email from a fully constrained brief. "
         "Research is complete, angle is chosen, atoms are compressed. Execute; do not brainstorm.\\n\\n"
@@ -114,20 +114,25 @@ def build_single_messages(
         "RULE 2 - SUBJECT QUALITY.\\n"
         "Subject must be specific, <70 chars, tied to angle entry point, no deception.\\n\\n"
         "RULE 3 - SINGLE ARC.\\n"
-        "Body arc is opener -> value -> proof(if available) -> locked CTA.\\n\\n"
-        "If message_atoms.proof_gap is true, omit proof sentence entirely.\\n\\n"
+        "Body arc is opener -> value -> proof(if available) -> locked CTA. "
+        "Realize the atoms; do not invent a second structure.\\n\\n"
+        "If message_atoms.proof_atom is empty, omit proof sentence entirely.\\n\\n"
         "RULE 4 - LOCKED CTA.\\n"
         f"Final body line must exactly match: {cta_final_line}\\n\\n"
         "RULE 5 - PRESET CONTRACT IS ACTIVE.\\n"
         "Match the preset contract for word band, sentence count, opener directness, proof density, and CTA placement.\\n\\n"
-        "RULE 6 - STYLE IS SECONDARY TO GROUNDING.\\n"
+        "RULE 6 - BUDGET PLAN IS ACTIVE.\\n"
+        "Stay inside budget_plan targets. Do not add extra proof or bridge sentences unless budget_plan clearly allows it.\\n\\n"
+        "RULE 7 - STYLE IS SECONDARY TO GROUNDING.\\n"
         "Apply preset style without adding ungrounded content.\\n\\n"
-        "RULE 7 - BANNED PHRASES ARE ABSOLUTE.\\n"
+        "RULE 8 - BANNED PHRASES ARE ABSOLUTE.\\n"
         "If phrase is banned, do not use it.\\n\\n"
         "Active settings: "
         f"tone={slider_rules['tone']} framing={slider_rules['framing']} stance={slider_rules['stance']} "
-        f"body_words={target_word_range.get('min', slider_rules['min_words'])}-{target_word_range.get('max', slider_rules['max_words'])} "
-        f"sentences={sentence_guidance.get('target_min', 3)}-{sentence_guidance.get('target_max', 4)}.\\n\\n"
+        f"body_words={budget_plan.get('allowed_min_words', target_word_range.get('min', slider_rules['min_words']))}-"
+        f"{budget_plan.get('allowed_max_words', target_word_range.get('max', slider_rules['max_words']))} "
+        f"target_words={budget_plan.get('target_total_words', target_word_range.get('min', slider_rules['min_words']))} "
+        f"target_sentences={budget_plan.get('target_sentence_count', sentence_guidance.get('target_min', 3))}.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match EmailDraft schema exactly."
     )
 
@@ -139,6 +144,7 @@ def build_single_messages(
         "fit_map": fit_map,
         "preset": preset,
         "preset_contract": preset_contract,
+        "budget_plan": budget_plan,
         "slider_rules": slider_rules,
         "banned_phrases": sorted(list(dict.fromkeys(banned))),
     }
@@ -148,16 +154,18 @@ def build_single_messages(
         "INSTRUCTIONS:\\n"
         "1) Subject under 70 chars; specific to selected angle and prospect context.\\n"
         "2) Use atom-driven structure; one argument only.\\n"
-        "3) The value_line atom must appear as a distinct sentence in the body. It may not be merged into opener/proof.\\n"
-        "4) If message_atoms.proof_gap is true, omit proof sentence entirely and write a three-sentence email: "
+        "3) The value_atom must appear as a distinct sentence in the body. It may not be merged into opener/proof.\\n"
+        "4) If message_atoms.proof_atom is empty, omit proof sentence entirely and write a three-sentence email: "
         "opener -> value -> CTA line. Do not convert prospect facts into proof. "
-        "If proof_gap is false, include proof_line as its own sentence.\\n"
+        "If proof_atom is not empty, include proof_atom as its own sentence.\\n"
         "5) End body with exact locked CTA and no text after CTA.\\n"
-        "6) Keep body within preset_contract target_word_range and sentence_count_guidance.\\n"
-        "7) Match preset_contract opener_directness, proof_density, and assertiveness without adding claims.\\n"
-        "8) No banned phrases and no ungrounded personalization claims.\\n"
-        "9) Preserve selected_angle_id and used_hook_ids alignment with message_atoms.\\n"
-        "10) Self-audit before output for schema, grounding, CTA lock, preset contract, and length.\\n\\n"
+        "6) Keep body within budget_plan allowed_min_words/allowed_max_words, and aim for budget_plan.target_total_words.\\n"
+        "7) Match budget_plan.target_sentence_count and do not exceed budget_plan.allowed_max_sentences.\\n"
+        "8) Match preset_contract opener_directness, proof_density, and assertiveness without adding claims.\\n"
+        "9) No banned phrases and no ungrounded personalization claims.\\n"
+        "10) Preserve selected_angle_id and used_hook_ids alignment with message_atoms.\\n"
+        "11) Use message_atoms.required_cta_line as the exact final line. cta_intent is concept-only and may not replace it.\\n"
+        "12) Self-audit before output for schema, grounding, CTA lock, preset contract, budget plan, and length.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete EmailDraft JSON only."
     )
@@ -175,6 +183,7 @@ def build_batch_messages(
     angle_set: dict[str, Any],
     message_atoms: dict[str, Any],
     presets: list[dict[str, Any]],
+    budget_plan_by_preset: dict[str, dict[str, Any]] | None = None,
     sliders: dict[str, Any],
     cta_final_line: str,
 ) -> list[dict[str, str]]:
@@ -184,10 +193,10 @@ def build_batch_messages(
         {
             **preset,
             "preset_contract": resolve_output_contract(preset, length=slider_rules["length"]),
+            "budget_plan": dict((budget_plan_by_preset or {}).get(str(preset.get("preset_id") or ""), {})),
         }
         for preset in presets
     ]
-
     system = (
         "You are generating a preset library from one fixed campaign narrative. "
         "Produce one variant per preset.\\n\\n"
@@ -203,10 +212,12 @@ def build_batch_messages(
         f"Every body must end exactly with: {cta_final_line}\\n\\n"
         "RULE 6 - PRESET CONTRACTS ARE ACTIVE.\\n"
         "Each preset variant must satisfy its own contract for target word band, sentence count, opener directness, proof density, and CTA placement.\\n\\n"
-        "RULE 7 - BANNED PHRASES APPLY GLOBALLY + PER PRESET.\\n"
-        "RULE 8 - SUBJECTS MUST BE DISTINCT AND <70 chars.\\n"
-        "RULE 9 - PROOF GAP HANDLING.\\n"
-        "If message_atoms.proof_gap is true, omit proof sentence across all successful variants.\\n\\n"
+        "RULE 7 - BUDGET PLANS ARE ACTIVE.\\n"
+        "Each preset variant must follow its own budget plan, not just the generic length tier.\\n\\n"
+        "RULE 8 - BANNED PHRASES APPLY GLOBALLY + PER PRESET.\\n"
+        "RULE 9 - SUBJECTS MUST BE DISTINCT AND <70 chars.\\n"
+        "RULE 10 - PROOF GAP HANDLING.\\n"
+        "If message_atoms.proof_atom is empty, omit proof sentence across all successful variants.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match BatchVariants schema exactly."
     )
 
@@ -230,9 +241,9 @@ def build_batch_messages(
         "4) Use same core narrative across variants; style differs by preset contract only.\\n"
         "5) If a variant cannot be generated, emit preset-scoped error object and continue.\\n"
         "6) Cross-variant audit: no duplicate subject lines or opening sentences.\\n"
-        "7) Keep each variant inside its preset_contract target_word_range and sentence_count_guidance.\\n"
+        "7) Keep each variant inside its preset_contract target_word_range and its preset-specific budget_plan.\\n"
         "8) No banned phrases or ungrounded claims.\\n"
-        "9) If message_atoms.proof_gap is true, do not invent proof and do not reuse prospect facts as proof.\\n\\n"
+        "9) If message_atoms.proof_atom is empty, do not invent proof and do not reuse prospect facts as proof.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete BatchVariants JSON only."
     )
