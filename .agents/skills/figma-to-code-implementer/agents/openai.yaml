@@ -1,0 +1,4 @@
+interface:
+  display_name: "Figma To Code Implementer"
+  short_description: "Translate Figma designs into EmailDJ frontend code"
+  default_prompt: "Use $figma-to-code-implementer to implement this Figma design in the EmailDJ frontend."

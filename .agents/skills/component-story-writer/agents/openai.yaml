@@ -1,0 +1,4 @@
+interface:
+  display_name: "Component Story Writer"
+  short_description: "Keep reusable EmailDJ UI components state-complete"
+  default_prompt: "Use $component-story-writer to define stories and state coverage for this reusable EmailDJ UI component."

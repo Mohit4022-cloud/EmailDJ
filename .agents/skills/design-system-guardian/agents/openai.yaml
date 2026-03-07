@@ -1,0 +1,4 @@
+interface:
+  display_name: "Design System Guardian"
+  short_description: "Stop ad hoc EmailDJ frontend styling drift"
+  default_prompt: "Use $design-system-guardian to review these EmailDJ UI changes for token and primitive drift."

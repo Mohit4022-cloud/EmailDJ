@@ -1,0 +1,4 @@
+interface:
+  display_name: "Frontend UX Critic"
+  short_description: "Rank EmailDJ UI problems before code changes"
+  default_prompt: "Use $frontend-ux-critic to review this EmailDJ UI and return a ranked fix list before coding."
