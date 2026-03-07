@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.engine.prompts import stage_a, stage_c, stage_c0, stage_d, stage_e
+from app.engine.prompts import stage_a, stage_b, stage_c, stage_c0, stage_d, stage_e
 
 
 def _messaging_brief() -> dict:
@@ -106,7 +106,20 @@ def test_stage_c0_prompt_contains_value_formula_and_external_proof_rule() -> Non
     assert "[Persona's team] [specific verb: cut/reduced/protected/freed]" in user_prompt
     assert "If no brief proof point supports this formula, set proof_atom to empty string \"\"." in user_prompt
     assert "never use the prospect's own facts as proof" in user_prompt
+    assert "If seller_proof_fact_count is 0 or selected_angle risk flags include proof_gap / seller_proof_gap, proof_atom must be empty string." in messages[0]["content"]
+    assert "used_hook_ids: non-empty, deduped" in user_prompt
     assert "target_word_budget: copy budget_plan.target_total_words exactly." in user_prompt
+
+
+def test_stage_b_prompt_requires_exact_proof_gap_phrase_and_no_invented_numbers() -> None:
+    messages = stage_b.build_messages(_messaging_brief())
+    system_prompt = messages[0]["content"]
+    user_prompt = messages[1]["content"]
+
+    assert "Proof gap: no seller proof provided in brief." in system_prompt
+    assert "RULE 4 - NO INVENTED NUMBERS." in system_prompt
+    assert "supporting_fact_ids: list only the exact fact ids you actually used" in user_prompt
+    assert 'proof is either grounded in seller-side evidence or exactly "Proof gap: no seller proof provided in brief."' in user_prompt
 
 
 def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
@@ -157,7 +170,7 @@ def test_stage_a_prompt_contains_containment_rejection_rules() -> None:
     assert "True seller-proof positive example:" in user_prompt
 
 
-def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:
+def test_stage_c_single_prompt_requires_proof_gap_budget_aware_sentence_mode() -> None:
     messages = stage_c.build_single_messages(
         messaging_brief=_messaging_brief(),
         fit_map=_fit_map(),
@@ -174,7 +187,8 @@ def test_stage_c_single_prompt_requires_proof_gap_three_sentence_mode() -> None:
 
     assert "If message_atoms.proof_atom is empty, omit proof sentence entirely." in system_prompt
     assert "RULE 5 - PRESET CONTRACT IS ACTIVE." in system_prompt
-    assert "write a three-sentence email: opener -> value -> CTA line" in user_prompt
+    assert "Use a three-sentence email only when that still satisfies budget_plan.allowed_min_words." in user_prompt
+    assert "add one grounded impact sentence before the CTA" in user_prompt
     assert "Keep body within budget_plan allowed_min_words/allowed_max_words" in user_prompt
     assert "Do not convert prospect facts into proof." in user_prompt
 
@@ -212,9 +226,10 @@ def test_stage_d_prompt_requires_preset_specific_issue_types() -> None:
     system_prompt = messages[0]["content"]
     user_prompt = messages[1]["content"]
 
-    assert "RULE 6 - PRESET CONTRACT IS ACTIVE." in system_prompt
-    assert "RULE 7 - BUDGET PLAN IS ACTIVE." in system_prompt
+    assert "RULE 8 - PRESET CONTRACT IS ACTIVE." in system_prompt
+    assert "RULE 9 - BUDGET PLAN IS ACTIVE." in system_prompt
     assert "word_count_out_of_band, opener_too_soft_for_preset" in user_prompt
+    assert "issue_code, type, severity, offending_span_or_target_section, evidence_quote, evidence" in user_prompt
     assert "\"budget_plan\"" in user_prompt
     assert "\"preset_contract\"" in user_prompt
 
@@ -225,9 +240,28 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
         qa_report={
             "version": "1.0",
             "pass_rewrite_needed": True,
-            "issues": [{"type": "word_count_out_of_band", "severity": "high", "evidence": ["too short"], "fix_instruction": "Expand slightly."}],
+            "issues": [
+                {
+                    "issue_code": "word_count_out_of_band",
+                    "severity": "high",
+                    "offending_span_or_target_section": "Hi Alex.",
+                    "evidence_quote": "Hi Alex.",
+                    "why_it_fails": "The body is too short for the preset contract.",
+                    "fix_instruction": "Expand the body slightly while keeping the locked CTA exact.",
+                    "expected_effect": "Bring the draft back inside the preset band.",
+                }
+            ],
             "risk_flags": [],
-            "rewrite_plan": ["Expand slightly while keeping the CTA exact."],
+            "rewrite_plan": [
+                {
+                    "issue_code": "word_count_out_of_band",
+                    "target": "Hi Alex.",
+                    "action": "Expand the body slightly with grounded copy before the CTA.",
+                    "replacement_guidance": "Use only grounded wording already supported by the brief and atoms.",
+                    "preserve": 'Keep the locked CTA text "Open to a quick chat to see if this is relevant?" unchanged and leave unrelated grounded sentences untouched.',
+                    "expected_effect": "Bring the draft back inside the preset band.",
+                }
+            ],
         },
         messaging_brief=_messaging_brief(),
         message_atoms=_atoms(proof_gap=False),
@@ -252,6 +286,8 @@ def test_stage_e_rewrite_and_salvage_prompts_target_preset_contract() -> None:
     salvage_user = salvage_messages[1]["content"]
 
     assert "RULE 7 - PRESET CONTRACT IS ACTIVE." in rewrite_system
+    assert "RULE 4 - CTA LOCK." in rewrite_system
+    assert "Map each rewrite_plan action object to the exact quoted target before editing." in rewrite_user
     assert "Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target." in rewrite_user
     assert "This is not a fresh rewrite." in salvage_system
     assert "RULE 6 - BUDGET PLAN IS ACTIVE." in salvage_system

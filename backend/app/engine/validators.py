@@ -148,6 +148,10 @@ def _grounding_tokens(text: str) -> set[str]:
     return {token for token in tokens if len(token) >= 4 and token not in GROUNDING_STOPWORDS}
 
 
+def _numeric_tokens(text: str) -> set[str]:
+    return {token for token in re.findall(r"\b\d+(?:\.\d+)?%?\b", str(text or "").lower())}
+
+
 def _normalize_placeholder_text(text: Any) -> str:
     return normalize_placeholder_text(text)
 
@@ -693,6 +697,9 @@ def validate_message_atoms(
 ) -> None:
     codes: list[str] = []
     details: list[dict[str, Any]] = []
+    facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
+    seller_proof_facts = [fact for fact in facts if canonical_fact_kind(str(fact.get("source_field") or "")) == "seller_proof"]
+    seller_proof_texts = [str(fact.get("text") or "").strip() for fact in seller_proof_facts if str(fact.get("text") or "").strip()]
     normalized_atoms = {
         "preset_id": str(atoms.get("preset_id") or "").strip(),
         "selected_angle_id": str(atoms.get("selected_angle_id") or "").strip(),
@@ -749,6 +756,9 @@ def validate_message_atoms(
     if len(used_hooks) < 1:
         codes.append("atoms_missing_used_hook_ids")
         _append_detail(details, "atoms_missing_used_hook_ids", offending_text="")
+    if len(set(used_hooks)) != len(used_hooks):
+        codes.append("atoms_duplicate_used_hook_id")
+        _append_detail(details, "atoms_duplicate_used_hook_id", available_fact_ids=used_hooks)
     hook_ids = {
         str(item.get("hook_id") or "").strip()
         for item in (messaging_brief.get("hooks") or [])
@@ -774,6 +784,35 @@ def validate_message_atoms(
             codes.append("atoms_forbidden_opener_pattern")
             _append_detail(details, "atoms_forbidden_opener_pattern", offending_text=token)
             break
+
+    proof_atom = normalized_atoms["proof_atom"]
+    if proof_atom:
+        if not seller_proof_texts:
+            codes.append("atoms_proof_without_seller_proof")
+            _append_detail(
+                details,
+                "atoms_proof_without_seller_proof",
+                offending_text=proof_atom[:160],
+                required_evidence_kind="seller_proof",
+            )
+        else:
+            proof_tokens = _grounding_tokens(proof_atom)
+            seller_proof_tokens: set[str] = set()
+            seller_numeric_tokens: set[str] = set()
+            for seller_text in seller_proof_texts:
+                seller_proof_tokens.update(_grounding_tokens(seller_text))
+                seller_numeric_tokens.update(_numeric_tokens(seller_text))
+            overlap = proof_tokens & seller_proof_tokens
+            numeric_tokens = _numeric_tokens(proof_atom)
+            if len(overlap) < 2 or (numeric_tokens and numeric_tokens.isdisjoint(seller_numeric_tokens)):
+                codes.append("atoms_proof_not_grounded_in_seller_proof")
+                _append_detail(
+                    details,
+                    "atoms_proof_not_grounded_in_seller_proof",
+                    offending_text=proof_atom[:160],
+                    actual_evidence_kinds=["seller_proof"],
+                    required_evidence_kind="seller_proof",
+                )
 
     atom_fields = ("opener_atom", "value_atom", "proof_atom", "cta_atom")
     duplicate_map: dict[str, str] = {}
@@ -969,20 +1008,481 @@ def validate_email_draft(
     return codes
 
 
-def normalize_qa_report(qa_report: dict[str, Any]) -> dict[str, Any]:
-    report = dict(qa_report)
-    issues = list(report.get("issues") or [])
-    has_high = any(str(item.get("severity") or "").lower() == "high" for item in issues)
-    pass_rewrite_needed = bool(report.get("pass_rewrite_needed")) or has_high
-    report["pass_rewrite_needed"] = pass_rewrite_needed
+_QA_ALLOWED_ISSUE_TYPES = {
+    "credibility",
+    "specificity",
+    "structure",
+    "spam_risk",
+    "personalization",
+    "length",
+    "cta",
+    "grammar",
+    "tone",
+    "clarity",
+    "word_count_out_of_band",
+    "opener_too_soft_for_preset",
+    "proof_density_too_low",
+    "too_many_sentences_for_preset",
+    "tone_mismatch_for_preset",
+    "cta_not_in_expected_form",
+    "other",
+}
 
-    if pass_rewrite_needed and not report.get("rewrite_plan"):
-        issue_types = {str(item.get("type") or "").strip() for item in issues if isinstance(item, dict)}
-        if "word_count_out_of_band" in issue_types or "too_many_sentences_for_preset" in issue_types:
-            report["rewrite_plan"] = [
-                "Tighten the body to fit the preset contract word and sentence targets.",
-                "Keep the CTA exact and leave grounded claims intact.",
-            ]
-        else:
-            report["rewrite_plan"] = ["Tighten opener specificity.", "Remove fluff and keep one core ask."]
+
+def _normalize_issue_code(value: Any) -> str:
+    text = re.sub(r"[^a-z0-9_]+", "_", str(value or "").strip().lower()).strip("_")
+    return text or "other"
+
+
+def _normalize_issue_type(issue_code: str, raw_type: Any) -> str:
+    issue_type = str(raw_type or "").strip()
+    if issue_type in _QA_ALLOWED_ISSUE_TYPES:
+        return issue_type
+    if issue_code in _QA_ALLOWED_ISSUE_TYPES:
+        return issue_code
+    if issue_code.startswith("cta"):
+        return "cta"
+    if "proof" in issue_code:
+        return "credibility"
+    if "personal" in issue_code or "hook" in issue_code:
+        return "personalization"
+    if "tone" in issue_code:
+        return "tone"
+    if "word_count" in issue_code or "sentence" in issue_code or "length" in issue_code:
+        return "length"
+    if "spam" in issue_code or "banned" in issue_code:
+        return "spam_risk"
+    return "other"
+
+
+def _qa_draft_blob(draft: dict[str, Any] | None) -> str:
+    if not isinstance(draft, dict):
+        return ""
+    subject = str(draft.get("subject") or "").strip()
+    body = str(draft.get("body") or "").strip()
+    return "\n".join(part for part in (subject, body) if part)
+
+
+def _strip_wrapping_quotes(text: str) -> str:
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        return text[1:-1].strip()
+    return text
+
+
+def _normalize_evidence_quote(issue: dict[str, Any], draft_blob: str) -> str:
+    candidates = [issue.get("evidence_quote")]
+    evidence = issue.get("evidence")
+    if isinstance(evidence, list):
+        candidates.extend(evidence)
+    for candidate in candidates:
+        text = str(candidate or "").strip()
+        if not text:
+            continue
+        if text in draft_blob:
+            return text
+        unquoted = _strip_wrapping_quotes(text)
+        if unquoted and unquoted in draft_blob:
+            return unquoted
+    return ""
+
+
+def _preserve_instruction(locked_cta: str) -> str:
+    if locked_cta:
+        return f'Keep the locked CTA text "{locked_cta}" unchanged and leave unrelated grounded sentences untouched.'
+    return "Leave unrelated grounded sentences untouched."
+
+
+def _default_issue_explanation(issue_code: str, evidence_quote: str) -> str:
+    if issue_code.startswith("cta"):
+        return f'The quoted text breaks the locked CTA contract or its final-line placement: "{evidence_quote}".'
+    if issue_code in {"word_count_out_of_band", "too_many_sentences_for_preset"}:
+        return "The draft is outside the preset word or sentence contract."
+    if "proof" in issue_code or "unsupported" in issue_code or "ground" in issue_code:
+        return f'The quoted text introduces proof or factual framing that is not grounded strongly enough: "{evidence_quote}".'
+    return f'The quoted text is the specific failing span that should be revised: "{evidence_quote}".'
+
+
+def _default_expected_effect(issue_code: str) -> str:
+    if issue_code.startswith("cta"):
+        return "Restore exact locked CTA fidelity with one final-line CTA only."
+    if issue_code in {"word_count_out_of_band", "too_many_sentences_for_preset"}:
+        return "Bring the draft back inside the preset word and sentence band."
+    if "proof" in issue_code or "unsupported" in issue_code or "ground" in issue_code:
+        return "Remove unsupported material and keep only grounded claims."
+    if "tone" in issue_code:
+        return "Bring the draft back to the preset tone without adding claims."
+    return "Resolve the targeted issue while preserving grounded copy elsewhere."
+
+
+def _default_fix_instruction(issue_code: str, target: str, locked_cta: str) -> str:
+    if issue_code.startswith("cta"):
+        if locked_cta:
+            return (
+                f'Keep the locked CTA text "{locked_cta}" unchanged; make it the only final line and remove any extra '
+                "CTA or question wording around it."
+            )
+        return "Keep the CTA text unchanged and make it the only final line."
+    if issue_code in {"word_count_out_of_band", "too_many_sentences_for_preset"}:
+        return (
+            f"Edit only {target} to fit the preset word and sentence targets; shorten or remove the least essential "
+            "supported wording and leave the locked CTA unchanged."
+        )
+    if "proof" in issue_code or "unsupported" in issue_code or "ground" in issue_code:
+        return (
+            f"Delete or narrow {target} so it only uses seller proof or prospect facts explicitly supported by the "
+            "brief; do not invent replacement proof."
+        )
+    return (
+        f"Replace {target} with a grounded alternative tied to the selected hook and brief facts; leave unrelated "
+        "sentences unchanged."
+    )
+
+
+def _normalize_fix_instruction(issue_code: str, raw_fix: Any, target: str, locked_cta: str) -> str:
+    fix_instruction = str(raw_fix or "").strip()
+    if issue_code.startswith("cta"):
+        return _default_fix_instruction(issue_code, target, locked_cta)
+    if not fix_instruction:
+        return _default_fix_instruction(issue_code, target, locked_cta)
+    return fix_instruction
+
+
+def _normalize_qa_issue(issue: dict[str, Any], *, draft_blob: str, locked_cta: str) -> dict[str, Any] | None:
+    if not isinstance(issue, dict):
+        return None
+    issue_code = _normalize_issue_code(issue.get("issue_code") or issue.get("type") or "other")
+    evidence_quote = _normalize_evidence_quote(issue, draft_blob)
+    if not evidence_quote:
+        return None
+    target = str(issue.get("offending_span_or_target_section") or "").strip() or evidence_quote
+    severity = str(issue.get("severity") or "medium").strip().lower()
+    if severity not in {"low", "medium", "high"}:
+        severity = "medium"
+    why_it_fails = str(issue.get("why_it_fails") or "").strip() or _default_issue_explanation(issue_code, evidence_quote)
+    expected_effect = str(issue.get("expected_effect") or "").strip() or _default_expected_effect(issue_code)
+    normalized = {
+        "issue_code": issue_code,
+        "type": _normalize_issue_type(issue_code, issue.get("type")),
+        "severity": severity,
+        "offending_span_or_target_section": target,
+        "evidence_quote": evidence_quote,
+        "why_it_fails": why_it_fails,
+        "fix_instruction": _normalize_fix_instruction(issue_code, issue.get("fix_instruction"), target, locked_cta),
+        "expected_effect": expected_effect,
+        "evidence": [evidence_quote],
+    }
+    return normalized
+
+
+def _issue_to_rewrite_action(issue: dict[str, Any], *, locked_cta: str) -> dict[str, Any]:
+    return {
+        "issue_code": str(issue.get("issue_code") or "other"),
+        "target": str(issue.get("offending_span_or_target_section") or "body"),
+        "action": str(issue.get("fix_instruction") or ""),
+        "replacement_guidance": str(issue.get("fix_instruction") or ""),
+        "preserve": _preserve_instruction(locked_cta),
+        "expected_effect": str(issue.get("expected_effect") or _default_expected_effect(str(issue.get("issue_code") or "other"))),
+    }
+
+
+def _normalize_rewrite_plan(
+    raw_plan: Any,
+    *,
+    issues: list[dict[str, Any]],
+    locked_cta: str,
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    raw_items = raw_plan if isinstance(raw_plan, list) else []
+    for index, raw_item in enumerate(raw_items):
+        issue = issues[index] if index < len(issues) else (issues[0] if issues else None)
+        if isinstance(raw_item, dict):
+            issue_code = _normalize_issue_code(raw_item.get("issue_code") or raw_item.get("type") or (issue or {}).get("issue_code") or "other")
+            target = str(raw_item.get("target") or raw_item.get("offending_span_or_target_section") or (issue or {}).get("offending_span_or_target_section") or "").strip()
+            action = str(raw_item.get("action") or "").strip()
+            replacement_guidance = str(raw_item.get("replacement_guidance") or raw_item.get("fix_instruction") or (issue or {}).get("fix_instruction") or "").strip()
+            preserve = str(raw_item.get("preserve") or "").strip() or _preserve_instruction(locked_cta)
+            expected_effect = str(raw_item.get("expected_effect") or (issue or {}).get("expected_effect") or "").strip() or _default_expected_effect(issue_code)
+            if issue_code and target and action and replacement_guidance and preserve and expected_effect:
+                normalized.append(
+                    {
+                        "issue_code": issue_code,
+                        "target": target,
+                        "action": action,
+                        "replacement_guidance": replacement_guidance,
+                        "preserve": preserve,
+                        "expected_effect": expected_effect,
+                    }
+                )
+            continue
+
+        text = str(raw_item or "").strip()
+        if not text or issue is None:
+            continue
+        normalized.append(
+            {
+                "issue_code": str(issue.get("issue_code") or "other"),
+                "target": str(issue.get("offending_span_or_target_section") or "body"),
+                "action": text,
+                "replacement_guidance": str(issue.get("fix_instruction") or text),
+                "preserve": _preserve_instruction(locked_cta),
+                "expected_effect": str(issue.get("expected_effect") or _default_expected_effect(str(issue.get("issue_code") or "other"))),
+            }
+        )
+
+    if normalized:
+        return normalized[:8]
+
+    return [
+        _issue_to_rewrite_action(issue, locked_cta=locked_cta)
+        for issue in issues
+        if str(issue.get("severity") or "").lower() in {"high", "medium"}
+    ][:8]
+
+
+def normalize_qa_report(
+    qa_report: dict[str, Any],
+    *,
+    draft: dict[str, Any] | None = None,
+    locked_cta: str | None = None,
+) -> dict[str, Any]:
+    report = dict(qa_report or {})
+    draft_blob = _qa_draft_blob(draft)
+    normalized_issues = [
+        normalized
+        for normalized in (
+            _normalize_qa_issue(issue, draft_blob=draft_blob, locked_cta=str(locked_cta or "").strip())
+            for issue in (report.get("issues") or [])
+        )
+        if normalized is not None
+    ]
+    has_high = any(str(item.get("severity") or "").lower() == "high" for item in normalized_issues)
+    pass_rewrite_needed = bool(report.get("pass_rewrite_needed")) or has_high
+    if not normalized_issues:
+        pass_rewrite_needed = False
+
+    report["version"] = str(report.get("version") or "1.0")
+    report["issues"] = normalized_issues
+    report["risk_flags"] = _normalized_string_list(report.get("risk_flags") or [])
+    report["pass_rewrite_needed"] = pass_rewrite_needed
+    report["rewrite_plan"] = (
+        _normalize_rewrite_plan(report.get("rewrite_plan"), issues=normalized_issues, locked_cta=str(locked_cta or "").strip())
+        if pass_rewrite_needed
+        else []
+    )
+    return report
+
+
+def _qa_body_sentences(draft: dict[str, Any] | None) -> list[str]:
+    body = str((draft or {}).get("body") or "").strip()
+    if not body:
+        return []
+    collapsed = re.sub(r"\s+", " ", body.replace("\n", " ")).strip()
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", collapsed) if part.strip()]
+
+
+def _qa_last_nonempty_line(draft: dict[str, Any] | None) -> str:
+    lines = [line.strip() for line in str((draft or {}).get("body") or "").splitlines() if line.strip()]
+    return lines[-1] if lines else ""
+
+
+def _first_body_sentence(draft: dict[str, Any] | None) -> str:
+    sentences = _qa_body_sentences(draft)
+    return sentences[0] if sentences else str((draft or {}).get("body") or "").strip()
+
+
+def _find_sentence_with_token(draft: dict[str, Any] | None, tokens: list[str]) -> str:
+    lowered_tokens = [token.lower() for token in tokens if token]
+    for sentence in _qa_body_sentences(draft):
+        lowered = sentence.lower()
+        if any(token in lowered for token in lowered_tokens):
+            return sentence
+    return _first_body_sentence(draft)
+
+
+def _opener_clause_counts(draft: dict[str, Any] | None) -> tuple[int, int]:
+    opener = _first_body_sentence(draft)
+    comma_count = opener.count(",")
+    connector_count = len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
+    return comma_count, connector_count
+
+
+def _validation_issue_dict(
+    *,
+    issue_code: str,
+    severity: str,
+    target: str,
+    evidence_quote: str,
+    why_it_fails: str,
+    fix_instruction: str,
+    expected_effect: str,
+) -> dict[str, Any]:
+    normalized_issue_code = _normalize_issue_code(issue_code)
+    normalized_target = str(target or "").strip() or "body"
+    normalized_quote = str(evidence_quote or "").strip() or normalized_target
+    return {
+        "issue_code": normalized_issue_code,
+        "type": _normalize_issue_type(normalized_issue_code, None),
+        "severity": severity,
+        "offending_span_or_target_section": normalized_target,
+        "evidence_quote": normalized_quote,
+        "why_it_fails": why_it_fails,
+        "fix_instruction": fix_instruction,
+        "expected_effect": expected_effect,
+        "evidence": [normalized_quote],
+    }
+
+
+def _synthesized_issue_for_validation_code(
+    code: str,
+    *,
+    draft: dict[str, Any] | None,
+    locked_cta: str,
+) -> dict[str, Any] | None:
+    normalized_code = str(code or "").strip()
+    subject = str((draft or {}).get("subject") or "").strip()
+
+    if normalized_code == "subject_too_long" and subject:
+        return _validation_issue_dict(
+            issue_code="subject_too_long",
+            severity="medium",
+            target="subject",
+            evidence_quote=subject,
+            why_it_fails="The subject line is longer than the hard limit and needs a tighter phrasing.",
+            fix_instruction="Trim the subject line only; keep the same grounded claim but remove extra words so it stays under 70 characters.",
+            expected_effect="Bring the subject back inside the subject-length limit without changing the offer.",
+        )
+
+    if normalized_code == "word_count_out_of_band":
+        sentence = _first_body_sentence(draft)
+        return _validation_issue_dict(
+            issue_code="word_count_out_of_band",
+            severity="high",
+            target="body before CTA",
+            evidence_quote=sentence,
+            why_it_fails="The body is outside the preset word band, so the draft needs one localized length correction.",
+            fix_instruction="Expand only the body before the locked CTA by adding one grounded middle sentence tied to the selected hook; keep the CTA text unchanged.",
+            expected_effect="Bring the draft back inside the preset word band while preserving the angle and CTA.",
+        )
+
+    if normalized_code == "too_many_sentences_for_preset":
+        sentence = _first_body_sentence(draft)
+        return _validation_issue_dict(
+            issue_code="too_many_sentences_for_preset",
+            severity="high",
+            target="body before CTA",
+            evidence_quote=sentence,
+            why_it_fails="The draft uses too many sentences for the active preset contract.",
+            fix_instruction="Compress the body before the locked CTA by merging or removing the least essential sentence; keep the CTA text unchanged.",
+            expected_effect="Bring the draft back inside the preset sentence limit without changing the CTA.",
+        )
+
+    if normalized_code in {"cta_not_final_line", "duplicate_cta_line"}:
+        evidence_quote = _qa_last_nonempty_line(draft) or locked_cta
+        return _validation_issue_dict(
+            issue_code="cta_not_in_expected_form",
+            severity="high",
+            target="final CTA line",
+            evidence_quote=evidence_quote,
+            why_it_fails="The CTA is not isolated as the one exact final line required by the contract.",
+            fix_instruction=_default_fix_instruction("cta_not_in_expected_form", "final CTA line", locked_cta),
+            expected_effect=_default_expected_effect("cta_not_in_expected_form"),
+        )
+
+    if normalized_code == "ungrounded_personalization_claim":
+        sentence = _find_sentence_with_token(draft, list(UNGROUNDED_PERSONALIZATION_MARKERS))
+        return _validation_issue_dict(
+            issue_code="ungrounded_personalization_claim",
+            severity="high",
+            target=sentence or "opener sentence",
+            evidence_quote=sentence or _first_body_sentence(draft),
+            why_it_fails="The quoted personalization overstates prospect-specific context that is not grounded strongly enough.",
+            fix_instruction="Replace only the quoted sentence with a narrower opener that stays inside supported role or company facts; do not add new proof.",
+            expected_effect="Remove unsupported personalization while keeping the selected angle grounded.",
+        )
+
+    if normalized_code == "banned_phrase":
+        sentence = _find_sentence_with_token(draft, BANNED_PHRASES)
+        return _validation_issue_dict(
+            issue_code="spam_risk",
+            severity="high",
+            target=sentence or "body sentence",
+            evidence_quote=sentence or _first_body_sentence(draft),
+            why_it_fails="The quoted line contains a banned outreach phrase.",
+            fix_instruction="Replace only the quoted line with a grounded alternative that removes the banned phrase and keeps the rest of the draft unchanged.",
+            expected_effect="Remove the banned phrase without changing the email structure or CTA.",
+        )
+
+    return None
+
+
+def augment_qa_report_from_validation_codes(
+    qa_report: dict[str, Any],
+    *,
+    draft: dict[str, Any] | None = None,
+    locked_cta: str | None = None,
+    validation_codes: list[str] | None = None,
+) -> dict[str, Any]:
+    report = dict(qa_report or {})
+    normalized_codes = [str(code or "").strip() for code in (validation_codes or []) if str(code or "").strip()]
+    if not normalized_codes:
+        return report
+
+    issues = [item for item in (report.get("issues") or []) if isinstance(item, dict)]
+    existing_codes = {str(item.get("issue_code") or "").strip() for item in issues}
+    for code in normalized_codes:
+        synthesized = _synthesized_issue_for_validation_code(code, draft=draft, locked_cta=str(locked_cta or "").strip())
+        if not synthesized:
+            continue
+        issue_code = str(synthesized.get("issue_code") or "").strip()
+        if issue_code in existing_codes:
+            continue
+        issues.append(synthesized)
+        existing_codes.add(issue_code)
+
+    report["issues"] = issues
+    if issues:
+        report["pass_rewrite_needed"] = True
+        report["rewrite_plan"] = _normalize_rewrite_plan(
+            report.get("rewrite_plan"),
+            issues=issues,
+            locked_cta=str(locked_cta or "").strip(),
+        )
+    return report
+
+
+def augment_qa_report_from_draft_heuristics(
+    qa_report: dict[str, Any],
+    *,
+    draft: dict[str, Any] | None = None,
+    locked_cta: str | None = None,
+) -> dict[str, Any]:
+    report = dict(qa_report or {})
+    issues = [item for item in (report.get("issues") or []) if isinstance(item, dict)]
+    if not draft:
+        return report
+
+    existing_codes = {str(item.get("issue_code") or "").strip() for item in issues}
+    comma_count, connector_count = _opener_clause_counts(draft)
+    if "opener_too_complex" not in existing_codes and (comma_count > 1 or connector_count > 1):
+        opener = _first_body_sentence(draft)
+        issues.append(
+            _validation_issue_dict(
+                issue_code="opener_too_complex",
+                severity="medium",
+                target="opener sentence",
+                evidence_quote=opener,
+                why_it_fails="The opener carries too many clauses, which weakens clarity and makes the first line feel generic.",
+                fix_instruction="Replace only the opener sentence with a simpler single-clause opener tied to the same grounded hook; move any secondary detail into the next sentence and keep the locked CTA unchanged.",
+                expected_effect="Make the opening line easier to scan while preserving the selected angle and grounded support.",
+            )
+        )
+
+    report["issues"] = issues
+    if issues:
+        report["pass_rewrite_needed"] = True
+        report["rewrite_plan"] = _normalize_rewrite_plan(
+            report.get("rewrite_plan"),
+            issues=issues,
+            locked_cta=str(locked_cta or "").strip(),
+        )
     return report

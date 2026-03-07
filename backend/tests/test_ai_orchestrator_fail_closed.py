@@ -211,7 +211,7 @@ def _atoms_for(
             "challenger": 61,
             "storyteller": 60,
         }.get(str(preset_id), 51)
-    resolved_proof_atom = "Our workflow QA controls are designed for that consistency." if proof_atom is None else proof_atom
+    resolved_proof_atom = "" if proof_atom is None else proof_atom
     resolved_target_sentence_budget = target_sentence_budget
     if resolved_target_sentence_budget is None:
         resolved_target_sentence_budget = 3 if resolved_proof_atom.strip() == "" else 4
@@ -255,24 +255,62 @@ def _qa(pass_rewrite_needed: bool = False) -> dict[str, Any]:
         "pass_rewrite_needed": pass_rewrite_needed,
         "issues": [],
         "risk_flags": [],
-        "rewrite_plan": ["Keep opener specific and tighten wording."],
+        "rewrite_plan": [],
     }
 
 
-def _qa_with_issue(issue_type: str, *, severity: str = "high") -> dict[str, Any]:
+def _qa_with_issue(
+    issue_type: str,
+    *,
+    severity: str = "high",
+    evidence_quote: str = "Acme's RevOps initiative suggests your team is tightening workflow consistency.",
+) -> dict[str, Any]:
+    legacy_type = issue_type if issue_type in {
+        "credibility",
+        "specificity",
+        "structure",
+        "spam_risk",
+        "personalization",
+        "length",
+        "cta",
+        "grammar",
+        "tone",
+        "clarity",
+        "word_count_out_of_band",
+        "opener_too_soft_for_preset",
+        "proof_density_too_low",
+        "too_many_sentences_for_preset",
+        "tone_mismatch_for_preset",
+        "cta_not_in_expected_form",
+        "other",
+    } else "other"
     return {
         "version": "1",
         "pass_rewrite_needed": True,
         "issues": [
             {
-                "type": issue_type,
+                "issue_code": issue_type,
+                "type": legacy_type,
                 "severity": severity,
-                "evidence": ["Quoted evidence"],
-                "fix_instruction": "Adjust the draft to satisfy the preset contract without changing the CTA.",
+                "offending_span_or_target_section": evidence_quote,
+                "evidence_quote": evidence_quote,
+                "why_it_fails": "The quoted opener needs a tighter, grounded rewrite for the active preset contract.",
+                "evidence": [evidence_quote],
+                "fix_instruction": "Replace the opener sentence with a tighter grounded opener and keep the locked CTA line unchanged.",
+                "expected_effect": "Restore grounded preset fit without changing untouched lines.",
             }
         ],
         "risk_flags": [],
-        "rewrite_plan": ["Adjust the draft to satisfy the preset contract without changing the CTA."],
+        "rewrite_plan": [
+            {
+                "issue_code": issue_type,
+                "target": evidence_quote,
+                "action": "Replace the opener sentence with a tighter grounded opener tied to the selected hook.",
+                "replacement_guidance": "Use only grounded wording already supported by the brief and keep the locked CTA text unchanged.",
+                "preserve": f'Keep the locked CTA text "{CTA}" unchanged and leave unrelated grounded sentences untouched.',
+                "expected_effect": "Restore grounded preset fit without changing untouched lines.",
+            }
+        ],
     }
 
 
@@ -347,8 +385,8 @@ def test_message_atoms_repair_recovers_one_cta_mismatch_case() -> None:
 
     assert result.ok is True
     atom_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "ONE_LINER_COMPRESSOR" and item.get("status") == "complete"]
-    assert atom_entries[-1]["attempt_count"] == 2
-    assert atom_entries[-1]["final_validation_status"] == "passed_after_repair"
+    assert atom_entries[-1]["attempt_count"] == 1
+    assert atom_entries[-1]["final_validation_status"] == "passed"
     assert atom_entries[-1]["cta_alignment_status"] == "aligned"
 
 
@@ -440,6 +478,42 @@ def test_empty_proof_atom_is_normalized_before_stage_c() -> None:
     message_atoms = dict(context.get("message_atoms") or {})
     assert message_atoms["proof_atom"] == ""
     assert context["budget_plan"]["target_total_words"] == 51
+
+
+def test_duplicate_hook_ids_and_unsupported_proof_are_sanitized_before_stage_c() -> None:
+    req = _request()
+    dirty_atoms = _atoms_for(
+        "direct",
+        proof_atom="A peer team improved forecast accuracy after adopting outbound QA.",
+    )
+    dirty_atoms["used_hook_ids"] = ["hook_1", "hook_1"]
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        dirty_atoms,
+        _valid_draft(),
+        _qa(pass_rewrite_needed=False),
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert isinstance(orchestrator.openai, StubOpenAI)
+    email_calls = [
+        call
+        for call in orchestrator.openai.calls
+        if call.get("response_format", {}).get("json_schema", {}).get("name") == "EmailDraft"
+    ]
+    assert len(email_calls) == 1
+
+    context = _extract_context_json_from_user_prompt(email_calls[0]["messages"][1]["content"])
+    message_atoms = dict(context.get("message_atoms") or {})
+    assert message_atoms["used_hook_ids"] == ["hook_1"]
+    assert message_atoms["proof_atom"] == ""
+    assert message_atoms["target_sentence_budget"] == 3
 
 
 def test_brief_cache_hit_skips_stage_a_b_b0_on_second_request() -> None:
@@ -604,7 +678,10 @@ def test_qa_rewrite_tightens_weak_draft_and_marks_rewrite_applied() -> None:
         _angles(),
         _atoms(),
         weak_draft,
-        _qa(pass_rewrite_needed=True),
+        _qa_with_issue(
+            "ungrounded_personalization_claim",
+            evidence_quote="Acme's RevOps initiative may matter.",
+        ),
         rewritten,
     ])
 
@@ -651,7 +728,10 @@ def test_challenger_salvage_rescues_slightly_over_band_and_preserves_metadata() 
         _angles(),
         _atoms_for("challenger"),
         over_band,
-        _qa_with_issue("word_count_out_of_band"),
+        _qa_with_issue(
+            "word_count_out_of_band",
+            evidence_quote="Most RevOps teams do not notice workflow drift until it starts cutting response quality across sequences.",
+        ),
         over_band,
         salvaged,
     ])
@@ -700,7 +780,10 @@ def test_challenger_salvage_rescues_slightly_under_band() -> None:
         _angles(),
         _atoms_for("challenger"),
         too_short,
-        _qa_with_issue("word_count_out_of_band"),
+        _qa_with_issue(
+            "word_count_out_of_band",
+            evidence_quote="Acme's RevOps initiative makes hidden workflow drift expensive.",
+        ),
         too_short,
         salvaged,
     ])
@@ -724,6 +807,46 @@ def test_challenger_salvage_rescues_slightly_under_band() -> None:
     assert rewrite_entries[-1]["salvage_applied"] is True
     assert rewrite_entries[-1]["salvage_result"] == "passed"
     assert salvage_entries[-1]["post_salvage_word_count"] >= 46
+
+
+def test_qa_heuristics_trigger_rewrite_for_clause_heavy_opener() -> None:
+    req = _request()
+    generated = _valid_draft()
+    generated["body"] = (
+        "Hi Alex,\n\n"
+        "Because Acme's RevOps initiative is active, and workflow consistency is under review, your team may be feeling sequence drift more sharply. "
+        "We help teams reduce sequence drift and improve meeting quality with practical QA controls. "
+        "This keeps messaging specific and repeatable without extra overhead.\n\n"
+        f"{CTA}"
+    )
+    rewritten = _valid_draft()
+    rewritten["body"] = (
+        "Hi Alex,\n\n"
+        "Acme's RevOps initiative puts workflow consistency under more scrutiny. "
+        "We help teams reduce sequence drift and improve meeting quality with practical QA controls. "
+        "This keeps messaging specific and repeatable without extra overhead.\n\n"
+        f"{CTA}"
+    )
+
+    orchestrator = _orchestrator([
+        _brief(),
+        _fit_map(),
+        _angles(),
+        _atoms(),
+        generated,
+        _qa(pass_rewrite_needed=False),
+        rewritten,
+    ])
+
+    trace = Trace(str(uuid4()), "test")
+    result = run(orchestrator.run_pipeline_single(request=req, trace=trace, preset_id="direct", sliders=req.sliders.model_dump()))
+
+    assert result.ok is True
+    assert "Because Acme's RevOps initiative is active" not in result.body
+    qa_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_QA" and item.get("status") == "complete"]
+    assert qa_entries[-1]["dominant_failing_rule"] == "opener_too_complex"
+    rewrite_entries = [item for item in result.stage_stats if str(item.get("stage") or "") == "EMAIL_REWRITE" and item.get("status") == "complete"]
+    assert rewrite_entries
 
 
 def test_salvage_does_not_run_on_semantic_failure() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import re
 from typing import Any
 
 from app.config import Settings
@@ -35,6 +36,8 @@ from .tracer import Trace, hash_json
 from .types import EmailDraft as LegacyEmailDraft
 from .validators import (
     ValidationIssue,
+    augment_qa_report_from_draft_heuristics,
+    augment_qa_report_from_validation_codes,
     dominant_validation_code,
     normalize_qa_report,
     salvage_eligible_validation_codes,
@@ -50,6 +53,8 @@ DEFAULT_CTA = "Open to a quick chat to see if this is relevant?"
 TOTAL_PIPELINE_TIMEOUT_SECONDS = 90.0
 STAGE_TIMEOUT_SECONDS = 25.0
 SALVAGE_STAGE = "EMAIL_REWRITE_SALVAGE"
+_ATOM_WORD_RE = re.compile(r"[a-z0-9]+")
+_ATOM_NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?%?\b")
 
 
 @dataclass(slots=True)
@@ -280,13 +285,147 @@ class AIOrchestrator:
             if normalized != str(raw_value or ""):
                 trace.add_postprocess_step(f"normalize_{field}_whitespace")
             out[field] = normalized
-        used_hook_ids = [str(item or "").strip() for item in (out.get("used_hook_ids") or []) if str(item or "").strip()]
+        used_hook_ids: list[str] = []
+        seen_hook_ids: set[str] = set()
+        for raw_item in out.get("used_hook_ids") or []:
+            item = str(raw_item or "").strip()
+            if not item or item in seen_hook_ids:
+                continue
+            seen_hook_ids.add(item)
+            used_hook_ids.append(item)
         if used_hook_ids != list(out.get("used_hook_ids") or []):
             trace.add_postprocess_step("normalize_used_hook_ids")
         out["used_hook_ids"] = used_hook_ids
         if str(out.get("proof_atom") or "") == "":
             trace.add_postprocess_step("normalize_proof_atom_empty")
         return out
+
+    def _proof_atom_has_seller_grounding(self, proof_atom: str, seller_proof_texts: list[str]) -> bool:
+        proof_text = str(proof_atom or "").strip().lower()
+        if not proof_text:
+            return True
+        proof_tokens = {token for token in _ATOM_WORD_RE.findall(proof_text) if len(token) > 2}
+        proof_numbers = set(_ATOM_NUMBER_RE.findall(proof_text))
+        seller_tokens: set[str] = set()
+        seller_numbers: set[str] = set()
+        for seller_text in seller_proof_texts:
+            lowered = str(seller_text or "").strip().lower()
+            if not lowered:
+                continue
+            seller_tokens.update(token for token in _ATOM_WORD_RE.findall(lowered) if len(token) > 2)
+            seller_numbers.update(_ATOM_NUMBER_RE.findall(lowered))
+        if len(proof_tokens & seller_tokens) < 2:
+            return False
+        if proof_numbers and proof_numbers.isdisjoint(seller_numbers):
+            return False
+        return True
+
+    def _sanitize_message_atoms_payload(
+        self,
+        atoms: dict[str, Any],
+        *,
+        preset_id: str,
+        selected_angle: dict[str, Any],
+        cta_line: str,
+        messaging_brief: dict[str, Any],
+        budget_plan: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        out = dict(atoms or {})
+        actions: list[str] = []
+
+        for field in (
+            "preset_id",
+            "selected_angle_id",
+            "opener_atom",
+            "value_atom",
+            "proof_atom",
+            "cta_atom",
+            "cta_intent",
+            "required_cta_line",
+        ):
+            raw_value = out.get(field)
+            normalized = str(raw_value or "").strip()
+            if normalized != str(raw_value or ""):
+                actions.append(f"normalize_{field}_whitespace")
+            out[field] = normalized
+
+        raw_hook_ids = list(out.get("used_hook_ids") or [])
+        used_hook_ids: list[str] = []
+        seen_hook_ids: set[str] = set()
+        for raw_item in raw_hook_ids:
+            item = str(raw_item or "").strip()
+            if not item or item in seen_hook_ids:
+                continue
+            seen_hook_ids.add(item)
+            used_hook_ids.append(item)
+        if used_hook_ids != raw_hook_ids:
+            actions.append("normalize_used_hook_ids")
+        selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
+        if selected_hook_id and selected_hook_id not in used_hook_ids:
+            used_hook_ids.insert(0, selected_hook_id)
+            actions.append("restore_selected_hook_id")
+        out["used_hook_ids"] = used_hook_ids
+
+        expected_preset_id = str(preset_id or "").strip()
+        if str(out.get("preset_id") or "") != expected_preset_id:
+            out["preset_id"] = expected_preset_id
+            actions.append("lock_atoms_preset_id")
+
+        expected_angle_id = str(selected_angle.get("angle_id") or "").strip()
+        if expected_angle_id and str(out.get("selected_angle_id") or "") != expected_angle_id:
+            out["selected_angle_id"] = expected_angle_id
+            actions.append("lock_atoms_selected_angle_id")
+
+        locked_cta = str(cta_line or "").strip()
+        if str(out.get("cta_atom") or "") != locked_cta:
+            out["cta_atom"] = locked_cta
+            actions.append("lock_atoms_cta_atom")
+        if str(out.get("required_cta_line") or "") != locked_cta:
+            out["required_cta_line"] = locked_cta
+            actions.append("lock_atoms_required_cta_line")
+
+        facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
+        seller_proof_texts = [
+            str(item.get("text") or "").strip()
+            for item in facts
+            if str(item.get("fact_kind") or "").strip() == "seller_proof" and str(item.get("text") or "").strip()
+        ]
+        proof_atom = str(out.get("proof_atom") or "").strip()
+        if proof_atom and not seller_proof_texts:
+            out["proof_atom"] = ""
+            actions.append("clear_atoms_proof_without_seller_proof")
+        elif proof_atom and not self._proof_atom_has_seller_grounding(proof_atom, seller_proof_texts):
+            out["proof_atom"] = ""
+            actions.append("clear_atoms_ungrounded_proof_atom")
+
+        target_word_budget = int(budget_plan.get("target_total_words") or 0)
+        if target_word_budget and int(out.get("target_word_budget") or 0) != target_word_budget:
+            out["target_word_budget"] = target_word_budget
+            actions.append("lock_atoms_target_word_budget")
+
+        target_sentence_budget = sum(
+            1
+            for field in ("opener_atom", "value_atom", "proof_atom", "cta_atom")
+            if str(out.get(field) or "").strip()
+        )
+        if int(out.get("target_sentence_budget") or 0) != target_sentence_budget:
+            out["target_sentence_budget"] = target_sentence_budget
+            actions.append("recount_atoms_target_sentence_budget")
+
+        return out, {
+            "atom_sanitation_report": {
+                "actions": actions,
+            }
+        }
+
+    def _qa_primary_issue_code(self, qa_report: dict[str, Any]) -> str | None:
+        for issue in qa_report.get("issues") or []:
+            if not isinstance(issue, dict):
+                continue
+            issue_code = str(issue.get("issue_code") or issue.get("type") or "").strip()
+            if issue_code:
+                return issue_code
+        return None
 
     def _annotate_atoms_stage(
         self,
@@ -597,7 +736,7 @@ class AIOrchestrator:
         generation_validation_codes: list[str],
     ) -> None:
         issues = [item for item in qa_report.get("issues") or [] if isinstance(item, dict)]
-        dominant_issue = next((str(item.get("type") or "").strip() for item in issues if str(item.get("type") or "").strip()), None)
+        dominant_issue = self._qa_primary_issue_code(qa_report)
         trace.annotate_stage(
             stage=stage_name,
             details={
@@ -617,6 +756,7 @@ class AIOrchestrator:
                 "salvage_applied": False,
                 "salvage_result": "not_run",
             },
+            output=qa_report,
         )
 
     async def _maybe_salvage_rewrite(
@@ -786,6 +926,14 @@ class AIOrchestrator:
                     forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
                     budget_plan=budget_seed_plan,
                 ),
+                postprocess=lambda payload: self._sanitize_message_atoms_payload(
+                    payload,
+                    preset_id=ctx.preset_id,
+                    selected_angle=selected_angle,
+                    cta_line=cta_line,
+                    messaging_brief=messaging_brief,
+                    budget_plan=budget_seed_plan,
+                ),
                 trace_stage=atoms_stage,
             )
             atoms = self._normalize_message_atoms(atoms, trace=trace)
@@ -889,7 +1037,18 @@ class AIOrchestrator:
                 validator=None,
                 trace_stage=qa_stage,
             )
-            qa = normalize_qa_report(qa)
+            qa = normalize_qa_report(qa, draft=draft, locked_cta=cta_line)
+            qa = augment_qa_report_from_validation_codes(
+                qa,
+                draft=draft,
+                locked_cta=cta_line,
+                validation_codes=validation_codes,
+            )
+            qa = augment_qa_report_from_draft_heuristics(
+                qa,
+                draft=draft,
+                locked_cta=cta_line,
+            )
             self._annotate_qa_stage(
                 trace=trace,
                 stage_name=qa_stage,
@@ -911,10 +1070,7 @@ class AIOrchestrator:
                 budget_plan=budget_plan,
                 stage_details={
                     "dominant_failing_rule": dominant_validation_code(validation_codes)
-                    or next(
-                        (str(item.get("type") or "").strip() for item in qa.get("issues") or [] if str(item.get("type") or "").strip()),
-                        None,
-                    ),
+                    or self._qa_primary_issue_code(qa),
                 },
             )
 
@@ -1220,6 +1376,14 @@ class AIOrchestrator:
                             forbidden_patterns=list(messaging_brief.get("forbidden_claim_patterns") or []),
                             budget_plan=seed,
                         ),
+                        postprocess=lambda payload, rid=str(requested_id), seed=budget_seed_plan, contract_angle=selected_angle: self._sanitize_message_atoms_payload(
+                            payload,
+                            preset_id=rid,
+                            selected_angle=contract_angle,
+                            cta_line=cta_line,
+                            messaging_brief=messaging_brief,
+                            budget_plan=seed,
+                        ),
                         trace_stage=atoms_stage,
                     )
                     atoms = self._normalize_message_atoms(atoms, trace=trace)
@@ -1324,7 +1488,18 @@ class AIOrchestrator:
                         validator=None,
                         trace_stage=qa_stage,
                     )
-                    qa = normalize_qa_report(qa)
+                    qa = normalize_qa_report(qa, draft=draft, locked_cta=cta_line)
+                    qa = augment_qa_report_from_validation_codes(
+                        qa,
+                        draft=draft,
+                        locked_cta=cta_line,
+                        validation_codes=validation_codes,
+                    )
+                    qa = augment_qa_report_from_draft_heuristics(
+                        qa,
+                        draft=draft,
+                        locked_cta=cta_line,
+                    )
                     self._annotate_qa_stage(
                         trace=trace,
                         stage_name=qa_stage,
@@ -1346,10 +1521,7 @@ class AIOrchestrator:
                         budget_plan=budget_plan,
                         stage_details={
                             "dominant_failing_rule": dominant_validation_code(validation_codes)
-                            or next(
-                                (str(item.get("type") or "").strip() for item in qa.get("issues") or [] if str(item.get("type") or "").strip()),
-                                None,
-                            ),
+                            or self._qa_primary_issue_code(qa),
                         },
                     )
 

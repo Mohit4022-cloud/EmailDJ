@@ -12,6 +12,8 @@ from .brief_honesty import (
     fact_map_by_id,
     hook_confidence_level,
     hook_evidence_strength,
+    hook_mentions_initiative,
+    hook_mentions_recency,
     hook_support_posture,
     normalize_text_key,
     normalize_forbidden_claim_patterns,
@@ -186,6 +188,24 @@ def _append_issue(issues: list[dict[str, Any]], code: str, **kwargs: Any) -> Non
     issues.append({"code": code, **kwargs})
 
 
+def _replacement_fact_ids_by_text(
+    valid_facts: list[dict[str, Any]],
+    *,
+    allowed_kinds: set[str] | None = None,
+) -> dict[str, list[str]]:
+    replacements: dict[str, list[str]] = {}
+    for fact in valid_facts:
+        fact_id = str(fact.get("fact_id") or "").strip()
+        fact_text = str(fact.get("text") or "").strip()
+        fact_kind = canonical_fact_kind(str(fact.get("source_field") or "").strip().lower())
+        if not fact_id or not fact_text:
+            continue
+        if allowed_kinds is not None and fact_kind not in allowed_kinds:
+            continue
+        replacements.setdefault(normalize_text_key(fact_text), []).append(fact_id)
+    return replacements
+
+
 def inspect_stage_a_raw_hygiene(
     raw_brief: dict[str, Any],
     *,
@@ -196,6 +216,7 @@ def inspect_stage_a_raw_hygiene(
     hooks = [item for item in (raw_brief.get("hooks") or []) if isinstance(item, dict)]
     persona_cues = dict(raw_brief.get("persona_cues") or {})
     source_field_map = _source_field_value_map(source_payload or {}) if source_payload else {}
+    prospect_company = str(source_field_map.get("company") or "").strip()
     seen_fact_keys: set[tuple[str, str]] = set()
 
     for fact in facts:
@@ -329,7 +350,9 @@ def sanitize_stage_a_brief(
     )
     before_summary = _summary_snapshot(raw_summary_brief)
     source_field_map = _source_field_value_map(source_payload or {}) if source_payload else {}
+    prospect_company = str(source_field_map.get("company") or "").strip()
     seen_fact_keys: set[tuple[str, str]] = set()
+    dropped_fact_rows: dict[str, dict[str, str]] = {}
 
     sanitized_facts: list[dict[str, Any]] = []
     for fact in sanitized.get("facts_from_input") or []:
@@ -343,9 +366,11 @@ def sanitize_stage_a_brief(
             continue
         if not source_field:
             record("drop_fact_blank_source_field", fact_id=fact_id, reason="blank_source_field")
+            dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
         if not text:
             record("drop_fact_blank_text", fact_id=fact_id, source_field=source_field, reason="blank_text")
+            dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
         if _is_placeholder_text(text):
             record(
@@ -354,6 +379,7 @@ def sanitize_stage_a_brief(
                 source_field=source_field,
                 reason="placeholder_text",
             )
+            dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
         if source_payload and not _field_has_usable_signal(source_field_map.get(source_field.lower())):
             record(
@@ -362,6 +388,7 @@ def sanitize_stage_a_brief(
                 source_field=source_field,
                 reason="no_input_signal",
             )
+            dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
         normalized_fact_key = (source_field.lower(), normalize_text_key(text))
         if normalized_fact_key in seen_fact_keys:
@@ -371,6 +398,7 @@ def sanitize_stage_a_brief(
                 source_field=source_field,
                 reason="duplicate_text_same_source",
             )
+            dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
         seen_fact_keys.add(normalized_fact_key)
         fact["source_field"] = source_field.lower()
@@ -382,6 +410,15 @@ def sanitize_stage_a_brief(
         for fact in sanitized_facts
         if str(fact.get("fact_id") or "").strip()
     }
+    contaminated_fact_ids = contaminated_research_fact_ids(
+        sanitized_facts,
+        prospect_company=prospect_company or None,
+    )
+    supported_fact_replacements = _replacement_fact_ids_by_text(sanitized_facts)
+    seller_fact_replacements = _replacement_fact_ids_by_text(
+        sanitized_facts,
+        allowed_kinds={"seller_context", "seller_proof"},
+    )
 
     sanitized_assumptions: list[dict[str, Any]] = []
     for assumption in sanitized.get("assumptions") or []:
@@ -394,7 +431,40 @@ def sanitize_stage_a_brief(
                 assumption_id=str(assumption.get("assumption_id") or "").strip(),
                 reason="empty_based_on_fact_id",
             )
-        assumption["based_on_fact_ids"] = based_on
+        filtered_based_on = [item for item in based_on if item in valid_fact_ids]
+        removed_missing = len(based_on) - len(filtered_based_on)
+        if removed_missing:
+            record(
+                "drop_assumption_missing_fact_reference",
+                assumption_id=str(assumption.get("assumption_id") or "").strip(),
+                removed=removed_missing,
+                reason="removed_fact_reference",
+            )
+        contaminated_based_on = [item for item in filtered_based_on if item in contaminated_fact_ids]
+        if contaminated_based_on:
+            filtered_based_on = [item for item in filtered_based_on if item not in contaminated_fact_ids]
+            record(
+                "drop_assumption_contaminated_fact_reference",
+                assumption_id=str(assumption.get("assumption_id") or "").strip(),
+                removed=len(contaminated_based_on),
+                reason="contaminated_research",
+            )
+        if not filtered_based_on:
+            record(
+                "drop_assumption_ungrounded_after_cleanup",
+                assumption_id=str(assumption.get("assumption_id") or "").strip(),
+                reason="missing_supported_fact_ids",
+            )
+            continue
+        assumption_text = str(assumption.get("text") or "").strip().lower()
+        if contaminated_based_on and any(marker in assumption_text for marker in ("initiative", "program", "expanded", "launch", "rollout", "sla")):
+            record(
+                "drop_assumption_contaminated_initiative_frame",
+                assumption_id=str(assumption.get("assumption_id") or "").strip(),
+                reason="contaminated_research_initiative",
+            )
+            continue
+        assumption["based_on_fact_ids"] = filtered_based_on
         sanitized_assumptions.append(assumption)
     sanitized["assumptions"] = sanitized_assumptions
 
@@ -440,7 +510,32 @@ def sanitize_stage_a_brief(
             hook[field] = cleaned
 
         for field in ("supported_by_fact_ids", "seller_fact_ids"):
-            filtered = [item for item in hook.get(field) or [] if item in valid_fact_ids]
+            replacement_pool = supported_fact_replacements if field == "supported_by_fact_ids" else seller_fact_replacements
+            filtered: list[str] = []
+            for item in hook.get(field) or []:
+                fact_id = str(item or "").strip()
+                if not fact_id:
+                    continue
+                if fact_id in valid_fact_ids:
+                    if fact_id not in filtered:
+                        filtered.append(fact_id)
+                    continue
+                dropped_row = dropped_fact_rows.get(fact_id) or {}
+                replacement_ids = replacement_pool.get(normalize_text_key(dropped_row.get("text") or ""))
+                if replacement_ids:
+                    for replacement_id in replacement_ids:
+                        if replacement_id not in filtered:
+                            filtered.append(replacement_id)
+                    record(
+                        "repair_hook_fact_reference",
+                        hook_id=hook_id,
+                        field=field,
+                        original_fact_id=fact_id,
+                        replacement_fact_ids=list(replacement_ids),
+                        reason="text_matched_surviving_fact",
+                    )
+                    continue
+            filtered = [item for item in filtered if item in valid_fact_ids]
             removed = len(hook.get(field) or []) - len(filtered)
             if removed:
                 record(
@@ -465,10 +560,30 @@ def sanitize_stage_a_brief(
     sanitized["hooks"] = sanitized_hooks
 
     fact_map = fact_map_by_id(sanitized_facts)
-    contaminated_fact_ids = contaminated_research_fact_ids(sanitized_facts)
+    posture_sanitized_hooks: list[dict[str, Any]] = []
     for hook in sanitized["hooks"]:
         hook_id = str(hook.get("hook_id") or "").strip()
         posture = hook_support_posture(hook, fact_map, contaminated_fact_ids=contaminated_fact_ids)
+        contaminated_supported = [
+            item
+            for item in (hook.get("supported_by_fact_ids") or [])
+            if str(item or "").strip() in contaminated_fact_ids
+        ]
+        if contaminated_supported:
+            record(
+                "drop_hook_contaminated_research",
+                hook_id=hook_id,
+                removed=len(contaminated_supported),
+                reason="contaminated_research",
+            )
+            continue
+        if (hook_mentions_initiative(hook) or hook_mentions_recency(hook)) and not posture["supports_initiative_or_trigger"]:
+            record(
+                "drop_hook_unsupported_initiative_or_recency",
+                hook_id=hook_id,
+                reason="unsupported_initiative_or_recency",
+            )
+            continue
 
         risk_flags = [str(item or "").strip() for item in (hook.get("risk_flags") or []) if str(item or "").strip()]
         for required_flag in posture["required_risk_flags"]:
@@ -516,6 +631,8 @@ def sanitize_stage_a_brief(
                 to_value=capped_evidence,
                 reason="seller_proof_cap",
             )
+        posture_sanitized_hooks.append(hook)
+    sanitized["hooks"] = posture_sanitized_hooks
 
     persona_cues = dict(sanitized.get("persona_cues") or {})
     if str(persona_cues.get("notes") or "").strip() and _is_placeholder_text(persona_cues.get("notes")):
@@ -533,6 +650,19 @@ def sanitize_stage_a_brief(
                 reason="placeholder_text",
             )
         persona_cues[field] = cleaned
+    has_grounded_research = any(
+        str(fact.get("source_field") or "").strip().lower() == "research_text"
+        and str(fact.get("fact_id") or "").strip() not in contaminated_fact_ids
+        for fact in sanitized_facts
+        if isinstance(fact, dict)
+    )
+    if not has_grounded_research and persona_cues.get("likely_initiatives"):
+        record(
+            "drop_persona_unsupported_initiatives",
+            removed=len(persona_cues.get("likely_initiatives") or []),
+            reason="missing_grounded_prospect_research",
+        )
+        persona_cues["likely_initiatives"] = []
     sanitized["persona_cues"] = persona_cues
 
     sanitized = _apply_stage_a_defaults(
@@ -575,7 +705,7 @@ def sanitize_stage_a_brief(
         "removed_hook_ids": [
             str(item.get("hook_id") or "").strip()
             for item in actions
-            if str(item.get("action") or "") == "drop_hook_structurally_empty" and str(item.get("hook_id") or "").strip()
+            if str(item.get("action") or "").startswith("drop_hook_") and str(item.get("hook_id") or "").strip()
         ],
         "sanitation_changed_semantic_eligibility": bool(semantic_change_reasons),
         "semantic_change_reasons": semantic_change_reasons,

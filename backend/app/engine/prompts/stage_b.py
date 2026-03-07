@@ -15,10 +15,13 @@ def build_messages(messaging_brief: dict[str, Any]) -> list[dict[str, str]]:
         "Every hypothesis must reference at least one fact_id or assumption_id from MessagingBrief.\\n\\n"
         "RULE 2 - PROOF MUST BE REAL.\\n"
         "The proof field must reference seller-side support from the brief, or explicitly state proof gap. "
-        "Prospect facts are never proof.\\n\\n"
+        "Prospect facts are never proof. If seller proof is absent, use the exact phrase "
+        "\"Proof gap: no seller proof provided in brief.\"\\n\\n"
         "RULE 3 - WHY NOW MUST BE EARNED.\\n"
         "Use real timing signals when present; otherwise mark as evergreen and do not manufacture urgency.\\n\\n"
-        "RULE 4 - RANK HONESTLY.\\n"
+        "RULE 4 - NO INVENTED NUMBERS.\\n"
+        "If the brief lacks explicit metrics, keep impact qualitative. Do not invent percentages, timeframes, or revenue deltas.\\n\\n"
+        "RULE 5 - RANK HONESTLY.\\n"
         "Rank using confidence, persona relevance, and evidence quality.\\n\\n"
         "Output strict JSON only. No markdown. No commentary. Match FitMap schema exactly."
     )
@@ -38,7 +41,9 @@ For each hypothesis provide:
 - pain: specific persona friction.
 - impact: concrete cost (time, revenue, missed targets, risk, team drag).
 - value: specific outcome from the offered solution.
-- proof: seller-side proof/support from brief.hooks[].seller_support or seller_proof facts, or explicit proof gap statement.
+- proof: seller-side proof/support from brief.hooks[].seller_support or seller_proof facts, or the exact proof gap statement.
+- supporting_fact_ids: list only the exact fact ids you actually used to justify the hypothesis.
+- impact: if no explicit metric exists in those supporting facts, keep it qualitative and bounded.
 
 STEP 3 - WHY NOW
 - If a trigger exists, ground why_now with source IDs and only use prospect-side grounded observation.
@@ -60,7 +65,7 @@ STEP 6 - SELF-AUDIT
 Before output:
 - Every selected_hook_id exists in brief.hooks[].hook_id.
 - Every supporting_fact_id exists in brief.facts_from_input[].fact_id.
-- proof is either grounded in seller-side evidence or explicit gap.
+- proof is either grounded in seller-side evidence or exactly "Proof gap: no seller proof provided in brief."
 - why_now is grounded or honestly evergreen.
 - ranking is consistent with confidence and evidence.
 

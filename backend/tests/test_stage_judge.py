@@ -77,6 +77,35 @@ def test_normalize_judge_payload_types_coerces_numeric_bools() -> None:
     assert payload["hard_fail_triggered"] is False
 
 
+def test_stage_a_validation_source_payload_maps_eval_request_shape() -> None:
+    payload = stage_judge._stage_a_validation_source_payload(
+        {
+            "prospect": {
+                "name": "Alex Quinn",
+                "title": "VP Sales",
+                "company": "Plainfield Tech",
+            },
+            "research_text": "No verifiable external research provided.",
+            "offer_lock": "Outbound QA Toolkit",
+            "cta_offer_lock": "Open to a quick chat to see if this is relevant?",
+            "cta_type": "question",
+            "company_context": {
+                "company_name": "Signal Harbor",
+                "current_product": "Outbound QA Toolkit",
+                "seller_offerings": ["Sequence QA scoring"],
+                "company_notes": "Supports outbound QA.",
+                "cta_offer_lock": "Open to a quick chat to see if this is relevant?",
+            },
+        }
+    )
+
+    assert payload["prospect"]["company"] == "Plainfield Tech"
+    assert payload["prospect"]["research_text"] == "No verifiable external research provided."
+    assert payload["user_company"]["product_summary"] == "Outbound QA Toolkit"
+    assert payload["user_company"]["differentiators"] == ["Sequence QA scoring"]
+    assert payload["cta"]["cta_final_line"] == "Open to a quick chat to see if this is relevant?"
+
+
 @pytest.mark.asyncio
 async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
@@ -450,6 +479,207 @@ async def test_all_judges_handle_missing_artifacts() -> None:
     for result in results:
         assert result["pass"] is False
         assert any("artifact missing" in str(item).lower() for item in result["failures"])
+
+
+@pytest.mark.asyncio
+async def test_judge_angle_set_restores_grounded_why_you_why_now(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return {
+            "stage": "ANGLE_PICKER",
+            "scores": {
+                "angles_distinct": 1,
+                "hook_ids_valid": 1,
+                "hypothesis_ids_valid": 1,
+                "why_you_why_now_earned": 0,
+                "risk_flags_inherited": 1,
+                "cta_bridge_natural": 1,
+            },
+            "total": 5,
+            "pass": True,
+            "hard_fail_triggered": False,
+            "hard_fail_criteria": [],
+            "failures": ["llm false fail on why_you_why_now"],
+            "warnings": [],
+        }, {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    brief = {
+        "facts_from_input": [
+            {
+                "fact_id": "fact_1",
+                "source_field": "research_text",
+                "fact_kind": "prospect_context",
+                "text": "Pillar Circuit launched a February 2026 workflow audit focused on handoff latency.",
+            }
+        ],
+        "hooks": [
+            {
+                "hook_id": "hook_1",
+                "supported_by_fact_ids": ["fact_1"],
+            }
+        ],
+    }
+    fit_map = {
+        "hypotheses": [
+            {
+                "fit_hypothesis_id": "hyp_1",
+                "supporting_fact_ids": ["fact_1"],
+            }
+        ]
+    }
+    angle_set = {
+        "angles": [
+            {
+                "angle_id": "angle_1",
+                "angle_type": "why_you_why_now",
+                "selected_hook_id": "hook_1",
+                "selected_fit_hypothesis_id": "hyp_1",
+                "pain": "The February 2026 audit makes handoff latency newly urgent.",
+                "impact": "Workflow friction stays visible during the audit window.",
+                "proof": "The audit itself is the timing signal.",
+                "cta_question_suggestion": "Would a short comparison be useful?",
+            },
+            {
+                "angle_id": "angle_2",
+                "angle_type": "problem_led",
+                "selected_hook_id": "hook_2",
+                "selected_fit_hypothesis_id": "hyp_1",
+                "cta_question_suggestion": "Would a short comparison be useful?",
+            },
+            {
+                "angle_id": "angle_3",
+                "angle_type": "outcome_led",
+                "selected_hook_id": "hook_3",
+                "selected_fit_hypothesis_id": "hyp_1",
+                "cta_question_suggestion": "Would a short comparison be useful?",
+            },
+        ]
+    }
+
+    result = await stage_judge.judge_angle_set(angle_set, brief, fit_map, openai=DummyOpenAI())
+
+    assert result["scores"]["why_you_why_now_earned"] == 1
+    assert "deterministic_override:why_you_why_now_earned" in result["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_judge_qa_report_restores_objective_structural_scores(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return {
+            "stage": "EMAIL_QA",
+            "scores": {
+                "evidence_quoted": 0,
+                "fix_instructions_surgical": 0,
+                "severity_calibrated": 0,
+                "rewrite_plan_actionable": 0,
+            },
+            "total": 0,
+            "pass": False,
+            "hard_fail_triggered": False,
+            "hard_fail_criteria": [],
+            "failures": ["llm false fail on structured QA"],
+            "warnings": [],
+        }, {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    draft = {
+        "subject": "Workflow QA for Pillar Circuit",
+        "body": "Seeing Pillar Circuit's February 2026 workflow audit, this opener carries too many linked ideas because it stacks clauses and context. Diagnostics-driven QA helps revops leaders tighten handoff reviews.\n\nWould a quick comparison of workflow QA approaches be useful?",
+    }
+    qa = {
+        "pass_rewrite_needed": True,
+        "issues": [
+            {
+                "issue_code": "opener_too_complex",
+                "severity": "medium",
+                "offending_span_or_target_section": "opener sentence",
+                "evidence_quote": "Seeing Pillar Circuit's February 2026 workflow audit, this opener carries too many linked ideas because it stacks clauses and context.",
+                "fix_instruction": "Replace only the opener sentence with a simpler single-clause opener tied to the same grounded hook.",
+                "expected_effect": "Make the opener easier to scan.",
+            }
+        ],
+        "rewrite_plan": [
+            {
+                "issue_code": "opener_too_complex",
+                "target": "opener sentence",
+                "action": "Replace the opener with one simpler clause tied to the same audit signal.",
+                "replacement_guidance": "Keep the audit reference but remove the stacked clause.",
+            }
+        ],
+    }
+
+    result = await stage_judge.judge_qa_report(qa, draft, openai=DummyOpenAI())
+
+    assert result["scores"]["evidence_quoted"] == 1
+    assert result["scores"]["fix_instructions_surgical"] == 1
+    assert result["scores"]["rewrite_plan_actionable"] == 1
+    assert "deterministic_override:qa_objective_checks" in result["warnings"]
+
+
+@pytest.mark.asyncio
+async def test_judge_rewritten_draft_restores_objective_rewrite_scores(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001
+        return {
+            "stage": "EMAIL_REWRITE",
+            "scores": {
+                "high_issues_resolved": 0,
+                "no_new_content": 0,
+                "untouched_sentences_preserved": 0,
+                "cta_exact": 0,
+                "metadata_preserved": 0,
+            },
+            "total": 0,
+            "pass": False,
+            "hard_fail_triggered": True,
+            "hard_fail_criteria": ["cta_exact"],
+            "failures": ["llm false fail on rewrite"],
+            "warnings": [],
+        }, {"usage": {}}
+
+    monkeypatch.setattr(stage_judge, "_call_judge_llm", _fake_call_judge_llm)
+
+    original = {
+        "subject": "Workflow QA for Pillar Circuit",
+        "body": "Pillar Circuit's audit signals handoff latency. Diagnostics-driven QA helps revops teams tighten reviews.\n\nWould a quick comparison of workflow QA approaches be useful?",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": ["hook_01"],
+    }
+    rewritten = {
+        "subject": "Workflow QA for Pillar Circuit",
+        "body": "Pillar Circuit's February 2026 audit signals handoff latency. Diagnostics-driven QA helps revops teams tighten reviews without adding review drag. That gives managers a cleaner way to act on handoff gaps before they reach forecast discussions.\n\nWould a quick comparison of workflow QA approaches be useful?",
+        "preset_id": "direct",
+        "selected_angle_id": "angle_01",
+        "used_hook_ids": ["hook_01"],
+    }
+    qa = {
+        "issues": [
+            {
+                "issue_code": "word_count_out_of_band",
+                "severity": "high",
+                "fix_instruction": "Expand only the body before the locked CTA by adding one grounded middle sentence.",
+            }
+        ]
+    }
+
+    result = await stage_judge.judge_rewritten_draft(
+        rewritten,
+        original,
+        qa,
+        {"proof_atom": ""},
+        cta_final_line="Would a quick comparison of workflow QA approaches be useful?",
+        proof_gap=True,
+        openai=DummyOpenAI(),
+    )
+
+    assert result["scores"]["cta_exact"] == 1
+    assert result["scores"]["metadata_preserved"] == 1
+    assert result["scores"]["high_issues_resolved"] == 1
+    assert result["scores"]["no_new_content"] == 1
+    assert result["pass"] is True
+    assert "deterministic_override:rewrite_objective_checks" in result["warnings"]
 
 
 @pytest.mark.asyncio

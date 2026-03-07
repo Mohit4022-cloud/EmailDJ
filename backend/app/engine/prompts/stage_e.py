@@ -42,12 +42,16 @@ def build_messages(
         max_words = int(plan["allowed_max_words"])
 
     rewrite_plan = list(qa_report.get("rewrite_plan") or [])
+    current_body = str(email_draft.get("body") or "").strip()
+    current_word_count = len(current_body.replace("\n", " ").split()) if current_body else 0
+    words_needed_to_min = max(0, min_words - current_word_count)
+    words_over_max = max(0, current_word_count - max_words)
 
     system = (
         "You are a Senior SDR Editor executing a QA rewrite plan. "
         "This is surgical editing: execute plan actions in order with minimum viable changes.\\n\\n"
         "RULE 1 - EXECUTE PLAN IN ORDER.\\n"
-        "Do not skip, reorder, or invent extra actions.\\n\\n"
+        "Do not skip, reorder, or invent extra actions. Each action is scoped to one issue_code and target.\\n\\n"
         "RULE 2 - MINIMUM CHANGE PRINCIPLE.\\n"
         "Change only text needed to satisfy each fix instruction.\\n\\n"
         "RULE 3 - ATOMS BOUNDARY REMAINS ACTIVE.\\n"
@@ -62,7 +66,9 @@ def build_messages(
         "Rewrite toward the preset contract for word band, sentence count, opener directness, proof density, and CTA placement.\\n\\n"
         "RULE 8 - BUDGET PLAN IS ACTIVE.\\n"
         "Use budget_plan to tighten or expand only where needed. Preserve the authored narrative while bringing it back inside plan.\\n\\n"
-        "RULE 9 - VALIDATE BEFORE OUTPUT.\\n"
+        "RULE 9 - UNSUPPORTED CONTENT MUST BE REMOVED, NOT REPLACED WITH INVENTION.\\n"
+        "If an action targets unsupported proof or unsupported initiative language, delete or narrow that claim only.\\n\\n"
+        "RULE 10 - VALIDATE BEFORE OUTPUT.\\n"
         "Check schema, banned phrases, CTA lock, preset contract, budget plan, and unresolved high-severity failures.\\n\\n"
         f"Active settings: tone={_tone_instruction(tone)} body_words={min_words}-{max_words} "
         f"target_words={plan.get('target_total_words', '')} target_sentences={plan.get('target_sentence_count', '')}.\\n\\n"
@@ -108,7 +114,7 @@ def build_messages(
     user = (
         "Execute the rewrite plan on the original draft.\\n"
         "INSTRUCTIONS:\\n"
-        "1) Map each plan action to exact text span before editing.\\n"
+        "1) Map each rewrite_plan action object to the exact quoted target before editing.\\n"
         "2) Apply actions sequentially with minimal edits.\\n"
         "3) Preserve preset_id, selected_angle_id, and used_hook_ids unless explicitly changed by plan.\\n"
         "4) Keep all untouched, non-flagged text identical.\\n"
@@ -116,9 +122,16 @@ def build_messages(
         "6) Make the revised draft satisfy preset_contract target_word_range and sentence_count_guidance.\\n"
         "7) Use budget_plan.target_total_words and budget_plan.target_sentence_count as the preferred target.\\n"
         "8) Preserve message_atoms.required_cta_line exactly; cta_intent may not replace it.\\n"
-        "9) Validate final draft for credibility, personalization grounding, banned phrases, schema, preset contract, and budget plan.\\n"
-        "10) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
+        "9) If any action suggests changing CTA wording, ignore that part and keep the locked CTA text unchanged.\\n"
+        "10) For unsupported proof or initiative issues, remove or narrow only the targeted span; do not add substitute proof.\\n"
+        "11) If the current draft is under the minimum word floor, do not stop after one added sentence if it still remains under the floor. "
+        "Keep expanding with one or two concise grounded middle sentences until the body reaches the allowed minimum, while keeping the opener simple and the CTA unchanged.\\n"
+        "12) Prefer expanding the middle of the email, not the opener. Keep the opener at one clear thought.\\n"
+        "13) Validate final draft for credibility, personalization grounding, banned phrases, schema, preset contract, and budget plan.\\n"
+        "14) For unresolved hard credibility failures, return deterministic failure-compatible output behavior (no fabrication).\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
+        f"BUDGET STATUS: current_body_words={current_word_count}, allowed_min_words={min_words}, "
+        f"allowed_max_words={max_words}, words_needed_to_min={words_needed_to_min}, words_over_max={words_over_max}.\\n\\n"
         "Output complete EmailDraft JSON only."
     )
 
@@ -172,11 +185,13 @@ def build_salvage_messages(
         "Make one narrow salvage edit.\\n"
         "INSTRUCTIONS:\\n"
         "1) If over the preset contract band, compress by shortening or removing the least essential narrative text only.\\n"
-        "2) If under the preset contract band, expand only slightly using grounded wording already present in the draft or atoms.\\n"
+        "2) If under the preset contract band, expand the body before the CTA using grounded wording already present in the draft, atoms, or brief. "
+        "Add as many concise middle sentences as needed to reach the minimum word floor; do not stop if the first expansion still lands under the floor.\\n"
         "3) Do not replace the draft with a new template or canned preset body.\\n"
         "4) Preserve the selected angle, used_hook_ids, and exact CTA line.\\n"
         "5) Use budget_plan.target_total_words as the preferred landing point and stay within budget_plan.allowed_min_words/allowed_max_words.\\n"
-        "6) Self-audit for word band, sentence count, grounding, and CTA exactness before output.\\n\\n"
+        "6) Keep the opener simple; expand the middle of the email before the CTA instead of stacking clauses into the first sentence.\\n"
+        "7) Self-audit for word band, sentence count, grounding, and CTA exactness before output.\\n\\n"
         f"CONTEXT JSON:\\n{json.dumps(user_payload, indent=2, ensure_ascii=True)}\\n\\n"
         "Output complete EmailDraft JSON only."
     )

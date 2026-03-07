@@ -228,7 +228,7 @@ def _selected_angle(angle_set: dict[str, Any] | None, atoms: dict[str, Any] | No
 def _proof_gap_from_atoms(atoms: dict[str, Any] | None) -> bool:
     if not isinstance(atoms, dict):
         return True
-    return str(atoms.get("proof_line") or "").strip() == ""
+    return str(atoms.get("proof_atom") or atoms.get("proof_line") or "").strip() == ""
 
 
 def _cta_lock_from_request(request: WebGenerateRequest) -> str:

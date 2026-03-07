@@ -196,6 +196,9 @@ class Trace:
         return elapsed_ms
 
     def add_validation_error(self, *, stage: str, codes: list[str], details: dict[str, Any] | None = None) -> None:
+        if stage and "first_contract_failure_stage" not in self.meta:
+            self.meta["first_contract_failure_stage"] = stage
+            self.meta["first_contract_failure_codes"] = list(codes)
         self.validation_errors.append(
             {
                 "stage": stage,
@@ -243,6 +246,32 @@ class Trace:
             self.hashes[f"output:{stage}"] = output_hash
         if details:
             entry.update(details)
+        if self.debug_trace_raw:
+            raw_index = None
+            for idx in range(len(self.raw_stage_payloads) - 1, -1, -1):
+                raw_entry = self.raw_stage_payloads[idx]
+                if str(raw_entry.get("stage") or "") == stage and str(raw_entry.get("status") or "") == status:
+                    raw_index = idx
+                    break
+            if raw_index is not None:
+                raw_entry = self.raw_stage_payloads[raw_index]
+                if raw_validation_status is not None:
+                    raw_entry["raw_validation_status"] = str(raw_validation_status)
+                if final_validation_status is not None:
+                    raw_entry["final_validation_status"] = str(final_validation_status)
+                if error_codes is not None:
+                    raw_entry["error_codes"] = list(error_codes)
+                if mechanical_postprocess_applied is not None:
+                    existing = list(raw_entry.get("mechanical_postprocess_applied") or [])
+                    for step in mechanical_postprocess_applied:
+                        step_text = str(step or "").strip()
+                        if step_text and step_text not in existing:
+                            existing.append(step_text)
+                    raw_entry["mechanical_postprocess_applied"] = existing
+                if output is not None:
+                    raw_entry["output"] = output
+                if details:
+                    raw_entry.update(details)
 
     def put_hash(self, key: str, value: Any) -> None:
         self.hashes[key] = hash_json(value)

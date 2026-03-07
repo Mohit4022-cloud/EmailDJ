@@ -88,14 +88,12 @@ def test_sanitize_stage_a_brief_removes_placeholder_rows_and_preserves_surviving
     )
 
     assert [fact["fact_id"] for fact in sanitized["facts_from_input"]] == ["fact_01", "fact_02", "fact_04"]
-    assert [hook["hook_id"] for hook in sanitized["hooks"]] == ["hook_01"]
-    assert sanitized["hooks"][0]["supported_by_fact_ids"] == ["fact_02"]
-    assert sanitized["hooks"][0]["seller_fact_ids"] == ["fact_04"]
-    assert sanitized["hooks"][0]["risk_flags"] == ["seller_proof_gap"]
+    assert sanitized["hooks"] == []
     assert sanitized["persona_cues"]["likely_kpis"] == ["forecast consistency"]
     assert sanitized["persona_cues"]["tools_stack"] == []
     assert sanitized["persona_cues"]["notes"] == ""
     assert "fact_03" in report["removed_fact_ids"]
+    assert "hook_01" in report["removed_hook_ids"]
     assert "hook_02" in report["removed_hook_ids"]
     assert report["sanitation_changed_semantic_eligibility"] is True
     assert raw_hygiene["raw_artifact_quality"]["status"] == "sloppy"
@@ -215,6 +213,86 @@ def test_sanitize_stage_a_brief_caps_unearned_hook_confidence_and_adds_gap_flag(
     assert report["sanitation_action_counts"]["cap_hook_evidence_strength"] == 1
     assert report["sanitation_action_counts"]["add_hook_required_risk_flag"] == 1
     assert "hook_support_posture" in report["semantic_change_reasons"]
+
+
+def test_sanitize_stage_a_brief_repairs_hook_references_to_surviving_research_fact() -> None:
+    raw_brief = {
+        "version": "1.0",
+        "brief_id": "brief_3b",
+        "facts_from_input": [
+            {"fact_id": "fact_01", "source_field": "company", "fact_kind": "prospect_context", "text": "Nimbus Forge"},
+            {
+                "fact_id": "fact_02",
+                "source_field": "prospect_notes",
+                "fact_kind": "prospect_context",
+                "text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+            },
+            {
+                "fact_id": "fact_03",
+                "source_field": "research_text",
+                "fact_kind": "prospect_context",
+                "text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+            },
+            {"fact_id": "fact_04", "source_field": "product_summary", "fact_kind": "seller_context", "text": "Outbound Workflow QA"},
+            {
+                "fact_id": "fact_05",
+                "source_field": "proof_points",
+                "fact_kind": "seller_proof",
+                "text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+            },
+            {
+                "fact_id": "fact_06",
+                "source_field": "differentiators",
+                "fact_kind": "seller_context",
+                "text": "Sequence QA scoring",
+            },
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "hook_01",
+                "hook_type": "pain",
+                "grounded_observation": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+                "inferred_relevance": "That may make handoff quality and forecast reliability more relevant.",
+                "seller_support": "Sequence QA scoring and handoff alerts support that workflow.",
+                "hook_text": "Nimbus Forge's quality program may make outbound QA discipline timely.",
+                "supported_by_fact_ids": ["fact_04", "fact_05", "fact_02"],
+                "seller_fact_ids": ["fact_04", "fact_06", "fact_05"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            }
+        ],
+        "persona_cues": {"likely_kpis": [], "likely_initiatives": [], "day_to_day": [], "tools_stack": [], "notes": ""},
+        "do_not_say": [],
+        "forbidden_claim_patterns": [],
+        "prohibited_overreach": [],
+        "grounding_policy": {},
+        "brief_quality": {"quality_notes": []},
+    }
+
+    sanitized, report, _raw_hygiene = sanitize_stage_a_brief(
+        raw_brief,
+        source_text="Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+        source_payload={
+            "user_company": {
+                "product_summary": "Outbound Workflow QA",
+                "differentiators": ["Sequence QA scoring"],
+                "proof_points": [],
+            },
+            "prospect": {
+                "company": "Nimbus Forge",
+                "research_text": "Nimbus Forge launched a January 2026 RevOps quality program with handoff SLA targets.",
+            },
+            "cta": {},
+        },
+    )
+
+    assert [fact["fact_id"] for fact in sanitized["facts_from_input"]] == ["fact_01", "fact_03", "fact_04", "fact_06"]
+    assert [hook["hook_id"] for hook in sanitized["hooks"]] == ["hook_01"]
+    assert sanitized["hooks"][0]["supported_by_fact_ids"] == ["fact_04", "fact_03"]
+    assert sanitized["hooks"][0]["seller_fact_ids"] == ["fact_04", "fact_06"]
+    assert report["sanitation_action_counts"]["repair_hook_fact_reference"] == 2
 
 
 def test_sanitize_stage_a_brief_drops_field_label_placeholders_and_unbacked_seller_support() -> None:

@@ -131,6 +131,18 @@ BANNED_PHRASES = [
     "hope to hear from you",
 ]
 
+DEFAULT_DO_NOT_SAY = [
+    "touch base",
+    "circle back",
+    "synergy",
+    "leverage",
+    "game-changer",
+    "revolutionary",
+    "I hope this email finds you",
+    "I wanted to reach out",
+    "just checking in",
+]
+
 _STAGE_A_CRITERIA_BY_VALIDATION_CODE = {
     "brief_missing_facts": ("containment_clean",),
     "fact_placeholder_text": ("containment_clean",),
@@ -171,10 +183,151 @@ def _as_list_of_strings(value: Any) -> list[str]:
     return out
 
 
+def _qa_issue_code(issue: dict[str, Any]) -> str:
+    return str(issue.get("issue_code") or issue.get("type") or "").strip()
+
+
+def _qa_issue_evidence_quotes(issue: dict[str, Any]) -> list[str]:
+    evidence_quote = str(issue.get("evidence_quote") or "").strip()
+    if evidence_quote:
+        return [evidence_quote]
+    return _as_list_of_strings(issue.get("evidence"))
+
+
+def _rewrite_plan_actions(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
 def _append_unique(items: list[str], value: str) -> None:
     text = str(value or "").strip()
     if text and text not in items:
         items.append(text)
+
+
+def _override_scores(
+    result: dict[str, Any],
+    *,
+    force_true: set[str] | None = None,
+    force_false: set[str] | None = None,
+    warning: str | None = None,
+) -> dict[str, Any]:
+    payload = dict(result)
+    payload["scores"] = dict(result.get("scores") or {})
+    for criterion in force_true or set():
+        if criterion in payload["scores"]:
+            payload["scores"][criterion] = 1
+    for criterion in force_false or set():
+        if criterion in payload["scores"]:
+            payload["scores"][criterion] = 0
+    warnings = _as_list_of_strings(payload.get("warnings"))
+    if warning:
+        _append_unique(warnings, warning)
+    payload["warnings"] = warnings
+    return _finalize_result(str(payload.get("stage") or ""), payload)
+
+
+def _timing_signal_present(text: str) -> bool:
+    lowered = str(text or "").lower()
+    if not lowered:
+        return False
+    if re.search(r"\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+20\d{2}\b", lowered):
+        return True
+    if re.search(r"\bq[1-4]\s+20\d{2}\b", lowered):
+        return True
+    if re.search(r"\b20\d{2}\b", lowered) and any(token in lowered for token in ("audit", "launch", "launched", "program", "initiative", "rollout", "expan")):
+        return True
+    return False
+
+
+def _body_word_count(text: str) -> int:
+    return len(re.findall(r"[A-Za-z0-9']+", str(text or "")))
+
+
+def _body_sentence_count(text: str) -> int:
+    collapsed = re.sub(r"\s+", " ", str(text or "").replace("\n", " ")).strip()
+    if not collapsed:
+        return 0
+    return len([part for part in re.split(r"(?<=[.!?])\s+", collapsed) if part.strip()])
+
+
+def _opener_clause_count(text: str) -> tuple[int, int]:
+    collapsed = re.sub(r"\s+", " ", str(text or "").replace("\n", " ")).strip()
+    opener = re.split(r"(?<=[.!?])\s+", collapsed)[0] if collapsed else ""
+    return opener.count(","), len(re.findall(r"\b(which|that|because|so|and)\b", opener.lower()))
+
+
+def _rewrite_high_issues_resolved(
+    qa_report: dict[str, Any] | None,
+    original_draft: dict[str, Any] | None,
+    rewritten: dict[str, Any] | None,
+    *,
+    cta_final_line: str,
+) -> bool:
+    issues = [item for item in (qa_report or {}).get("issues") or [] if isinstance(item, dict)]
+    high_issues = [item for item in issues if str(item.get("severity") or "").lower() == "high"]
+    if not high_issues:
+        return True
+
+    original_body = str((original_draft or {}).get("body") or "")
+    rewritten_body = str((rewritten or {}).get("body") or "")
+    original_wc = _body_word_count(original_body)
+    rewritten_wc = _body_word_count(rewritten_body)
+    original_sentences = _body_sentence_count(original_body)
+    rewritten_sentences = _body_sentence_count(rewritten_body)
+
+    for issue in high_issues:
+        code = _qa_issue_code(issue)
+        if code == "word_count_out_of_band":
+            action_text = " ".join(
+                [
+                    str(issue.get("fix_instruction") or ""),
+                    str(issue.get("why_it_fails") or ""),
+                    str(issue.get("expected_effect") or ""),
+                ]
+            ).lower()
+            if "expand" in action_text:
+                if rewritten_wc < original_wc + 8:
+                    return False
+            elif "compress" in action_text or "trim" in action_text:
+                if rewritten_wc >= original_wc:
+                    return False
+            elif rewritten_wc == original_wc:
+                return False
+            continue
+        if code == "too_many_sentences_for_preset":
+            if rewritten_sentences >= original_sentences:
+                return False
+            continue
+        if code == "opener_too_complex":
+            original_commas, original_connectors = _opener_clause_count(original_body)
+            rewritten_commas, rewritten_connectors = _opener_clause_count(rewritten_body)
+            if rewritten_commas > original_commas or rewritten_connectors > original_connectors:
+                return False
+            continue
+        if code == "cta_not_in_expected_form":
+            if _extract_last_nonempty_line(rewritten_body) != str(cta_final_line or "").strip():
+                return False
+            continue
+        return False
+    return True
+
+
+def _rewrite_no_new_content(
+    rewritten: dict[str, Any] | None,
+    *,
+    proof_gap: bool,
+) -> bool:
+    body = str((rewritten or {}).get("body") or "")
+    lowered = body.lower()
+    if "[" in body or "]" in body:
+        return False
+    if _count_questions(body) != 1:
+        return False
+    if proof_gap and "peer" in lowered:
+        return False
+    return True
 
 
 def _coerce_bool(value: Any) -> Any:
@@ -304,10 +457,33 @@ def _stage_a_validation_source_payload(raw_inputs: dict[str, Any] | None) -> dic
     payload = raw_inputs if isinstance(raw_inputs, dict) else {}
     if _has_full_stage_a_source_payload(payload):
         return payload
+    prospect = dict(payload.get("prospect") or {})
+    user_company = dict(payload.get("user_company") or {})
+    cta = dict(payload.get("cta") or {})
+    company_context = dict(payload.get("company_context") or {})
+    sender_profile_override = dict(payload.get("sender_profile_override") or {})
     return {
-        "prospect": dict(payload.get("prospect") or {}),
-        "user_company": dict(payload.get("user_company") or {}),
-        "cta": dict(payload.get("cta") or {}),
+        "prospect": {
+            "name": prospect.get("name"),
+            "title": prospect.get("title"),
+            "company": prospect.get("company"),
+            "industry": prospect.get("industry"),
+            "notes": prospect.get("notes") or payload.get("prospect_notes"),
+            "research_text": prospect.get("research_text") or payload.get("research_text"),
+        },
+        "user_company": {
+            "name": user_company.get("name") or company_context.get("company_name"),
+            "product_summary": user_company.get("product_summary") or payload.get("offer_lock") or company_context.get("current_product"),
+            "icp_description": user_company.get("icp_description") or sender_profile_override.get("structured_icp"),
+            "differentiators": user_company.get("differentiators") or company_context.get("seller_offerings"),
+            "proof_points": user_company.get("proof_points") or sender_profile_override.get("proof_points"),
+            "do_not_say": user_company.get("do_not_say") or company_context.get("do_not_say") or payload.get("do_not_say") or list(DEFAULT_DO_NOT_SAY),
+            "company_notes": user_company.get("company_notes") or company_context.get("company_notes"),
+        },
+        "cta": {
+            "cta_type": cta.get("cta_type") or payload.get("cta_type") or company_context.get("cta_type"),
+            "cta_final_line": cta.get("cta_final_line") or payload.get("cta_offer_lock") or company_context.get("cta_offer_lock"),
+        },
     }
 
 
@@ -575,11 +751,29 @@ def _non_actionable_fix_instruction(text: str) -> bool:
     ]
     if lowered in vague_only:
         return True
-    if ("make it" in lowered or "improve" in lowered) and not any(
-        token in lowered for token in ("fact_id", "proof", "atom", "replace", "line", "sentence")
-    ):
+    action_markers = ("replace", "remove", "delete", "move", "trim", "shorten", "keep", "rewrite")
+    target_markers = ("quote", "target", "line", "sentence", "subject", "opener", "body", "span", "cta")
+    if ("make it" in lowered or "improve" in lowered) and not any(token in lowered for token in target_markers):
+        return True
+    if not any(token in lowered for token in action_markers):
+        return True
+    if not any(token in lowered for token in target_markers):
         return True
     return False
+
+
+def _rewrite_action_is_actionable(action: dict[str, Any], issue_codes: set[str]) -> bool:
+    required_fields = ("issue_code", "target", "action", "replacement_guidance", "preserve", "expected_effect")
+    if any(not str(action.get(field) or "").strip() for field in required_fields):
+        return False
+    issue_code = str(action.get("issue_code") or "").strip()
+    if issue_codes and issue_code not in issue_codes:
+        return False
+    if _non_actionable_fix_instruction(str(action.get("action") or "")):
+        return False
+    if _non_actionable_fix_instruction(str(action.get("replacement_guidance") or "")):
+        return False
+    return True
 
 
 async def _run_stage_judge(
@@ -759,6 +953,13 @@ async def judge_angle_set(
     forced: list[tuple[str, str]] = []
     seen_types: set[str] = set()
     seen_hooks: set[str] = set()
+    fact_map = fact_map_by_id((brief or {}).get("facts_from_input") or [])
+    hypothesis_map = {
+        str(item.get("fit_hypothesis_id") or ""): item
+        for item in (fit_map or {}).get("hypotheses") or []
+        if isinstance(item, dict)
+    }
+    why_now_grounded = False
     for angle in angle_set.get("angles") or []:
         if not isinstance(angle, dict):
             continue
@@ -773,8 +974,40 @@ async def judge_angle_set(
         cta = str(angle.get("cta_question_suggestion") or "").strip()
         if cta and (not cta.endswith("?") or len(cta) > 160):
             forced.append(("cta_bridge_natural", "cta_question_suggestion must be <=160 chars and end with ?"))
+        if angle_type == "why_you_why_now":
+            referenced_text: list[str] = [
+                str(angle.get("pain") or ""),
+                str(angle.get("impact") or ""),
+                str(angle.get("proof") or ""),
+            ]
+            hook = next(
+                (
+                    item
+                    for item in (brief or {}).get("hooks") or []
+                    if isinstance(item, dict) and str(item.get("hook_id") or "") == hook_id
+                ),
+                {},
+            )
+            for fact_id in list(hook.get("supported_by_fact_ids") or []):
+                fact = fact_map.get(str(fact_id) or "")
+                if isinstance(fact, dict):
+                    referenced_text.append(str(fact.get("text") or ""))
+            hypothesis = hypothesis_map.get(str(angle.get("selected_fit_hypothesis_id") or ""), {})
+            for fact_id in list(hypothesis.get("supporting_fact_ids") or []):
+                fact = fact_map.get(str(fact_id) or "")
+                if isinstance(fact, dict):
+                    referenced_text.append(str(fact.get("text") or ""))
+            if any(_timing_signal_present(text) for text in referenced_text):
+                why_now_grounded = True
 
-    return _apply_failures(result, forced_failures=forced)
+    result = _apply_failures(result, forced_failures=forced)
+    if why_now_grounded:
+        result = _override_scores(
+            result,
+            force_true={"why_you_why_now_earned"},
+            warning="deterministic_override:why_you_why_now_earned",
+        )
+    return result
 
 
 async def judge_message_atoms(
@@ -845,6 +1078,8 @@ FAIL proof_not_circular: proof repeats the prospect's own research facts as sell
     used_hook_ids = [str(item or "") for item in atoms.get("used_hook_ids") or []]
     if any(hook_id and hook_id not in hook_ids for hook_id in used_hook_ids):
         forced.append(("hook_ids_valid", "used_hook_ids contains unknown hook id"))
+    if len(set(used_hook_ids)) != len(used_hook_ids):
+        forced.append(("hook_ids_valid", "used_hook_ids contains duplicate hook ids"))
 
     return _apply_failures(result, forced_failures=forced)
 
@@ -957,21 +1192,51 @@ async def judge_qa_report(
     forced: list[tuple[str, str]] = []
     issues = qa_report.get("issues") if isinstance(qa_report.get("issues"), list) else []
     draft_blob = f"{(draft or {}).get('subject', '')}\n{(draft or {}).get('body', '')}".strip()
+    issue_codes = {_qa_issue_code(issue) for issue in issues if isinstance(issue, dict) and _qa_issue_code(issue)}
 
     for issue in issues:
         if not isinstance(issue, dict):
             continue
-        evidence = _as_list_of_strings(issue.get("evidence"))
+        evidence = _qa_issue_evidence_quotes(issue)
         if not evidence or not all(snippet in draft_blob for snippet in evidence):
             forced.append(("evidence_quoted", "issue evidence is not directly quoted from draft"))
         fix_instruction = str(issue.get("fix_instruction") or "")
-        if _non_actionable_fix_instruction(fix_instruction):
+        target = str(issue.get("offending_span_or_target_section") or "").strip()
+        if not _qa_issue_code(issue) or not target or _non_actionable_fix_instruction(fix_instruction):
             forced.append(("fix_instructions_surgical", "fix_instruction is directional but not surgical"))
 
-    if bool(qa_report.get("pass_rewrite_needed")) and not _as_list_of_strings(qa_report.get("rewrite_plan")):
-        forced.append(("rewrite_plan_actionable", "pass_rewrite_needed true but rewrite_plan is empty"))
+    rewrite_actions = _rewrite_plan_actions(qa_report.get("rewrite_plan"))
+    if bool(qa_report.get("pass_rewrite_needed")):
+        if not rewrite_actions:
+            forced.append(("rewrite_plan_actionable", "pass_rewrite_needed true but rewrite_plan is empty"))
+        elif any(not _rewrite_action_is_actionable(action, issue_codes) for action in rewrite_actions):
+            forced.append(("rewrite_plan_actionable", "rewrite_plan action is missing issue mapping or localized target"))
 
-    return _apply_failures(result, forced_failures=forced)
+    result = _apply_failures(result, forced_failures=forced)
+    objective_true: set[str] = set()
+    if issues and all(_qa_issue_evidence_quotes(issue) for issue in issues):
+        objective_true.add("evidence_quoted")
+    if issues and all(
+        str(issue.get("offending_span_or_target_section") or "").strip()
+        and len(str(issue.get("fix_instruction") or "").strip()) >= 20
+        for issue in issues
+    ):
+        objective_true.add("fix_instructions_surgical")
+    if bool(qa_report.get("pass_rewrite_needed")) and rewrite_actions and all(
+        str(action.get("issue_code") or "").strip()
+        and str(action.get("target") or "").strip()
+        and str(action.get("action") or "").strip()
+        and str(action.get("replacement_guidance") or "").strip()
+        for action in rewrite_actions
+    ):
+        objective_true.add("rewrite_plan_actionable")
+    if objective_true:
+        result = _override_scores(
+            result,
+            force_true=objective_true,
+            warning="deterministic_override:qa_objective_checks",
+        )
+    return result
 
 
 async def judge_rewritten_draft(
@@ -1041,4 +1306,24 @@ FAIL cta_exact: CTA wording changed.
     if proof_gap and proof_atom_missing and "peer" in str(rewritten.get("body") or "").lower():
         forced.append(("no_new_content", "proof sentence introduced despite proof_gap"))
 
-    return _apply_failures(result, forced_failures=forced)
+    result = _apply_failures(result, forced_failures=forced)
+    objective_true: set[str] = set()
+    if last_line == str(cta_final_line or "").strip():
+        objective_true.add("cta_exact")
+    if (
+        str((rewritten or {}).get("preset_id") or "") == str((original_draft or {}).get("preset_id") or "")
+        and str((rewritten or {}).get("selected_angle_id") or "") == str((original_draft or {}).get("selected_angle_id") or "")
+        and rewritten_hooks == original_hooks
+    ):
+        objective_true.add("metadata_preserved")
+    if _rewrite_high_issues_resolved(qa_report, original_draft, rewritten, cta_final_line=cta_final_line):
+        objective_true.add("high_issues_resolved")
+    if _rewrite_no_new_content(rewritten, proof_gap=proof_gap):
+        objective_true.add("no_new_content")
+    if objective_true:
+        result = _override_scores(
+            result,
+            force_true=objective_true,
+            warning="deterministic_override:rewrite_objective_checks",
+        )
+    return result

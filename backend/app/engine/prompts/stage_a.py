@@ -137,6 +137,7 @@ CONTAINMENT CHECK (run this before finalizing facts_from_input):
 - If research_text is sparse or empty, facts_from_input about the prospect should be few.
 - Do not compensate for sparse input by importing training knowledge.
 - If research_state is no_research, prospect facts should come only from name/title/company and any non-empty prospect_notes.
+- If research_text names another company, you may keep that sentence as a raw fact_from_input, but you may not use it to build prospect-specific hooks, assumptions, persona cues, timing claims, or initiative framing.
 - A brief with three grounded facts is better than ten facts with hallucinated content.
 
 STEP 2 - CONSTRAINT MAPPING
@@ -171,11 +172,12 @@ STEP 4 - HOOK IDENTIFICATION
 - Assign hook_type from: pain | priority | initiative | tooling | trigger_event | other.
 - Do not create event/news/post/congrats hooks unless directly grounded in usable research_text facts.
 - Do not imply recent events, launches, rollouts, initiatives, or urgency unless directly grounded in research_text facts.
+- If the only research_text signal is about another company, omit initiative or why-now hooks and fall back to conservative role-based relevance.
 - Do not convert titles into certainties.
 - Do not turn possible relevance into clear business need.
 - seller_fact_ids may cite seller_context or seller_proof facts only.
 - If seller_support is empty, add risk flag seller_proof_gap.
-- seller_context may support relevance framing but does not count as seller proof.
+- seller_context may support relevance framing but does not count as seller proof or outcome evidence.
 - Only hooks whose seller_fact_ids include proof_points may be high confidence or strong evidence.
 - confidence_level = low | medium | high.
 - evidence_strength = weak | moderate | strong.
@@ -187,6 +189,7 @@ STEP 5 - OPTIONAL QUALITATIVE PROPOSALS
   - keep it tentative and placeholder-free
   - infer likely_kpis, likely_initiatives, day_to_day, and tools_stack from title/industry/research
   - when research_state is no_research, keep persona cues generic to the role/title and avoid invented initiatives or tools
+  - if prospect-specific research does not support an initiative, likely_initiatives should be empty
 - do_not_say is optional. Only add context-specific phrases beyond the supplied input list.
 - forbidden_claim_patterns is optional. If you include it, use these exact strings:
 {_list_lines(list(REQUIRED_FORBIDDEN_CLAIM_PATTERNS))}
