@@ -318,6 +318,7 @@ class WebPreviewBatchMeta(BaseModel):
     session_id: str | None = None
     pipeline_version: str
     generation_mode: str | None = None
+    provider_source: str | None = None
     provider: str
     model: str | None = None
     provider_attempt_count: int | None = Field(default=None, ge=0)

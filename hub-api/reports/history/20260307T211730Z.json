@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-07T21:23:58.026204Z",
+  "generated_at": "2026-03-07T21:17:30.251395Z",
   "mode": "mock",
   "selection": {
     "selection_mode": "full",
@@ -223,7 +223,7 @@
         "offer_inbox_placement_audit"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 6,
       "mode": "mock",
       "subject": "Quick thought on Inbox Placement Audit for Altair",
       "body": "Hi Jean-Luc, There are signs consistent first-touch quality matters more at Altair Works.\nInbox placement audit helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nInbox placement audit helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
@@ -839,7 +839,7 @@
         "offer_compliance_qa"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Compliance QA \u2014 relevant for Bluebird Systems?",
       "body": "Hi Alex, There are signs message review and execution discipline matter more right now.\nCompliance qa helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nCompliance qa helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a 15-min chat next week?",
@@ -1587,7 +1587,7 @@
         "offer_domain_reputation_shield"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Domain Reputation Shield \u2014 relevant for Vector Dynamics?",
       "body": "Hi Ari, It may be worth tightening first-touch quality as execution scales at Vector Dynamics.\nDomain reputation shield helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nDomain reputation shield helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",
@@ -1675,7 +1675,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 3,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Madonna, Beacon Cloud teams often lose replies when first-touch messaging sounds generic.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nShould I send a quick deck?",
@@ -1807,7 +1807,7 @@
         "offer_brand_protection"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Quick thought on Brand Protection for Acme",
       "body": "Hi Jean-Luc, It may be worth tightening first-touch quality as execution scales at Acme.\nBrand protection helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nBrand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
@@ -2379,7 +2379,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 6,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Ari, There are signs message review and execution discipline matter more right now.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",
@@ -2731,7 +2731,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Madonna, The prospect team announced a new enablement rollout and is coordinating cross-functional messaging standards this quarter.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nShould I send a quick deck?",
@@ -3083,7 +3083,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Mary, There are signs consistent first-touch quality matters more at Beacon Cloud.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
@@ -3303,7 +3303,7 @@
         "offer_compliance_qa"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Compliance QA \u2014 relevant for Bluebird Systems?",
       "body": "Hi Maya, There are signs consistent first-touch quality matters more at Bluebird Systems.\nCompliance qa helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nCompliance qa helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a 10-min call next week?",
@@ -3435,7 +3435,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Ari, Beacon Cloud teams often lose replies when first-touch messaging sounds generic.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",
@@ -3611,7 +3611,7 @@
         "offer_remix_studio"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Remix Studio \u2014 relevant for Northstar Labs?",
       "body": "Hello Mary, The prospect team announced a new enablement rollout and is coordinating cross-functional messaging standards this quarter.\nRemix studio helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nRemix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
@@ -3655,7 +3655,7 @@
         "offer_compliance_qa"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Compliance QA \u2014 relevant for Bluebird Systems?",
       "body": "Hi Jean-Luc, Bluebird Systems teams often lose replies when first-touch messaging sounds generic.\nCompliance qa helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nCompliance qa helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
@@ -3743,7 +3743,7 @@
         "offer_inbox_placement_audit"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Quick thought on Inbox Placement Audit for Altair",
       "body": "Hi Alex, There are signs consistent first-touch quality matters more at Altair Works.\nInbox placement audit helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nInbox placement audit helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a 15-min chat next week?",
@@ -4139,7 +4139,7 @@
         "offer_message_risk_scoring"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Message Risk Scoring \u2014 relevant for Beacon Cloud?",
       "body": "Hello Mary, There are signs message review and execution discipline matter more right now.\nMessage risk scoring helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nMessage risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
@@ -4183,7 +4183,7 @@
         "offer_sequence_governance"
       ],
       "passed": true,
-      "duration_ms": 4,
+      "duration_ms": 5,
       "mode": "mock",
       "subject": "Sequence Governance \u2014 relevant for Nimbus Data?",
       "body": "Hi Jean-Luc, There are signs consistent first-touch quality matters more at Nimbus Data.\nSequence governance helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nSequence governance helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
@@ -4227,7 +4227,7 @@
         "offer_proof_of_concept_pilot"
       ],
       "passed": true,
-      "duration_ms": 5,
+      "duration_ms": 4,
       "mode": "mock",
       "subject": "Proof-of-Concept Pilot \u2014 relevant for Orion Metrics?",
       "body": "Hi Ari, It may be worth tightening first-touch quality as execution scales at Orion Metrics.\nProof-of-concept pilot helps enforce message relevance without adding manager overhead.\nPosition the locked offer clearly.\nKeep claims grounded and avoid internal terminology.\nProof-of-concept pilot helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",

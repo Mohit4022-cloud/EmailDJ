@@ -1286,6 +1286,7 @@ def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> lis
     if not subject or not body:
         return []
 
+    plan = GenerationPlan.from_dict(session.get("generation_plan"))
     expected_cta = str(session.get("cta_lock_effective") or DEFAULT_FALLBACK_CTA).strip()
     body_lines = [line.strip() for line in body.splitlines() if line.strip()]
     draft_lower = _collapse_ws(draft).lower()
@@ -1326,6 +1327,11 @@ def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> lis
 
     if expected_cta and sum(1 for line in body_lines if line == expected_cta) != 1:
         violations.append("missing_required_field:cta")
+
+    if plan and plan.persona_route == "exec":
+        narrative_sentences = [sentence for sentence in split_sentences(narrative) if _collapse_ws(sentence)]
+        if len(narrative_sentences) < 2:
+            violations.append("missing_required_field:exec_body_support")
 
     return _unique_ordered(violations)
 
@@ -1673,6 +1679,18 @@ def _close_under_budget_candidate(
         min_words=min_words,
         max_words=max_words,
     )
+    plan = GenerationPlan.from_dict(session.get("generation_plan"))
+    if plan and feature_preset_true_rewrite_enabled():
+        narrative = _body_without_cta(repaired_body, expected_cta)
+        sentence_lines = [
+            sentence.strip()
+            for sentence in split_sentences(narrative)
+            if _collapse_ws(sentence)
+        ]
+        if plan.persona_route == "exec":
+            sentence_lines = sentence_lines[:4]
+        if sentence_lines:
+            repaired_body = "\n".join(sentence_lines) + f"\n\n{expected_cta}"
     repaired_candidate = _format_draft(subject, repaired_body)
     return repaired_candidate, repaired_candidate != candidate
 
@@ -1723,6 +1741,7 @@ def _deterministic_compliance_repair(
     ):
         rewritten_candidate, changed = _rewrite_claim_language_candidate(repaired, session)
         if changed:
+            session["claims_policy_intervention_count"] = int(session.get("claims_policy_intervention_count") or 0) + 1
             repaired = rewritten_candidate
     current_violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
     if "hook_strength_mismatch" in current_violations:
@@ -1733,25 +1752,24 @@ def _deterministic_compliance_repair(
         )
         if changed:
             repaired = opener_repaired
-    if repaired != candidate:
-        repaired_violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
-        if not repaired_violations:
-            return repaired
-        if repaired_violations and all(v.startswith("length_out_of_range:") for v in repaired_violations):
-            length_closed, changed = _close_under_budget_candidate(
-                repaired,
+    repaired_violations = validate_ctco_output(repaired, session=session, style_sliders=style_sliders)
+    if not repaired_violations and repaired != candidate:
+        return repaired
+    if _needs_exec_closure(repaired_violations):
+        length_closed, changed = _close_under_budget_candidate(
+            repaired,
+            session=session,
+            style_sliders=style_sliders,
+        )
+        if changed:
+            length_closed_violations = validate_ctco_output(
+                length_closed,
                 session=session,
                 style_sliders=style_sliders,
             )
-            if changed:
-                length_closed_violations = validate_ctco_output(
-                    length_closed,
-                    session=session,
-                    style_sliders=style_sliders,
-                )
-                if not length_closed_violations:
-                    return length_closed
-                repaired = length_closed
+            if not length_closed_violations:
+                return length_closed
+            repaired = length_closed
 
     candidate = repaired
     subject, body = _extract_subject_and_body(candidate)
@@ -1953,6 +1971,7 @@ class DraftResult:
     policy_version_snapshot: dict[str, str] = field(default_factory=dict)
     generation_status: str = field(default="ok")
     fallback_reason: str | None = field(default=None)
+    claims_policy_intervention_count: int = field(default=0)
 
 
 @dataclass
@@ -1962,6 +1981,19 @@ class RealDraftStats:
     violation_retry_count: int = 0
     violation_codes: list[str] = field(default_factory=list)
     violation_count: int = 0
+
+
+def _needs_exec_closure(violations: list[str]) -> bool:
+    if not violations:
+        return False
+    allowed = {"missing_required_field:exec_body_support"}
+    for violation in violations:
+        if violation.startswith("length_out_of_range:"):
+            continue
+        if violation in allowed:
+            continue
+        return False
+    return True
 
 
 def _quality_metric_key(name: str) -> str:
@@ -2452,6 +2484,7 @@ async def build_draft(
 ) -> DraftResult:
     normalized = normalize_style_profile(style_profile)
     style_sliders = style_profile_to_ctco_sliders(normalized)
+    session["claims_policy_intervention_count"] = 0
     preset_id = normalize_preset_id(session.get("preset_id"))
     session["preset_id"] = preset_id
     response_contract = _response_contract(session)
@@ -2521,6 +2554,7 @@ async def build_draft(
                 enforcement_level=enforcement_level,
                 repair_loop_enabled=repair_enabled,
                 policy_version_snapshot=policy_runner.aggregate_versions(),
+                claims_policy_intervention_count=int(session.get("claims_policy_intervention_count") or 0),
             )
 
     result_cascade_reason = "primary"
@@ -2723,6 +2757,7 @@ async def build_draft(
         policy_version_snapshot=_policy_report.policy_version_snapshot,
         generation_status=generation_status,
         fallback_reason=fallback_reason,
+        claims_policy_intervention_count=int(session.get("claims_policy_intervention_count") or 0),
     )
 
 

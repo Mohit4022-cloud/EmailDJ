@@ -444,6 +444,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
             "web_preview_batch_done",
             extra={
                 "generation_mode": result.mode,
+                "provider_source": ("external_provider" if result.mode == "real" else "provider_stub"),
                 "provider": result.provider,
                 "model": result.model_name,
                 "latency_ms": result.latency_ms,
@@ -473,6 +474,7 @@ async def web_preset_previews_batch(req: WebPresetPreviewBatchRequest, request: 
                 "session_id": None,
                 "mode": "preview",
                 "generation_mode": result.mode,
+                "provider_source": ("external_provider" if result.mode == "real" else "provider_stub"),
                 "provider": result.provider,
                 "model": result.model_name,
                 "violation_codes": result.violation_codes,
@@ -588,6 +590,7 @@ async def web_stream(request_id: str, request: Request):
                         session_id=rec.session_id,
                     )
                 mode_info["mode"] = result.mode
+                mode_info["provider_source"] = "external_provider" if result.mode == "real" else "provider_stub"
                 mode_info["provider"] = result.provider
                 mode_info["model"] = result.model_name
                 mode_info["cascade_reason"] = result.cascade_reason
@@ -602,6 +605,7 @@ async def web_stream(request_id: str, request: Request):
                 mode_info["repair_loop_enabled"] = result.repair_loop_enabled
                 mode_info["generation_status"] = result.generation_status
                 mode_info["fallback_reason"] = result.fallback_reason
+                mode_info["claims_policy_intervention_count"] = result.claims_policy_intervention_count
                 mode_info["policy_versions"] = result.policy_version_snapshot
                 mode_info["response_contract"] = result.response_contract
                 final_subject, final_body = _final_subject_body(result.draft, response_contract=result.response_contract)
@@ -652,6 +656,7 @@ async def web_stream(request_id: str, request: Request):
                     extra={
                         "mode": rec.mode,
                         "generation_mode": result.mode,
+                        "provider_source": mode_info.get("provider_source"),
                         "provider": result.provider,
                         "model": result.model_name,
                         "cascade_reason": result.cascade_reason,
@@ -666,6 +671,7 @@ async def web_stream(request_id: str, request: Request):
                         "repair_loop_enabled": result.repair_loop_enabled,
                         "generation_status": result.generation_status,
                         "fallback_reason": result.fallback_reason,
+                        "claims_policy_intervention_count": result.claims_policy_intervention_count,
                         "session_id": rec.session_id,
                         "request_id": request_id,
                         "latency_ms": session["metrics"]["last_latency_ms"],
@@ -685,6 +691,7 @@ async def web_stream(request_id: str, request: Request):
                         "request_id": request_id,
                         "session_id": rec.session_id,
                         "mode": result.mode,
+                        "provider_source": mode_info.get("provider_source"),
                         "provider": result.provider,
                         "model": result.model_name,
                         "violation_codes": result.violation_codes,
@@ -698,6 +705,7 @@ async def web_stream(request_id: str, request: Request):
                         "repair_loop_enabled": result.repair_loop_enabled,
                         "generation_status": result.generation_status,
                         "fallback_reason": result.fallback_reason,
+                        "claims_policy_intervention_count": result.claims_policy_intervention_count,
                         "stream_chunk_mode": mode_info.get("stream_chunk_mode"),
                         "stream_total_chunks": mode_info.get("total_chunks"),
                         "stream_total_chars": mode_info.get("total_chars"),

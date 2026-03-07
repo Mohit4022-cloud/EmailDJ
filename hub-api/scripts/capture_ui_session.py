@@ -9,7 +9,7 @@ import json
 import os
 import re
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -24,7 +24,6 @@ os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 os.environ.setdefault("EMAILDJ_WEB_BETA_KEYS", "dev-beta-key")
 os.environ.setdefault("EMAILDJ_PRESET_PREVIEW_PIPELINE", "on")
 os.environ.setdefault("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
-os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 from email_generation import remix_engine
 from email_generation.quick_generate import GenerateResult
@@ -234,6 +233,8 @@ def _request_record(
         "generation_plan": (session or {}).get("generation_plan"),
         "execution_trace": (stream_done or {}).get("execution_trace"),
         "trace_status": (trace or {}).get("status"),
+        "provider_source": (stream_done or {}).get("provider_source")
+        or ((response or {}).get("meta") or {}).get("provider_source"),
     }
 
 
@@ -250,12 +251,11 @@ def _temporary_env(name: str, value: str):
             os.environ[name] = previous
 
 
-async def _run_capture(output_dir: Path) -> None:
+async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     headers = {"x-emaildj-beta-key": "dev-beta-key"}
 
     original_real_generate = remix_engine._real_generate
-    remix_engine._real_generate = _fake_real_generate  # type: ignore[assignment]
     try:
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -282,72 +282,107 @@ async def _run_capture(output_dir: Path) -> None:
                 (output_dir / f"{index:02d}_preview_batch.json").write_text(json.dumps(preview_record, indent=2), encoding="utf-8")
                 index += 1
 
-            with _temporary_env("USE_PROVIDER_STUB", "0"):
-                generate_payload = _ui_generate_payload(title="CEO", preset_id="straight_shooter", length=-0.6)
-                accepted = (await client.post("/web/v1/generate", json=generate_payload, headers=headers)).json()
-                stream_response = await client.get(f"/web/v1/stream/{accepted['request_id']}", headers=headers)
-                stream_text = stream_response.text
-                stream_tokens, stream_done = _extract_stream(stream_text)
-                session = await remix_engine.load_session(accepted["session_id"])
-                trace = (session or {}).get("last_generation_trace") or {}
-                record = _request_record(
-                    index=index,
-                    endpoint="/web/v1/generate",
-                    payload=generate_payload,
-                    accepted=accepted,
-                    stream_text=stream_tokens,
-                    stream_done=stream_done,
-                    session=session,
-                    trace=trace,
-                )
-                records.append(record)
-                (output_dir / f"{index:02d}_generate.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
-                session_id = accepted["session_id"]
-                index += 1
+            if provider_path == "provider_shim":
+                remix_engine._real_generate = _fake_real_generate  # type: ignore[assignment]
+            else:
+                provider = (os.environ.get("EMAILDJ_REAL_PROVIDER", "openai").strip().lower() or "openai")
+                required_key = {
+                    "openai": "OPENAI_API_KEY",
+                    "anthropic": "ANTHROPIC_API_KEY",
+                    "groq": "GROQ_API_KEY",
+                }.get(provider, "OPENAI_API_KEY")
+                if not os.environ.get(required_key):
+                    raise RuntimeError(f"external_provider_capture_requires:{required_key}")
 
-                remix_variants = [
-                    ("headliner", {"formality": 0.2, "orientation": 0.4, "length": -0.2, "assertiveness": 0.3}),
-                    ("c_suite_sniper", {"formality": 0.1, "orientation": 0.9, "length": -0.7, "assertiveness": 0.4}),
-                    ("industry_insider", {"formality": 0.0, "orientation": 0.6, "length": 0.2, "assertiveness": 0.1}),
-                ]
-                for preset_id, style_profile in remix_variants:
-                    remix_payload = {
-                        "session_id": session_id,
-                        "preset_id": preset_id,
-                        "style_profile": style_profile,
-                    }
-                    accepted = (await client.post("/web/v1/remix", json=remix_payload, headers=headers)).json()
+            with _temporary_env("USE_PROVIDER_STUB", "0"):
+                shim_key_ctx = _temporary_env("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "shim-key")) if provider_path == "provider_shim" else nullcontext()
+                with shim_key_ctx:
+                    generate_payload = _ui_generate_payload(title="CEO", preset_id="straight_shooter", length=-0.6)
+                    accepted = (await client.post("/web/v1/generate", json=generate_payload, headers=headers)).json()
                     stream_response = await client.get(f"/web/v1/stream/{accepted['request_id']}", headers=headers)
                     stream_text = stream_response.text
                     stream_tokens, stream_done = _extract_stream(stream_text)
-                    session = await remix_engine.load_session(session_id)
+                    session = await remix_engine.load_session(accepted["session_id"])
                     trace = (session or {}).get("last_generation_trace") or {}
                     record = _request_record(
                         index=index,
-                        endpoint="/web/v1/remix",
-                        payload=remix_payload,
+                        endpoint="/web/v1/generate",
+                        payload=generate_payload,
                         accepted=accepted,
                         stream_text=stream_tokens,
                         stream_done=stream_done,
                         session=session,
                         trace=trace,
                     )
+                    if provider_path == "provider_shim":
+                        record["provider_source"] = "provider_shim"
+                        if isinstance(record.get("stream_done"), dict):
+                            record["stream_done"]["provider_source"] = "provider_shim"
                     records.append(record)
-                    (output_dir / f"{index:02d}_remix_{preset_id}.json").write_text(
-                        json.dumps(record, indent=2), encoding="utf-8"
-                    )
+                    (output_dir / f"{index:02d}_generate.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
+                    session_id = accepted["session_id"]
                     index += 1
 
+                    remix_variants = [
+                        ("headliner", {"formality": 0.2, "orientation": 0.4, "length": -0.2, "assertiveness": 0.3}),
+                        ("c_suite_sniper", {"formality": 0.1, "orientation": 0.9, "length": -0.7, "assertiveness": 0.4}),
+                        ("industry_insider", {"formality": 0.0, "orientation": 0.6, "length": 0.2, "assertiveness": 0.1}),
+                    ]
+                    for preset_id, style_profile in remix_variants:
+                        remix_payload = {
+                            "session_id": session_id,
+                            "preset_id": preset_id,
+                            "style_profile": style_profile,
+                        }
+                        accepted = (await client.post("/web/v1/remix", json=remix_payload, headers=headers)).json()
+                        stream_response = await client.get(f"/web/v1/stream/{accepted['request_id']}", headers=headers)
+                        stream_text = stream_response.text
+                        stream_tokens, stream_done = _extract_stream(stream_text)
+                        session = await remix_engine.load_session(session_id)
+                        trace = (session or {}).get("last_generation_trace") or {}
+                        record = _request_record(
+                            index=index,
+                            endpoint="/web/v1/remix",
+                            payload=remix_payload,
+                            accepted=accepted,
+                            stream_text=stream_tokens,
+                            stream_done=stream_done,
+                            session=session,
+                            trace=trace,
+                        )
+                        if provider_path == "provider_shim":
+                            record["provider_source"] = "provider_shim"
+                            if isinstance(record.get("stream_done"), dict):
+                                record["stream_done"]["provider_source"] = "provider_shim"
+                        records.append(record)
+                        (output_dir / f"{index:02d}_remix_{preset_id}.json").write_text(
+                            json.dumps(record, indent=2), encoding="utf-8"
+                        )
+                        index += 1
+
+            remix_records = [rec for rec in records if rec.get("endpoint") == "/web/v1/remix"]
+            remix_clean = bool(remix_records) and all(
+                not ((rec.get("stream_done") or {}).get("violation_codes") or [])
+                and rec.get("trace_status") not in {"failed_validation", "failed_exhausted"}
+                for rec in remix_records
+            )
             summary = {
                 "captured_at_utc": datetime.now(timezone.utc).isoformat(),
                 "request_count": len(records),
                 "output_dir": str(output_dir),
+                "provider_source": provider_path,
+                "launch_gates": {
+                    "shim_green": "green" if provider_path == "provider_shim" and remix_clean else "red" if provider_path == "provider_shim" else "not_run",
+                    "provider_green": "green" if provider_path == "external_provider" and remix_clean else "red" if provider_path == "external_provider" else "not_run",
+                    "remix_green": "green" if remix_clean else "red",
+                },
                 "requests": [
                     {
                         "index": rec["request_index"],
                         "endpoint": rec["endpoint"],
                         "request_id": (rec.get("accepted") or {}).get("request_id"),
                         "session_id": (rec.get("accepted") or {}).get("session_id"),
+                        "provider_source": rec.get("provider_source"),
                         "flags_effective": (rec.get("stream_done") or {}).get("flags_effective")
                         or ((rec.get("response") or {}).get("meta") or {}).get("flags_effective"),
                     }
@@ -362,11 +397,17 @@ async def _run_capture(output_dir: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Capture five UI-path requests and debug artifacts.")
     parser.add_argument("--output-root", default="debug_runs/ui_sessions", help="Output root relative to hub-api/")
+    parser.add_argument(
+        "--provider-path",
+        choices=("provider_shim", "external_provider"),
+        default="provider_shim",
+        help="provider_shim uses the real code path with a local fake provider; external_provider requires real provider credentials.",
+    )
     args = parser.parse_args()
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     output_dir = (ROOT / args.output_root / timestamp).resolve()
-    asyncio.run(_run_capture(output_dir))
-    print(json.dumps({"ok": True, "output_dir": str(output_dir)}, indent=2))
+    asyncio.run(_run_capture(output_dir, provider_path=args.provider_path))
+    print(json.dumps({"ok": True, "output_dir": str(output_dir), "provider_source": args.provider_path}, indent=2))
     return 0
 
 

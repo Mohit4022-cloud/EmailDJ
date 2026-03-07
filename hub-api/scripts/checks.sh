@@ -62,8 +62,16 @@ python3 "$ROOT/scripts/real_mode_failfast_smoke.py"
 if [ "${EMAILDJ_RUN_REAL_MODE_SMOKE:-0}" = "1" ]; then
   echo "${STEP_REAL_SMOKE} real mode smoke"
   python3 "$ROOT/scripts/real_mode_smoke.py"
+  PROVIDER_GREEN="green"
 else
   echo "${STEP_REAL_SMOKE} real mode smoke (skipped; set EMAILDJ_RUN_REAL_MODE_SMOKE=1 to enable)"
+  PROVIDER_GREEN="not_run"
 fi
 
+echo "launch status:"
+echo "  backend-green=green"
+echo "  harness-green=green"
+echo "  shim-green=green"
+echo "  provider-green=${PROVIDER_GREEN}"
+echo "  remix-green=not_run"
 echo "all checks passed"

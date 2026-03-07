@@ -492,6 +492,108 @@ async def _run_preview_case(
         }
 
 
+async def _run_remix_case(
+    client: Any,
+    case: dict[str, Any],
+    headers: dict[str, str],
+    timeout: float,
+    sem: asyncio.Semaphore,
+    max_retries: int,
+    gate: _RateLimitGate,
+) -> dict[str, Any]:
+    """Run Flow C: generate a base session, then remix it with the case preset."""
+    httpx = __import__("httpx")
+
+    async with sem:
+        t0 = time.perf_counter()
+        base_case = dict(case)
+        base_case["preset_id"] = "straight_shooter"
+        generate_payload = _build_generate_payload(base_case)
+        remix_payload: dict[str, Any] = {}
+        error: str | None = None
+        email_text = ""
+        done_payload: dict = {}
+        stream_error_payload: dict = {}
+        response_json: dict = {}
+        latency_ms = 0
+
+        try:
+            gen_resp = await _request_with_retries(
+                client=client,
+                method="POST",
+                url="/web/v1/generate",
+                json_payload=generate_payload,
+                headers=headers,
+                timeout=timeout,
+                gate=gate,
+                max_retries=max_retries,
+            )
+            accepted = gen_resp.json()
+            stream_resp = await _request_with_retries(
+                client=client,
+                method="GET",
+                url=f"/web/v1/stream/{accepted['request_id']}",
+                headers=headers,
+                timeout=timeout + 30,
+                gate=gate,
+                max_retries=max_retries,
+            )
+            _email_text, _done_payload, _stream_error_payload = _extract_stream(stream_resp.text)
+            if _stream_error_payload:
+                stream_error = str(_stream_error_payload.get("error") or "unknown_stream_error")
+                raise RuntimeError(f"base_generate_failed:{stream_error}")
+
+            remix_payload = _build_remix_payload(
+                session_id=str(accepted["session_id"]),
+                preset_id=str(case["preset_id"]),
+                slider=case["slider_config"],
+            )
+            remix_resp = await _request_with_retries(
+                client=client,
+                method="POST",
+                url="/web/v1/remix",
+                json_payload=remix_payload,
+                headers=headers,
+                timeout=timeout,
+                gate=gate,
+                max_retries=max_retries,
+            )
+            response_json = remix_resp.json()
+            remix_stream = await _request_with_retries(
+                client=client,
+                method="GET",
+                url=f"/web/v1/stream/{response_json['request_id']}",
+                headers=headers,
+                timeout=timeout + 30,
+                gate=gate,
+                max_retries=max_retries,
+            )
+            email_text, done_payload, stream_error_payload = _extract_stream(remix_stream.text)
+            if stream_error_payload:
+                stream_error = str(stream_error_payload.get("error") or "unknown_stream_error")
+                error = f"SSE error: {stream_error}"
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+        except httpx.HTTPStatusError as exc:
+            error = f"HTTP {exc.response.status_code}: {exc.response.text[:200]}"
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+        except Exception as exc:
+            error = str(exc)
+            latency_ms = int((time.perf_counter() - t0) * 1000)
+
+        return {
+            "case": case,
+            "flow": "remix",
+            "request_payload": remix_payload or generate_payload,
+            "response_json": response_json,
+            "done_payload": done_payload,
+            "email_text": email_text,
+            "latency_ms": latency_ms,
+            "error": error,
+            "stream_error": stream_error_payload,
+            "stream_error_event_seen": bool(stream_error_payload),
+        }
+
+
 # ---------------------------------------------------------------------------
 # Scorecard builder
 # ---------------------------------------------------------------------------
@@ -576,6 +678,7 @@ def _build_debug_meta(result: dict[str, Any], run_id: str) -> dict[str, Any]:
         "flags_effective": done.get("flags_effective"),
         # Provider/model
         "provider": done.get("provider"),
+        "provider_source": done.get("provider_source") or ((result.get("response_json") or {}).get("meta") or {}).get("provider_source"),
         "model": done.get("model"),
         "mode": done.get("mode"),
         "cascade_reason": done.get("cascade_reason"),
@@ -586,6 +689,7 @@ def _build_debug_meta(result: dict[str, Any], run_id: str) -> dict[str, Any]:
         "enforcement_level": done.get("enforcement_level"),
         "generation_status": done.get("generation_status"),
         "fallback_reason": done.get("fallback_reason"),
+        "claims_policy_intervention_count": done.get("claims_policy_intervention_count", 0),
         # Stream integrity
         "stream_checksum": done.get("stream_checksum"),
         "stream_missing_chunks": done.get("stream_missing_chunks"),
@@ -616,9 +720,44 @@ def _build_summary(
     errors = sum(1 for r in results if r.get("error"))
 
     fail_tag_counts: Counter = Counter()
+    provider_source_counts: Counter = Counter()
+    violation_code_counts: Counter = Counter()
+    route_counts: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "pass": 0, "fail": 0})
+    preset_counts: dict[str, dict[str, int]] = defaultdict(lambda: {"total": 0, "pass": 0, "fail": 0})
+    violation_codes_by_route: dict[str, Counter] = defaultdict(Counter)
+    violation_codes_by_preset: dict[str, Counter] = defaultdict(Counter)
+    required_field_miss_count = 0
+    under_length_miss_count = 0
+    claims_policy_intervention_count = 0
     for sc in scorecards:
         for tag in sc.get("fail_tags") or []:
             fail_tag_counts[tag] += 1
+    for sc, res in zip(scorecards, results):
+        flow = str(res.get("flow") or "unknown")
+        route_counts[flow]["total"] += 1
+        preset = str(res["case"]["preset_id"])
+        preset_counts[preset]["total"] += 1
+        if sc.get("pass"):
+            route_counts[flow]["pass"] += 1
+            preset_counts[preset]["pass"] += 1
+        else:
+            route_counts[flow]["fail"] += 1
+            preset_counts[preset]["fail"] += 1
+
+        done_payload = res.get("done_payload") or {}
+        preview_meta = (res.get("response_json") or {}).get("meta") or {}
+        provider_source = done_payload.get("provider_source") or preview_meta.get("provider_source") or "provider_stub"
+        provider_source_counts[str(provider_source)] += 1
+        codes = list(done_payload.get("violation_codes") or preview_meta.get("violation_codes") or [])
+        for code in codes:
+            violation_code_counts[str(code)] += 1
+            violation_codes_by_route[flow][str(code)] += 1
+            violation_codes_by_preset[preset][str(code)] += 1
+        if "missing_required_field" in codes:
+            required_field_miss_count += 1
+        if "length_out_of_range" in codes:
+            under_length_miss_count += 1
+        claims_policy_intervention_count += int(done_payload.get("claims_policy_intervention_count") or 0)
 
     # Top 10 worst cases (most fail tags)
     paired = list(zip(scorecards, results))
@@ -664,6 +803,49 @@ def _build_summary(
         "fail": failed,
         "errors": errors,
         "pass_rate_pct": round(passed / total * 100, 1) if total else 0.0,
+        "provider_source_counts": dict(provider_source_counts),
+        "route_pass_fail_counts": dict(route_counts),
+        "preset_pass_fail_counts": dict(preset_counts),
+        "top_violation_codes": dict(violation_code_counts.most_common(10)),
+        "top_violation_codes_by_route": {
+            route: dict(counter.most_common(5))
+            for route, counter in violation_codes_by_route.items()
+        },
+        "top_violation_codes_by_preset": {
+            preset: dict(counter.most_common(5))
+            for preset, counter in violation_codes_by_preset.items()
+        },
+        "required_field_miss_count": required_field_miss_count,
+        "required_field_miss_rate": round(required_field_miss_count / total, 4) if total else 0.0,
+        "under_length_miss_count": under_length_miss_count,
+        "under_length_miss_rate": round(under_length_miss_count / total, 4) if total else 0.0,
+        "claims_policy_intervention_count": claims_policy_intervention_count,
+        "preview_generate_parity_status": "not_run",
+        "launch_gates": {
+            "backend_green": "not_run",
+            "harness_green": "not_run",
+            "shim_green": (
+                "green"
+                if provider_source_counts.get("provider_stub", 0) + provider_source_counts.get("provider_shim", 0) > 0 and failed == 0 and errors == 0
+                else "red"
+                if provider_source_counts.get("provider_stub", 0) + provider_source_counts.get("provider_shim", 0) > 0
+                else "not_run"
+            ),
+            "provider_green": (
+                "green"
+                if provider_source_counts.get("external_provider", 0) > 0 and failed == 0 and errors == 0
+                else "red"
+                if provider_source_counts.get("external_provider", 0) > 0
+                else "not_run"
+            ),
+            "remix_green": (
+                "green"
+                if route_counts.get("remix", {}).get("total", 0) > 0 and route_counts.get("remix", {}).get("fail", 0) == 0 and errors == 0
+                else "red"
+                if route_counts.get("remix", {}).get("total", 0) > 0
+                else "not_run"
+            ),
+        },
         "fail_tag_counts": dict(fail_tag_counts.most_common()),
         "top_10_worst": top_worst,
         "breakdown_by_persona_type": dict(by_persona_type),
@@ -754,10 +936,12 @@ async def _run_all(
     t_start = time.perf_counter()
 
     async with httpx.AsyncClient(base_url=base_url, timeout=timeout) as client:
-        if flow in ("generate", "all"):
+        if flow == "generate":
             runner = _run_generate_case
         elif flow == "preview":
             runner = _run_preview_case
+        elif flow == "remix":
+            runner = _run_remix_case
         else:
             runner = _run_generate_case
 
@@ -828,6 +1012,10 @@ def _print_summary(summary: dict[str, Any]) -> None:
     print(f"  Fail:      {failed}", flush=True)
     print(f"  Errors:    {errors}", flush=True)
     print(f"  Elapsed:   {summary['elapsed_seconds']}s", flush=True)
+    if summary.get("provider_source_counts"):
+        print(f"  Provider:  {summary['provider_source_counts']}", flush=True)
+    if summary.get("launch_gates"):
+        print(f"  Gates:     {summary['launch_gates']}", flush=True)
 
     if summary["fail_tag_counts"]:
         print(f"\n  FAIL TAG FREQUENCY:", flush=True)
@@ -903,9 +1091,9 @@ Examples:
     )
     parser.add_argument(
         "--flow",
-        choices=("generate", "preview"),
+        choices=("generate", "preview", "remix"),
         default="generate",
-        help="generate=generate+stream flow (default), preview=preset-previews/batch flow",
+        help="generate=generate+stream flow (default), preview=preset-previews/batch flow, remix=generate then remix flow",
     )
     parser.add_argument(
         "--base-url",

@@ -86,7 +86,9 @@ def test_persona_router_exec_vs_standard(monkeypatch):
         )
     assert exec_plan.persona_route == "exec"
     assert exec_plan.length_target["max_words"] <= 90
-    assert exec_plan.structure_template == ["outcome", "problem", "cta"]
+    assert exec_plan.structure_template == ["outcome", "problem", "hook", "cta"]
+    assert exec_plan.minimum_body_sections == ["outcome", "problem", "hook"]
+    assert exec_plan.required_fields == ["prospect_first_name", "prospect_company", "offer_lock", "cta"]
 
     director_session = _base_session("Director Brand Protection", "headliner")
     with rollout_context(endpoint="generate", bucket_key="director"):
@@ -116,7 +118,8 @@ def test_exec_route_applies_even_when_persona_flag_off(monkeypatch):
         )
     assert exec_plan.persona_route == "exec"
     assert exec_plan.length_target["max_words"] <= 90
-    assert exec_plan.structure_template == ["outcome", "problem", "cta"]
+    assert exec_plan.structure_template == ["outcome", "problem", "hook", "cta"]
+    assert exec_plan.minimum_body_sections == ["outcome", "problem", "hook"]
 
 
 def test_build_generation_plan_sanitizes_named_fact_hint(monkeypatch):
@@ -136,6 +139,25 @@ def test_build_generation_plan_sanitizes_named_fact_hint(monkeypatch):
 
     assert "Marcus Williams" not in plan.wedge_problem
     assert "Acme Consumer Brands" not in plan.wedge_problem
+
+
+def test_build_generation_plan_exec_route_preserves_grounded_company(monkeypatch):
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PERSONA_ROUTER_ROLLOUT_PERCENT", "100")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_GLOBAL", "1")
+    monkeypatch.setenv("FEATURE_PRESET_TRUE_REWRITE_ROLLOUT_PERCENT", "100")
+
+    session = _base_session("CEO", "c_suite_sniper")
+    with rollout_context(endpoint="generate", bucket_key="exec-company-anchor"):
+        plan = build_generation_plan(
+            session=session,
+            style_sliders={"tone_formal_casual": 45, "framing_problem_outcome": 50, "length_short_long": 20, "stance_bold_diplomatic": 45},
+            preset_id="c_suite_sniper",
+            cta_type=None,
+        )
+
+    assert plan.persona_route == "exec"
+    assert "SignalForge" in plan.hook_source_text or "SignalForge" in plan.wedge_problem
 
 
 def test_sanitize_fact_hint_redacts_non_prospect_full_names():

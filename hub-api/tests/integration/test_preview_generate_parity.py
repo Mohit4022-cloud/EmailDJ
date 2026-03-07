@@ -78,6 +78,7 @@ def _assert_done_metadata(done_payload: dict, request_id: str, session_id: str) 
     assert done_payload["request_id"] == request_id
     assert done_payload["session_id"] == session_id
     assert done_payload["mode"] in {"mock", "real"}
+    assert done_payload["provider_source"] in {"provider_stub", "external_provider"}
     assert isinstance(done_payload["provider"], str)
     assert isinstance(done_payload["model"], str)
     assert isinstance(done_payload["provider_attempt_count"], int)
@@ -95,6 +96,7 @@ def _assert_preview_meta_parity(meta: dict, done_payload: dict) -> None:
     assert isinstance(meta["request_id"], str)
     assert meta["session_id"] is None
     assert meta["generation_mode"] == done_payload["mode"]
+    assert meta["provider_source"] == done_payload["provider_source"]
     assert meta["provider"] == done_payload["provider"]
     assert meta["model"] == done_payload["model"]
     assert isinstance(meta["provider_attempt_count"], int)
@@ -124,6 +126,7 @@ async def test_preview_and_generate_share_lock_contract_in_mock_mode(case: dict)
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
     os.environ["USE_PROVIDER_STUB"] = "1"
     os.environ["EMAILDJ_PRESET_PREVIEW_PIPELINE"] = "on"
+    os.environ["EMAILDJ_PREVIEW_ENFORCEMENT_LEVEL"] = "repair"
 
     from main import app
 

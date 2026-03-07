@@ -324,6 +324,60 @@ def test_validate_ctco_output_flags_hook_strength_mismatch_and_repair_preserves_
     assert repaired_body.splitlines()[-1].strip() == "Open to a quick chat to see if this is relevant?"
 
 
+def test_deterministic_compliance_repair_closes_pure_exec_under_budget_length_failure():
+    from email_generation.remix_engine import (
+        _deterministic_compliance_repair,
+        create_session_payload,
+        style_profile_to_ctco_sliders,
+        validate_ctco_output,
+    )
+
+    session = create_session_payload(
+        prospect={
+            "name": "Sarah Chen",
+            "title": "CEO",
+            "company": "SignalForge",
+            "linkedin_url": "https://linkedin.com/in/sarah-chen",
+        },
+        prospect_first_name="Sarah",
+        research_text=(
+            "SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. "
+            "Leadership tied pipeline review goals to reply quality and qualification discipline."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.1, "length": -0.6, "assertiveness": 0.2},
+        offer_lock="Remix Studio",
+        cta_offer_lock="Open to a quick chat to see if this is relevant?",
+        cta_type="question",
+        preset_id="headliner",
+        response_contract="legacy_text",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Remix Studio",
+            "company_notes": "Teams use structured guardrails to tighten message quality without slowing reps down.",
+        },
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.1, "length": -0.6, "assertiveness": 0.2})
+    draft = (
+        "Subject: SignalForge outbound risk brief\n"
+        "Body:\n"
+        "Hi Sarah,\n"
+        "Remix Studio helps SignalForge tighten first-touch outbound quality.\n"
+        "SignalForge is treating reply quality like an execution risk.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft, session=session, style_sliders=sliders)
+    assert any(v.startswith("length_out_of_range:") for v in violations)
+
+    repaired = _deterministic_compliance_repair(draft, session=session, style_sliders=sliders)
+    repaired_violations = validate_ctco_output(repaired, session=session, style_sliders=sliders)
+
+    assert not any(v.startswith("length_out_of_range:") for v in repaired_violations)
+    assert _extract_body_text(repaired).splitlines()[-1].strip() == "Open to a quick chat to see if this is relevant?"
+    assert "SignalForge" in repaired
+
+
 def test_validate_ctco_output_forbidden_product_uses_word_boundaries():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
