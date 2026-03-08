@@ -1,5 +1,5 @@
 {
-  "captured_at_utc": "2026-03-07T22:14:16.382305+00:00",
+  "captured_at_utc": "2026-03-07T23:47:39.767239+00:00",
   "request_count": 5,
   "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification",
   "provider_source": "external_provider",
@@ -20,8 +20,8 @@
     {
       "index": 2,
       "endpoint": "/web/v1/generate",
-      "request_id": "5cb92362-e0a0-4c5f-8013-ae619556727a",
-      "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+      "request_id": "c91107e0-65ed-4050-941c-050ce490e774",
+      "session_id": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
       "provider_source": "external_provider",
       "flags_effective": {
         "FEATURE_STRUCTURED_OUTPUT": false,
@@ -37,7 +37,7 @@
     {
       "index": 3,
       "endpoint": "/web/v1/remix",
-      "request_id": "c0a29acc-c89a-451c-918b-cdcbae9273fa",
+      "request_id": "1aaaeed2-e0e6-4a74-9d88-5e83f69e15cc",
       "session_id": null,
       "provider_source": "external_provider",
       "flags_effective": {
@@ -54,7 +54,7 @@
     {
       "index": 4,
       "endpoint": "/web/v1/remix",
-      "request_id": "1a857d02-3437-4a10-b010-60d77ef28ca2",
+      "request_id": "ee92dcef-dfe7-416c-bdcb-711ff64f6ae7",
       "session_id": null,
       "provider_source": "external_provider",
       "flags_effective": {
@@ -71,7 +71,7 @@
     {
       "index": 5,
       "endpoint": "/web/v1/remix",
-      "request_id": "a6192d99-467a-4fa5-89b1-dc7dc9ecef5f",
+      "request_id": "609b492c-2e24-48b8-9d2d-47391aec07fa",
       "session_id": null,
       "provider_source": "external_provider",
       "flags_effective": {

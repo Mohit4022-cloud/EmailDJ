@@ -1,0 +1,344 @@
+{
+  "generated_at": "2026-03-07T23:43:39.806126Z",
+  "mode": "real",
+  "selection": {
+    "selection_mode": "focus",
+    "tags": []
+  },
+  "summary": {
+    "total_cases": 7,
+    "passed_cases": 5,
+    "failed_cases": 2,
+    "pass_rate": 0.7142857142857143,
+    "violation_count": 2,
+    "failure_count_by_code": {
+      "OFFER_MISSING": 2
+    },
+    "greeting_pass_rate": 1.0,
+    "offer_binding_pass_rate": 0.7142857142857143,
+    "cta_lock_pass_rate": 1.0,
+    "research_containment_pass_rate": 1.0,
+    "internal_leakage_pass_rate": 1.0,
+    "claim_safety_pass_rate": 1.0,
+    "provider_source": "external_provider",
+    "route_pass_fail_counts": {
+      "generate": {
+        "pass": 5,
+        "fail": 2
+      }
+    },
+    "preset_pass_fail_counts": {},
+    "top_violation_codes": {
+      "OFFER_MISSING": 2
+    },
+    "required_field_miss_count": 2,
+    "under_length_miss_count": 0,
+    "claims_policy_intervention_count": 0
+  },
+  "top_recurring_failures": [
+    {
+      "code": "OFFER_MISSING",
+      "count": 2,
+      "cases": [
+        "lc_010",
+        "lc_096"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "id": "lc_006",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_apostrophe",
+        "cta_event_invite",
+        "offer_message_risk_scoring"
+      ],
+      "passed": true,
+      "duration_ms": 14459,
+      "mode": "real",
+      "subject": "A more precise first touch for Beacon Cloud",
+      "body": "Hello Ari, It may be worth tightening first-touch quality as execution scales at Beacon Cloud. Message risk scoring helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Message risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",
+      "draft": "Subject: A more precise first touch for Beacon Cloud\nBody:\nHello Ari, It may be worth tightening first-touch quality as execution scales at Beacon Cloud. Message risk scoring helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Message risk scoring helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWant an invite to our outbound QA workshop?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 2,
+        "validator_attempt_count": 2,
+        "json_repair_count": 1,
+        "violation_retry_count": 0,
+        "repaired": true,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    },
+    {
+      "id": "lc_010",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_taboo_claims",
+        "name_multipart",
+        "cta_try_pilot",
+        "offer_remix_studio"
+      ],
+      "passed": false,
+      "duration_ms": 22325,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: ctco_validation_failed: invalid_json_output:empty_output",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {},
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: ctco_validation_failed: invalid_json_output:empty_output"
+      ],
+      "error": "ctco_validation_failed: invalid_json_output:empty_output"
+    },
+    {
+      "id": "lc_016",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_multipart",
+        "cta_try_pilot",
+        "offer_proof_of_concept_pilot"
+      ],
+      "passed": true,
+      "duration_ms": 13110,
+      "mode": "real",
+      "subject": "A concise pilot offer for Orion Metrics",
+      "body": "Hi Mary, It may be worth tightening first-touch quality as execution scales at Orion Metrics. Proof-of-concept pilot helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Proof-of-concept pilot helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
+      "draft": "Subject: A concise pilot offer for Orion Metrics\nBody:\nHi Mary, It may be worth tightening first-touch quality as execution scales at Orion Metrics. Proof-of-concept pilot helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Proof-of-concept pilot helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 2,
+        "validator_attempt_count": 2,
+        "json_repair_count": 1,
+        "violation_retry_count": 0,
+        "repaired": true,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    },
+    {
+      "id": "lc_041",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_hyphen",
+        "cta_referral_intro",
+        "offer_brand_protection"
+      ],
+      "passed": true,
+      "duration_ms": 9212,
+      "mode": "real",
+      "subject": "Brand protection to sharpen Acme first touch",
+      "body": "Hi Jean-Luc, It may be worth tightening first-touch quality as execution scales at Acme. Brand protection helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
+      "draft": "Subject: Brand protection to sharpen Acme first touch\nBody:\nHi Jean-Luc, It may be worth tightening first-touch quality as execution scales at Acme. Brand protection helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 2,
+        "validator_attempt_count": 1,
+        "json_repair_count": 0,
+        "violation_retry_count": 0,
+        "repaired": false,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    },
+    {
+      "id": "lc_056",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_single",
+        "cta_send_deck",
+        "offer_proof_of_concept_pilot"
+      ],
+      "passed": true,
+      "duration_ms": 6550,
+      "mode": "real",
+      "subject": "A focused pilot to tighten first-touch quality",
+      "body": "Hi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics. Proof-of-concept pilot helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Proof-of-concept pilot helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nShould I send a quick deck?",
+      "draft": "Subject: A focused pilot to tighten first-touch quality\nBody:\nHi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics. Proof-of-concept pilot helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Proof-of-concept pilot helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nShould I send a quick deck?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 2,
+        "validator_attempt_count": 1,
+        "json_repair_count": 0,
+        "violation_retry_count": 0,
+        "repaired": false,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    },
+    {
+      "id": "lc_058",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_conflicting_injection",
+        "name_multipart",
+        "cta_try_pilot",
+        "offer_remix_studio"
+      ],
+      "passed": true,
+      "duration_ms": 1624,
+      "mode": "real",
+      "subject": "A more specific first touch for Northstar Labs",
+      "body": "Hello Mary, Northstar Labs teams often lose replies when first-touch messaging sounds generic. Remix studio helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
+      "draft": "Subject: A more specific first touch for Northstar Labs\nBody:\nHello Mary, Northstar Labs teams often lose replies when first-touch messaging sounds generic. Remix studio helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nWorth trying a small pilot this month?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 1,
+        "validator_attempt_count": 1,
+        "json_repair_count": 0,
+        "violation_retry_count": 0,
+        "repaired": false,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    },
+    {
+      "id": "lc_096",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_apostrophe",
+        "cta_event_invite",
+        "offer_proof_of_concept_pilot"
+      ],
+      "passed": false,
+      "duration_ms": 15299,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: ctco_validation_failed: invalid_json_output:empty_output",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {},
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: ctco_validation_failed: invalid_json_output:empty_output"
+      ],
+      "error": "ctco_validation_failed: invalid_json_output:empty_output"
+    }
+  ]
+}

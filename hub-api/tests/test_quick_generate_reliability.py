@@ -86,6 +86,22 @@ async def test_real_generate_stops_on_openai_success_without_provider_fallback(m
     assert calls == {"openai": 1, "anthropic": 0, "groq": 0}
 
 
+def test_output_token_budget_adds_web_mvp_headroom(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    monkeypatch.setattr(remix_engine, "web_mvp_output_token_budget_default", lambda: 420)
+
+    assert remix_engine._output_token_budget({"length_short_long": 50}) == 560
+
+
+def test_output_token_budget_keeps_higher_override(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    monkeypatch.setattr(remix_engine, "web_mvp_output_token_budget_default", lambda: 640)
+
+    assert remix_engine._output_token_budget({"length_short_long": 50}) == 640
+
+
 class _DummyResponse:
     def __init__(self, payload: dict):
         self.status_code = 200

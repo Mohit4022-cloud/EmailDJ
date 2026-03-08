@@ -220,6 +220,82 @@ def test_validate_ctco_output_flags_near_match_cta():
     assert "cta_near_match_detected" in violations
 
 
+def test_validate_ctco_output_does_not_treat_proof_of_concept_pilot_as_extra_cta():
+    from email_generation.remix_engine import create_session_payload, style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = create_session_payload(
+        prospect={
+            "name": "Madonna",
+            "title": "SDR Manager",
+            "company": "Orion Metrics",
+            "linkedin_url": "",
+        },
+        prospect_first_name="Madonna",
+        research_text="Public research is limited this week. Keep the message grounded in role context and avoid invented specifics.",
+        initial_style={"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4},
+        offer_lock="Proof-of-Concept Pilot",
+        cta_offer_lock="Should I send a quick deck?",
+        cta_type="value_asset",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Proof-of-Concept Pilot",
+            "other_products": "Deal Velocity Studio, Lead Enrichment, Pipeline Copilot",
+            "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology.",
+        },
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4})
+    draft = (
+        "Subject: A Proof-of-Concept Pilot for tighter first-touch at Orion Metrics\n"
+        "Body:\n"
+        "Hi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics. "
+        "A Proof-of-Concept Pilot helps teams keep outreach specific while raising quality from first touch. "
+        "The proposal is positioned clearly and grounded, with no internal terminology.\n\n"
+        "Should I send a quick deck?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "additional_cta_detected" not in violations
+
+
+def test_validate_ctco_output_flags_non_final_deck_offer_as_extra_cta():
+    from email_generation.remix_engine import create_session_payload, style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = create_session_payload(
+        prospect={
+            "name": "Madonna",
+            "title": "SDR Manager",
+            "company": "Orion Metrics",
+            "linkedin_url": "",
+        },
+        prospect_first_name="Madonna",
+        research_text="Public research is limited this week. Keep the message grounded in role context and avoid invented specifics.",
+        initial_style={"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4},
+        offer_lock="Proof-of-Concept Pilot",
+        cta_offer_lock="Should I send a quick deck?",
+        cta_type="value_asset",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Proof-of-Concept Pilot",
+            "other_products": "Deal Velocity Studio, Lead Enrichment, Pipeline Copilot",
+            "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology.",
+        },
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4})
+    draft = (
+        "Subject: A Proof-of-Concept Pilot for tighter first-touch at Orion Metrics\n"
+        "Body:\n"
+        "Hi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics.\n"
+        "A Proof-of-Concept Pilot helps teams keep outreach specific while raising quality from first touch.\n"
+        "If you're open, I can share a quick deck that outlines scope and success criteria.\n\n"
+        "Should I send a quick deck?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "additional_cta_detected" in violations
+
+
 def test_validate_ctco_output_flags_signoff_before_cta():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 

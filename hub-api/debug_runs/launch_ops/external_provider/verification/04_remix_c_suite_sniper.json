@@ -2,7 +2,7 @@
   "request_index": 4,
   "endpoint": "/web/v1/remix",
   "request_payload": {
-    "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+    "session_id": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
     "preset_id": "c_suite_sniper",
     "style_profile": {
       "formality": 0.1,
@@ -12,17 +12,17 @@
     }
   },
   "accepted": {
-    "request_id": "1a857d02-3437-4a10-b010-60d77ef28ca2",
-    "stream_url": "/web/v1/stream/1a857d02-3437-4a10-b010-60d77ef28ca2"
+    "request_id": "ee92dcef-dfe7-416c-bdcb-711ff64f6ae7",
+    "stream_url": "/web/v1/stream/ee92dcef-dfe7-416c-bdcb-711ff64f6ae7"
   },
   "response": null,
   "stream_done": {
-    "request_id": "1a857d02-3437-4a10-b010-60d77ef28ca2",
-    "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
-    "generation_id": "5a7d74f9-9654-47ed-86df-0e79dcc1fc75",
+    "request_id": "ee92dcef-dfe7-416c-bdcb-711ff64f6ae7",
+    "session_id": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
+    "generation_id": "2f489bce-678e-4e5b-90b4-b18637b5e71e",
     "draft_id": 3,
     "sequence": 3,
-    "timestamp": 1772921646.772933,
+    "timestamp": 1772927250.293331,
     "endpoint_name": "web_v1_remix",
     "preset_name": "c_suite_sniper",
     "slider_config": {
@@ -165,7 +165,7 @@
     }
   ],
   "session_request_config": {
-    "request_id": "1a857d02-3437-4a10-b010-60d77ef28ca2",
+    "request_id": "ee92dcef-dfe7-416c-bdcb-711ff64f6ae7",
     "endpoint": "remix",
     "preset_id": "c_suite_sniper",
     "style_profile": {
@@ -178,7 +178,7 @@
       "FEATURE_STRUCTURED_OUTPUT": {
         "feature": "FEATURE_STRUCTURED_OUTPUT",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -189,7 +189,7 @@
       "FEATURE_SENTENCE_SAFE_TRUNCATION": {
         "feature": "FEATURE_SENTENCE_SAFE_TRUNCATION",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -200,7 +200,7 @@
       "FEATURE_LOSSLESS_STREAMING": {
         "feature": "FEATURE_LOSSLESS_STREAMING",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -211,7 +211,7 @@
       "FEATURE_FLUENCY_REPAIR": {
         "feature": "FEATURE_FLUENCY_REPAIR",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -222,7 +222,7 @@
       "FEATURE_SHADOW_MODE": {
         "feature": "FEATURE_SHADOW_MODE",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -233,7 +233,7 @@
       "FEATURE_PERSONA_ROUTER": {
         "feature": "FEATURE_PERSONA_ROUTER",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -244,7 +244,7 @@
       "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": {
         "feature": "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -255,7 +255,7 @@
       "FEATURE_PRESET_TRUE_REWRITE": {
         "feature": "FEATURE_PRESET_TRUE_REWRITE",
         "endpoint": "remix",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],

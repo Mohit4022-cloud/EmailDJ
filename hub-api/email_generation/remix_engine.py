@@ -2017,7 +2017,9 @@ def _output_token_budget(style_sliders: dict[str, int]) -> int:
     # Keeps medium/short behavior conservative while giving long-band outputs headroom.
     if style_sliders.get("length_short_long", 50) >= 67:
         return web_mvp_output_token_budget_long()
-    return web_mvp_output_token_budget_default()
+    default_budget = web_mvp_output_token_budget_default()
+    # OpenAI web_mvp generations can exhaust small budgets before emitting stable content.
+    return max(default_budget, 560)
 
 
 async def save_session(session_id: str, session: dict[str, Any]) -> None:

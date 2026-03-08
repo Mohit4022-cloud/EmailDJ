@@ -34,18 +34,18 @@
     }
   },
   "accepted": {
-    "request_id": "5cb92362-e0a0-4c5f-8013-ae619556727a",
-    "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
-    "stream_url": "/web/v1/stream/5cb92362-e0a0-4c5f-8013-ae619556727a"
+    "request_id": "c91107e0-65ed-4050-941c-050ce490e774",
+    "session_id": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
+    "stream_url": "/web/v1/stream/c91107e0-65ed-4050-941c-050ce490e774"
   },
   "response": null,
   "stream_done": {
-    "request_id": "5cb92362-e0a0-4c5f-8013-ae619556727a",
-    "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
-    "generation_id": "5c3053fa-928f-47fb-953b-f8055bbae608",
+    "request_id": "c91107e0-65ed-4050-941c-050ce490e774",
+    "session_id": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
+    "generation_id": "905a213b-15a7-47ce-a4da-7485bc7894a0",
     "draft_id": 1,
-    "sequence": 3,
-    "timestamp": 1772921629.262186,
+    "sequence": 92,
+    "timestamp": 1772927230.372096,
     "endpoint_name": "web_v1_generate",
     "preset_name": "straight_shooter",
     "slider_config": {
@@ -70,25 +70,13 @@
     "provider": "openai",
     "model": "gpt-5-nano",
     "cascade_reason": "primary",
-    "provider_attempt_count": 2,
+    "provider_attempt_count": 1,
     "validator_attempt_count": 1,
-    "json_repair_count": 1,
+    "json_repair_count": 0,
     "violation_retry_count": 0,
-    "repaired": true,
-    "violation_codes": [
-      "invalid_json_output",
-      "missing_subject",
-      "missing_body",
-      "invalid_output_format",
-      "greeting_missing_or_invalid",
-      "cta_lock_not_used_exactly_once",
-      "offer_lock_missing",
-      "offer_lock_body_verbatim_missing",
-      "offer_drift_keyword_overlap_low",
-      "length_out_of_range",
-      "prospect_reference_missing"
-    ],
-    "violation_count": 11,
+    "repaired": false,
+    "violation_codes": [],
+    "violation_count": 0,
     "enforcement_level": "warn",
     "repair_loop_enabled": true,
     "generation_status": "ok",
@@ -105,9 +93,9 @@
     },
     "response_contract": "legacy_text",
     "final": {
-      "subject": "",
-      "body": "",
-      "rendered_draft": "Subject: \nBody:"
+      "subject": "Remix Studio for SignalForge\u2019s operational support",
+      "body": "Hi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+      "rendered_draft": "Subject: Remix Studio for SignalForge\u2019s operational support\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
     },
     "execution_trace": {
       "flags_effective": {
@@ -139,23 +127,11 @@
       },
       "preset_contracts": {
         "selected_preset": "straight_shooter",
-        "violations": [
-          "invalid_json_output",
-          "missing_subject",
-          "missing_body",
-          "invalid_output_format",
-          "greeting_missing_or_invalid",
-          "cta_lock_not_used_exactly_once",
-          "offer_lock_missing",
-          "offer_lock_body_verbatim_missing",
-          "offer_drift_keyword_overlap_low",
-          "length_out_of_range",
-          "prospect_reference_missing"
-        ]
+        "violations": []
       },
       "final_email": {
-        "len_chars": 15,
-        "checksum": "c4d01fa63266cd3be8ddb260f1244165be14e00a1ba05445d47e50c6a395a9a5"
+        "len_chars": 614,
+        "checksum": "18256f0715d8b7efad0ab176c9b4d2db45073f6b95c6a70f8c9b14a6d54beedd"
       },
       "prompt_template_versions": {
         "web_mvp_prompt_hash": "0d555f2764977d16",
@@ -167,16 +143,19 @@
       }
     },
     "stream_chunk_mode": "word_split",
-    "total_chunks": 2,
-    "total_chars": 16,
+    "total_chunks": 91,
+    "total_chars": 615,
     "stream_missing_chunks": 0,
-    "stream_checksum": "f3f2eea89b9439342d01f5e0e4d2262d2e6797d5e8d9f6ff4913469cf759d98e",
+    "stream_checksum": "865b42516e4e909badaadb0b1a7ca227ac84f94b5a54c9cbc5e5baf2b2d2ee3a",
     "stream_integrity_server_ok": true
   },
-  "ui_text_shown": "Subject: \nBody:",
-  "provider_raw_output": "",
-  "parsed_json_output": null,
-  "post_validation_output": null,
+  "ui_text_shown": "Hi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+  "provider_raw_output": "{\"subject\":\"Remix Studio for SignalForge\u2019s 2026 outbound quality push\",\"body\":\"Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Without guardrails, outreach can drift and impact reply quality in enterprise cycles. Remix Studio helps teams keep outreach specific while raising quality from first touch. If useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?\"}",
+  "parsed_json_output": {
+    "subject": "Remix Studio for SignalForge\u2019s 2026 outbound quality push",
+    "body": "Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Without guardrails, outreach can drift and impact reply quality in enterprise cycles. Remix Studio helps teams keep outreach specific while raising quality from first touch. If useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+  },
+  "post_validation_output": "Subject: Remix Studio for SignalForge\u2019s operational support\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
   "prompt_redacted": [
     {
       "role": "system",
@@ -188,7 +167,7 @@
     }
   ],
   "session_request_config": {
-    "request_id": "5cb92362-e0a0-4c5f-8013-ae619556727a",
+    "request_id": "c91107e0-65ed-4050-941c-050ce490e774",
     "endpoint": "generate",
     "preset_id": "straight_shooter",
     "style_profile": {
@@ -201,7 +180,7 @@
       "FEATURE_STRUCTURED_OUTPUT": {
         "feature": "FEATURE_STRUCTURED_OUTPUT",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -212,7 +191,7 @@
       "FEATURE_SENTENCE_SAFE_TRUNCATION": {
         "feature": "FEATURE_SENTENCE_SAFE_TRUNCATION",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -223,7 +202,7 @@
       "FEATURE_LOSSLESS_STREAMING": {
         "feature": "FEATURE_LOSSLESS_STREAMING",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -234,7 +213,7 @@
       "FEATURE_FLUENCY_REPAIR": {
         "feature": "FEATURE_FLUENCY_REPAIR",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -245,7 +224,7 @@
       "FEATURE_SHADOW_MODE": {
         "feature": "FEATURE_SHADOW_MODE",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -256,7 +235,7 @@
       "FEATURE_PERSONA_ROUTER": {
         "feature": "FEATURE_PERSONA_ROUTER",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -267,7 +246,7 @@
       "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": {
         "feature": "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -278,7 +257,7 @@
       "FEATURE_PRESET_TRUE_REWRITE": {
         "feature": "FEATURE_PRESET_TRUE_REWRITE",
         "endpoint": "generate",
-        "bucket_key": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
+        "bucket_key": "6dc65e6c-071a-4222-8c4d-2436dbb2051c",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -409,23 +388,11 @@
     },
     "preset_contracts": {
       "selected_preset": "straight_shooter",
-      "violations": [
-        "invalid_json_output",
-        "missing_subject",
-        "missing_body",
-        "invalid_output_format",
-        "greeting_missing_or_invalid",
-        "cta_lock_not_used_exactly_once",
-        "offer_lock_missing",
-        "offer_lock_body_verbatim_missing",
-        "offer_drift_keyword_overlap_low",
-        "length_out_of_range",
-        "prospect_reference_missing"
-      ]
+      "violations": []
     },
     "final_email": {
-      "len_chars": 15,
-      "checksum": "c4d01fa63266cd3be8ddb260f1244165be14e00a1ba05445d47e50c6a395a9a5"
+      "len_chars": 614,
+      "checksum": "18256f0715d8b7efad0ab176c9b4d2db45073f6b95c6a70f8c9b14a6d54beedd"
     },
     "prompt_template_versions": {
       "web_mvp_prompt_hash": "0d555f2764977d16",
@@ -436,6 +403,6 @@
       }
     }
   },
-  "trace_status": "warn_parse_fallback",
+  "trace_status": "ok",
   "provider_source": "external_provider"
 }
