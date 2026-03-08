@@ -23,10 +23,11 @@ except ImportError:  # pragma: no cover - optional in some environments
     def load_dotenv(*args: object, **kwargs: object) -> bool:
         return False
 
-from email_generation.runtime_policies import launch_mode as runtime_launch_mode
+from email_generation.runtime_policies import resolve_runtime_policies
 
 
 DEFAULT_MAX_AGE_HOURS = 72
+_PROD_APP_ENVS = {"staging", "prod", "production"}
 
 
 @dataclass
@@ -301,6 +302,42 @@ def _provider_source(
     return "provider_stub"
 
 
+def _config_findings(policies: Any) -> tuple[list[str], list[str]]:
+    configured_quick_generate_mode = (os.environ.get("EMAILDJ_QUICK_GENERATE_MODE") or "").strip().lower()
+    beta_keys_raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    web_app_origin = (os.environ.get("WEB_APP_ORIGIN") or "").strip()
+
+    blockers: list[str] = []
+    if policies.provider_stub_enabled and policies.launch_mode in {"limited_rollout", "broad_launch"}:
+        blockers.append(f"provider_stub_enabled_for_launch_mode:{policies.launch_mode}")
+    if configured_quick_generate_mode and configured_quick_generate_mode != policies.quick_generate_mode:
+        blockers.append(
+            "configured_quick_generate_mode_mismatch:"
+            f"{configured_quick_generate_mode}->{policies.quick_generate_mode}"
+        )
+
+    warnings: list[str] = []
+    if policies.app_env not in _PROD_APP_ENVS:
+        warnings.append(f"app_env_not_prod_like:{policies.app_env}")
+    if (
+        policies.launch_mode == "limited_rollout"
+        and policies.route_gate_sources.get("preview") == "explicit_env"
+        and policies.route_gates.get("preview") is True
+    ):
+        warnings.append("preview_enabled_explicitly_in_limited_rollout")
+    for route_name in ("generate", "remix"):
+        if (
+            policies.route_gate_sources.get(route_name) == "explicit_env"
+            and policies.route_gates.get(route_name) is False
+        ):
+            warnings.append(f"{route_name}_disabled_explicitly")
+    if beta_keys_raw == "dev-beta-key":
+        warnings.append("beta_keys_using_dev_default")
+    if not web_app_origin:
+        warnings.append("web_app_origin_unset")
+    return blockers, warnings
+
+
 def _final_recommendation(
     *,
     launch_mode: str,
@@ -311,9 +348,11 @@ def _final_recommendation(
     remix_green: str,
     required_field_miss_count: int,
     under_length_miss_count: int,
+    config_blockers: list[str],
 ) -> str:
     if (
-        backend_green != "green"
+        bool(config_blockers)
+        or backend_green != "green"
         or harness_green != "green"
         or required_field_miss_count > 0
         or under_length_miss_count > 0
@@ -370,6 +409,43 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
+            "## Runtime Config",
+            "",
+            f"- `app_env`: `{report['app_env']}`",
+            f"- `runtime_mode`: `{report['runtime_mode']}`",
+            f"- `configured_quick_generate_mode`: `{report['configured_quick_generate_mode'] or 'unset'}`",
+            f"- `provider_stub_enabled`: `{report['provider_stub_enabled']}`",
+            f"- `real_provider_preference`: `{report['real_provider_preference']}`",
+            f"- `preview_pipeline_enabled`: `{report['preview_pipeline_enabled']}`",
+            f"- `route_gates`: `{json.dumps(report['route_gates'], sort_keys=True)}`",
+            f"- `route_gate_sources`: `{json.dumps(report['route_gate_sources'], sort_keys=True)}`",
+            "",
+            "## Config Blockers",
+            "",
+        ]
+    )
+    blockers = list(report.get("config_blockers") or [])
+    if blockers:
+        for blocker in blockers:
+            lines.append(f"- `{blocker}`")
+    else:
+        lines.append("- None")
+    lines.extend(
+        [
+            "",
+            "## Config Warnings",
+            "",
+        ]
+    )
+    warnings = list(report.get("config_warnings") or [])
+    if warnings:
+        for warning in warnings:
+            lines.append(f"- `{warning}`")
+    else:
+        lines.append("- None")
+    lines.extend(
+        [
+            "",
             "## Artifact Sources",
             "",
         ]
@@ -385,6 +461,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
 
 def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> dict[str, Any]:
     _load_launch_env()
+    policies = resolve_runtime_policies()
     max_age = timedelta(hours=max(1, max_age_hours))
     backend = _artifact_status(ROOT / "reports" / "launch" / "backend_suite.json", max_age=max_age)
     stub_harness = _artifact_status(ROOT / "reports" / "provider_stub" / "latest.json", max_age=max_age)
@@ -438,9 +515,18 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
 
     counts_source = _primary_counts_source(stub_harness, external_harness)
     counts_summary = dict((counts_source.payload or {}).get("summary") or {})
+    config_blockers, config_warnings = _config_findings(policies)
     report = {
         "generated_at": _timestamp_to_text(_utc_now()),
-        "launch_mode": runtime_launch_mode(),
+        "app_env": policies.app_env,
+        "runtime_mode": policies.quick_generate_mode,
+        "configured_quick_generate_mode": (os.environ.get("EMAILDJ_QUICK_GENERATE_MODE") or "").strip().lower() or None,
+        "provider_stub_enabled": policies.provider_stub_enabled,
+        "real_provider_preference": policies.real_provider_preference,
+        "launch_mode": policies.launch_mode,
+        "route_gates": dict(policies.route_gates),
+        "route_gate_sources": dict(policies.route_gate_sources),
+        "preview_pipeline_enabled": policies.preview_pipeline_enabled,
         "backend_green": backend_green,
         "harness_green": harness_green,
         "shim_green": shim_green,
@@ -456,6 +542,8 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
         "under_length_miss_count": int(counts_summary.get("under_length_miss_count", 0) or 0),
         "top_violation_codes": dict(counts_summary.get("top_violation_codes") or {}),
         "claims_policy_intervention_count": int(counts_summary.get("claims_policy_intervention_count", 0) or 0),
+        "config_blockers": config_blockers,
+        "config_warnings": config_warnings,
         "final_recommendation": "",
         "artifact_sources": _artifact_sources(
             backend=backend,
@@ -476,6 +564,7 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
         remix_green=report["remix_green"],
         required_field_miss_count=report["required_field_miss_count"],
         under_length_miss_count=report["under_length_miss_count"],
+        config_blockers=report["config_blockers"],
     )
     return report
 

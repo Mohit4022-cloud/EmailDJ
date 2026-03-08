@@ -81,6 +81,11 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
     monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "0")
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
 
     _write_json(
         tmp_path / "reports" / "launch" / "backend_suite.json",
@@ -121,6 +126,13 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     assert report["provider_green"] == "not_run"
     assert report["remix_green"] == "green"
     assert report["provider_source"] == "provider_shim"
+    assert report["runtime_mode"] == "real"
+    assert report["provider_stub_enabled"] is False
+    assert report["real_provider_preference"] == "openai"
+    assert report["route_gates"] == {"generate": True, "remix": True, "preview": False}
+    assert report["route_gate_sources"]["preview"] == "launch_mode:limited_rollout"
+    assert report["config_blockers"] == []
+    assert report["config_warnings"] == []
     assert report["final_recommendation"] == "Stable for MVP launch behind limited rollout"
 
 
@@ -211,6 +223,68 @@ def test_launch_check_shell_launch_mode_overrides_dotenv(monkeypatch, tmp_path):
 
     assert report["launch_mode"] == "dev"
     assert report["final_recommendation"] == "Stable for broader MVP work"
+
+
+def test_launch_check_blocks_stub_enabled_limited_rollout(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "1")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["runtime_mode"] == "mock"
+    assert report["provider_stub_enabled"] is True
+    assert report["config_blockers"] == ["provider_stub_enabled_for_launch_mode:limited_rollout"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_blocks_quick_generate_mode_mismatch(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "0")
+    monkeypatch.setenv("EMAILDJ_QUICK_GENERATE_MODE", "mock")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["runtime_mode"] == "real"
+    assert report["configured_quick_generate_mode"] == "mock"
+    assert report["config_blockers"] == ["configured_quick_generate_mode_mismatch:mock->real"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "0")
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    _, md_path = lc._write_launch_report(report)
+    markdown = md_path.read_text(encoding="utf-8")
+
+    assert "## Runtime Config" in markdown
+    assert "## Config Blockers" in markdown
+    assert "## Config Warnings" in markdown
+    assert "`route_gates`" in markdown
+    assert "`route_gate_sources`" in markdown
 
 
 def test_launch_check_uses_provider_specific_report_dirs():
