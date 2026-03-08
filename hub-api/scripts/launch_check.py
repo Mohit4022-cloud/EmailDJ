@@ -24,6 +24,7 @@ except ImportError:  # pragma: no cover - optional in some environments
         return False
 
 from runtime_debug import build_runtime_debug_payload
+from runtime_debug import validate_runtime_debug_payload
 
 
 DEFAULT_MAX_AGE_HOURS = 72
@@ -41,6 +42,9 @@ class ArtifactStatus:
     malformed: bool
     missing: bool
     error: str | None = None
+    schema_incomplete: bool = False
+    schema_messages: list[str] | None = None
+    schema_warnings: list[str] | None = None
 
 
 def _parse_args() -> argparse.Namespace:
@@ -115,15 +119,21 @@ def _parse_timestamp(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-def _artifact_timestamp(payload: dict[str, Any]) -> datetime | None:
-    for key in ("generated_at", "generated_at_utc", "captured_at_utc", "timestamp_utc"):
+def _artifact_timestamp(payload: dict[str, Any], *, prefer_capture: bool = False) -> datetime | None:
+    keys = ("captured_at_utc", "generated_at", "generated_at_utc", "timestamp_utc") if prefer_capture else (
+        "generated_at",
+        "generated_at_utc",
+        "captured_at_utc",
+        "timestamp_utc",
+    )
+    for key in keys:
         parsed = _parse_timestamp(payload.get(key))
         if parsed is not None:
             return parsed
     return None
 
 
-def _artifact_status(path: Path, *, max_age: timedelta) -> ArtifactStatus:
+def _artifact_status(path: Path, *, max_age: timedelta, prefer_capture_timestamp: bool = False) -> ArtifactStatus:
     if not path.exists():
         return ArtifactStatus(path=str(path), payload=None, timestamp=None, stale=False, malformed=False, missing=True)
     try:
@@ -148,7 +158,7 @@ def _artifact_status(path: Path, *, max_age: timedelta) -> ArtifactStatus:
             missing=False,
             error="payload_not_object",
         )
-    timestamp = _artifact_timestamp(payload)
+    timestamp = _artifact_timestamp(payload, prefer_capture=prefer_capture_timestamp)
     if timestamp is None:
         return ArtifactStatus(
             path=str(path),
@@ -168,6 +178,34 @@ def _artifact_status(path: Path, *, max_age: timedelta) -> ArtifactStatus:
         malformed=False,
         missing=False,
     )
+
+
+def _runtime_snapshot_status(path: Path, *, max_age: timedelta, label: str) -> ArtifactStatus:
+    status = _artifact_status(path, max_age=max_age, prefer_capture_timestamp=True)
+    if status.missing or status.malformed or status.payload is None:
+        return status
+
+    validation = validate_runtime_debug_payload(status.payload)
+    schema_messages: list[str] = []
+    missing_critical = list(validation["missing_critical"])
+    if missing_critical:
+        schema_messages.append(f"missing_required_runtime_fields:{','.join(missing_critical)}")
+    if validation["release_identity_present"] and not validation["release_identity_populated"]:
+        schema_messages.append("release_identity_values_empty")
+
+    schema_warnings: list[str] = []
+    missing_recommended = list(validation["missing_recommended"])
+    if missing_recommended:
+        schema_warnings.append(f"{label}_runtime_snapshot_missing_recommended_fields:{','.join(missing_recommended)}")
+    if validation["release_identity_present"] and not validation["release_identity_populated"]:
+        schema_warnings.append("release_fingerprint_unavailable")
+
+    if missing_critical:
+        status.schema_incomplete = True
+        status.error = ";".join(schema_messages)
+    status.schema_messages = schema_messages
+    status.schema_warnings = schema_warnings
+    return status
 
 
 def _latest_json(
@@ -321,6 +359,8 @@ def _provider_source(
 def _runtime_payload(status: ArtifactStatus) -> dict[str, Any] | None:
     if status.missing or status.malformed or status.stale or status.payload is None:
         return None
+    if status.schema_incomplete:
+        return None
     return dict(status.payload)
 
 
@@ -348,9 +388,12 @@ def _artifact_provenance(
         "age_hours": age_hours,
         "missing": status.missing,
         "malformed": status.malformed,
+        "schema_incomplete": status.schema_incomplete,
         "stale": status.stale,
         "warning_threshold_exceeded": warning_threshold_exceeded and not status.stale,
         "error": status.error,
+        "schema_messages": list(status.schema_messages or []),
+        "schema_warnings": list(status.schema_warnings or []),
     }
 
 
@@ -396,8 +439,12 @@ def _release_comparison(
 
     if staging_snapshot.missing:
         warnings.append("staging_runtime_snapshot_missing")
+    elif staging_snapshot.schema_incomplete:
+        warnings.append("staging_runtime_snapshot_schema_incomplete")
     if production_snapshot.missing:
         warnings.append("production_runtime_snapshot_missing")
+    elif production_snapshot.schema_incomplete:
+        warnings.append("production_runtime_snapshot_schema_incomplete")
     if runtime_source_used == "local_env":
         warnings.append("runtime_parity_evaluated_from_local_env_only")
 
@@ -595,8 +642,11 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             f"age_hours=`{summary.get('age_hours') if summary.get('age_hours') is not None else 'n/a'}` "
             f"stale=`{summary.get('stale')}` "
             f"malformed=`{summary.get('malformed')}` "
+            f"schema_incomplete=`{summary.get('schema_incomplete')}` "
             f"missing=`{summary.get('missing')}`"
         )
+        if summary.get("error"):
+            lines.append(f"- `{label}_error`: `{summary.get('error')}`")
 
     lines.extend(["", "## Origin And Beta-Key Safety", ""])
     for field, value in origin_fields.items():
@@ -625,6 +675,11 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         lines.extend(["", "## Errors", ""])
         for error in report["errors"]:
             lines.append(f"- `{error}`")
+    operator_next_steps = list(report.get("operator_next_steps") or [])
+    if operator_next_steps:
+        lines.extend(["", "## Operator Next Step", ""])
+        for step in operator_next_steps:
+            lines.append(f"- {step}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -635,6 +690,32 @@ def _snapshot_path(raw_path: str, default_path: Path) -> Path:
 
 def _default_snapshot_path(kind: str) -> Path:
     return ROOT / "reports" / "launch" / "runtime_snapshots" / f"{kind}.json"
+
+
+def _capture_command_for(label: str) -> str:
+    base_var = "$STAGING_BASE_URL" if label == "staging" else "$PROD_BASE_URL"
+    return (
+        "./.venv/bin/python scripts/capture_runtime_snapshot.py "
+        f'--label {label} --url "{base_var}" --header "x-emaildj-beta-key: $BETA_KEY"'
+    )
+
+
+def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactStatus, production_snapshot: ArtifactStatus) -> list[str]:
+    steps: list[str] = []
+    for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
+        if status.missing:
+            steps.append(f"Capture the {label} runtime snapshot: `{_capture_command_for(label)}`")
+            continue
+        if status.stale:
+            steps.append(f"Re-capture the stale {label} runtime snapshot: `{_capture_command_for(label)}`")
+            continue
+        if status.malformed or status.schema_incomplete:
+            steps.append(f"Re-capture the invalid {label} runtime snapshot: `{_capture_command_for(label)}`")
+    if any(str(blocker).startswith("release_fingerprint_mismatch:") for blocker in report.get("config_blockers") or []):
+        steps.append(
+            "Production runtime fingerprint differs from approved staging. Fix deployment parity, then re-capture the production snapshot and rerun `./.venv/bin/python scripts/launch_check.py --from-artifacts`."
+        )
+    return steps
 
 
 def _read_launch_report(
@@ -669,13 +750,15 @@ def _read_launch_report(
         if localhost_smoke_summary.strip()
         else ArtifactStatus(path=None, payload=None, timestamp=None, stale=False, malformed=False, missing=True)
     )
-    staging_snapshot = _artifact_status(
+    staging_snapshot = _runtime_snapshot_status(
         _snapshot_path(staging_debug_config, _default_snapshot_path("staging")),
         max_age=max_age,
+        label="staging",
     )
-    production_snapshot = _artifact_status(
+    production_snapshot = _runtime_snapshot_status(
         _snapshot_path(production_debug_config, _default_snapshot_path("production")),
         max_age=max_age,
+        label="production",
     )
 
     artifact_statuses = {
@@ -693,6 +776,8 @@ def _read_launch_report(
     for label, status in artifact_statuses.items():
         if status.malformed:
             errors.append(f"{label}:malformed:{status.error}")
+        elif status.schema_incomplete:
+            errors.append(f"{label}:schema_incomplete:{status.error}")
         elif status.stale:
             errors.append(f"{label}:stale:{status.path}")
 
@@ -727,6 +812,8 @@ def _read_launch_report(
     config_blockers.extend(release_blockers)
     config_warnings.extend(release_warnings)
     config_warnings.extend(_recommended_age_warnings(artifact_statuses, recommended_max_age=recommended_max_age))
+    config_warnings.extend(staging_snapshot.schema_warnings or [])
+    config_warnings.extend(production_snapshot.schema_warnings or [])
     config_blockers = sorted(set(config_blockers))
     config_warnings = sorted(set(config_warnings))
 
@@ -789,6 +876,11 @@ def _read_launch_report(
         },
         "errors": errors,
     }
+    report["operator_next_steps"] = _operator_next_steps(
+        report,
+        staging_snapshot=staging_snapshot,
+        production_snapshot=production_snapshot,
+    )
     report["final_recommendation"] = _final_recommendation(
         launch_mode=str(report["launch_mode"] or ""),
         backend_green=report["backend_green"],

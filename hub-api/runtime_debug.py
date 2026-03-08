@@ -15,6 +15,35 @@ from email_generation.runtime_policies import resolve_runtime_policies
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
+_RELEASE_IDENTITY_KEYS = (
+    "release_fingerprint",
+    "git_sha",
+    "build_id",
+    "image_tag",
+    "release_version",
+)
+_RUNTIME_DEBUG_REQUIRED_FIELDS = (
+    "generated_at_utc",
+    "launch_mode",
+    "runtime_mode",
+    "provider_stub_enabled",
+    "real_provider_preference",
+    "effective_provider_source",
+    "effective_quick_generate_mode",
+    "chrome_extension_origin_state",
+    "web_app_origin_state",
+    "beta_keys_state",
+)
+_RUNTIME_DEBUG_RECOMMENDED_FIELDS = (
+    "app_env",
+    "preview_pipeline_enabled",
+    "release_fingerprint_available",
+    "web_rate_limit_per_min",
+    "web_rate_limit_source",
+    "effective_provider",
+    "effective_model",
+    "effective_model_identifier",
+)
 
 
 def _utc_now_text() -> str:
@@ -100,6 +129,42 @@ def _rate_limit_value() -> int:
     except ValueError:
         return 30
     return max(value, 1)
+
+
+def validate_runtime_debug_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise TypeError("runtime debug payload must be a JSON object")
+
+    missing_critical: list[str] = []
+    for field in _RUNTIME_DEBUG_REQUIRED_FIELDS:
+        if field not in payload:
+            missing_critical.append(field)
+
+    route_gates = payload.get("route_gates")
+    if not isinstance(route_gates, dict) or "preview" not in route_gates:
+        missing_critical.append("route_gates.preview")
+
+    if not any(field in payload for field in _RELEASE_IDENTITY_KEYS):
+        missing_critical.append("release_identity_fields")
+
+    missing_recommended: list[str] = []
+    for field in _RUNTIME_DEBUG_RECOMMENDED_FIELDS:
+        if field not in payload:
+            missing_recommended.append(field)
+
+    route_gate_sources = payload.get("route_gate_sources")
+    if not isinstance(route_gate_sources, dict) or "preview" not in route_gate_sources:
+        missing_recommended.append("route_gate_sources.preview")
+
+    release_identity_present = any(field in payload for field in _RELEASE_IDENTITY_KEYS)
+    release_identity_populated = any(str(payload.get(field) or "").strip() for field in _RELEASE_IDENTITY_KEYS)
+
+    return {
+        "missing_critical": missing_critical,
+        "missing_recommended": missing_recommended,
+        "release_identity_present": release_identity_present,
+        "release_identity_populated": release_identity_populated,
+    }
 
 
 def build_runtime_debug_payload() -> dict[str, Any]:

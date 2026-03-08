@@ -19,11 +19,11 @@ That means final launch judgment now depends on:
 - preview staying off in `limited_rollout`
 - pinned non-dev origins and non-default beta keys
 
-If staging or production runtime snapshots are missing, `scripts/launch_check.py` can still report repo-side readiness, but it will warn that deployed parity is not yet verified.
+If staging or production runtime snapshots are missing, stale, or schema-incomplete, `scripts/launch_check.py` can still report repo-side readiness, but deployed parity is not yet verified.
 
 ## Runtime Snapshot Paths
 
-Operators should save runtime snapshots to these exact paths:
+Operators should capture runtime snapshots with `scripts/capture_runtime_snapshot.py`, which writes to these exact paths by default:
 
 - `hub-api/reports/launch/runtime_snapshots/staging.json`
 - `hub-api/reports/launch/runtime_snapshots/production.json`
@@ -182,12 +182,11 @@ Use the same Python environment the deployed app uses. In this repo that is usua
 
 ```bash
 cd /path/to/EmailDJ/hub-api
-mkdir -p reports/launch/runtime_snapshots
-
 curl -fsS "$STAGING_BASE_URL/"
-curl -fsS -H "x-emaildj-beta-key: $BETA_KEY" \
-  "$STAGING_BASE_URL/web/v1/debug/config?endpoint=generate&bucket_key=rollout-audit" \
-  > reports/launch/runtime_snapshots/staging.json
+./.venv/bin/python scripts/capture_runtime_snapshot.py \
+  --label staging \
+  --url "$STAGING_BASE_URL" \
+  --header "x-emaildj-beta-key: $BETA_KEY"
 
 ./scripts/eval:full --real
 ./.venv/bin/python scripts/capture_ui_session.py \
@@ -204,17 +203,27 @@ curl -fsS -H "x-emaildj-beta-key: $BETA_KEY" \
 
 ```bash
 cd /path/to/EmailDJ/hub-api
-mkdir -p reports/launch/runtime_snapshots
-
 curl -fsS "$PROD_BASE_URL/"
-curl -fsS -H "x-emaildj-beta-key: $BETA_KEY" \
-  "$PROD_BASE_URL/web/v1/debug/config?endpoint=generate&bucket_key=rollout-audit" \
-  > reports/launch/runtime_snapshots/production.json
+./.venv/bin/python scripts/capture_runtime_snapshot.py \
+  --label production \
+  --url "$PROD_BASE_URL" \
+  --header "x-emaildj-beta-key: $BETA_KEY"
 
 ./.venv/bin/python scripts/launch_check.py --from-artifacts
 ```
 
-If these runtime snapshots are absent, launch_check can only judge repo-side readiness plus artifact health. That is not sufficient to claim deployed-env readiness.
+If these runtime snapshots are absent, stale, or schema-incomplete, launch_check can only judge repo-side readiness plus artifact health. That is not sufficient to claim deployed-env readiness.
+
+## Capture Command Rules
+
+Use `scripts/capture_runtime_snapshot.py` for all operator captures.
+
+- `--label staging` writes to `reports/launch/runtime_snapshots/staging.json`
+- `--label production` writes to `reports/launch/runtime_snapshots/production.json`
+- `--url` may be either a base host or a full `/web/v1/debug/config` URL
+- use repeatable `--header` values for request headers; the standard rollout example is `x-emaildj-beta-key`
+
+The capture script validates the runtime snapshot before writing it. A non-200 response, invalid JSON payload, or schema-incomplete parity payload is a hard failure and should be fixed before trusting the snapshot.
 
 ## Expected Runtime Snapshot Shape
 
@@ -246,11 +255,20 @@ For a healthy limited-rollout host, `/web/v1/debug/config` should resolve to:
 | Blocker | `release_fingerprint_mismatch:<field>:<staging>-><production>` | Approved staging build differs from production runtime |
 | Warning | `staging_runtime_snapshot_missing` | Approved staging runtime snapshot not present |
 | Warning | `production_runtime_snapshot_missing` | Production runtime snapshot not present |
+| Warning | `staging_runtime_snapshot_schema_incomplete` | Staging snapshot file exists but does not expose the required parity fields |
+| Warning | `production_runtime_snapshot_schema_incomplete` | Production snapshot file exists but does not expose the required parity fields |
 | Warning | `runtime_parity_evaluated_from_local_env_only` | Checker had to fall back to local repo env |
 | Warning | `release_fingerprint_unavailable` | Provenance fields were not sufficient to verify parity |
 | Warning | `artifact_age_exceeds_recommended_window:<artifact>` | Artifact is older than the 48h recommended window |
 | Warning | `web_rate_limit_default_drift_unpinned` | Runtime is still relying on middleware default rate limiting |
 | Warning | `app_env_not_prod_like:<env>` | Runtime is not staging/prod-like |
+
+## How To Read The Outcome
+
+- blockers mean limited rollout is not ready
+- warnings mean operator review is required, but non-blocking warnings do not automatically fail launch readiness
+- missing, stale, or schema-incomplete runtime snapshots mean deployed-env parity is not yet verified, even if repo-side readiness is green
+- the final limited-rollout judgment comes from `reports/launch/latest.json` and `reports/launch/latest.md` after running `./.venv/bin/python scripts/launch_check.py --from-artifacts`
 
 ## Required Artifact Review
 

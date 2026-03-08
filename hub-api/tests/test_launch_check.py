@@ -448,6 +448,61 @@ def test_launch_check_blocks_default_beta_key(monkeypatch, tmp_path):
     assert "beta_keys_not_safe:default_dev_placeholder" in report["config_blockers"]
 
 
+def test_launch_check_warns_and_errors_on_schema_incomplete_staging_snapshot(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    staging = _runtime_snapshot_payload()
+    del staging["effective_provider_source"]
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=staging,
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert any(
+        error.startswith("staging_runtime_snapshot:schema_incomplete:missing_required_runtime_fields:effective_provider_source")
+        for error in report["errors"]
+    )
+    assert "staging_runtime_snapshot_schema_incomplete" in report["config_warnings"]
+    assert any("capture_runtime_snapshot.py --label staging" in step for step in report["operator_next_steps"])
+
+
+def test_launch_check_schema_incomplete_production_snapshot_falls_back_to_local_env(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "0")
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-staging")
+    monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
+    _write_launch_artifacts(tmp_path)
+    production = _runtime_snapshot_payload()
+    del production["effective_provider_source"]
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=production,
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["runtime_reference"]["runtime_source_used"] == "local_env"
+    assert any(
+        error.startswith("production_runtime_snapshot:schema_incomplete:missing_required_runtime_fields:effective_provider_source")
+        for error in report["errors"]
+    )
+    assert "production_runtime_snapshot_schema_incomplete" in report["config_warnings"]
+    assert any("capture_runtime_snapshot.py --label production" in step for step in report["operator_next_steps"])
+
+
 def test_launch_check_warns_on_recommended_stale_artifact(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
@@ -484,6 +539,25 @@ def test_launch_check_blocks_on_hard_stale_artifact(monkeypatch, tmp_path):
 
     assert any(error.startswith("backend:stale:") for error in report["errors"])
     assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_flags_stale_runtime_snapshot_with_recapture_guidance(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(captured_at_utc=_now_text(hours_ago=80)),
+        production=_runtime_snapshot_payload(captured_at_utc=_now_text(hours_ago=80)),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert any(error.startswith("staging_runtime_snapshot:stale:") for error in report["errors"])
+    assert any(error.startswith("production_runtime_snapshot:stale:") for error in report["errors"])
+    assert any("Re-capture the stale staging runtime snapshot" in step for step in report["operator_next_steps"])
+    assert any("Re-capture the stale production runtime snapshot" in step for step in report["operator_next_steps"])
 
 
 def test_launch_check_blocks_resolved_provider_source_mismatch(monkeypatch, tmp_path):
@@ -525,6 +599,25 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "`effective_provider_source`" in markdown
     assert "`effective_provider_model_identifier`" in markdown
     assert "`comparison_fields`" in markdown
+
+
+def test_launch_check_markdown_includes_operator_next_steps_for_release_mismatch(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(git_sha="staging123", release_fingerprint="git_sha=staging123"),
+        production=_runtime_snapshot_payload(git_sha="prod456", release_fingerprint="git_sha=prod456"),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    _, md_path = lc._write_launch_report(report)
+    markdown = md_path.read_text(encoding="utf-8")
+
+    assert "## Operator Next Step" in markdown
+    assert "Production runtime fingerprint differs from approved staging." in markdown
 
 
 def test_launch_check_uses_provider_specific_report_dirs():
