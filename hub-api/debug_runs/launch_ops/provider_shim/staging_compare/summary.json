@@ -1,11 +1,11 @@
 {
-  "captured_at_utc": "2026-03-08T02:54:00.798170+00:00",
+  "captured_at_utc": "2026-03-08T02:27:52.126716+00:00",
   "request_count": 5,
-  "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification",
-  "provider_source": "external_provider",
+  "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare",
+  "provider_source": "provider_shim",
   "launch_gates": {
-    "shim_green": "not_run",
-    "provider_green": "green",
+    "shim_green": "green",
+    "provider_green": "not_run",
     "remix_green": "green"
   },
   "requests": [
@@ -20,9 +20,9 @@
     {
       "index": 2,
       "endpoint": "/web/v1/generate",
-      "request_id": "9f0813c2-2633-4e71-9a81-ab2ef64c64db",
-      "session_id": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
-      "provider_source": "external_provider",
+      "request_id": "9d84e1b5-2f53-4a6d-bd4b-5db475e57507",
+      "session_id": "fe974102-1b5d-47c7-b852-6d619fb05038",
+      "provider_source": "provider_shim",
       "flags_effective": {
         "FEATURE_STRUCTURED_OUTPUT": false,
         "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
@@ -37,9 +37,9 @@
     {
       "index": 3,
       "endpoint": "/web/v1/remix",
-      "request_id": "eef9415a-3f0b-41a2-b9f8-caf8284f2a86",
+      "request_id": "dbb87c5b-624e-4975-a032-443f2a814103",
       "session_id": null,
-      "provider_source": "external_provider",
+      "provider_source": "provider_shim",
       "flags_effective": {
         "FEATURE_STRUCTURED_OUTPUT": false,
         "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
@@ -54,9 +54,9 @@
     {
       "index": 4,
       "endpoint": "/web/v1/remix",
-      "request_id": "e8f2f1f0-e8ba-4d21-b84b-1543579c68ee",
+      "request_id": "304160e7-f6ef-4de4-aaf9-1950058d3bd6",
       "session_id": null,
-      "provider_source": "external_provider",
+      "provider_source": "provider_shim",
       "flags_effective": {
         "FEATURE_STRUCTURED_OUTPUT": false,
         "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
@@ -71,9 +71,9 @@
     {
       "index": 5,
       "endpoint": "/web/v1/remix",
-      "request_id": "7ab2794c-9b60-4bee-83e6-dafc5300b45f",
+      "request_id": "469b97ed-2261-4ebb-89dd-8f1d150239db",
       "session_id": null,
-      "provider_source": "external_provider",
+      "provider_source": "provider_shim",
       "flags_effective": {
         "FEATURE_STRUCTURED_OUTPUT": false,
         "FEATURE_SENTENCE_SAFE_TRUNCATION": false,

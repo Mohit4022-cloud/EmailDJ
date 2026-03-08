@@ -138,3 +138,42 @@ def test_capture_ui_session_reports_required_external_provider_env(monkeypatch):
 
     monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "anthropic")
     assert _required_external_provider_env() == ("anthropic", "ANTHROPIC_API_KEY")
+
+
+def test_capture_ui_session_treats_repaired_remix_as_clean():
+    from scripts.capture_ui_session import _remix_record_clean
+
+    repaired = {
+        "trace_status": "ok",
+        "stream_done": {
+            "generation_status": "ok",
+            "repaired": True,
+            "violation_codes": ["invalid_json_output"],
+            "fallback_reason": None,
+            "final": {
+                "subject": "SignalForge's operational support Studio",
+                "body": "Hi Alex, final repaired body.\n\nOpen to a quick chat to see if this is relevant?",
+            },
+        },
+    }
+
+    assert _remix_record_clean(repaired) is True
+
+
+def test_capture_ui_session_keeps_warn_parse_fallback_red():
+    from scripts.capture_ui_session import _remix_record_clean
+
+    failed = {
+        "trace_status": "warn_parse_fallback",
+        "stream_done": {
+            "generation_status": "ok",
+            "violation_codes": ["invalid_json_output"],
+            "fallback_reason": None,
+            "final": {
+                "subject": "",
+                "body": "",
+            },
+        },
+    }
+
+    assert _remix_record_clean(failed) is False

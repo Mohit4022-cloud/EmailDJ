@@ -1,0 +1,304 @@
+{
+  "request_index": 1,
+  "endpoint": "/web/v1/preset-previews/batch",
+  "request_payload": {
+    "prospect": {
+      "name": "Alex Doe",
+      "title": "CEO",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/alex-doe"
+    },
+    "prospect_first_name": "Alex",
+    "product_context": {
+      "product_name": "Remix Studio",
+      "one_line_value": "Improve first-touch outbound quality with deterministic controls.",
+      "proof_points": [
+        "Teams use structured guardrails to reduce drift across reps.",
+        "Managers get faster visibility into risky messaging patterns."
+      ],
+      "target_outcome": "Higher-quality replies from enterprise accounts"
+    },
+    "raw_research": {
+      "deep_research_paste": "SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Leadership tied pipeline quality to quarterly targets.",
+      "company_notes": "Corsearch notes: consistent SDR messaging quality is a board-level focus.",
+      "extra_constraints": ""
+    },
+    "global_sliders": {
+      "formality": 45,
+      "brevity": 60,
+      "directness": 55,
+      "personalization": 65
+    },
+    "presets": [
+      {
+        "preset_id": "straight_shooter",
+        "label": "Straight Shooter",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "headliner",
+        "label": "Headliner",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "giver",
+        "label": "Giver",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "challenger",
+        "label": "Challenger",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "industry_insider",
+        "label": "Industry Insider",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "c_suite_sniper",
+        "label": "C Suite Sniper",
+        "slider_overrides": {}
+      }
+    ],
+    "offer_lock": "Remix Studio",
+    "cta_type": "time_ask"
+  },
+  "accepted": null,
+  "response": {
+    "previews": [
+      {
+        "preset_id": "straight_shooter",
+        "label": "Straight Shooter",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "Straight Shooter",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge Straight angle 1",
+        "body": "Hi Alex, Lead with this signal: Signalforge announced a 2026 outbound quality initiative and. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns.. Corsearch notes: consistent sdr messaging quality is a board-level focus.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      },
+      {
+        "preset_id": "headliner",
+        "label": "Headliner",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "Headliner",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge Headliner angle 2",
+        "body": "Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Tie value directly to Leadership tied pipeline quality to quarterly targets.. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns..\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      },
+      {
+        "preset_id": "giver",
+        "label": "Giver",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "Giver",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge Giver angle 3",
+        "body": "Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Use a low-friction step from Corsearch notes: consistent sdr messaging quality is. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns..\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      },
+      {
+        "preset_id": "challenger",
+        "label": "Challenger",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "Challenger",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge Challenger angle 4",
+        "body": "Hi Alex, Lead with this signal: Signalforge announced a 2026 outbound quality initiative and. One fact that stood out: The research input is focused on Signalforge.. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns..\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      },
+      {
+        "preset_id": "industry_insider",
+        "label": "Industry Insider",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "Industry Insider",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge Industry angle 5",
+        "body": "Hi Alex, Tie value directly to Leadership tied pipeline quality to quarterly targets.. One fact that stood out: Signalforge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1.. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns..\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      },
+      {
+        "preset_id": "c_suite_sniper",
+        "label": "C Suite Sniper",
+        "effective_sliders": {
+          "formality": 45,
+          "brevity": 60,
+          "directness": 55,
+          "personalization": 65
+        },
+        "vibeLabel": "C Suite Sniper",
+        "vibeTags": [
+          "Casual",
+          "Diplomatic",
+          "Detailed",
+          "Personalized"
+        ],
+        "whyItWorks": [
+          "Uses stated facts without overstating certainty.",
+          "Matches tone through clear slider controls.",
+          "Ends with one specific, low-friction CTA."
+        ],
+        "subject": "SignalForge C angle 6",
+        "body": "Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Use a low-friction step from Corsearch notes: consistent sdr messaging quality is. One fact that stood out: Leadership tied pipeline quality to quarterly targets.. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      }
+    ],
+    "meta": {
+      "request_id": "72a48a00-fc49-4dff-a83c-dde45cab38e6",
+      "session_id": null,
+      "pipeline_version": "single-generator-v2",
+      "generation_mode": "mock",
+      "provider_source": "provider_stub",
+      "provider": "mock",
+      "model": "mock",
+      "provider_attempt_count": 0,
+      "validator_attempt_count": 0,
+      "repair_attempt_count": 0,
+      "repaired": false,
+      "initial_violation_count": 0,
+      "final_violation_count": 0,
+      "violation_codes": [],
+      "violation_count": 0,
+      "enforcement_level": "warn",
+      "repair_loop_enabled": true,
+      "status": "success",
+      "degraded_reason": null,
+      "cache_hit": false,
+      "latency_ms": 20,
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      },
+      "prompt_template_versions": {
+        "web_mvp_prompt_hash": "0d555f2764977d16",
+        "preview_prompt_hashes": {
+          "extractor": "removed",
+          "generator": "5ffdba8b0a7b9ce4",
+          "combined": "removed"
+        }
+      },
+      "execution_trace": {
+        "flags_effective": {
+          "FEATURE_STRUCTURED_OUTPUT": true,
+          "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+          "FEATURE_LOSSLESS_STREAMING": true,
+          "FEATURE_FLUENCY_REPAIR": true,
+          "FEATURE_SHADOW_MODE": false,
+          "FEATURE_PERSONA_ROUTER": true,
+          "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+          "FEATURE_PRESET_TRUE_REWRITE": true
+        },
+        "provider_path": "fallback_parser",
+        "outcome": "success",
+        "degraded_reason": null,
+        "truncation": {
+          "notes_cut": false,
+          "research_cut": false,
+          "boundary_used": "none"
+        },
+        "facts": {
+          "count": 4,
+          "high_conf_count": 0,
+          "types": [
+            "summary_pack"
+          ]
+        },
+        "preset_contracts": {
+          "selected_preset": "batch",
+          "violations": []
+        },
+        "final_email": {
+          "len_chars": 3530,
+          "checksum": "52b505c683ae3bb1de555e795e5bcdd9684fdbd74833a25b4aceac966d62015f"
+        }
+      }
+    },
+    "summary_pack": null
+  },
+  "stream_done": null,
+  "ui_text_shown": "Subject: SignalForge Straight angle 1\nHi Alex, Lead with this signal: Signalforge announced a 2026 outbound quality initiative and. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns.. Corsearch notes: consistent sdr messaging quality is a board-level focus.\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?\n\nSubject: SignalForge Headliner angle 2\nHi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Tie value directly to Leadership tied pipeline quality to quarterly targets.. remix studio is built to Improve first-touch outbound quality with deterministic controls.. From our side, teams usually start with teams use structured guardrails to reduce drift across reps. and managers get faster visibility into risky messaging patterns..\n\nOpen to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+  "provider_raw_output": null,
+  "parsed_json_output": null,
+  "post_validation_output": null,
+  "prompt_redacted": null,
+  "session_request_config": null,
+  "generation_plan": null,
+  "execution_trace": null,
+  "trace_status": null,
+  "provider_source": "provider_stub"
+}

@@ -34,18 +34,18 @@
     }
   },
   "accepted": {
-    "request_id": "9f0813c2-2633-4e71-9a81-ab2ef64c64db",
-    "session_id": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
-    "stream_url": "/web/v1/stream/9f0813c2-2633-4e71-9a81-ab2ef64c64db"
+    "request_id": "9d84e1b5-2f53-4a6d-bd4b-5db475e57507",
+    "session_id": "fe974102-1b5d-47c7-b852-6d619fb05038",
+    "stream_url": "/web/v1/stream/9d84e1b5-2f53-4a6d-bd4b-5db475e57507"
   },
   "response": null,
   "stream_done": {
-    "request_id": "9f0813c2-2633-4e71-9a81-ab2ef64c64db",
-    "session_id": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
-    "generation_id": "89df2de7-dc1d-4082-bf6c-7f2ee044722a",
+    "request_id": "9d84e1b5-2f53-4a6d-bd4b-5db475e57507",
+    "session_id": "fe974102-1b5d-47c7-b852-6d619fb05038",
+    "generation_id": "fe66c950-a9d6-475c-8b1d-c6917aea4adf",
     "draft_id": 1,
-    "sequence": 94,
-    "timestamp": 1772938411.9939709,
+    "sequence": 90,
+    "timestamp": 1772936870.804217,
     "endpoint_name": "web_v1_generate",
     "preset_name": "straight_shooter",
     "slider_config": {
@@ -66,11 +66,11 @@
       "FEATURE_PRESET_TRUE_REWRITE": false
     },
     "mode": "real",
-    "provider_source": "external_provider",
+    "provider_source": "provider_shim",
     "provider": "openai",
     "model": "gpt-5-nano",
     "cascade_reason": "primary",
-    "provider_attempt_count": 2,
+    "provider_attempt_count": 1,
     "validator_attempt_count": 1,
     "json_repair_count": 0,
     "violation_retry_count": 0,
@@ -93,9 +93,9 @@
     },
     "response_contract": "legacy_text",
     "final": {
-      "subject": "Remix Studio: quick teardown for SignalForge's operational support",
+      "subject": "Remix Studio for SignalForge",
       "body": "Hi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
-      "rendered_draft": "Subject: Remix Studio: quick teardown for SignalForge's operational support\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+      "rendered_draft": "Subject: Remix Studio for SignalForge\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
     },
     "execution_trace": {
       "flags_effective": {
@@ -130,8 +130,8 @@
         "violations": []
       },
       "final_email": {
-        "len_chars": 630,
-        "checksum": "5e5cc46b2c3bc3fb9fd2dab5e4b17839e7864176af50b98619318a9b2f7cbf44"
+        "len_chars": 592,
+        "checksum": "ac02bc77480efb2f0fab083c5137e249d62b3e0b4e251d66003cb281917551f6"
       },
       "prompt_template_versions": {
         "web_mvp_prompt_hash": "0d555f2764977d16",
@@ -143,19 +143,19 @@
       }
     },
     "stream_chunk_mode": "word_split",
-    "total_chunks": 93,
-    "total_chars": 631,
+    "total_chunks": 89,
+    "total_chars": 593,
     "stream_missing_chunks": 0,
-    "stream_checksum": "a0339b3b86c71a3c9ff685d93a25fb5667a186932b64ca83cd06a0c8fe1612ac",
+    "stream_checksum": "efdcb2cee4eac852262c1d6c08442fe6b419a22b7b4eaea7dea9375d479eda98",
     "stream_integrity_server_ok": true
   },
   "ui_text_shown": "Hi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
-  "provider_raw_output": "{\"subject\":\"Remix Studio: quick teardown for SignalForge's 2026 initiative\",\"body\":\"Hi Alex,\\n\\nSignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. When teams scale outreach, guardrails help stay specific without limiting reps. Remix Studio keeps outreach from drifting while preserving rep autonomy, helping maintain early-touch quality in enterprise accounts.\\n\\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?\"}",
+  "provider_raw_output": "{\"subject\":\"Remix Studio for SignalForge\",\"body\":\"Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1 Most teams lose replies when first touches drift from account-specific triggers. Remix Studio helps keep first-touch quality high while preserving rep speed.\\n\\nWould it be useful if I sent a short risk brief on Remix Studio with the first sequence changes we'd test?\"}",
   "parsed_json_output": {
-    "subject": "Remix Studio: quick teardown for SignalForge's 2026 initiative",
-    "body": "Hi Alex,\n\nSignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. When teams scale outreach, guardrails help stay specific without limiting reps. Remix Studio keeps outreach from drifting while preserving rep autonomy, helping maintain early-touch quality in enterprise accounts.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?"
+    "subject": "Remix Studio for SignalForge",
+    "body": "Hi Alex, SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1 Most teams lose replies when first touches drift from account-specific triggers. Remix Studio helps keep first-touch quality high while preserving rep speed.\n\nWould it be useful if I sent a short risk brief on Remix Studio with the first sequence changes we'd test?"
   },
-  "post_validation_output": "Subject: Remix Studio: quick teardown for SignalForge's operational support\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
+  "post_validation_output": "Subject: Remix Studio for SignalForge\nBody:\nHi Alex, Remix studio helps teams keep outreach specific while raising quality from first touch. SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Quick point from what we saw: SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Remix studio helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\n\nIf useful, open to a 15-min call to share a quick teardown of Remix Studio and a recommended enforcement workflow?",
   "prompt_redacted": [
     {
       "role": "system",
@@ -167,7 +167,7 @@
     }
   ],
   "session_request_config": {
-    "request_id": "9f0813c2-2633-4e71-9a81-ab2ef64c64db",
+    "request_id": "9d84e1b5-2f53-4a6d-bd4b-5db475e57507",
     "endpoint": "generate",
     "preset_id": "straight_shooter",
     "style_profile": {
@@ -180,7 +180,7 @@
       "FEATURE_STRUCTURED_OUTPUT": {
         "feature": "FEATURE_STRUCTURED_OUTPUT",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -191,7 +191,7 @@
       "FEATURE_SENTENCE_SAFE_TRUNCATION": {
         "feature": "FEATURE_SENTENCE_SAFE_TRUNCATION",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -202,7 +202,7 @@
       "FEATURE_LOSSLESS_STREAMING": {
         "feature": "FEATURE_LOSSLESS_STREAMING",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -213,7 +213,7 @@
       "FEATURE_FLUENCY_REPAIR": {
         "feature": "FEATURE_FLUENCY_REPAIR",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -224,7 +224,7 @@
       "FEATURE_SHADOW_MODE": {
         "feature": "FEATURE_SHADOW_MODE",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -235,7 +235,7 @@
       "FEATURE_PERSONA_ROUTER": {
         "feature": "FEATURE_PERSONA_ROUTER",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -246,7 +246,7 @@
       "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": {
         "feature": "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -257,7 +257,7 @@
       "FEATURE_PRESET_TRUE_REWRITE": {
         "feature": "FEATURE_PRESET_TRUE_REWRITE",
         "endpoint": "generate",
-        "bucket_key": "d87b5036-6ae9-442d-b107-0cfcf4a28f74",
+        "bucket_key": "fe974102-1b5d-47c7-b852-6d619fb05038",
         "base_flag": false,
         "global_flag": false,
         "allowed_endpoints": [],
@@ -391,8 +391,8 @@
       "violations": []
     },
     "final_email": {
-      "len_chars": 630,
-      "checksum": "5e5cc46b2c3bc3fb9fd2dab5e4b17839e7864176af50b98619318a9b2f7cbf44"
+      "len_chars": 592,
+      "checksum": "ac02bc77480efb2f0fab083c5137e249d62b3e0b4e251d66003cb281917551f6"
     },
     "prompt_template_versions": {
       "web_mvp_prompt_hash": "0d555f2764977d16",
@@ -404,5 +404,5 @@
     }
   },
   "trace_status": "ok",
-  "provider_source": "external_provider"
+  "provider_source": "provider_shim"
 }

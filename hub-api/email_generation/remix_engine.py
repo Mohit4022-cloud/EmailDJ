@@ -87,6 +87,15 @@ def _provider_model(provider: str) -> str:
         return default_openai_model()
     return _PROVIDER_MODELS.get(provider, provider)
 
+
+def _request_endpoint(session: dict[str, Any]) -> str:
+    request_config = session.get("request_config") or {}
+    return str(request_config.get("endpoint") or "").strip().lower()
+
+
+def _remix_warn_retry_on_empty_parse_output(session: dict[str, Any], raw_output: str, *, throttled: bool) -> bool:
+    return _request_endpoint(session) == "remix" and not throttled and not raw_output.strip()
+
 SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
 MAX_VALIDATION_ATTEMPTS = 3
@@ -2096,7 +2105,8 @@ async def _build_real_draft(
     json_repair_count = 0
     violation_retry_count = 0
     validator_attempt_count = 0
-    max_attempts = MAX_VALIDATION_ATTEMPTS if enforcement_level == "repair" and repair_enabled and not throttled else 1
+    allow_warn_remix_retries = enforcement_level == "warn" and _request_endpoint(session) == "remix" and not throttled
+    max_attempts = MAX_VALIDATION_ATTEMPTS if (enforcement_level == "repair" and repair_enabled and not throttled) or allow_warn_remix_retries else 1
     plan = GenerationPlan.from_dict(session.get("generation_plan")) or build_generation_plan(
         session=session,
         style_sliders=style_sliders,
@@ -2234,6 +2244,11 @@ async def _build_real_draft(
                 },
             )
             if enforcement_level == "warn":
+                if (
+                    _remix_warn_retry_on_empty_parse_output(session, gen_result.text or "", throttled=throttled)
+                    and attempt_index < (max_attempts - 1)
+                ):
+                    continue
                 candidate = canonicalize_draft(gen_result.text)
                 if feature_no_prospect_owns_guardrail_enabled():
                     candidate, rewritten, snippets = _repair_prospect_owns_offer_lock(candidate, session=session)
