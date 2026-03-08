@@ -23,11 +23,13 @@ except ImportError:  # pragma: no cover - optional in some environments
     def load_dotenv(*args: object, **kwargs: object) -> bool:
         return False
 
-from email_generation.runtime_policies import resolve_runtime_policies
+from runtime_debug import build_runtime_debug_payload
 
 
 DEFAULT_MAX_AGE_HOURS = 72
+DEFAULT_RECOMMENDED_MAX_AGE_HOURS = 48
 _PROD_APP_ENVS = {"staging", "prod", "production"}
+_RELEASE_FINGERPRINT_FIELDS = ("git_sha", "build_id", "image_tag", "release_version")
 
 
 @dataclass
@@ -43,6 +45,8 @@ class ArtifactStatus:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute EmailDJ launch readiness.")
+    default_staging_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "staging.json"
+    default_production_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "production.json"
     parser.add_argument("--from-artifacts", action="store_true", help="Read existing artifacts only.")
     parser.add_argument(
         "--localhost-smoke-summary",
@@ -50,10 +54,35 @@ def _parse_args() -> argparse.Namespace:
         help="Optional path to a localhost smoke summary.json artifact to include.",
     )
     parser.add_argument(
+        "--staging-debug-config",
+        default=str(default_staging_debug_config_path),
+        help=(
+            "Path to the approved staging /web/v1/debug/config snapshot "
+            f"(default: {default_staging_debug_config_path})."
+        ),
+    )
+    parser.add_argument(
+        "--production-debug-config",
+        default=str(default_production_debug_config_path),
+        help=(
+            "Path to the production /web/v1/debug/config snapshot "
+            f"(default: {default_production_debug_config_path})."
+        ),
+    )
+    parser.add_argument(
         "--max-age-hours",
         type=int,
         default=DEFAULT_MAX_AGE_HOURS,
-        help=f"Artifact freshness threshold in hours (default: {DEFAULT_MAX_AGE_HOURS}).",
+        help=f"Hard artifact freshness threshold in hours (default: {DEFAULT_MAX_AGE_HOURS}).",
+    )
+    parser.add_argument(
+        "--recommended-max-age-hours",
+        type=int,
+        default=DEFAULT_RECOMMENDED_MAX_AGE_HOURS,
+        help=(
+            "Recommended freshness threshold in hours for launch-day judgment "
+            f"(default: {DEFAULT_RECOMMENDED_MAX_AGE_HOURS})."
+        ),
     )
     return parser.parse_args()
 
@@ -87,7 +116,7 @@ def _parse_timestamp(value: Any) -> datetime | None:
 
 
 def _artifact_timestamp(payload: dict[str, Any]) -> datetime | None:
-    for key in ("generated_at", "captured_at_utc", "timestamp_utc"):
+    for key in ("generated_at", "generated_at_utc", "captured_at_utc", "timestamp_utc"):
         parsed = _parse_timestamp(payload.get(key))
         if parsed is not None:
             return parsed
@@ -162,7 +191,9 @@ def _latest_json(
         if best is None:
             best = status
             continue
-        if (status.timestamp or datetime.min.replace(tzinfo=timezone.utc)) > (best.timestamp or datetime.min.replace(tzinfo=timezone.utc)):
+        if (status.timestamp or datetime.min.replace(tzinfo=timezone.utc)) > (
+            best.timestamp or datetime.min.replace(tzinfo=timezone.utc)
+        ):
             best = status
     return best or ArtifactStatus(path=None, payload=None, timestamp=None, stale=False, malformed=False, missing=True)
 
@@ -261,23 +292,8 @@ def _green_from_capture(status: ArtifactStatus, *, key: str) -> str:
     return value if value in {"green", "red", "not_run"} else "red"
 
 
-def _artifact_sources(
-    *,
-    backend: ArtifactStatus,
-    stub_harness: ArtifactStatus,
-    external_harness: ArtifactStatus,
-    shim_capture: ArtifactStatus,
-    external_capture: ArtifactStatus,
-    smoke_summary: ArtifactStatus,
-) -> dict[str, str | None]:
-    return {
-        "backend": backend.path,
-        "provider_stub_harness": stub_harness.path,
-        "external_provider_harness": external_harness.path,
-        "provider_shim_capture": shim_capture.path,
-        "external_provider_capture": external_capture.path,
-        "localhost_smoke": smoke_summary.path,
-    }
+def _artifact_sources(**statuses: ArtifactStatus) -> dict[str, str | None]:
+    return {name: status.path for name, status in statuses.items()}
 
 
 def _primary_counts_source(stub_harness: ArtifactStatus, external_harness: ArtifactStatus) -> ArtifactStatus:
@@ -302,39 +318,149 @@ def _provider_source(
     return "provider_stub"
 
 
-def _config_findings(policies: Any) -> tuple[list[str], list[str]]:
-    configured_quick_generate_mode = (os.environ.get("EMAILDJ_QUICK_GENERATE_MODE") or "").strip().lower()
-    beta_keys_raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
-    web_app_origin = (os.environ.get("WEB_APP_ORIGIN") or "").strip()
+def _runtime_payload(status: ArtifactStatus) -> dict[str, Any] | None:
+    if status.missing or status.malformed or status.stale or status.payload is None:
+        return None
+    return dict(status.payload)
+
+
+def _artifact_age_hours(status: ArtifactStatus) -> float | None:
+    if status.timestamp is None:
+        return None
+    age = _utc_now() - status.timestamp
+    return round(age.total_seconds() / 3600, 2)
+
+
+def _artifact_provenance(
+    label: str,
+    status: ArtifactStatus,
+    *,
+    recommended_max_age: timedelta,
+) -> dict[str, Any]:
+    age_hours = _artifact_age_hours(status)
+    warning_threshold_exceeded = False
+    if age_hours is not None:
+        warning_threshold_exceeded = age_hours > (recommended_max_age.total_seconds() / 3600)
+    return {
+        "label": label,
+        "path": status.path,
+        "timestamp": _timestamp_to_text(status.timestamp),
+        "age_hours": age_hours,
+        "missing": status.missing,
+        "malformed": status.malformed,
+        "stale": status.stale,
+        "warning_threshold_exceeded": warning_threshold_exceeded and not status.stale,
+        "error": status.error,
+    }
+
+
+def _recommended_age_warnings(
+    artifact_statuses: dict[str, ArtifactStatus],
+    *,
+    recommended_max_age: timedelta,
+) -> list[str]:
+    threshold_hours = recommended_max_age.total_seconds() / 3600
+    warnings: list[str] = []
+    for label, status in artifact_statuses.items():
+        age_hours = _artifact_age_hours(status)
+        if (
+            status.missing
+            or status.malformed
+            or status.stale
+            or age_hours is None
+            or age_hours <= threshold_hours
+        ):
+            continue
+        warnings.append(f"artifact_age_exceeds_recommended_window:{label}")
+    return warnings
+
+
+def _release_fields(payload: dict[str, Any] | None) -> dict[str, str | None]:
+    data = dict(payload or {})
+    return {
+        field: (str(data.get(field) or "").strip() or None)
+        for field in _RELEASE_FINGERPRINT_FIELDS
+    }
+
+
+def _release_comparison(
+    *,
+    staging_snapshot: ArtifactStatus,
+    production_snapshot: ArtifactStatus,
+    runtime_source_used: str,
+) -> tuple[list[str], list[str], dict[str, Any]]:
+    blockers: list[str] = []
+    warnings: list[str] = []
+    staging_payload = _runtime_payload(staging_snapshot)
+    production_payload = _runtime_payload(production_snapshot)
+
+    if staging_snapshot.missing:
+        warnings.append("staging_runtime_snapshot_missing")
+    if production_snapshot.missing:
+        warnings.append("production_runtime_snapshot_missing")
+    if runtime_source_used == "local_env":
+        warnings.append("runtime_parity_evaluated_from_local_env_only")
+
+    staging_fields = _release_fields(staging_payload)
+    production_fields = _release_fields(production_payload)
+    comparable_fields = [
+        field
+        for field in _RELEASE_FINGERPRINT_FIELDS
+        if staging_fields.get(field) and production_fields.get(field)
+    ]
+    if runtime_source_used != "production_runtime_snapshot" or not comparable_fields:
+        warnings.append("release_fingerprint_unavailable")
+    else:
+        for field in comparable_fields:
+            if staging_fields[field] != production_fields[field]:
+                blockers.append(
+                    f"release_fingerprint_mismatch:{field}:{staging_fields[field]}->{production_fields[field]}"
+                )
+
+    return blockers, warnings, {
+        "runtime_source_used": runtime_source_used,
+        "staging": staging_fields,
+        "production": production_fields if runtime_source_used == "production_runtime_snapshot" else None,
+        "comparison_fields": comparable_fields,
+    }
+
+
+def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]]:
+    launch_mode = str(runtime_data.get("launch_mode") or "").strip()
+    app_env = str(runtime_data.get("app_env") or "").strip()
+    configured_mode = str(runtime_data.get("configured_quick_generate_mode") or "").strip().lower()
+    effective_mode = str(runtime_data.get("effective_quick_generate_mode") or runtime_data.get("runtime_mode") or "").strip().lower()
+    route_gates = dict(runtime_data.get("route_gates") or {})
+    route_gate_sources = dict(runtime_data.get("route_gate_sources") or {})
+    effective_provider_source = str(runtime_data.get("effective_provider_source") or "").strip()
+    chrome_extension_origin_state = str(runtime_data.get("chrome_extension_origin_state") or "unset").strip()
+    web_app_origin_state = str(runtime_data.get("web_app_origin_state") or "unset").strip()
+    beta_keys_state = str(runtime_data.get("beta_keys_state") or "unset").strip()
 
     blockers: list[str] = []
-    if policies.provider_stub_enabled and policies.launch_mode in {"limited_rollout", "broad_launch"}:
-        blockers.append(f"provider_stub_enabled_for_launch_mode:{policies.launch_mode}")
-    if configured_quick_generate_mode and configured_quick_generate_mode != policies.quick_generate_mode:
-        blockers.append(
-            "configured_quick_generate_mode_mismatch:"
-            f"{configured_quick_generate_mode}->{policies.quick_generate_mode}"
-        )
+    if bool(runtime_data.get("provider_stub_enabled")) and launch_mode in {"limited_rollout", "broad_launch"}:
+        blockers.append(f"provider_stub_enabled_for_launch_mode:{launch_mode}")
+    if configured_mode and effective_mode and configured_mode != effective_mode:
+        blockers.append(f"configured_quick_generate_mode_mismatch:{configured_mode}->{effective_mode}")
+    if launch_mode == "limited_rollout" and effective_provider_source != "external_provider":
+        blockers.append(f"resolved_provider_source_not_external_provider:{effective_provider_source or 'unset'}")
+    if launch_mode == "limited_rollout" and route_gates.get("preview") is True:
+        blockers.append("preview_route_enabled_for_launch_mode:limited_rollout")
+    if launch_mode == "limited_rollout" and chrome_extension_origin_state != "explicit_pinned":
+        blockers.append(f"chrome_extension_origin_not_pinned:{chrome_extension_origin_state}")
+    if launch_mode == "limited_rollout" and web_app_origin_state != "explicit_pinned":
+        blockers.append(f"web_app_origin_not_pinned:{web_app_origin_state}")
+    if launch_mode == "limited_rollout" and beta_keys_state != "explicit_pinned":
+        blockers.append(f"beta_keys_not_safe:{beta_keys_state}")
 
     warnings: list[str] = []
-    if policies.app_env not in _PROD_APP_ENVS:
-        warnings.append(f"app_env_not_prod_like:{policies.app_env}")
-    if (
-        policies.launch_mode == "limited_rollout"
-        and policies.route_gate_sources.get("preview") == "explicit_env"
-        and policies.route_gates.get("preview") is True
-    ):
-        warnings.append("preview_enabled_explicitly_in_limited_rollout")
+    if app_env not in _PROD_APP_ENVS:
+        warnings.append(f"app_env_not_prod_like:{app_env}")
     for route_name in ("generate", "remix"):
-        if (
-            policies.route_gate_sources.get(route_name) == "explicit_env"
-            and policies.route_gates.get(route_name) is False
-        ):
+        if route_gate_sources.get(route_name) == "explicit_env" and route_gates.get(route_name) is False:
             warnings.append(f"{route_name}_disabled_explicitly")
-    if beta_keys_raw == "dev-beta-key":
-        warnings.append("beta_keys_using_dev_default")
-    if not web_app_origin:
-        warnings.append("web_app_origin_unset")
+    if str(runtime_data.get("web_rate_limit_source") or "").strip() != "explicit_env":
+        warnings.append("web_rate_limit_default_drift_unpinned")
     return blockers, warnings
 
 
@@ -349,9 +475,11 @@ def _final_recommendation(
     required_field_miss_count: int,
     under_length_miss_count: int,
     config_blockers: list[str],
+    errors: list[str],
 ) -> str:
     if (
         bool(config_blockers)
+        or bool(errors)
         or backend_green != "green"
         or harness_green != "green"
         or required_field_miss_count > 0
@@ -378,12 +506,27 @@ def _final_recommendation(
 
 
 def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
+    runtime_reference = dict(report.get("runtime_reference") or {})
+    release_parity = dict(report.get("release_fingerprint_parity") or {})
+    artifact_provenance = dict(report.get("artifact_provenance") or {})
+    origin_fields = {
+        "chrome_extension_origin": report.get("chrome_extension_origin"),
+        "chrome_extension_origin_state": report.get("chrome_extension_origin_state"),
+        "web_app_origin": report.get("web_app_origin"),
+        "web_app_origin_state": report.get("web_app_origin_state"),
+        "beta_keys_state": report.get("beta_keys_state"),
+        "web_rate_limit_per_min": report.get("web_rate_limit_per_min"),
+        "web_rate_limit_source": report.get("web_rate_limit_source"),
+    }
+
     lines = [
         "# Launch Check",
         "",
         f"- Generated at: `{report['generated_at']}`",
         f"- Launch mode: `{report['launch_mode']}`",
         f"- Final recommendation: `{report['final_recommendation']}`",
+        f"- Hard freshness threshold (hours): `{report['max_age_hours']}`",
+        f"- Recommended freshness threshold (hours): `{report['recommended_max_age_hours']}`",
         "",
         "| Field | Value |",
         "|---|---|",
@@ -406,50 +549,76 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             lines.append(f"- `{code}`: {count}")
     else:
         lines.append("- None")
+
     lines.extend(
         [
             "",
-            "## Runtime Config",
+            "## Release Fingerprint Parity",
             "",
+            f"- `runtime_source_used`: `{release_parity.get('runtime_source_used') or 'unknown'}`",
+            f"- `staging`: `{json.dumps(release_parity.get('staging') or {}, sort_keys=True)}`",
+            f"- `production`: `{json.dumps(release_parity.get('production') or {}, sort_keys=True)}`",
+            f"- `comparison_fields`: `{json.dumps(release_parity.get('comparison_fields') or [])}`",
+            "",
+            "## Resolved Runtime Path",
+            "",
+            f"- `runtime_source_used`: `{runtime_reference.get('runtime_source_used') or 'unknown'}`",
             f"- `app_env`: `{report['app_env']}`",
             f"- `runtime_mode`: `{report['runtime_mode']}`",
             f"- `configured_quick_generate_mode`: `{report['configured_quick_generate_mode'] or 'unset'}`",
+            f"- `effective_quick_generate_mode`: `{report['effective_quick_generate_mode']}`",
             f"- `provider_stub_enabled`: `{report['provider_stub_enabled']}`",
             f"- `real_provider_preference`: `{report['real_provider_preference']}`",
+            f"- `effective_provider_source`: `{report['effective_provider_source']}`",
+            f"- `effective_provider_model_identifier`: `{report['effective_model_identifier']}`",
             f"- `preview_pipeline_enabled`: `{report['preview_pipeline_enabled']}`",
             f"- `route_gates`: `{json.dumps(report['route_gates'], sort_keys=True)}`",
             f"- `route_gate_sources`: `{json.dumps(report['route_gate_sources'], sort_keys=True)}`",
             "",
-            "## Config Blockers",
+            "## Preview Route Invariant",
             "",
+            f"- `preview_enabled`: `{bool(report['route_gates'].get('preview'))}`",
+            f"- `preview_gate_source`: `{report['route_gate_sources'].get('preview', 'unknown')}`",
         ]
     )
+    if "preview_route_enabled_for_launch_mode:limited_rollout" in report.get("config_blockers", []):
+        lines.append("- `limited_rollout_blocker`: `preview_route_enabled_for_launch_mode:limited_rollout`")
+    else:
+        lines.append("- `limited_rollout_blocker`: `none`")
+
+    lines.extend(["", "## Artifact Freshness And Provenance", ""])
+    for label, summary in artifact_provenance.items():
+        lines.append(
+            "- "
+            f"`{label}` path=`{summary.get('path') or 'missing'}` "
+            f"timestamp=`{summary.get('timestamp') or 'missing'}` "
+            f"age_hours=`{summary.get('age_hours') if summary.get('age_hours') is not None else 'n/a'}` "
+            f"stale=`{summary.get('stale')}` "
+            f"malformed=`{summary.get('malformed')}` "
+            f"missing=`{summary.get('missing')}`"
+        )
+
+    lines.extend(["", "## Origin And Beta-Key Safety", ""])
+    for field, value in origin_fields.items():
+        lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
+
+    lines.extend(["", "## Config Blockers", ""])
     blockers = list(report.get("config_blockers") or [])
     if blockers:
         for blocker in blockers:
             lines.append(f"- `{blocker}`")
     else:
         lines.append("- None")
-    lines.extend(
-        [
-            "",
-            "## Config Warnings",
-            "",
-        ]
-    )
+
+    lines.extend(["", "## Config Warnings", ""])
     warnings = list(report.get("config_warnings") or [])
     if warnings:
         for warning in warnings:
             lines.append(f"- `{warning}`")
     else:
         lines.append("- None")
-    lines.extend(
-        [
-            "",
-            "## Artifact Sources",
-            "",
-        ]
-    )
+
+    lines.extend(["", "## Artifact Sources", ""])
     for name, artifact_path in dict(report.get("artifact_sources") or {}).items():
         lines.append(f"- `{name}`: `{artifact_path or 'missing'}`")
     if report.get("errors"):
@@ -459,10 +628,27 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> dict[str, Any]:
+def _snapshot_path(raw_path: str, default_path: Path) -> Path:
+    value = (raw_path or "").strip()
+    return Path(value).resolve() if value else default_path
+
+
+def _default_snapshot_path(kind: str) -> Path:
+    return ROOT / "reports" / "launch" / "runtime_snapshots" / f"{kind}.json"
+
+
+def _read_launch_report(
+    *,
+    localhost_smoke_summary: str,
+    max_age_hours: int,
+    recommended_max_age_hours: int = DEFAULT_RECOMMENDED_MAX_AGE_HOURS,
+    staging_debug_config: str = "",
+    production_debug_config: str = "",
+) -> dict[str, Any]:
     _load_launch_env()
-    policies = resolve_runtime_policies()
     max_age = timedelta(hours=max(1, max_age_hours))
+    recommended_max_age = timedelta(hours=max(1, recommended_max_age_hours))
+
     backend = _artifact_status(ROOT / "reports" / "launch" / "backend_suite.json", max_age=max_age)
     stub_harness = _artifact_status(ROOT / "reports" / "provider_stub" / "latest.json", max_age=max_age)
     if stub_harness.missing:
@@ -483,22 +669,36 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
         if localhost_smoke_summary.strip()
         else ArtifactStatus(path=None, payload=None, timestamp=None, stale=False, malformed=False, missing=True)
     )
+    staging_snapshot = _artifact_status(
+        _snapshot_path(staging_debug_config, _default_snapshot_path("staging")),
+        max_age=max_age,
+    )
+    production_snapshot = _artifact_status(
+        _snapshot_path(production_debug_config, _default_snapshot_path("production")),
+        max_age=max_age,
+    )
 
-    errors: list[str] = []
-    for label, status in {
+    artifact_statuses = {
         "backend": backend,
         "provider_stub_harness": stub_harness,
         "external_provider_harness": external_harness,
         "provider_shim_capture": shim_capture,
         "external_provider_capture": external_capture,
         "localhost_smoke": smoke_summary,
-    }.items():
+        "staging_runtime_snapshot": staging_snapshot,
+        "production_runtime_snapshot": production_snapshot,
+    }
+
+    errors: list[str] = []
+    for label, status in artifact_statuses.items():
         if status.malformed:
             errors.append(f"{label}:malformed:{status.error}")
         elif status.stale:
             errors.append(f"{label}:stale:{status.path}")
 
-    backend_green = "not_run" if backend.missing else "red" if backend.malformed or backend.stale else str((backend.payload or {}).get("backend_green") or "red")
+    backend_green = (
+        "not_run" if backend.missing else "red" if backend.malformed or backend.stale else str((backend.payload or {}).get("backend_green") or "red")
+    )
     harness_green = _green_from_harness(stub_harness)
     shim_green = _green_from_capture(shim_capture, key="shim_green")
     external_capture_green = _green_from_capture(external_capture, key="provider_green")
@@ -515,18 +715,50 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
 
     counts_source = _primary_counts_source(stub_harness, external_harness)
     counts_summary = dict((counts_source.payload or {}).get("summary") or {})
-    config_blockers, config_warnings = _config_findings(policies)
+
+    runtime_source_used = "production_runtime_snapshot" if _runtime_payload(production_snapshot) else "local_env"
+    runtime_data = _runtime_payload(production_snapshot) or build_runtime_debug_payload()
+    config_blockers, config_warnings = _config_findings(runtime_data)
+    release_blockers, release_warnings, release_parity = _release_comparison(
+        staging_snapshot=staging_snapshot,
+        production_snapshot=production_snapshot,
+        runtime_source_used=runtime_source_used,
+    )
+    config_blockers.extend(release_blockers)
+    config_warnings.extend(release_warnings)
+    config_warnings.extend(_recommended_age_warnings(artifact_statuses, recommended_max_age=recommended_max_age))
+    config_blockers = sorted(set(config_blockers))
+    config_warnings = sorted(set(config_warnings))
+
     report = {
         "generated_at": _timestamp_to_text(_utc_now()),
-        "app_env": policies.app_env,
-        "runtime_mode": policies.quick_generate_mode,
-        "configured_quick_generate_mode": (os.environ.get("EMAILDJ_QUICK_GENERATE_MODE") or "").strip().lower() or None,
-        "provider_stub_enabled": policies.provider_stub_enabled,
-        "real_provider_preference": policies.real_provider_preference,
-        "launch_mode": policies.launch_mode,
-        "route_gates": dict(policies.route_gates),
-        "route_gate_sources": dict(policies.route_gate_sources),
-        "preview_pipeline_enabled": policies.preview_pipeline_enabled,
+        "max_age_hours": max(1, max_age_hours),
+        "recommended_max_age_hours": max(1, recommended_max_age_hours),
+        "app_env": runtime_data.get("app_env"),
+        "runtime_mode": runtime_data.get("runtime_mode") or runtime_data.get("effective_quick_generate_mode"),
+        "configured_quick_generate_mode": runtime_data.get("configured_quick_generate_mode"),
+        "effective_quick_generate_mode": runtime_data.get("effective_quick_generate_mode")
+        or runtime_data.get("runtime_mode"),
+        "provider_stub_enabled": bool(runtime_data.get("provider_stub_enabled")),
+        "real_provider_preference": runtime_data.get("real_provider_preference"),
+        "effective_provider_source": runtime_data.get("effective_provider_source"),
+        "effective_provider": runtime_data.get("effective_provider"),
+        "effective_model": runtime_data.get("effective_model"),
+        "effective_model_identifier": runtime_data.get("effective_model_identifier"),
+        "launch_mode": runtime_data.get("launch_mode"),
+        "route_gates": dict(runtime_data.get("route_gates") or {}),
+        "route_gate_sources": dict(runtime_data.get("route_gate_sources") or {}),
+        "preview_pipeline_enabled": bool(runtime_data.get("preview_pipeline_enabled")),
+        "release_fingerprint": runtime_data.get("release_fingerprint"),
+        "release_fingerprint_available": bool(runtime_data.get("release_fingerprint_available")),
+        **_release_fields(runtime_data),
+        "chrome_extension_origin": runtime_data.get("chrome_extension_origin"),
+        "chrome_extension_origin_state": runtime_data.get("chrome_extension_origin_state"),
+        "web_app_origin": runtime_data.get("web_app_origin"),
+        "web_app_origin_state": runtime_data.get("web_app_origin_state"),
+        "beta_keys_state": runtime_data.get("beta_keys_state"),
+        "web_rate_limit_per_min": runtime_data.get("web_rate_limit_per_min"),
+        "web_rate_limit_source": runtime_data.get("web_rate_limit_source"),
         "backend_green": backend_green,
         "harness_green": harness_green,
         "shim_green": shim_green,
@@ -545,18 +777,20 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
         "config_blockers": config_blockers,
         "config_warnings": config_warnings,
         "final_recommendation": "",
-        "artifact_sources": _artifact_sources(
-            backend=backend,
-            stub_harness=stub_harness,
-            external_harness=external_harness,
-            shim_capture=shim_capture,
-            external_capture=external_capture,
-            smoke_summary=smoke_summary,
-        ),
+        "runtime_reference": {
+            "runtime_source_used": runtime_source_used,
+            "snapshot_path": production_snapshot.path if runtime_source_used == "production_runtime_snapshot" else None,
+        },
+        "release_fingerprint_parity": release_parity,
+        "artifact_sources": _artifact_sources(**artifact_statuses),
+        "artifact_provenance": {
+            label: _artifact_provenance(label, status, recommended_max_age=recommended_max_age)
+            for label, status in artifact_statuses.items()
+        },
         "errors": errors,
     }
     report["final_recommendation"] = _final_recommendation(
-        launch_mode=report["launch_mode"],
+        launch_mode=str(report["launch_mode"] or ""),
         backend_green=report["backend_green"],
         harness_green=report["harness_green"],
         shim_green=report["shim_green"],
@@ -565,6 +799,7 @@ def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> 
         required_field_miss_count=report["required_field_miss_count"],
         under_length_miss_count=report["under_length_miss_count"],
         config_blockers=report["config_blockers"],
+        errors=report["errors"],
     )
     return report
 
@@ -587,6 +822,9 @@ def main() -> int:
     report = _read_launch_report(
         localhost_smoke_summary=args.localhost_smoke_summary,
         max_age_hours=args.max_age_hours,
+        recommended_max_age_hours=args.recommended_max_age_hours,
+        staging_debug_config=args.staging_debug_config,
+        production_debug_config=args.production_debug_config,
     )
     json_path, md_path = _write_launch_report(report)
     print(
