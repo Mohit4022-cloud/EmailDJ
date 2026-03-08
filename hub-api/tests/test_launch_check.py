@@ -17,6 +17,65 @@ def _write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
+def _write_launch_artifacts(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "backend_suite.json",
+        {"generated_at": _now_text(), "backend_green": "green", "ok": True},
+    )
+    _write_json(
+        root / "reports" / "provider_stub" / "latest.json",
+        {
+            "generated_at": _now_text(),
+            "summary": {
+                "failed_cases": 0,
+                "provider_source": "provider_stub",
+                "required_field_miss_count": 0,
+                "under_length_miss_count": 0,
+                "top_violation_codes": {},
+                "claims_policy_intervention_count": 0,
+            },
+        },
+    )
+    _write_json(
+        root / "reports" / "external_provider" / "latest.json",
+        {
+            "generated_at": _now_text(),
+            "summary": {
+                "failed_cases": 0,
+                "provider_source": "external_provider",
+                "required_field_miss_count": 0,
+                "under_length_miss_count": 0,
+                "top_violation_codes": {},
+                "claims_policy_intervention_count": 0,
+            },
+        },
+    )
+    _write_json(
+        root / "debug_runs" / "ui_sessions_codex" / "20260307T211701Z" / "summary.json",
+        {
+            "captured_at_utc": _now_text(),
+            "provider_source": "provider_shim",
+            "launch_gates": {
+                "shim_green": "green",
+                "provider_green": "not_run",
+                "remix_green": "green",
+            },
+        },
+    )
+    _write_json(
+        root / "debug_runs" / "ui_sessions" / "20260307T211602Z" / "summary.json",
+        {
+            "captured_at_utc": _now_text(),
+            "provider_source": "external_provider",
+            "launch_gates": {
+                "shim_green": "not_run",
+                "provider_green": "green",
+                "remix_green": "green",
+            },
+        },
+    )
+
+
 def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
@@ -122,6 +181,36 @@ def test_launch_check_prefers_external_provider_artifacts(monkeypatch, tmp_path)
     assert report["provider_source"] == "external_provider"
     assert report["claims_policy_intervention_count"] == 3
     assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_uses_dotenv_app_env_when_shell_env_missing(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    (tmp_path / ".env").write_text("APP_ENV=staging\n", encoding="utf-8")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["launch_mode"] == "limited_rollout"
+    assert report["final_recommendation"] == "Stable for MVP launch behind limited rollout"
+
+
+def test_launch_check_shell_launch_mode_overrides_dotenv(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "dev")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    (tmp_path / ".env").write_text("APP_ENV=staging\n", encoding="utf-8")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["launch_mode"] == "dev"
+    assert report["final_recommendation"] == "Stable for broader MVP work"
 
 
 def test_launch_check_uses_provider_specific_report_dirs():

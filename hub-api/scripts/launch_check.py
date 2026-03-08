@@ -17,6 +17,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional in some environments
+    def load_dotenv(*args: object, **kwargs: object) -> bool:
+        return False
+
 from email_generation.runtime_policies import launch_mode as runtime_launch_mode
 
 
@@ -49,6 +55,10 @@ def _parse_args() -> argparse.Namespace:
         help=f"Artifact freshness threshold in hours (default: {DEFAULT_MAX_AGE_HOURS}).",
     )
     return parser.parse_args()
+
+
+def _load_launch_env() -> None:
+    load_dotenv(dotenv_path=ROOT / ".env", override=False)
 
 
 def _utc_now() -> datetime:
@@ -374,6 +384,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
 
 
 def _read_launch_report(*, localhost_smoke_summary: str, max_age_hours: int) -> dict[str, Any]:
+    _load_launch_env()
     max_age = timedelta(hours=max(1, max_age_hours))
     backend = _artifact_status(ROOT / "reports" / "launch" / "backend_suite.json", max_age=max_age)
     stub_harness = _artifact_status(ROOT / "reports" / "provider_stub" / "latest.json", max_age=max_age)
@@ -480,6 +491,7 @@ def _write_launch_report(report: dict[str, Any]) -> tuple[Path, Path]:
 
 
 def main() -> int:
+    _load_launch_env()
     args = _parse_args()
     if not args.from_artifacts:
         _run_fresh_checks()

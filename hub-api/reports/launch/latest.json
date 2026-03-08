@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-03-08T02:54:05.891437Z",
-  "launch_mode": "dev",
+  "generated_at": "2026-03-08T03:08:28.345385Z",
+  "launch_mode": "limited_rollout",
   "backend_green": "green",
   "harness_green": "green",
   "shim_green": "green",
@@ -11,7 +11,7 @@
   "under_length_miss_count": 0,
   "top_violation_codes": {},
   "claims_policy_intervention_count": 0,
-  "final_recommendation": "Stable for broader MVP work",
+  "final_recommendation": "Stable for MVP launch behind limited rollout",
   "artifact_sources": {
     "backend": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
     "provider_stub_harness": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",

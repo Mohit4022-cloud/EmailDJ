@@ -1,8 +1,8 @@
 # Launch Check
 
-- Generated at: `2026-03-08T02:54:05.891437Z`
-- Launch mode: `dev`
-- Final recommendation: `Stable for broader MVP work`
+- Generated at: `2026-03-08T03:08:28.345385Z`
+- Launch mode: `limited_rollout`
+- Final recommendation: `Stable for MVP launch behind limited rollout`
 
 | Field | Value |
 |---|---|
