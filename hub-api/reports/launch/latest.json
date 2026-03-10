@@ -1,24 +1,210 @@
 {
-  "generated_at": "2026-03-08T03:08:28.345385Z",
+  "generated_at": "2026-03-10T03:22:43.597800Z",
+  "max_age_hours": 72,
+  "recommended_max_age_hours": 48,
+  "app_env": "staging",
+  "runtime_mode": "real",
+  "configured_quick_generate_mode": "real",
+  "effective_quick_generate_mode": "real",
+  "provider_stub_enabled": false,
+  "real_provider_preference": "openai",
+  "effective_provider_source": "external_provider",
+  "effective_provider": "openai",
+  "effective_model": "gpt-5-nano",
+  "effective_model_identifier": "openai/gpt-5-nano",
   "launch_mode": "limited_rollout",
+  "route_gates": {
+    "generate": true,
+    "remix": true,
+    "preview": false
+  },
+  "route_gate_sources": {
+    "generate": "launch_mode:limited_rollout",
+    "remix": "launch_mode:limited_rollout",
+    "preview": "launch_mode:limited_rollout"
+  },
+  "preview_pipeline_enabled": false,
+  "release_fingerprint": "git_sha=e32ebac7e5f7",
+  "release_fingerprint_available": true,
+  "git_sha": "e32ebac7e5f7",
+  "build_id": null,
+  "image_tag": null,
+  "release_version": null,
+  "chrome_extension_origin": "chrome-extension://dev",
+  "chrome_extension_origin_state": "default_dev_placeholder",
+  "web_app_origin": null,
+  "web_app_origin_state": "unset",
+  "beta_keys_state": "default_dev_placeholder",
+  "web_rate_limit_per_min": 300,
+  "web_rate_limit_source": "explicit_env",
   "backend_green": "green",
   "harness_green": "green",
   "shim_green": "green",
-  "provider_green": "green",
-  "remix_green": "green",
+  "provider_green": "red",
+  "remix_green": "red",
   "provider_source": "external_provider",
-  "required_field_miss_count": 0,
+  "required_field_miss_count": 96,
   "under_length_miss_count": 0,
-  "top_violation_codes": {},
+  "top_violation_codes": {
+    "OFFER_MISSING": 96
+  },
   "claims_policy_intervention_count": 0,
-  "final_recommendation": "Stable for MVP launch behind limited rollout",
+  "config_blockers": [
+    "beta_keys_not_safe:default_dev_placeholder",
+    "chrome_extension_origin_not_pinned:default_dev_placeholder",
+    "web_app_origin_not_pinned:unset"
+  ],
+  "config_warnings": [
+    "artifact_age_exceeds_recommended_window:backend",
+    "artifact_age_exceeds_recommended_window:provider_stub_harness",
+    "production_runtime_snapshot_missing",
+    "release_fingerprint_unavailable",
+    "runtime_parity_evaluated_from_local_env_only",
+    "staging_runtime_snapshot_missing"
+  ],
+  "final_recommendation": "Not yet launch-ready",
+  "runtime_reference": {
+    "runtime_source_used": "local_env",
+    "snapshot_path": null
+  },
+  "release_fingerprint_parity": {
+    "runtime_source_used": "local_env",
+    "staging": {
+      "git_sha": null,
+      "build_id": null,
+      "image_tag": null,
+      "release_version": null
+    },
+    "production": null,
+    "comparison_fields": []
+  },
   "artifact_sources": {
     "backend": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
     "provider_stub_harness": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",
     "external_provider_harness": "/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json",
     "provider_shim_capture": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare/summary.json",
     "external_provider_capture": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification/summary.json",
-    "localhost_smoke": null
+    "localhost_smoke": null,
+    "staging_runtime_snapshot": "/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json",
+    "production_runtime_snapshot": "/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json"
   },
-  "errors": []
+  "artifact_provenance": {
+    "backend": {
+      "label": "backend",
+      "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
+      "timestamp": "2026-03-07T22:01:09.442759Z",
+      "age_hours": 53.36,
+      "missing": false,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": true,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "provider_stub_harness": {
+      "label": "provider_stub_harness",
+      "path": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",
+      "timestamp": "2026-03-07T22:01:10.112801Z",
+      "age_hours": 53.36,
+      "missing": false,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": true,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "external_provider_harness": {
+      "label": "external_provider_harness",
+      "path": "/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json",
+      "timestamp": "2026-03-10T03:22:16.383352Z",
+      "age_hours": 0.01,
+      "missing": false,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "provider_shim_capture": {
+      "label": "provider_shim_capture",
+      "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare/summary.json",
+      "timestamp": "2026-03-10T03:22:03.047576Z",
+      "age_hours": 0.01,
+      "missing": false,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "external_provider_capture": {
+      "label": "external_provider_capture",
+      "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification/summary.json",
+      "timestamp": "2026-03-10T03:22:14.703519Z",
+      "age_hours": 0.01,
+      "missing": false,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "localhost_smoke": {
+      "label": "localhost_smoke",
+      "path": null,
+      "timestamp": null,
+      "age_hours": null,
+      "missing": true,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "staging_runtime_snapshot": {
+      "label": "staging_runtime_snapshot",
+      "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json",
+      "timestamp": null,
+      "age_hours": null,
+      "missing": true,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    },
+    "production_runtime_snapshot": {
+      "label": "production_runtime_snapshot",
+      "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json",
+      "timestamp": null,
+      "age_hours": null,
+      "missing": true,
+      "malformed": false,
+      "schema_incomplete": false,
+      "stale": false,
+      "warning_threshold_exceeded": false,
+      "error": null,
+      "schema_messages": [],
+      "schema_warnings": []
+    }
+  },
+  "errors": [],
+  "operator_next_steps": [
+    "Capture the staging runtime snapshot: `./.venv/bin/python scripts/capture_runtime_snapshot.py --label staging --url \"$STAGING_BASE_URL\" --header \"x-emaildj-beta-key: $BETA_KEY\"`",
+    "Capture the production runtime snapshot: `./.venv/bin/python scripts/capture_runtime_snapshot.py --label production --url \"$PROD_BASE_URL\" --header \"x-emaildj-beta-key: $BETA_KEY\"`"
+  ]
 }
