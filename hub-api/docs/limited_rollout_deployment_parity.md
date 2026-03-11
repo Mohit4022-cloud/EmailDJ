@@ -7,6 +7,11 @@ Repo-side readiness is not the same as deployed-env readiness.
 - Repo-side readiness means the checker, artifacts, docs, and runtime debug surface can evaluate deployed parity correctly.
 - Deployed-env readiness requires fresh staging and production `/web/v1/debug/config` snapshots plus fresh launch artifacts from the actual target hosts.
 
+Before touching launch artifacts, operators should run `scripts/launch_preflight.py` from the same host. It checks required env inputs and provider transport and writes:
+
+- `hub-api/reports/launch/preflight.json`
+- `hub-api/reports/launch/preflight.md`
+
 ## Launch Rule
 
 Limited-rollout launch readiness must be tied to the exact deployed runtime.
@@ -182,6 +187,7 @@ Use the same Python environment the deployed app uses. In this repo that is usua
 
 ```bash
 cd /path/to/EmailDJ/hub-api
+./.venv/bin/python scripts/launch_preflight.py
 curl -fsS "$STAGING_BASE_URL/"
 ./.venv/bin/python scripts/capture_runtime_snapshot.py \
   --label staging \
@@ -217,6 +223,7 @@ If these runtime snapshots are absent, stale, or schema-incomplete, launch_check
 ## Capture Command Rules
 
 Use `scripts/capture_runtime_snapshot.py` for all operator captures.
+Use `scripts/launch_preflight.py` before any real-provider launch verification run.
 
 - `--label staging` writes to `reports/launch/runtime_snapshots/staging.json`
 - `--label production` writes to `reports/launch/runtime_snapshots/production.json`
@@ -224,6 +231,7 @@ Use `scripts/capture_runtime_snapshot.py` for all operator captures.
 - use repeatable `--header` values for request headers; the standard rollout example is `x-emaildj-beta-key`
 
 The capture script validates the runtime snapshot before writing it. A non-200 response, invalid JSON payload, or schema-incomplete parity payload is a hard failure and should be fixed before trusting the snapshot.
+The preflight script blocks early on missing `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, missing provider credentials, and provider transport failures such as DNS or timeout errors.
 
 ## Expected Runtime Snapshot Shape
 
@@ -274,6 +282,8 @@ For a healthy limited-rollout host, `/web/v1/debug/config` should resolve to:
 
 Operators should inspect:
 
+- `hub-api/reports/launch/preflight.json`
+- `hub-api/reports/launch/preflight.md`
 - `hub-api/reports/launch/latest.json`
 - `hub-api/reports/launch/latest.md`
 - `hub-api/reports/external_provider/latest.json`

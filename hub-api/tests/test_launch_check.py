@@ -673,3 +673,24 @@ def test_capture_ui_session_keeps_warn_parse_fallback_red():
     }
 
     assert _remix_record_clean(failed) is False
+
+
+def test_launch_check_main_blocks_when_preflight_fails(monkeypatch, tmp_path, capsys):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        lc,
+        "_run_command",
+        lambda command, cwd: (False, '{"failure_bucket":"operator_input_missing","ready":false}')
+        if command == [sys.executable, str(tmp_path / "scripts" / "launch_preflight.py")]
+        else (True, ""),
+    )
+    monkeypatch.setattr(lc, "_run_fresh_checks", lambda: (_ for _ in ()).throw(AssertionError("fresh checks should not run")))
+    monkeypatch.setattr(sys, "argv", ["launch_check.py"])
+
+    exit_code = lc.main()
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert "operator_input_missing" in captured.err

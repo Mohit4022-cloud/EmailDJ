@@ -910,6 +910,14 @@ def main() -> int:
     _load_launch_env()
     args = _parse_args()
     if not args.from_artifacts:
+        preflight_ok, preflight_output = _run_command(
+            [sys.executable, str(ROOT / "scripts" / "launch_preflight.py")],
+            cwd=ROOT,
+        )
+        if not preflight_ok:
+            if preflight_output:
+                print(preflight_output, file=sys.stderr)
+            return 1
         _run_fresh_checks()
     report = _read_launch_report(
         localhost_smoke_summary=args.localhost_smoke_summary,

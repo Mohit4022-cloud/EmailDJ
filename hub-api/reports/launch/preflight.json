@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-03-11T01:23:24.393254Z",
+  "ready": false,
+  "failure_bucket": "operator_input_missing",
+  "provider": "openai",
+  "provider_env": "OPENAI_API_KEY",
+  "timeout_seconds": 15.0,
+  "required_inputs_present": {
+    "STAGING_BASE_URL": false,
+    "PROD_BASE_URL": false,
+    "BETA_KEY": false,
+    "OPENAI_API_KEY": true
+  },
+  "missing_inputs": [
+    "STAGING_BASE_URL",
+    "PROD_BASE_URL",
+    "BETA_KEY"
+  ],
+  "transport_checked": false,
+  "transport_ok": null,
+  "probe_url": null,
+  "probe_status_code": null,
+  "transport_error_type": null,
+  "transport_error": null,
+  "next_steps": [
+    "Set `STAGING_BASE_URL` before running launch verification.",
+    "Set `PROD_BASE_URL` before running launch verification.",
+    "Set `BETA_KEY` before running launch verification."
+  ]
+}

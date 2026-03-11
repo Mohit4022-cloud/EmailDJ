@@ -84,6 +84,8 @@ class ScorecardSummary:
     internal_leakage_pass_rate: float
     claim_safety_pass_rate: float
     provider_source: str = "provider_stub"
+    failure_bucket_counts: dict[str, int] = field(default_factory=dict)
+    transport_failure_count: int = 0
     route_pass_fail_counts: dict[str, dict[str, int]] = field(default_factory=dict)
     preset_pass_fail_counts: dict[str, dict[str, int]] = field(default_factory=dict)
     top_violation_codes: dict[str, int] = field(default_factory=dict)
