@@ -2,6 +2,8 @@
 
 Run from [`hub-api`](/Users/mohit/EmailDJ/hub-api).
 
+Deployment contract and env handoff live in [`docs/ops/deployment.md`](/Users/mohit/EmailDJ/docs/ops/deployment.md).
+
 ## Required env vars
 
 - Common:
@@ -19,6 +21,15 @@ Run from [`hub-api`](/Users/mohit/EmailDJ/hub-api).
   - `EMAILDJ_ROUTE_GENERATE_ENABLED=0|1`
   - `EMAILDJ_ROUTE_REMIX_ENABLED=0|1`
   - `EMAILDJ_ROUTE_PREVIEW_ENABLED=0|1`
+
+## Operator machine env
+
+- `STAGING_BASE_URL`
+  Must point to the staging hub-api root URL, not the frontend URL.
+- `PROD_BASE_URL`
+  Must point to the production hub-api root URL, not the frontend URL.
+- `BETA_KEY`
+  Must exactly match one deployed value from `EMAILDJ_WEB_BETA_KEYS`.
 
 ## Backend tests
 

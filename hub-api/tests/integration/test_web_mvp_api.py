@@ -663,7 +663,7 @@ async def test_web_generate_preflight_prod_only_allows_explicit_deployed_origin(
 
         assert deployed.status_code in (200, 204)
         assert deployed.headers.get("access-control-allow-origin") == "https://app.emaildj.test"
-        assert localhost.status_code in (200, 204)
+        assert localhost.status_code == 400
         assert localhost.headers.get("access-control-allow-origin") is None
 
 
@@ -750,6 +750,7 @@ async def test_web_debug_config_surfaces_launch_mode_and_route_gates():
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
     os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
     os.environ["USE_PROVIDER_STUB"] = "1"
+    os.environ.pop("EMAILDJ_QUICK_GENERATE_MODE", None)
     os.environ["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
     os.environ["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "1"
     os.environ["EMAILDJ_GIT_SHA"] = "abc123def456"
