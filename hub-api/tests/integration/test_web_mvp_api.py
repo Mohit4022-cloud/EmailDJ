@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 from pathlib import Path
@@ -623,6 +624,47 @@ async def test_web_generate_preflight_options_bypasses_beta_key():
         )
         assert preflight.status_code in (200, 204)
         assert preflight.headers.get("access-control-allow-origin") == "http://localhost:5174"
+
+
+@pytest.mark.asyncio
+async def test_web_generate_preflight_prod_only_allows_explicit_deployed_origin(monkeypatch):
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-prod")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://app.emaildj.test")
+    monkeypatch.setenv("REDIS_FORCE_INMEMORY", "1")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "1")
+
+    sys.modules.pop("main", None)
+    app = importlib.import_module("main").app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        deployed = await client.options(
+            "/web/v1/generate",
+            headers={
+                "Origin": "https://app.emaildj.test",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-emaildj-beta-key",
+            },
+        )
+        localhost = await client.options(
+            "/web/v1/generate",
+            headers={
+                "Origin": "http://localhost:5174",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-emaildj-beta-key",
+            },
+        )
+
+        assert deployed.status_code in (200, 204)
+        assert deployed.headers.get("access-control-allow-origin") == "https://app.emaildj.test"
+        assert localhost.status_code in (200, 204)
+        assert localhost.headers.get("access-control-allow-origin") is None
 
 
 @pytest.mark.asyncio

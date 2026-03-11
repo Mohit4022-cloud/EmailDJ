@@ -704,13 +704,22 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
     steps: list[str] = []
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
-            steps.append(f"Capture the {label} runtime snapshot: `{_capture_command_for(label)}`")
+            steps.append(
+                f"Capture the {label} hub-api runtime snapshot using `{label}` backend URL "
+                f"(`{'$STAGING_BASE_URL' if label == 'staging' else '$PROD_BASE_URL'}`) and a `BETA_KEY` value present in deployed `EMAILDJ_WEB_BETA_KEYS`: `{_capture_command_for(label)}`"
+            )
             continue
         if status.stale:
-            steps.append(f"Re-capture the stale {label} runtime snapshot: `{_capture_command_for(label)}`")
+            steps.append(
+                f"Re-capture the stale {label} hub-api runtime snapshot with the backend URL "
+                f"(`{'$STAGING_BASE_URL' if label == 'staging' else '$PROD_BASE_URL'}`) and matching `BETA_KEY`: `{_capture_command_for(label)}`"
+            )
             continue
         if status.malformed or status.schema_incomplete:
-            steps.append(f"Re-capture the invalid {label} runtime snapshot: `{_capture_command_for(label)}`")
+            steps.append(
+                f"Re-capture the invalid {label} hub-api runtime snapshot with the backend URL "
+                f"(`{'$STAGING_BASE_URL' if label == 'staging' else '$PROD_BASE_URL'}`) and matching `BETA_KEY`: `{_capture_command_for(label)}`"
+            )
     if any(str(blocker).startswith("release_fingerprint_mismatch:") for blocker in report.get("config_blockers") or []):
         steps.append(
             "Production runtime fingerprint differs from approved staging. Fix deployment parity, then re-capture the production snapshot and rerun `./.venv/bin/python scripts/launch_check.py --from-artifacts`."

@@ -63,6 +63,16 @@ def _provider_probe(provider: str, provider_env: str) -> tuple[str, dict[str, st
     return probe_url, headers
 
 
+def _operator_input_step(name: str) -> str:
+    if name == "STAGING_BASE_URL":
+        return "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification."
+    if name == "PROD_BASE_URL":
+        return "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification."
+    if name == "BETA_KEY":
+        return "Set `BETA_KEY` to one exact deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
+    return f"Set `{name}` before running launch verification."
+
+
 def _report_paths() -> tuple[Path, Path]:
     report_dir = ROOT / "reports" / "launch"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -94,7 +104,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
     }
     if missing_inputs:
         result["failure_bucket"] = "operator_input_missing"
-        result["next_steps"] = [f"Set `{name}` before running launch verification." for name in missing_inputs]
+        result["next_steps"] = [_operator_input_step(name) for name in missing_inputs]
         return result
 
     probe_url, headers = _provider_probe(provider, provider_env)
@@ -123,7 +133,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
 
     result["ready"] = True
     result["next_steps"] = [
-        "Launch preflight passed. Proceed with runtime snapshot capture and real-provider verification from this host.",
+        "Launch preflight passed. Proceed with hub-api runtime snapshot capture and real-provider verification from this host.",
     ]
     return result
 
@@ -141,6 +151,8 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
         f"- Provider: `{result['provider']}`",
         f"- Provider env: `{result['provider_env']}`",
         f"- Timeout seconds: `{result['timeout_seconds']}`",
+        "",
+        "> `STAGING_BASE_URL` and `PROD_BASE_URL` must be hub-api root URLs, not frontend URLs. `BETA_KEY` must match one deployed `EMAILDJ_WEB_BETA_KEYS` value.",
         "",
         "## Required Inputs",
         "",

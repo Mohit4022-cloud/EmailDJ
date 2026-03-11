@@ -9,11 +9,14 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from email_generation.runtime_policies import is_production_like_environment
 from infra.redis_client import get_redis
 
 
 def _allowed_keys() -> set[str]:
-    raw = os.environ.get("EMAILDJ_WEB_BETA_KEYS", "dev-beta-key")
+    raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    if not raw and not is_production_like_environment():
+        raw = "dev-beta-key"
     return {part.strip() for part in raw.split(",") if part.strip()}
 
 

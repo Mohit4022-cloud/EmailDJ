@@ -34,6 +34,9 @@ def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypa
     assert result["failure_bucket"] == "operator_input_missing"
     assert result["transport_checked"] is False
     assert result["missing_inputs"] == ["STAGING_BASE_URL", "PROD_BASE_URL", "BETA_KEY"]
+    assert "hub-api root URL" in result["next_steps"][0]
+    assert "hub-api root URL" in result["next_steps"][1]
+    assert "EMAILDJ_WEB_BETA_KEYS" in result["next_steps"][2]
 
 
 def test_launch_preflight_blocks_transport_failure(monkeypatch):

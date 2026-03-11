@@ -1,8 +1,21 @@
-const VITE_HUB_URL =
-  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_HUB_URL : undefined;
-const HUB_URL = (VITE_HUB_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
-const VITE_PRESET_PREVIEW_PIPELINE =
-  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_PRESET_PREVIEW_PIPELINE : undefined;
+function runtimeEnv() {
+  return typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+}
+
+export function resolveHubUrl(env = runtimeEnv()) {
+  const raw = String(env?.VITE_HUB_URL || '').trim();
+  if (raw) return raw.replace(/\/$/, '');
+  if (Boolean(env?.PROD)) {
+    throw new Error(
+      'Missing VITE_HUB_URL for a production web-app build. Set it to the deployed hub-api root URL.'
+    );
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+const ENV = runtimeEnv();
+const HUB_URL = resolveHubUrl(ENV);
+const VITE_PRESET_PREVIEW_PIPELINE = ENV.VITE_PRESET_PREVIEW_PIPELINE;
 const PRESET_PREVIEW_BATCH_TIMEOUT_MS = 45000;
 
 function parsePythonDictPayload(raw) {

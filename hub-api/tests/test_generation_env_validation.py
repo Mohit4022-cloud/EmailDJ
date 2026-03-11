@@ -22,6 +22,7 @@ def _apply_env(monkeypatch, values: dict[str, str]):
             "DEV_ALLOW_P0_OFF",
             "APP_ENV",
             "CHROME_EXTENSION_ORIGIN",
+            "WEB_APP_ORIGIN",
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GROQ_API_KEY",
@@ -125,3 +126,70 @@ def test_validate_env_dev_allows_p0_override(monkeypatch):
     _apply_env(monkeypatch, env)
 
     _validate_env()
+
+
+def test_validate_env_prod_rejects_missing_web_app_origin(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["APP_ENV"] = "prod"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="WEB_APP_ORIGIN"):
+        _validate_env()
+
+
+def test_validate_env_prod_rejects_localhost_web_app_origin(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["APP_ENV"] = "prod"
+    env["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="localhost"):
+        _validate_env()
+
+
+def test_validate_env_prod_rejects_missing_beta_keys(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["APP_ENV"] = "prod"
+    env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="EMAILDJ_WEB_BETA_KEYS"):
+        _validate_env()
+
+
+def test_validate_env_prod_rejects_dev_beta_key(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["APP_ENV"] = "prod"
+    env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "dev-beta-key"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="dev-beta-key"):
+        _validate_env()
+
+
+def test_validate_env_prod_rejects_missing_rate_limit(monkeypatch):
+    from main import _validate_env
+
+    env = _base_env()
+    env["APP_ENV"] = "prod"
+    env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="EMAILDJ_WEB_RATE_LIMIT_PER_MIN"):
+        _validate_env()
