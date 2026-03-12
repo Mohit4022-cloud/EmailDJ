@@ -1,4 +1,4 @@
-.PHONY: setup test build dev backend-test frontend-test eval lint-copy
+.PHONY: setup test build dev backend-test frontend-test eval lint-copy secret-scan
 
 setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
@@ -17,6 +17,9 @@ test: backend-test frontend-test eval
 
 lint-copy:
 	./scripts/check_contamination.sh
+
+secret-scan:
+	./scripts/check_no_secrets.sh
 
 build:
 	cd frontend && npm run build

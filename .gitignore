@@ -14,7 +14,22 @@ dist/
 
 # Env
 .env
+.env.*
 .env.local
+!.env.example
+!**/.env.example
+
+# Secret material
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.secret
+*.secrets.*
+secret.*
+secrets/
+.secrets/
 
 # Logs
 *.log
