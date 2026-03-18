@@ -1,17 +1,19 @@
 # Launch Preflight
 
-- Generated at: `2026-03-11T01:23:24.393254Z`
+- Generated at: `2026-03-17T23:09:41.175250Z`
 - Ready: `False`
 - Failure bucket: `operator_input_missing`
 - Provider: `openai`
 - Provider env: `OPENAI_API_KEY`
 - Timeout seconds: `15.0`
 
+> `STAGING_BASE_URL` and `PROD_BASE_URL` must be hub-api root URLs, not frontend URLs. `BETA_KEY` must match one deployed `EMAILDJ_WEB_BETA_KEYS` value.
+
 ## Required Inputs
 
 - `STAGING_BASE_URL` present=`False`
 - `PROD_BASE_URL` present=`False`
-- `BETA_KEY` present=`False`
+- `BETA_KEY` present=`True`
 - `OPENAI_API_KEY` present=`True`
 
 ## Transport Probe
@@ -23,6 +25,5 @@
 
 ## Next Steps
 
-- Set `STAGING_BASE_URL` before running launch verification.
-- Set `PROD_BASE_URL` before running launch verification.
-- Set `BETA_KEY` before running launch verification.
+- Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.
+- Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.
