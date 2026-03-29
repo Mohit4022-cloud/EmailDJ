@@ -1,3 +1,4 @@
+import importlib
 import json
 import os
 from pathlib import Path
@@ -626,6 +627,47 @@ async def test_web_generate_preflight_options_bypasses_beta_key():
 
 
 @pytest.mark.asyncio
+async def test_web_generate_preflight_prod_only_allows_explicit_deployed_origin(monkeypatch):
+    httpx = pytest.importorskip("httpx")
+    pytest.importorskip("fastapi")
+
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-prod")
+    monkeypatch.setenv("WEB_APP_ORIGIN", "https://app.emaildj.test")
+    monkeypatch.setenv("REDIS_FORCE_INMEMORY", "1")
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
+    monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
+    monkeypatch.setenv("USE_PROVIDER_STUB", "1")
+
+    sys.modules.pop("main", None)
+    app = importlib.import_module("main").app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        deployed = await client.options(
+            "/web/v1/generate",
+            headers={
+                "Origin": "https://app.emaildj.test",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-emaildj-beta-key",
+            },
+        )
+        localhost = await client.options(
+            "/web/v1/generate",
+            headers={
+                "Origin": "http://localhost:5174",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-emaildj-beta-key",
+            },
+        )
+
+        assert deployed.status_code in (200, 204)
+        assert deployed.headers.get("access-control-allow-origin") == "https://app.emaildj.test"
+        assert localhost.status_code == 400
+        assert localhost.headers.get("access-control-allow-origin") is None
+
+
+@pytest.mark.asyncio
 async def test_web_preview_batch_endpoint_disabled_returns_503():
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")
@@ -702,14 +744,16 @@ async def test_web_debug_config_surfaces_launch_mode_and_route_gates():
     httpx = pytest.importorskip("httpx")
     pytest.importorskip("fastapi")
 
-    os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
-    os.environ["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    os.environ["CHROME_EXTENSION_ORIGIN"] = "chrome-extension://emaildj-test"
+    os.environ["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
     os.environ["REDIS_FORCE_INMEMORY"] = "1"
     os.environ["EMAILDJ_WEB_BETA_KEYS"] = "test-key"
-    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "30"
+    os.environ["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
     os.environ["USE_PROVIDER_STUB"] = "1"
+    os.environ.pop("EMAILDJ_QUICK_GENERATE_MODE", None)
     os.environ["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
     os.environ["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "1"
+    os.environ["EMAILDJ_GIT_SHA"] = "abc123def456"
 
     from main import app
 
@@ -721,6 +765,18 @@ async def test_web_debug_config_surfaces_launch_mode_and_route_gates():
         assert payload["launch_mode"] == "limited_rollout"
         assert payload["route_gates"]["preview"] is True
         assert payload["route_gate_sources"]["preview"] == "explicit_env"
+        assert payload["generated_at_utc"]
+        assert payload["configured_quick_generate_mode"] is None
+        assert payload["effective_quick_generate_mode"] == "mock"
+        assert payload["effective_provider_source"] == "provider_stub"
+        assert payload["effective_model_identifier"] == "provider_stub/mock"
+        assert payload["release_fingerprint_available"] is True
+        assert payload["release_fingerprint"] == "git_sha=abc123def456"
+        assert payload["chrome_extension_origin_state"] == "explicit_pinned"
+        assert payload["web_app_origin_state"] == "explicit_pinned"
+        assert payload["beta_keys_state"] == "explicit_pinned"
+        assert payload["web_rate_limit_per_min"] == 300
+        assert payload["web_rate_limit_source"] == "explicit_env"
 
 
 @pytest.mark.asyncio

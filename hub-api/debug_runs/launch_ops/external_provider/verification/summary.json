@@ -1,5 +1,5 @@
 {
-  "captured_at_utc": "2026-03-07T22:14:16.382305+00:00",
+  "captured_at_utc": "2026-03-10T03:22:14.703519+00:00",
   "request_count": 5,
   "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification",
   "provider_source": "external_provider",
@@ -20,70 +20,34 @@
     {
       "index": 2,
       "endpoint": "/web/v1/generate",
-      "request_id": "5cb92362-e0a0-4c5f-8013-ae619556727a",
-      "session_id": "39233b07-8e96-4bbc-9cdd-6169c84873ee",
-      "provider_source": "external_provider",
-      "flags_effective": {
-        "FEATURE_STRUCTURED_OUTPUT": false,
-        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
-        "FEATURE_LOSSLESS_STREAMING": false,
-        "FEATURE_FLUENCY_REPAIR": false,
-        "FEATURE_SHADOW_MODE": false,
-        "FEATURE_PERSONA_ROUTER": false,
-        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
-        "FEATURE_PRESET_TRUE_REWRITE": false
-      }
+      "request_id": "63fe1ba6-fa45-4014-8f4c-1f64627e6dab",
+      "session_id": "c53ccb8a-a32d-4670-a09d-22ce14e89f81",
+      "provider_source": null,
+      "flags_effective": null
     },
     {
       "index": 3,
       "endpoint": "/web/v1/remix",
-      "request_id": "c0a29acc-c89a-451c-918b-cdcbae9273fa",
+      "request_id": "97176fa4-7933-42e8-b866-bc1950deb892",
       "session_id": null,
-      "provider_source": "external_provider",
-      "flags_effective": {
-        "FEATURE_STRUCTURED_OUTPUT": false,
-        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
-        "FEATURE_LOSSLESS_STREAMING": false,
-        "FEATURE_FLUENCY_REPAIR": false,
-        "FEATURE_SHADOW_MODE": false,
-        "FEATURE_PERSONA_ROUTER": false,
-        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
-        "FEATURE_PRESET_TRUE_REWRITE": false
-      }
+      "provider_source": null,
+      "flags_effective": null
     },
     {
       "index": 4,
       "endpoint": "/web/v1/remix",
-      "request_id": "1a857d02-3437-4a10-b010-60d77ef28ca2",
+      "request_id": "e3e88d7d-90b7-44db-b6b4-d0137c32f27e",
       "session_id": null,
-      "provider_source": "external_provider",
-      "flags_effective": {
-        "FEATURE_STRUCTURED_OUTPUT": false,
-        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
-        "FEATURE_LOSSLESS_STREAMING": false,
-        "FEATURE_FLUENCY_REPAIR": false,
-        "FEATURE_SHADOW_MODE": false,
-        "FEATURE_PERSONA_ROUTER": false,
-        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
-        "FEATURE_PRESET_TRUE_REWRITE": false
-      }
+      "provider_source": null,
+      "flags_effective": null
     },
     {
       "index": 5,
       "endpoint": "/web/v1/remix",
-      "request_id": "a6192d99-467a-4fa5-89b1-dc7dc9ecef5f",
+      "request_id": "d76b0cc4-bb46-4034-9e3f-1d6c8a984963",
       "session_id": null,
-      "provider_source": "external_provider",
-      "flags_effective": {
-        "FEATURE_STRUCTURED_OUTPUT": false,
-        "FEATURE_SENTENCE_SAFE_TRUNCATION": false,
-        "FEATURE_LOSSLESS_STREAMING": false,
-        "FEATURE_FLUENCY_REPAIR": false,
-        "FEATURE_SHADOW_MODE": false,
-        "FEATURE_PERSONA_ROUTER": false,
-        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": false,
-        "FEATURE_PRESET_TRUE_REWRITE": false
-      }
+      "provider_source": null,
+      "flags_effective": null
     }
   ]
 }

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 try:
     from dotenv import load_dotenv
@@ -63,6 +64,15 @@ _PROVIDER_KEY_ENV = {
     "anthropic": "ANTHROPIC_API_KEY",
     "groq": "GROQ_API_KEY",
 }
+_LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
+_LOCAL_WEB_ALLOW_ORIGINS = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+]
 
 
 def _quick_mode() -> str:
@@ -75,6 +85,72 @@ def _real_provider() -> str:
 
 def _preview_pipeline_enabled() -> bool:
     return preview_pipeline_enabled()
+
+
+def _split_csv_env(raw_value: str) -> list[str]:
+    return [part.strip() for part in raw_value.split(",") if part.strip()]
+
+
+def _configured_web_origins() -> list[str]:
+    return _split_csv_env((os.environ.get("WEB_APP_ORIGIN") or "").strip())
+
+
+def _origin_hostname(origin: str) -> str:
+    return (urlparse(origin).hostname or "").strip().lower()
+
+
+def _origins_are_local_only(origins: list[str]) -> bool:
+    return bool(origins) and all(_origin_hostname(origin) in _LOCAL_WEB_ORIGIN_HOSTS for origin in origins)
+
+
+def _require_safe_production_web_contract(app_env: str) -> None:
+    if not is_production_like_environment(app_env):
+        return
+
+    web_origins = _configured_web_origins()
+    if not web_origins:
+        raise RuntimeError("Production-like environments require explicit WEB_APP_ORIGIN.")
+    if _origins_are_local_only(web_origins):
+        raise RuntimeError("Production-like environments require WEB_APP_ORIGIN to point to deployed web origin(s), not localhost.")
+
+    beta_raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    if not beta_raw:
+        raise RuntimeError("Production-like environments require explicit EMAILDJ_WEB_BETA_KEYS.")
+    beta_keys = {part.strip() for part in beta_raw.split(",") if part.strip()}
+    if not beta_keys or "dev-beta-key" in beta_keys:
+        raise RuntimeError("Production-like environments require EMAILDJ_WEB_BETA_KEYS without dev-beta-key.")
+
+    rate_limit_raw = (os.environ.get("EMAILDJ_WEB_RATE_LIMIT_PER_MIN") or "").strip()
+    if not rate_limit_raw:
+        raise RuntimeError("Production-like environments require explicit EMAILDJ_WEB_RATE_LIMIT_PER_MIN.")
+    try:
+        rate_limit = int(rate_limit_raw)
+    except ValueError as exc:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.") from exc
+    if rate_limit < 1:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
+
+
+def _cors_allow_origins() -> list[str]:
+    policies = resolve_runtime_policies()
+    allow_origins: list[str] = []
+    if not is_production_like_environment(policies.app_env):
+        allow_origins.extend(_LOCAL_WEB_ALLOW_ORIGINS)
+
+    chrome_origin = (os.environ.get("CHROME_EXTENSION_ORIGIN") or "").strip()
+    if chrome_origin:
+        allow_origins.append(chrome_origin)
+
+    allow_origins.extend(_configured_web_origins())
+
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for origin in allow_origins:
+        if not origin or origin in seen:
+            continue
+        seen.add(origin)
+        deduped.append(origin)
+    return deduped
 
 
 def _generation_attestation() -> dict[str, object]:
@@ -137,6 +213,7 @@ def _validate_env() -> None:
     policies = resolve_runtime_policies()
     mode = policies.quick_generate_mode
     provider = policies.real_provider_preference
+    _require_safe_production_web_contract(policies.app_env)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
             "EMAILDJ_QUICK_GENERATE_MODE=mock ignored unless %s=1; continuing in REAL mode.",
@@ -222,27 +299,9 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(title="EmailDJ Hub API", version="0.1.0", lifespan=lifespan)
 
-chrome_origin = os.environ.get("CHROME_EXTENSION_ORIGIN", "")
-allow_origins = [
-    "http://localhost",
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-]
-if chrome_origin:
-    allow_origins.append(chrome_origin)
-web_origin = os.environ.get("WEB_APP_ORIGIN", "http://localhost:5174")
-if web_origin:
-    for origin in web_origin.split(","):
-        candidate = origin.strip()
-        if candidate:
-            allow_origins.append(candidate)
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=_cors_allow_origins(),
     allow_methods=["*"],
     allow_headers=["*"],
 )

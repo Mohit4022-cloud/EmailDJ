@@ -1,0 +1,98 @@
+{
+  "captured_at_utc": "2026-03-08T02:27:03.623468+00:00",
+  "request_count": 5,
+  "output_dir": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/current_compare",
+  "provider_source": "provider_shim",
+  "launch_gates": {
+    "shim_green": "green",
+    "provider_green": "not_run",
+    "remix_green": "green"
+  },
+  "requests": [
+    {
+      "index": 1,
+      "endpoint": "/web/v1/preset-previews/batch",
+      "request_id": null,
+      "session_id": null,
+      "provider_source": "provider_stub",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      }
+    },
+    {
+      "index": 2,
+      "endpoint": "/web/v1/generate",
+      "request_id": "b8786b85-9bcc-46a8-92a5-f4d89b1bc3a5",
+      "session_id": "05604c5e-f413-41e8-a61b-a18c1bd00240",
+      "provider_source": "provider_shim",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      }
+    },
+    {
+      "index": 3,
+      "endpoint": "/web/v1/remix",
+      "request_id": "3f743c84-4765-4fd9-87f2-6411d8975b88",
+      "session_id": null,
+      "provider_source": "provider_shim",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      }
+    },
+    {
+      "index": 4,
+      "endpoint": "/web/v1/remix",
+      "request_id": "4f6bb83d-32c4-4fef-9539-c8f06eaab23c",
+      "session_id": null,
+      "provider_source": "provider_shim",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      }
+    },
+    {
+      "index": 5,
+      "endpoint": "/web/v1/remix",
+      "request_id": "861df67d-9cb8-4c1f-b697-67dd56b9fe2b",
+      "session_id": null,
+      "provider_source": "provider_shim",
+      "flags_effective": {
+        "FEATURE_STRUCTURED_OUTPUT": true,
+        "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+        "FEATURE_LOSSLESS_STREAMING": true,
+        "FEATURE_FLUENCY_REPAIR": true,
+        "FEATURE_SHADOW_MODE": false,
+        "FEATURE_PERSONA_ROUTER": true,
+        "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+        "FEATURE_PRESET_TRUE_REWRITE": true
+      }
+    }
+  ]
+}

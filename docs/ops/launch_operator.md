@@ -2,6 +2,8 @@
 
 Run from [`hub-api`](/Users/mohit/EmailDJ/hub-api).
 
+Deployment contract and env handoff live in [`docs/ops/deployment.md`](/Users/mohit/EmailDJ/docs/ops/deployment.md).
+
 ## Required env vars
 
 - Common:
@@ -19,6 +21,15 @@ Run from [`hub-api`](/Users/mohit/EmailDJ/hub-api).
   - `EMAILDJ_ROUTE_GENERATE_ENABLED=0|1`
   - `EMAILDJ_ROUTE_REMIX_ENABLED=0|1`
   - `EMAILDJ_ROUTE_PREVIEW_ENABLED=0|1`
+
+## Operator machine env
+
+- `STAGING_BASE_URL`
+  Must point to the staging hub-api root URL, not the frontend URL.
+- `PROD_BASE_URL`
+  Must point to the production hub-api root URL, not the frontend URL.
+- `BETA_KEY`
+  Must exactly match one deployed value from `EMAILDJ_WEB_BETA_KEYS`.
 
 ## Backend tests
 
@@ -112,6 +123,8 @@ source .venv/bin/activate
 python scripts/launch_check.py --from-artifacts
 ```
 
+`launch_check.py` now loads `hub-api/.env` before resolving runtime policies, so artifact-only runs reflect the repo's configured `APP_ENV` and default `launch_mode` unless explicit shell env overrides them.
+
 With localhost smoke included:
 
 ```bash
@@ -141,6 +154,8 @@ Canonical launch artifacts:
 - `required_field_miss_count=0`
 - `under_length_miss_count=0`
 - `provider_green` may be `green` or `not_run`
+
+In `limited_rollout`, preview is disabled by default unless `EMAILDJ_ROUTE_PREVIEW_ENABLED=1` is set explicitly. A preview `route_disabled` artifact is expected in that mode and is not a launch blocker.
 
 `Stable for broad launch` requires:
 - `EMAILDJ_LAUNCH_MODE=broad_launch`

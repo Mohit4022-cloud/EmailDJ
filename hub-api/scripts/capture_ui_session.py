@@ -248,6 +248,16 @@ def _request_record(
     }
 
 
+def _remix_record_clean(record: dict[str, Any]) -> bool:
+    stream_done = dict(record.get("stream_done") or {})
+    trace_status = str(record.get("trace_status") or "").strip()
+    generation_status = str(stream_done.get("generation_status") or "").strip()
+    fallback_reason = stream_done.get("fallback_reason")
+    final = dict(stream_done.get("final") or {})
+    final_body = str(final.get("body") or "").strip()
+    return trace_status.startswith("ok") and generation_status == "ok" and not fallback_reason and bool(final_body)
+
+
 @contextmanager
 def _temporary_env(name: str, value: str):
     previous = os.environ.get(name)
@@ -368,11 +378,7 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
                         index += 1
 
             remix_records = [rec for rec in records if rec.get("endpoint") == "/web/v1/remix"]
-            remix_clean = bool(remix_records) and all(
-                not ((rec.get("stream_done") or {}).get("violation_codes") or [])
-                and rec.get("trace_status") not in {"failed_validation", "failed_exhausted"}
-                for rec in remix_records
-            )
+            remix_clean = bool(remix_records) and all(_remix_record_clean(rec) for rec in remix_records)
             summary = {
                 "captured_at_utc": datetime.now(timezone.utc).isoformat(),
                 "request_count": len(records),

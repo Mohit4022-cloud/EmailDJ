@@ -1,6 +1,19 @@
-const VITE_HUB_URL =
-  typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_HUB_URL : undefined;
-const HUB_URL = (VITE_HUB_URL || 'http://127.0.0.1:8000').replace(/\/$/, '');
+function runtimeEnv() {
+  return typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+}
+
+export function resolveHubUrl(env = runtimeEnv()) {
+  const raw = String(env?.VITE_HUB_URL || '').trim();
+  if (raw) return raw.replace(/\/$/, '');
+  if (Boolean(env?.PROD)) {
+    throw new Error(
+      'Missing VITE_HUB_URL for a production frontend build. Set it to the deployed hub-api root URL.'
+    );
+  }
+  return 'http://127.0.0.1:8000';
+}
+
+const HUB_URL = resolveHubUrl(runtimeEnv());
 
 function parsePythonDictPayload(raw) {
   if (!raw || raw[0] !== '{' || raw[raw.length - 1] !== '}') return null;

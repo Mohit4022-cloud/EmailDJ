@@ -6,10 +6,26 @@ import {
   fetchPresetPreview,
   fetchResearchJobStatus,
   fetchRuntimeConfig,
+  resolveHubUrl,
   startResearchJob,
   startProspectEnrichment,
   startTargetEnrichment,
 } from '../src/api/client.js';
+
+test('resolveHubUrl throws when production build is missing VITE_HUB_URL', () => {
+  assert.throws(
+    () => resolveHubUrl({ PROD: true, VITE_HUB_URL: '' }),
+    /Missing VITE_HUB_URL/
+  );
+});
+
+test('resolveHubUrl keeps localhost fallback in non-production environments', () => {
+  assert.equal(resolveHubUrl({ DEV: true }), 'http://127.0.0.1:8000');
+});
+
+test('resolveHubUrl trims trailing slash from configured hub URL', () => {
+  assert.equal(resolveHubUrl({ PROD: true, VITE_HUB_URL: 'https://hub.example.com/' }), 'https://hub.example.com');
+});
 
 test('fetchPresetPreview returns parsed JSON on success', async () => {
   const originalFetch = global.fetch;

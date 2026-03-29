@@ -100,6 +100,26 @@ def _resolved_report_dir(raw_report_dir: str, *, mode: str) -> Path:
     return report_dir
 
 
+def _failure_bucket_for_error(error: str | None) -> str | None:
+    lowered = str(error or "").strip().lower()
+    if not lowered:
+        return None
+    transport_tokens = (
+        "all_cascade_providers_failed",
+        "connecterror",
+        "api connection error",
+        "name or service not known",
+        "nodename nor servname",
+        "temporary failure in name resolution",
+        "connection refused",
+        "timed out",
+        "timeout",
+    )
+    if any(token in lowered for token in transport_tokens):
+        return "transport_or_provider"
+    return None
+
+
 def _select_cases(args: argparse.Namespace, all_cases: list[Any]) -> list[Any]:
     selected = list(all_cases)
     if args.mode == "smoke":
@@ -181,6 +201,7 @@ async def _run_case(case: Any, mode: str) -> EvalResult:
         )
     except Exception as exc:  # pragma: no cover - defensive for provider/runtime errors
         duration_ms = int((time.perf_counter() - started) * 1000)
+        failure_bucket = _failure_bucket_for_error(str(exc))
         return EvalResult(
             id=case.id,
             tags=case.tags,
@@ -190,7 +211,13 @@ async def _run_case(case: Any, mode: str) -> EvalResult:
             subject="",
             body="",
             draft="",
-            generation_meta={},
+            generation_meta={
+                "generation_mode": mode,
+                "provider_source": "external_provider" if mode == "real" else "provider_stub",
+                "route": "generate",
+                "preset_id": "unknown",
+                "failure_bucket": failure_bucket,
+            },
             violations=[Violation(code="OFFER_MISSING", reason=f"Pipeline error: {exc}", snippet="")],
             error=str(exc),
         )
@@ -208,6 +235,7 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
     failed = total - passed
 
     failure_count_by_code: Counter[str] = Counter()
+    failure_bucket_counts: Counter[str] = Counter()
     route_counts: Counter[tuple[str, str]] = Counter()
     preset_counts: Counter[tuple[str, str]] = Counter()
     claims_policy_intervention_count = 0
@@ -218,6 +246,9 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
         preset = str((result.generation_meta or {}).get("preset_id") or "unknown")
         if preset != "unknown":
             preset_counts[(preset, state)] += 1
+        failure_bucket = str((result.generation_meta or {}).get("failure_bucket") or "").strip()
+        if failure_bucket:
+            failure_bucket_counts[failure_bucket] += 1
         claims_policy_intervention_count += int((result.generation_meta or {}).get("claims_policy_intervention_count") or 0)
         for violation in result.violations:
             if violation.code in REQUIRED_VIOLATION_CODES:
@@ -255,6 +286,8 @@ def _compute_summary(results: list[EvalResult]) -> tuple[ScorecardSummary, list[
         internal_leakage_pass_rate=category_pass_rate(leakage_codes),
         claim_safety_pass_rate=category_pass_rate(claim_codes),
         provider_source=provider_source,
+        failure_bucket_counts={bucket: int(count) for bucket, count in sorted(failure_bucket_counts.items())},
+        transport_failure_count=int(failure_bucket_counts.get("transport_or_provider", 0)),
         route_pass_fail_counts={
             route: {
                 "pass": int(route_counts.get((route, "pass"), 0)),

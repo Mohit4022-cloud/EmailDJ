@@ -62,6 +62,7 @@ from email_generation.runtime_policies import (
 )
 from email_generation.streaming import stream_response
 from infra.redis_client import get_redis
+from runtime_debug import build_runtime_debug_payload
 
 logger = logging.getLogger(__name__)
 
@@ -301,6 +302,7 @@ async def debug_config(
         "effective_flags": effective_flags,
         "prompt_template_versions": _prompt_template_versions(),
         "feature_env_raw": {key: value for key, value in os.environ.items() if key.startswith("FEATURE_")},
+        **build_runtime_debug_payload(),
     }
 
 @router.post("/generate", response_model=WebGenerateAccepted)

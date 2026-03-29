@@ -164,8 +164,19 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"| Provider source | `{provider_source}` |")
     lines.append(f"| Required-field misses | {summary.get('required_field_miss_count', 0)} |")
     lines.append(f"| Under-length misses | {summary.get('under_length_miss_count', 0)} |")
+    lines.append(f"| Transport/provider failures | {summary.get('transport_failure_count', 0)} |")
     lines.append(f"| Claims-policy interventions | {summary.get('claims_policy_intervention_count', 0)} |")
     lines.append("")
+
+    failure_buckets = summary.get("failure_bucket_counts") or {}
+    if failure_buckets:
+        lines.append("## Failure Buckets")
+        lines.append("")
+        lines.append("| Bucket | Count |")
+        lines.append("|---|---:|")
+        for bucket, count in sorted(failure_buckets.items()):
+            lines.append(f"| {bucket} | {count} |")
+        lines.append("")
 
     route_counts = summary.get("route_pass_fail_counts") or {}
     if route_counts:
@@ -256,6 +267,9 @@ def _to_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"### {result['id']} - {state}")
         lines.append(f"- Duration: `{result['duration_ms']}ms`")
         lines.append(f"- Tags: `{', '.join(result.get('tags', []))}`")
+        failure_bucket = str((result.get("generation_meta") or {}).get("failure_bucket") or "").strip()
+        if failure_bucket:
+            lines.append(f"- Failure bucket: `{failure_bucket}`")
         if result.get("error"):
             lines.append(f"- Error: `{result['error']}`")
         if result.get("violations"):

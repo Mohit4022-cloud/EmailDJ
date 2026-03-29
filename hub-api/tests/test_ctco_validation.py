@@ -220,6 +220,82 @@ def test_validate_ctco_output_flags_near_match_cta():
     assert "cta_near_match_detected" in violations
 
 
+def test_validate_ctco_output_does_not_treat_proof_of_concept_pilot_as_extra_cta():
+    from email_generation.remix_engine import create_session_payload, style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = create_session_payload(
+        prospect={
+            "name": "Madonna",
+            "title": "SDR Manager",
+            "company": "Orion Metrics",
+            "linkedin_url": "",
+        },
+        prospect_first_name="Madonna",
+        research_text="Public research is limited this week. Keep the message grounded in role context and avoid invented specifics.",
+        initial_style={"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4},
+        offer_lock="Proof-of-Concept Pilot",
+        cta_offer_lock="Should I send a quick deck?",
+        cta_type="value_asset",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Proof-of-Concept Pilot",
+            "other_products": "Deal Velocity Studio, Lead Enrichment, Pipeline Copilot",
+            "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology.",
+        },
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4})
+    draft = (
+        "Subject: A Proof-of-Concept Pilot for tighter first-touch at Orion Metrics\n"
+        "Body:\n"
+        "Hi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics. "
+        "A Proof-of-Concept Pilot helps teams keep outreach specific while raising quality from first touch. "
+        "The proposal is positioned clearly and grounded, with no internal terminology.\n\n"
+        "Should I send a quick deck?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "additional_cta_detected" not in violations
+
+
+def test_validate_ctco_output_flags_non_final_deck_offer_as_extra_cta():
+    from email_generation.remix_engine import create_session_payload, style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = create_session_payload(
+        prospect={
+            "name": "Madonna",
+            "title": "SDR Manager",
+            "company": "Orion Metrics",
+            "linkedin_url": "",
+        },
+        prospect_first_name="Madonna",
+        research_text="Public research is limited this week. Keep the message grounded in role context and avoid invented specifics.",
+        initial_style={"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4},
+        offer_lock="Proof-of-Concept Pilot",
+        cta_offer_lock="Should I send a quick deck?",
+        cta_type="value_asset",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Proof-of-Concept Pilot",
+            "other_products": "Deal Velocity Studio, Lead Enrichment, Pipeline Copilot",
+            "company_notes": "Position the locked offer clearly. Keep claims grounded and avoid internal terminology.",
+        },
+    )
+    sliders = style_profile_to_ctco_sliders({"formality": -0.1, "orientation": -0.1, "length": 0.2, "assertiveness": 0.4})
+    draft = (
+        "Subject: A Proof-of-Concept Pilot for tighter first-touch at Orion Metrics\n"
+        "Body:\n"
+        "Hi Madonna, It may be worth tightening first-touch quality as execution scales at Orion Metrics.\n"
+        "A Proof-of-Concept Pilot helps teams keep outreach specific while raising quality from first touch.\n"
+        "If you're open, I can share a quick deck that outlines scope and success criteria.\n\n"
+        "Should I send a quick deck?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "additional_cta_detected" in violations
+
+
 def test_validate_ctco_output_flags_signoff_before_cta():
     from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
 
@@ -629,6 +705,8 @@ async def test_build_draft_retries_after_validation_failure_then_succeeds(monkey
             )
         return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", fake_real_generate)
 
@@ -846,6 +924,8 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
         calls["count"] += 1
         return GenerateResult(text="not valid json", provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=calls["count"])
 
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "repair")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
     monkeypatch.setattr(remix_engine, "_real_generate", always_invalid)
 
@@ -925,6 +1005,85 @@ async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
     assert result.repair_loop_enabled is False
     assert "unsubstantiated_statistical_claim" not in result.violation_codes
     assert result.violation_count == 0
+
+
+@pytest.mark.asyncio
+async def test_build_draft_warn_mode_retries_empty_parse_output_for_remix(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["request_config"] = {"endpoint": "remix"}
+    calls = {"count": 0}
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def empty_then_valid_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return GenerateResult(text="", provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
+        text = json.dumps(
+            {
+                "subject": "Remix Studio for Acme",
+                "body": (
+                    "Hi Alex, Acme recently launched outbound AI initiatives and the SDR team is balancing scale with message quality. "
+                    "Remix Studio helps keep messaging controlled while preserving workflow speed in enterprise accounts.\n\n"
+                    "Open to a quick chat to see if this is relevant?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=2)
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "0")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", empty_then_valid_output)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
+
+    assert calls["count"] == 2
+    assert result.enforcement_level == "warn"
+    assert "Subject:" in result.draft
+    assert "Body:" in result.draft
+    assert "Subject: \nBody:" not in result.draft
+    assert result.violation_count == 1
+    assert "invalid_json_output" in result.violation_codes
+
+
+@pytest.mark.asyncio
+async def test_build_draft_warn_mode_does_not_retry_empty_parse_output_for_generate(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    session["request_config"] = {"endpoint": "generate"}
+    calls = {"count": 0}
+
+    from email_generation.quick_generate import GenerateResult
+
+    async def always_empty_output(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        calls["count"] += 1
+        return GenerateResult(text="", provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "0")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_real_generate", always_empty_output)
+
+    result = await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
+
+    assert calls["count"] == 1
+    assert result.enforcement_level == "warn"
+    assert result.draft.startswith("Subject:")
+    assert "Body:" in result.draft
+    assert result.violation_count >= 1
+    assert "invalid_json_output" in result.violation_codes
 
 
 @pytest.mark.asyncio

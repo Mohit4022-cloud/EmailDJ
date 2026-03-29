@@ -15,7 +15,6 @@ import difflib
 import json
 import re
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -111,13 +110,12 @@ def _truncate(value: str, max_chars: int = 80) -> str:
 
 
 def _build_env_matrix_markdown(env_example: dict[str, str], usage: dict[str, set[str]]) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
     keys = sorted(set(env_example) | set(usage))
 
     lines: list[str] = []
     lines.append("# Environment Matrix")
     lines.append("")
-    lines.append(f"Generated from `hub-api/.env.example` + repository env usage on **{now}**.")
+    lines.append("Generated from `hub-api/.env.example` + repository env usage.")
     lines.append("")
     lines.append("| Variable | In `.env.example` | Example / Default | Observed in code | Sample locations |")
     lines.append("|---|---|---|---|---|")
@@ -233,7 +231,6 @@ def _build_openapi_snapshot(openapi_doc: dict) -> dict:
 
     return {
         "source": "hub-api/openapi.json",
-        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "endpoint_count": len(endpoints),
         "schema_count": len(schemas),
         "endpoints": endpoints,
@@ -242,11 +239,10 @@ def _build_openapi_snapshot(openapi_doc: dict) -> dict:
 
 
 def _build_openapi_summary_markdown(snapshot: dict) -> str:
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
     lines: list[str] = []
     lines.append("# OpenAPI Contract Summary")
     lines.append("")
-    lines.append(f"Generated from `hub-api/openapi.json` on **{now}**.")
+    lines.append("Generated from `hub-api/openapi.json`.")
     lines.append("")
     lines.append(f"- Endpoints: **{snapshot.get('endpoint_count', 0)}**")
     lines.append(f"- Schemas: **{snapshot.get('schema_count', 0)}**")
