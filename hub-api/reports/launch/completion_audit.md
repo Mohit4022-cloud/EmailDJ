@@ -1,6 +1,6 @@
 # Launch Completion Audit
 
-- Generated at: `2026-05-07T19:44:00.131481Z`
+- Generated at: `2026-05-07T20:19:09.069589Z`
 - Final status: `not_complete`
 - Launch report recommendation: `Not yet launch-ready`
 - Open blocker count: `8`
@@ -9,13 +9,13 @@
 |---|---|---|---|
 | `hub_api_full_suite` | `pass` | `backend_green=green`<br>`backend_suite_summary=397 passed in 14.71s` | `none` |
 | `live_provider_harness` | `pass` | `provider_green=green`<br>`provider_source=external_provider`<br>`external_provider_cases=10/10` | `none` |
-| `lock_and_launch_artifacts` | `pass` | `harness_green=green`<br>`render_blueprint_green=green`<br>`provider_stub_cases=96/96`<br>`launch_report_generated_at=2026-05-07T19:36:15.671134Z` | `none` |
+| `lock_and_launch_artifacts` | `pass` | `harness_green=green`<br>`render_blueprint_green=green`<br>`provider_stub_cases=96/96`<br>`launch_report_generated_at=2026-05-07T20:19:06.381673Z` | `none` |
 | `deployed_preflight_inputs` | `blocked` | `preflight_ready=False`<br>`required_inputs_present={'STAGING_BASE_URL': False, 'PROD_BASE_URL': False, 'BETA_KEY': False, 'OPENAI_API_KEY': True}`<br>`failure_bucket=operator_input_missing` | `STAGING_BASE_URL`<br>`PROD_BASE_URL`<br>`BETA_KEY` |
 | `runtime_snapshots` | `blocked` | `staging_snapshot_missing=True`<br>`production_snapshot_missing=True` | `staging_runtime_snapshot_missing`<br>`production_runtime_snapshot_missing` |
 | `pinned_origins_beta_provider` | `blocked` | `web_app_origin_state=unset`<br>`chrome_extension_origin_state=default_dev_placeholder`<br>`beta_keys_state=explicit_pinned`<br>`effective_provider_source=external_provider` | `chrome_extension_origin_not_pinned:default_dev_placeholder`<br>`web_app_origin_not_pinned:unset` |
 | `durable_infra` | `blocked` | `redis_config_state=forced_inmemory`<br>`database_config_state=default_local_sqlite`<br>`vector_store_config_state=memory_backend` | `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`<br>`redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`<br>`vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend` |
 | `deployed_http_smoke` | `blocked` | `required_http_smoke_routes=['generate', 'remix']`<br>`route_gates={'generate': True, 'remix': True, 'preview': False}`<br>`localhost_smoke_provider_source_counts={'provider_stub': 60}` | `http_smoke_external_provider_missing_for_launch_mode:limited_rollout` |
-| `release_fingerprint_parity` | `blocked` | `release_fingerprint_available=True`<br>`release_fingerprint=git_sha=65462a7ed4ec`<br>`runtime_source_used=local_env` | `release_fingerprint_unavailable` |
+| `release_fingerprint_parity` | `blocked` | `release_fingerprint_available=True`<br>`release_fingerprint=git_sha=69f5f964d6cb`<br>`runtime_source_used=local_env` | `release_fingerprint_unavailable` |
 | `chrome_extension_real_target` | `blocked` | `chrome_extension_origin=chrome-extension://dev`<br>`chrome_extension_origin_state=default_dev_placeholder` | `chrome_extension_origin_not_pinned:default_dev_placeholder` |
 | `parallel_stack_story` | `pass` | `launch_owned=['chrome-extension/', 'hub-api/', 'web-app/']`<br>`legacy_explicit_only=['backend/', 'frontend/']`<br>`source=docs/ops/launch_surfaces.json` | `none` |
 | `draft_workspace_ux` | `pass` | `web-app/tests/layout-contract.test.js`<br>`web-app/src/components/EmailEditor.js` | `none` |
