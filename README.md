@@ -11,25 +11,34 @@ This repo preserves the existing Remix Studio UI flow and adds:
 - prompt hash/version + trace metadata
 
 ## Repo layout
-- `frontend/` Vite + vanilla JS UI
-- `backend/` FastAPI + SSE + compile/render + enrichment services
+- `web-app/` primary Vite + vanilla JS Remix Studio web UI
+- `hub-api/` primary FastAPI Hub API + SSE + generation, validation, launch checks, and eval harness
+- `chrome-extension/` MV3 extension client surface
+- `frontend/` legacy parity UI, kept only for explicit legacy checks
+- `backend/` legacy backend, kept only for explicit legacy checks
 - `shared/` contract notes
 - `docs/` port list + acceptance checklist
 
 ## Local setup
 
-### 1) Backend
+### 1) Hub API
 ```bash
-cd backend
+cd hub-api
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-### 2) Frontend
+### 2) Web App
 ```bash
-cd frontend
+cd web-app
+npm install
+```
+
+### 3) Chrome Extension
+```bash
+cd chrome-extension
 npm install
 ```
 
@@ -39,10 +48,13 @@ From repo root:
 make dev
 ```
 This starts:
-- Backend: `http://127.0.0.1:8000`
-- Frontend: `http://127.0.0.1:5174`
+- Hub API: `http://127.0.0.1:8000`
+- Web App: `http://127.0.0.1:5174`
 
 Local dev now defaults to real AI (`USE_PROVIDER_STUB=0`) and requires `OPENAI_API_KEY`.
+`make dev` loads provider secrets from `hub-api/.env`, then forces a local web contract
+(`APP_ENV=local`, localhost origins, in-memory Redis, and `dev-beta-key`) so staging/prod
+values in `.env` do not accidentally poison a local run.
 
 ## Tests
 From repo root:
@@ -52,13 +64,22 @@ make test
 
 Or individually:
 ```bash
-cd backend && source .venv/bin/activate && pytest -q
-cd frontend && npm test && npm run check:syntax
+make hub-api-test
+make web-app-test
+make chrome-extension-test
 ```
 
 ## Build
 ```bash
-cd frontend && npm run build
+make build
+```
+
+Legacy surfaces remain available only through explicit targets:
+
+```bash
+make legacy-backend-test
+make legacy-frontend-test
+make legacy-build
 ```
 
 ## API overview

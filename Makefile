@@ -1,19 +1,47 @@
-.PHONY: setup test build dev backend-test frontend-test eval lint-copy secret-scan
+SHELL := /bin/bash
 
-setup:
-	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
-	cd frontend && npm install
+.PHONY: setup test build dev \
+	hub-api-setup web-app-setup chrome-extension-setup \
+	hub-api-test web-app-test chrome-extension-test \
+	hub-api-build web-app-build chrome-extension-build \
+	legacy-backend-test legacy-frontend-test legacy-build legacy-setup \
+	eval lint-copy secret-scan
 
-backend-test:
-	cd backend && source .venv/bin/activate && pytest -q
+setup: hub-api-setup web-app-setup chrome-extension-setup
+
+hub-api-setup:
+	cd hub-api && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+
+web-app-setup:
+	cd web-app && npm install
+
+chrome-extension-setup:
+	cd chrome-extension && npm install
+
+hub-api-test:
+	cd hub-api && source .venv/bin/activate && pytest -q tests
+
+web-app-test:
+	cd web-app && npm test && npm run check:syntax
+
+chrome-extension-test:
+	cd chrome-extension && npm test && npm run check:syntax
+
+test: hub-api-test web-app-test chrome-extension-test
+
+hub-api-build:
+	cd hub-api && source .venv/bin/activate && python -m py_compile $$(find . -path './.venv' -prune -o -name '*.py' -type f -print)
+
+web-app-build:
+	cd web-app && npm run build
+
+chrome-extension-build:
+	cd chrome-extension && npm run build
+
+build: hub-api-build web-app-build chrome-extension-build
 
 eval:
-	cd backend && source .venv/bin/activate && pytest -q tests/test_engine_evals.py
-
-frontend-test:
-	cd frontend && npm test && npm run check:syntax
-
-test: backend-test frontend-test eval
+	cd hub-api && source .venv/bin/activate && ./scripts/eval:smoke
 
 lint-copy:
 	./scripts/check_contamination.sh
@@ -21,8 +49,18 @@ lint-copy:
 secret-scan:
 	./scripts/check_no_secrets.sh
 
-build:
-	cd frontend && npm run build
-
 dev:
 	./scripts/dev.sh
+
+legacy-setup:
+	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+	cd frontend && npm install
+
+legacy-backend-test:
+	cd backend && source .venv/bin/activate && pytest -q
+
+legacy-frontend-test:
+	cd frontend && npm test && npm run check:syntax
+
+legacy-build:
+	cd frontend && npm run build
