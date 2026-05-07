@@ -102,7 +102,37 @@ class WebApp {
         <p>Paste research, generate once, then sculpt the draft with live sliders.</p>
       </div>
       <div class="layout">
-        <section class="panel" id="inputPanel">
+        <section class="panel workspace-panel" id="workspacePanel">
+          <div class="panel-heading workspace-heading">
+            <div>
+              <div class="section-kicker">Draft Workspace</div>
+              <h2>Email draft</h2>
+            </div>
+            <div class="workspace-actions">
+              <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
+              <div id="presetLibraryMount"></div>
+            </div>
+          </div>
+          <div id="editorMount"></div>
+          <div class="status workspace-status" id="statusLine"></div>
+          <div class="remix-panel">
+            <div class="panel-heading compact-heading">
+              <div>
+                <div class="section-kicker">Remix Controls</div>
+                <h2>Tone sliders</h2>
+              </div>
+            </div>
+            <div id="sliderBoard"></div>
+          </div>
+        </section>
+
+        <section class="panel brief-panel" id="inputPanel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">Brief</div>
+              <h2>Inputs</h2>
+            </div>
+          </div>
           <div class="field">
             <label>Beta Key</label>
             <input id="betaKey" placeholder="dev-beta-key" />
@@ -156,15 +186,7 @@ class WebApp {
           </div>
           <div class="actions">
             <button class="btn-primary" id="generateBtn">Generate</button>
-            <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
-            <div id="presetLibraryMount"></div>
           </div>
-          <div class="status" id="statusLine"></div>
-        </section>
-
-        <section class="panel">
-          <div id="sliderBoard"></div>
-          <div id="editorMount"></div>
         </section>
       </div>
     `;
