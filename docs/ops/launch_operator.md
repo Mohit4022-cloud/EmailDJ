@@ -128,7 +128,15 @@ cd /Users/mohit/EmailDJ
 make launch-verify-deployed
 ```
 
-This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+This runs preflight, verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+
+Release verification defaults:
+
+- `EMAILDJ_EXPECTED_HUB_URL=${STAGING_BASE_URL}`
+- `EMAILDJ_EXPECTED_BETA_KEY=${BETA_KEY}`
+- `EMAILDJ_EXPECTED_PRESET_PREVIEW_PIPELINE=off`
+
+Override those only when the bundle is intentionally built for a different verified target.
 
 Launch-check treats the merged HTTP smoke summary as route coverage evidence. In `limited_rollout` and `broad_launch`, the canonical smoke artifact must prove:
 
