@@ -1119,6 +1119,33 @@ async def test_build_draft_blocks_deterministic_fallback_in_limited_rollout_even
 
 
 @pytest.mark.asyncio
+async def test_build_draft_blocks_deterministic_fallback_in_broad_launch(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    async def always_invalid_real_draft(*args, **kwargs):  # noqa: ARG001
+        calls["count"] += 1
+        raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "broad_launch")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_build_real_draft", always_invalid_real_draft)
+
+    with pytest.raises(ValueError, match="ctco_validation_failed"):
+        await remix_engine.build_draft(
+            session=session,
+            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+        )
+
+    assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_build_draft_warn_mode_returns_with_claim_violation(monkeypatch):
     import json
 
