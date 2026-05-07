@@ -128,7 +128,7 @@ cd /Users/mohit/EmailDJ
 make launch-verify-deployed
 ```
 
-This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, and then runs launch check as a failing gate.
+This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs a staging Hub API HTTP smoke, and then runs launch check as a failing gate.
 
 Fresh run:
 

@@ -155,7 +155,7 @@ After those operator-machine values are exported, run the deployed launch gate f
 make launch-verify-deployed
 ```
 
-This command fails early if required operator inputs or provider transport are missing. If preflight passes, it captures staging and production runtime snapshots, runs a small real-provider smoke, and then runs `launch_check.py` as a failing gate.
+This command fails early if required operator inputs or provider transport are missing. If preflight passes, it captures staging and production runtime snapshots, runs a small real-provider smoke, runs a staging Hub API HTTP smoke, and then runs `launch_check.py` as a failing gate.
 
 ## Manual Values You Still Need To Create
 

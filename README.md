@@ -84,7 +84,7 @@ Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `B
 make launch-verify-deployed
 ```
 
-This runs launch preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, then runs the launch check as a failing gate.
+This runs launch preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs a staging Hub API HTTP smoke, then runs the launch check as a failing gate.
 
 ## Build
 ```bash
