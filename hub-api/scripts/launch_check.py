@@ -57,6 +57,11 @@ def _parse_args() -> argparse.Namespace:
     default_production_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "production.json"
     parser.add_argument("--from-artifacts", action="store_true", help="Read existing artifacts only.")
     parser.add_argument(
+        "--allow-not-ready",
+        action="store_true",
+        help="Write the launch report and exit 0 even when known readiness gates still block launch.",
+    )
+    parser.add_argument(
         "--localhost-smoke-summary",
         default="",
         help="Optional path to a localhost smoke summary.json artifact to include.",
@@ -978,7 +983,9 @@ def main() -> int:
             indent=2,
         )
     )
-    return 0 if report["final_recommendation"] != "Not yet launch-ready" else 1
+    if report["final_recommendation"] == "Not yet launch-ready" and not args.allow_not_ready:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

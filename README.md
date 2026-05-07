@@ -74,6 +74,22 @@ make chrome-extension-test
 make build
 ```
 
+## Launch Readiness
+
+Refresh the launch report from existing artifacts without treating known launch blockers as a command failure:
+
+```bash
+make launch-check
+```
+
+Run a guarded localhost smoke against an already-running Hub API:
+
+```bash
+EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke
+```
+
+This smoke can call the provider configured on the running Hub API. Defaults are `http://127.0.0.1:8000`, `dev-beta-key`, `mode=smoke`, and `flow=generate`. The command writes `hub-api/debug_runs/smoke/manual/summary.json`, then refreshes `hub-api/reports/launch/latest.json` and `hub-api/reports/launch/latest.md`.
+
 Legacy surfaces remain available only through explicit targets:
 
 ```bash

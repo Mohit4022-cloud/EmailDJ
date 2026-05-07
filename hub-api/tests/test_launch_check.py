@@ -762,3 +762,17 @@ def test_launch_check_main_blocks_when_preflight_fails(monkeypatch, tmp_path, ca
 
     assert exit_code == 1
     assert "operator_input_missing" in captured.err
+
+
+def test_launch_check_main_allow_not_ready_writes_report_and_returns_zero(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _clear_local_runtime_env(monkeypatch)
+    monkeypatch.setattr(sys, "argv", ["launch_check.py", "--from-artifacts", "--allow-not-ready"])
+
+    exit_code = lc.main()
+
+    assert exit_code == 0
+    report = json.loads((tmp_path / "reports" / "launch" / "latest.json").read_text(encoding="utf-8"))
+    assert report["final_recommendation"] == "Not yet launch-ready"

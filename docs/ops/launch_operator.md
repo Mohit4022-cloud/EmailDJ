@@ -95,15 +95,14 @@ uvicorn main:app --reload
 Then run the live smoke path:
 
 ```bash
-cd /Users/mohit/EmailDJ/hub-api
-source .venv/bin/activate
-python -m devtools.http_smoke_runner --mode smoke --flow generate --out debug_runs/smoke/manual
+cd /Users/mohit/EmailDJ
+EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke
 ```
 
 Expected summary artifact:
 - `debug_runs/smoke/manual/summary.json`
 
-The smoke runner now fails clearly if the localhost server is not healthy.
+The smoke runner now fails clearly if the localhost server is not healthy. The root command is confirmation-gated because it can call whichever provider is configured on the running Hub API.
 
 ## Launch-check command
 
@@ -120,7 +119,7 @@ Artifact-only read:
 ```bash
 cd /Users/mohit/EmailDJ/hub-api
 source .venv/bin/activate
-python scripts/launch_check.py --from-artifacts
+python scripts/launch_check.py --from-artifacts --allow-not-ready
 ```
 
 `launch_check.py` now loads `hub-api/.env` before resolving runtime policies, so artifact-only runs reflect the repo's configured `APP_ENV` and default `launch_mode` unless explicit shell env overrides them.
@@ -128,7 +127,7 @@ python scripts/launch_check.py --from-artifacts
 With localhost smoke included:
 
 ```bash
-python scripts/launch_check.py --from-artifacts --localhost-smoke-summary debug_runs/smoke/manual/summary.json
+python scripts/launch_check.py --from-artifacts --allow-not-ready --localhost-smoke-summary debug_runs/smoke/manual/summary.json
 ```
 
 Canonical launch artifacts:

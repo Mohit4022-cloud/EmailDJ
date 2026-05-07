@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev \
+.PHONY: setup test build dev launch-check localhost-smoke \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -51,6 +51,12 @@ secret-scan:
 
 dev:
 	./scripts/dev.sh
+
+launch-check:
+	cd hub-api && source .venv/bin/activate && python scripts/launch_check.py --from-artifacts --allow-not-ready $${LOCALHOST_SMOKE_SUMMARY:+--localhost-smoke-summary $${LOCALHOST_SMOKE_SUMMARY}}
+
+localhost-smoke:
+	./scripts/localhost-smoke.sh
 
 legacy-setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
