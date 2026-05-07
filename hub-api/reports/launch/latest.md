@@ -1,6 +1,6 @@
 # Launch Check
 
-- Generated at: `2026-05-07T20:19:06.381673Z`
+- Generated at: `2026-05-07T21:08:43.596966Z`
 - Launch mode: `limited_rollout`
 - Final recommendation: `Not yet launch-ready`
 - Hard freshness threshold (hours): `72`
@@ -70,14 +70,15 @@
 
 ## Artifact Freshness And Provenance
 
-- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-05-07T19:36:01.996488Z` age_hours=`0.72` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-05-07T17:37:47.865226Z` age_hours=`2.69` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-05-07T14:26:09.024582Z` age_hours=`5.88` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json` timestamp=`2026-05-07T03:38:14.704193Z` age_hours=`16.68` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T123230Z/summary.json` timestamp=`2026-05-07T12:33:10.589611Z` age_hours=`7.77` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `localhost_smoke` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json` timestamp=`2026-05-07T14:29:59.727772Z` age_hours=`5.82` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-05-07T19:36:01.996488Z` age_hours=`1.54` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-05-07T17:37:47.865226Z` age_hours=`3.52` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-05-07T14:26:09.024582Z` age_hours=`6.71` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json` timestamp=`2026-05-07T03:38:14.704193Z` age_hours=`17.51` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T123230Z/summary.json` timestamp=`2026-05-07T12:33:10.589611Z` age_hours=`8.59` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `localhost_smoke` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json` timestamp=`2026-05-07T14:29:59.727772Z` age_hours=`6.65` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
 - `staging_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
 - `production_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
+- `deployment_discovery` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json` timestamp=`2026-05-07T20:58:58.306119Z` age_hours=`0.16` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
 
 ## Origin And Beta-Key Safety
 
@@ -88,6 +89,16 @@
 - `beta_keys_state`: `explicit_pinned`
 - `web_rate_limit_per_min`: `300`
 - `web_rate_limit_source`: `explicit_env`
+
+## Deployment Discovery Evidence
+
+- `state`: `present`
+- `found`: `True`
+- `candidate_web_app_origin`: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- `usable_as_web_app_origin_candidate`: `True`
+- `clears_launch_blockers`: `False`
+- `current_head_deployment_count`: `1`
+- `launch_blocker_note`: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
 
 ## Durable Infra Readiness
 
@@ -100,7 +111,7 @@
 
 - `green`: `green`
 - `path`: `/Users/mohit/EmailDJ/render.yaml`
-- `checked_at`: `2026-05-07T20:19:06.327069Z`
+- `checked_at`: `2026-05-07T21:08:43.530911Z`
 - `exit_code`: `0`
 - `output_tail`: `["Render Blueprint check passed.", "Hub API service uses managed Redis/Postgres and Dashboard-filled launch secrets."]`
 
@@ -131,10 +142,11 @@
 - `localhost_smoke`: `/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json`
 - `staging_runtime_snapshot`: `/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json`
 - `production_runtime_snapshot`: `/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json`
+- `deployment_discovery`: `/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json`
 
 ## Operator Next Steps
 
-- Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots.
+- Review discovered candidate `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app` first; then set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots.
 - Set `CHROME_EXTENSION_ORIGIN` to the deployed Chrome extension origin (`chrome-extension://<extension-id>`), then re-capture staging and production runtime snapshots.
 - Provision managed Redis for the launch environment, set `REDIS_URL`, and ensure `REDIS_FORCE_INMEMORY` is unset or `0` before re-running launch checks.
 - Provision managed Postgres for the launch environment, set `DATABASE_URL` to the deployed database, and re-capture staging and production runtime snapshots.

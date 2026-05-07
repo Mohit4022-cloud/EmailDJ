@@ -198,6 +198,35 @@ def _artifact_status(path: Path, *, max_age: timedelta, prefer_capture_timestamp
     )
 
 
+def _deployment_discovery_evidence(status: ArtifactStatus) -> dict[str, Any]:
+    payload = status.payload or {}
+    candidate = None
+    if payload.get("usable_as_web_app_origin_candidate"):
+        candidate = payload.get("candidate_web_app_origin")
+    if status.missing:
+        state = "missing"
+    elif status.malformed:
+        state = "malformed"
+    elif status.stale:
+        state = "stale"
+    else:
+        state = "present"
+    return {
+        "state": state,
+        "path": status.path,
+        "timestamp": _timestamp_to_text(status.timestamp),
+        "found": bool(payload.get("found")),
+        "current_git_sha": payload.get("current_git_sha"),
+        "candidate_web_app_origin": candidate,
+        "usable_as_web_app_origin_candidate": bool(payload.get("usable_as_web_app_origin_candidate")),
+        "clears_launch_blockers": bool(payload.get("clears_launch_blockers")),
+        "launch_blocker_note": payload.get("launch_blocker_note"),
+        "current_head_deployment_count": len(payload.get("current_head_deployments") or []),
+        "historical_production_candidate_count": len(payload.get("historical_production_candidates") or []),
+        "error": status.error,
+    }
+
+
 def _runtime_snapshot_status(path: Path, *, max_age: timedelta, label: str) -> ArtifactStatus:
     status = _artifact_status(path, max_age=max_age, prefer_capture_timestamp=True)
     if status.missing or status.malformed or status.payload is None:
@@ -764,6 +793,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "vector_store_backend": report.get("vector_store_backend"),
     }
     render_blueprint = dict(report.get("render_blueprint_contract") or {})
+    deployment_discovery = dict(report.get("deployment_discovery") or {})
 
     lines = [
         "# Launch Check",
@@ -874,6 +904,18 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     for field, value in origin_fields.items():
         lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
 
+    lines.extend(["", "## Deployment Discovery Evidence", ""])
+    lines.append(f"- `state`: `{deployment_discovery.get('state') or 'missing'}`")
+    lines.append(f"- `found`: `{deployment_discovery.get('found')}`")
+    lines.append(f"- `candidate_web_app_origin`: `{deployment_discovery.get('candidate_web_app_origin') or 'none'}`")
+    lines.append(
+        f"- `usable_as_web_app_origin_candidate`: `{deployment_discovery.get('usable_as_web_app_origin_candidate')}`"
+    )
+    lines.append(f"- `clears_launch_blockers`: `{deployment_discovery.get('clears_launch_blockers')}`")
+    lines.append(f"- `current_head_deployment_count`: `{deployment_discovery.get('current_head_deployment_count') or 0}`")
+    if deployment_discovery.get("launch_blocker_note"):
+        lines.append(f"- `launch_blocker_note`: {deployment_discovery.get('launch_blocker_note')}")
+
     lines.extend(["", "## Durable Infra Readiness", ""])
     for field, value in infra_fields.items():
         lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
@@ -959,9 +1001,15 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
             "Fix the repo-root Render Blueprint handoff by running `make render-blueprint-check`, then rerun `make launch-check`."
         )
     if _has_blocker(report, "web_app_origin_not_pinned:"):
-        steps.append(
-            "Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
-        )
+        candidate = (report.get("deployment_discovery") or {}).get("candidate_web_app_origin")
+        if candidate:
+            steps.append(
+                f"Review discovered candidate `{candidate}` first; then set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
+            )
+        else:
+            steps.append(
+                "Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
+            )
     if _has_blocker(report, "chrome_extension_origin_not_pinned:"):
         steps.append(
             "Set `CHROME_EXTENSION_ORIGIN` to the deployed Chrome extension origin (`chrome-extension://<extension-id>`), then re-capture staging and production runtime snapshots."
@@ -1088,6 +1136,7 @@ def _read_launch_report(
         max_age=max_age,
         label="production",
     )
+    deployment_discovery = _artifact_status(ROOT / "reports" / "launch" / "deployment_discovery.json", max_age=max_age)
     render_blueprint = _render_blueprint_contract()
 
     artifact_statuses = {
@@ -1099,6 +1148,7 @@ def _read_launch_report(
         "localhost_smoke": smoke_summary,
         "staging_runtime_snapshot": staging_snapshot,
         "production_runtime_snapshot": production_snapshot,
+        "deployment_discovery": deployment_discovery,
     }
 
     errors: list[str] = []
@@ -1227,6 +1277,7 @@ def _read_launch_report(
             "snapshot_path": production_snapshot.path if runtime_source_used == "production_runtime_snapshot" else None,
         },
         "release_fingerprint_parity": release_parity,
+        "deployment_discovery": _deployment_discovery_evidence(deployment_discovery),
         "required_http_smoke_routes": required_http_smoke_routes,
         "localhost_smoke": {
             **localhost_smoke,

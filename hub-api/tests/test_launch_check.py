@@ -71,6 +71,34 @@ def _write_runtime_snapshots(root: Path, *, staging: dict | None = None, product
         _write_json(root / "reports" / "launch" / "runtime_snapshots" / "production.json", production)
 
 
+def _write_deployment_discovery(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "deployment_discovery.json",
+        {
+            "generated_at": _now_text(),
+            "found": True,
+            "current_git_sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+            "candidate_web_app_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+            "usable_as_web_app_origin_candidate": True,
+            "current_head_deployments": [
+                {
+                    "id": 4614098730,
+                    "environment": "Preview",
+                    "sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+                    "successful_vercel_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+                }
+            ],
+            "historical_production_candidates": [],
+            "clears_launch_blockers": False,
+            "launch_blocker_note": (
+                "Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API "
+                "deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots."
+            ),
+            "errors": [],
+        },
+    )
+
+
 def _write_launch_artifacts(root: Path, *, backend_hours_ago: int = 0) -> None:
     _write_json(
         root / "reports" / "launch" / "backend_suite.json",
@@ -721,6 +749,7 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "## Localhost Smoke Evidence" in markdown
     assert "## Artifact Freshness And Provenance" in markdown
     assert "## Origin And Beta-Key Safety" in markdown
+    assert "## Deployment Discovery Evidence" in markdown
     assert "## Render Blueprint Handoff" in markdown
     assert "`effective_provider_source`" in markdown
     assert "`effective_provider_model_identifier`" in markdown
@@ -816,6 +845,34 @@ def test_launch_check_operator_next_steps_include_config_blockers(monkeypatch, t
     assert "Set `CHROME_EXTENSION_ORIGIN`" in steps
     assert "Set `EMAILDJ_WEB_BETA_KEYS`" in steps
     assert "Provision managed Redis" in steps
+
+
+def test_launch_check_surfaces_deployment_discovery_candidate_without_clearing_blocker(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_deployment_discovery(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(
+        web_app_origin=None,
+        web_app_origin_state="unset",
+    )
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    _, md_path = lc._write_launch_report(report)
+    markdown = md_path.read_text(encoding="utf-8")
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "web_app_origin_not_pinned:unset" in report["config_blockers"]
+    assert report["deployment_discovery"]["candidate_web_app_origin"] == (
+        "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
+    )
+    assert report["deployment_discovery"]["clears_launch_blockers"] is False
+    assert "Review discovered candidate `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`" in steps
+    assert "## Deployment Discovery Evidence" in markdown
+    assert "`candidate_web_app_origin`: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`" in markdown
+    assert "`clears_launch_blockers`: `False`" in markdown
 
 
 def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkeypatch, tmp_path):
