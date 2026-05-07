@@ -142,6 +142,28 @@ def _evidence_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> lis
     return list(dict.fromkeys(evidence))
 
 
+def _snapshot_contract(
+    *,
+    current_git_sha: str | None,
+    web_app_probe_workspace_sha: str,
+    web_app_probe_source_sha: str,
+    web_app_probe_staleness_blockers: list[str],
+) -> dict[str, Any]:
+    return {
+        "status": "point_in_time_snapshot",
+        "workspace_git_sha_at_audit": current_git_sha,
+        "web_app_probe_workspace_git_sha": web_app_probe_workspace_sha or None,
+        "web_app_probe_source_git_sha": web_app_probe_source_sha or None,
+        "currentness_blockers": web_app_probe_staleness_blockers,
+        "operator_contract": (
+            "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. "
+            "After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app "
+            "and make launch-audit in the operator session before treating the report as launch proof."
+        ),
+        "refresh_command": "make launch-probe-web-app && make launch-audit",
+    }
+
+
 def _objective_entry(
     *,
     number: int,
@@ -480,9 +502,16 @@ def build_launch_audit() -> dict[str, Any]:
 
     incomplete = [item for item in items if item["status"] != "pass"]
     objective_checklist = _objective_checklist(items)
+    artifact_snapshot = _snapshot_contract(
+        current_git_sha=current_git_sha,
+        web_app_probe_workspace_sha=web_app_probe_workspace_sha,
+        web_app_probe_source_sha=web_app_probe_source_sha,
+        web_app_probe_staleness_blockers=web_app_probe_staleness_blockers,
+    )
     return {
         "generated_at": _utc_now_text(),
         "current_git_sha": current_git_sha,
+        "artifact_snapshot": artifact_snapshot,
         "final_status": "complete" if not incomplete else "not_complete",
         "launch_report_recommendation": report.get("final_recommendation"),
         "source_artifacts": {
@@ -503,11 +532,19 @@ def build_launch_audit() -> dict[str, Any]:
 
 def _write_markdown(path: Path, audit: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_snapshot = audit.get("artifact_snapshot") or {}
+    currentness_blockers = artifact_snapshot.get("currentness_blockers") or []
     lines = [
         "# Launch Completion Audit",
         "",
         f"- Generated at: `{audit['generated_at']}`",
         f"- Current git SHA: `{audit.get('current_git_sha') or 'unknown'}`",
+        f"- Evidence snapshot: `{artifact_snapshot.get('status') or 'unknown'}`",
+        f"- Snapshot refresh command: `{artifact_snapshot.get('refresh_command') or 'make launch-probe-web-app && make launch-audit'}`",
+        "- Snapshot contract: "
+        f"{artifact_snapshot.get('operator_contract') or 'Rerun the launch probes before using this report as launch proof.'}",
+        "- Currentness blockers: "
+        + ("<br>".join(f"`{entry}`" for entry in currentness_blockers) if currentness_blockers else "`none`"),
         f"- Final status: `{audit['final_status']}`",
         f"- Launch report recommendation: `{audit.get('launch_report_recommendation') or 'unset'}`",
         f"- Open blocker count: `{audit['open_blocker_count']}`",

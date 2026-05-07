@@ -128,6 +128,7 @@ make launch-audit
 ```
 
 `make launch-probe-web-app` refreshes the deployed frontend candidate and static bundle/auth evidence. `make launch-audit` then writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
+The checked-in `hub-api/reports/launch/*` files are point-in-time evidence snapshots. After every target commit deploy or Vercel deployment change, rerun `make launch-probe-web-app && make launch-audit` in the operator session before treating those reports as current launch proof.
 
 Translate the current audit/preflight state into an operator handoff:
 

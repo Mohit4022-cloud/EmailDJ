@@ -147,6 +147,9 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     blocked_ids = {item["id"] for item in payload["items"] if item["status"] == "blocked"}
 
     assert payload["current_git_sha"] == "current-sha"
+    assert payload["artifact_snapshot"]["status"] == "point_in_time_snapshot"
+    assert payload["artifact_snapshot"]["workspace_git_sha_at_audit"] == "current-sha"
+    assert payload["artifact_snapshot"]["refresh_command"] == "make launch-probe-web-app && make launch-audit"
     assert payload["final_status"] == "not_complete"
     assert "deployed_preflight_inputs" in blocked_ids
     assert "runtime_snapshots" in blocked_ids
@@ -210,6 +213,10 @@ def test_launch_audit_blocks_stale_web_app_probe_sha(monkeypatch, tmp_path):
     assert deployed_http["status"] == "blocked"
     assert "web_app_deployment_probe_stale_for_current_head:oldsha123456!=newsha123456" in deployed_http["blockers"]
     assert "deployment_discovery_stale_for_current_head:oldsha123456!=newsha123456" in deployed_http["blockers"]
+    assert payload["artifact_snapshot"]["currentness_blockers"] == [
+        "web_app_deployment_probe_stale_for_current_head:oldsha123456!=newsha123456",
+        "deployment_discovery_stale_for_current_head:oldsha123456!=newsha123456",
+    ]
 
 
 def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):
@@ -271,8 +278,12 @@ def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):
     assert json_path.exists()
     assert md_path.exists()
     assert payload["current_git_sha"] == "current-sha"
+    assert "Checked-in launch reports are evidence snapshots" in payload["artifact_snapshot"]["operator_contract"]
     assert payload["final_status"] == "not_complete"
     markdown = md_path.read_text(encoding="utf-8")
     assert "Launch Completion Audit" in markdown
     assert "Current git SHA" in markdown
+    assert "Evidence snapshot" in markdown
+    assert "Snapshot contract" in markdown
+    assert "make launch-probe-web-app && make launch-audit" in markdown
     assert "A-Z Objective Checklist" in markdown

@@ -28,6 +28,7 @@ Machine-readable manifest: [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailD
 - `make launch-preflight` is the strict deployed-run operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport.
 - `make launch-verify-deployed` is the deployed-service gate: preflight, web-app and Chrome-extension release bundle verification, staging and production runtime snapshots, real-provider smoke, staging Hub API HTTP smoke for `generate,remix`, then launch check.
 - `make launch-audit` is the artifact-backed completion readout. It maps A-to-Z launch requirements to current evidence or explicit blockers and never treats proxy green tests as completion by themselves.
+- Checked-in `hub-api/reports/launch/*` files are point-in-time evidence snapshots. They must be refreshed with `make launch-probe-web-app && make launch-audit` after the target commit is deployed before being used as current launch proof.
 - `make launch-handoff` is the operator handoff readout. It turns the current audit/preflight state into paste-safe shell exports, Dashboard values, next commands, and blocker groups without embedding secrets.
 - `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.

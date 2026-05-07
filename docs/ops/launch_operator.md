@@ -219,6 +219,8 @@ Artifacts:
 
 The audit maps each A-to-Z launch requirement to concrete evidence or explicit blockers. It is non-blocking by default so operators can refresh the readout while work remains; use `cd hub-api && python scripts/launch_audit.py --fail-if-incomplete` when a hard completion gate is needed.
 
+Treat the checked-in `reports/launch/*` files as point-in-time evidence snapshots, not proof that the latest commit is deployed and verified. After every target commit deploy or Vercel deployment change, rerun `make launch-probe-web-app && make launch-audit` in the same operator session before using `completion_audit.*` as current launch proof.
+
 ## Operator handoff
 
 Run this from the repo root after `make launch-audit`:

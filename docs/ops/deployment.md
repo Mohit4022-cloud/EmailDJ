@@ -204,6 +204,7 @@ make launch-handoff
 `make launch-probe-web-app` also supports protected Vercel previews. Export `VERCEL_AUTOMATION_BYPASS_SECRET` on the operator machine before running it when the previous probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`. The probe sends that value as `x-vercel-protection-bypass`; the generated JSON/Markdown reports never include the secret itself.
 
 Run `make launch-probe-web-app` before `make launch-audit` so the audit reads the current deployed frontend candidate and its bundle/auth state. `make launch-audit` then writes the artifact-backed completion readout, mapping every launch requirement to current evidence or blockers.
+The reports under `hub-api/reports/launch/*` are point-in-time evidence snapshots. A new commit or Vercel deployment can make checked-in probe/audit artifacts stale, so final launch review must rerun `make launch-probe-web-app && make launch-audit` against the target deployed commit before treating those artifacts as current proof.
 
 `make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets.
 
