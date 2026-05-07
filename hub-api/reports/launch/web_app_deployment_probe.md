@@ -1,8 +1,8 @@
 # Web App Deployment Probe
 
-- Generated at: `2026-05-07T21:39:13.499309Z`
-- Web app URL: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
-- Normalized origin: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- Generated at: `2026-05-07T21:48:56.190980Z`
+- Web app URL: `https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app`
+- Normalized origin: `https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
@@ -12,6 +12,8 @@
 ## Failures
 
 - `http_error:401`
+- `web_app_deployment_requires_auth`
+- `web_app_deployment_requires_auth_or_vercel_protection_bypass`
 - `no_same_origin_bundle_assets_found`
 - `vite_hub_url_not_found_in_bundle`
 - `vite_preview_pipeline_not_found_in_bundle`

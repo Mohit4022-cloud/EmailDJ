@@ -65,6 +65,20 @@ def test_probe_rejects_bundle_missing_hub_url_and_preview_flag():
     assert "missing_hub_url_runtime_error_present" in payload["warnings"]
 
 
+def test_probe_labels_vercel_401_as_auth_or_protection_blocker():
+    import scripts.probe_web_app_deployment as probe
+
+    def fetcher(url: str, *, timeout_seconds: float):  # noqa: ARG001
+        return probe.FetchResult(url=url, status_code=401, text="Authentication Required", error="http_error:401")
+
+    payload = probe.inspect_web_app_deployment("https://email-example-user.vercel.app", fetcher=fetcher)
+
+    assert payload["client_bundle_usable"] is False
+    assert "http_error:401" in payload["failures"]
+    assert "web_app_deployment_requires_auth" in payload["failures"]
+    assert "web_app_deployment_requires_auth_or_vercel_protection_bypass" in payload["failures"]
+
+
 def test_probe_reads_default_web_app_candidate_from_deployment_discovery(monkeypatch, tmp_path):
     import scripts.probe_web_app_deployment as probe
 

@@ -78,7 +78,7 @@ launch-audit:
 launch-discover-deployment:
 	cd hub-api && source .venv/bin/activate && python scripts/discover_deployment_metadata.py
 
-launch-probe-web-app:
+launch-probe-web-app: launch-discover-deployment
 	cd hub-api && source .venv/bin/activate && python scripts/probe_web_app_deployment.py
 
 launch-handoff:

@@ -158,6 +158,16 @@ def _preview_finding(value: str | None) -> str | None:
     return None
 
 
+def _auth_gate_findings(result: FetchResult, *, origin: str) -> list[str]:
+    if result.status_code != 401:
+        return []
+    findings = ["web_app_deployment_requires_auth"]
+    host = (urlparse(origin).hostname or "").lower()
+    if host.endswith(".vercel.app"):
+        findings.append("web_app_deployment_requires_auth_or_vercel_protection_bypass")
+    return findings
+
+
 def inspect_web_app_deployment(
     web_app_url: str | None,
     *,
@@ -187,6 +197,7 @@ def inspect_web_app_deployment(
     index_result = fetcher(origin + "/", timeout_seconds=timeout_seconds)
     if index_result.error or not index_result.status_code or index_result.status_code >= 400:
         failures.append(index_result.error or f"index_fetch_http_{index_result.status_code}")
+        failures.extend(_auth_gate_findings(index_result, origin=origin))
     built_text += index_result.text or ""
 
     assets = _asset_urls(index_result.text or "", base_url=index_result.url or origin + "/")

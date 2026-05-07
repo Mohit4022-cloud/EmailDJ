@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T21:40:38.321965Z`
+- Generated at: `2026-05-07T21:49:01.962750Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -40,18 +40,18 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 
 ## Discovered Deployment Metadata
 
-- Candidate WEB_APP_ORIGIN: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- Candidate WEB_APP_ORIGIN: `https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app`
 - Usable as WEB_APP_ORIGIN candidate: `True`
 - Clears launch blockers: `False`
 - Operator note: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
 
 | Deployment | Environment | SHA | Vercel origin |
 |---|---|---|---|
-| `4614098730` | `Preview` | `4f323ae5ee8530886f267733f85c3c2061d27ca1` | `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app` |
+| `4614838614` | `Preview` | `483b6a7194a68387d5395906b2eb0fbcfde1dadf` | `https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app` |
 
 ## Web App Deployment Probe
 
-- Web app URL: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- Web app URL: `https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
@@ -59,6 +59,8 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 
 Failures:
 - `http_error:401`
+- `web_app_deployment_requires_auth`
+- `web_app_deployment_requires_auth_or_vercel_protection_bypass`
 - `no_same_origin_bundle_assets_found`
 - `vite_hub_url_not_found_in_bundle`
 - `vite_preview_pipeline_not_found_in_bundle`
@@ -81,7 +83,7 @@ make launch-handoff
 - `runtime_snapshots`: `staging_runtime_snapshot_missing`, `production_runtime_snapshot_missing`
 - `pinned_origins_beta_provider`: `chrome_extension_origin_not_pinned:default_dev_placeholder`, `web_app_origin_not_pinned:unset`
 - `durable_infra`: `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`, `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`, `vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend`
-- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`
+- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`, `web_app_deployment_probe_not_usable`, `web_app_deployment_probe:http_error:401`, `web_app_deployment_probe:web_app_deployment_requires_auth`, `web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass`, `web_app_deployment_probe:no_same_origin_bundle_assets_found`, `web_app_deployment_probe:vite_hub_url_not_found_in_bundle`
 - `release_fingerprint_parity`: `release_fingerprint_unavailable`
 - `chrome_extension_real_target`: `chrome_extension_origin_not_pinned:default_dev_placeholder`
 - `launch_report_recommendation`: `launch_check_not_ready`
