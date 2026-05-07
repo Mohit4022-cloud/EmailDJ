@@ -26,6 +26,7 @@ def _apply_env(monkeypatch, values: dict[str, str]):
             "REDIS_FORCE_INMEMORY",
             "REDIS_URL",
             "DATABASE_URL",
+            "VECTOR_STORE_BACKEND",
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GROQ_API_KEY",
@@ -209,6 +210,7 @@ def _limited_rollout_env() -> dict[str, str]:
     env["USE_PROVIDER_STUB"] = "0"
     env["OPENAI_API_KEY"] = "test-key"
     env["DATABASE_URL"] = "postgresql+asyncpg://db.emaildj.test/emaildj"
+    env["VECTOR_STORE_BACKEND"] = "pgvector"
     return env
 
 
@@ -339,6 +341,18 @@ def test_validate_env_limited_rollout_rejects_sqlite_database_url(monkeypatch):
     _apply_env(monkeypatch, env)
 
     with pytest.raises(RuntimeError, match="Postgres"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_memory_vector_store(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["VECTOR_STORE_BACKEND"] = "memory"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="VECTOR_STORE_BACKEND=pgvector"):
         _validate_env()
 
 

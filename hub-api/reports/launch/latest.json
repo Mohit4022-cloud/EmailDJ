@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T12:23:48.717609Z",
+  "generated_at": "2026-05-07T12:26:30.380217Z",
   "max_age_hours": 72,
   "recommended_max_age_hours": 48,
   "app_env": "staging",
@@ -26,9 +26,9 @@
     "preview": "launch_mode:limited_rollout"
   },
   "preview_pipeline_enabled": false,
-  "release_fingerprint": "git_sha=c3f682aa988d",
+  "release_fingerprint": "git_sha=ddb81d1fefdc",
   "release_fingerprint_available": true,
-  "git_sha": "c3f682aa988d",
+  "git_sha": "ddb81d1fefdc",
   "build_id": null,
   "image_tag": null,
   "release_version": null,
@@ -57,6 +57,7 @@
     "chrome_extension_origin_not_pinned:default_dev_placeholder",
     "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite",
     "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
+    "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend",
     "web_app_origin_not_pinned:unset"
   ],
   "config_warnings": [
@@ -64,8 +65,7 @@
     "production_runtime_snapshot_missing",
     "release_fingerprint_unavailable",
     "runtime_parity_evaluated_from_local_env_only",
-    "staging_runtime_snapshot_missing",
-    "vector_store_not_durable:memory_backend"
+    "staging_runtime_snapshot_missing"
   ],
   "final_recommendation": "Not yet launch-ready",
   "runtime_reference": {
@@ -120,7 +120,7 @@
       "label": "backend",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
       "timestamp": "2026-05-07T04:25:56Z",
-      "age_hours": 7.96,
+      "age_hours": 8.01,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -134,7 +134,7 @@
       "label": "provider_stub_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",
       "timestamp": "2026-05-07T04:59:50.714471Z",
-      "age_hours": 7.4,
+      "age_hours": 7.44,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -148,7 +148,7 @@
       "label": "external_provider_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json",
       "timestamp": "2026-05-07T04:08:44.145741Z",
-      "age_hours": 8.25,
+      "age_hours": 8.3,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -162,7 +162,7 @@
       "label": "provider_shim_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json",
       "timestamp": "2026-05-07T03:38:14.704193Z",
-      "age_hours": 8.76,
+      "age_hours": 8.8,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -176,7 +176,7 @@
       "label": "external_provider_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T033921Z/summary.json",
       "timestamp": "2026-05-07T03:39:52.319820Z",
-      "age_hours": 8.73,
+      "age_hours": 8.78,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -190,7 +190,7 @@
       "label": "localhost_smoke",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json",
       "timestamp": "2026-05-07T12:10:43.879082Z",
-      "age_hours": 0.22,
+      "age_hours": 0.26,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -235,6 +235,7 @@
     "Set `CHROME_EXTENSION_ORIGIN` to the deployed Chrome extension origin (`chrome-extension://<extension-id>`), then re-capture staging and production runtime snapshots.",
     "Provision managed Redis for the launch environment, set `REDIS_URL`, and ensure `REDIS_FORCE_INMEMORY` is unset or `0` before re-running launch checks.",
     "Provision managed Postgres for the launch environment, set `DATABASE_URL` to the deployed database, and re-capture staging and production runtime snapshots.",
+    "Set `VECTOR_STORE_BACKEND=pgvector` for the launch environment after managed Postgres is configured, then re-capture staging and production runtime snapshots.",
     "Capture the staging hub-api runtime snapshot using `staging` backend URL (`$STAGING_BASE_URL`) and a `BETA_KEY` value present in deployed `EMAILDJ_WEB_BETA_KEYS`: `./.venv/bin/python scripts/capture_runtime_snapshot.py --label staging --url \"$STAGING_BASE_URL\" --header \"x-emaildj-beta-key: $BETA_KEY\"`",
     "Capture the production hub-api runtime snapshot using `production` backend URL (`$PROD_BASE_URL`) and a `BETA_KEY` value present in deployed `EMAILDJ_WEB_BETA_KEYS`: `./.venv/bin/python scripts/capture_runtime_snapshot.py --label production --url \"$PROD_BASE_URL\" --header \"x-emaildj-beta-key: $BETA_KEY\"`"
   ]
