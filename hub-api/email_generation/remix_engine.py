@@ -46,6 +46,7 @@ from email_generation.output_enforcement import (
     split_sentences,
 )
 from email_generation.model_defaults import default_openai_model
+from email_generation.policies.context_policy import sanitize_company_notes_for_generation
 from email_generation.policies import policy_runner
 from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
@@ -2121,10 +2122,15 @@ async def _build_real_draft(
     )
     session["generation_plan"] = plan.to_dict()
 
+    company_context = session.get("company_context") or {}
+    seller_name = company_context.get("company_name")
     seller_context = {
-        "seller_company_name": (session.get("company_context") or {}).get("company_name"),
-        "seller_company_url": (session.get("company_context") or {}).get("company_url"),
-        "seller_company_notes": (session.get("company_context") or {}).get("company_notes"),
+        "seller_company_name": seller_name,
+        "seller_company_url": company_context.get("company_url"),
+        "seller_company_notes": sanitize_company_notes_for_generation(
+            company_context.get("company_notes"),
+            allowed_text=f"{seller_name or ''} {session.get('offer_lock') or ''}",
+        ),
     }
     output_budget = _output_token_budget(style_sliders)
     attempt_trace: list[dict[str, Any]] = []
