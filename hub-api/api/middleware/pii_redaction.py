@@ -62,9 +62,14 @@ class PiiRedactionMiddleware(BaseHTTPMiddleware):
         if "application/json" not in content_type:
             return response
 
-        if not hasattr(response, "body"):
+        body = getattr(response, "body", None)
+        if body is None and hasattr(response, "body_iterator"):
+            chunks = []
+            async for chunk in response.body_iterator:
+                chunks.append(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+            body = b"".join(chunks)
+        if body is None:
             return response
-        body = getattr(response, "body", b"")
         if not body:
             return response
 

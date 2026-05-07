@@ -1,6 +1,10 @@
 import asyncio
 import json
 
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
+
+from api.middleware.pii_redaction import PiiRedactionMiddleware
 from email_generation.streaming import _event_generator, _eventsource_stream
 from pii.presidio_redactor import _replace_entities
 from pii.token_vault import detokenize, tokenize
@@ -136,3 +140,25 @@ def test_event_generator_detokenizes_sse_payloads():
     assert token["data"]["token"] == "Hi Alex, "
     done = next(item for item in items if item["event"] == "done")
     assert done["data"]["final"]["body"] == "Hi Alex, ready."
+
+
+def test_pii_middleware_detokenizes_streaming_json_response():
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def call_next(request):
+        request.state.token_vault["[PERSON_TEST]"] = "Alex"
+
+        async def body():
+            yield b'{"combined":"Hi [PERSON_TEST], ready."}'
+
+        return StreamingResponse(body(), media_type="application/json")
+
+    async def run():
+        request = Request({"type": "http", "method": "GET", "path": "/", "headers": []}, receive)
+        middleware = PiiRedactionMiddleware(app=lambda scope, receive, send: None)
+        return await middleware.dispatch(request, call_next)
+
+    response = asyncio.run(run())
+    payload = json.loads(response.body.decode("utf-8"))
+    assert payload["combined"] == "Hi Alex, ready."
