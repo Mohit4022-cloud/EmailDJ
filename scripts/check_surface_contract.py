@@ -243,6 +243,8 @@ def _check_ci() -> list[str]:
     required_ci_snippets = [
         "Surface contract gate",
         "python3 scripts/check_surface_contract.py",
+        "Render Blueprint gate",
+        "python3 scripts/check_render_blueprint.py",
         "Install web app deps",
         "Run web app unit tests and build",
         "npm run check:syntax",
