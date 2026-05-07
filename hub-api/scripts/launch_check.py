@@ -495,6 +495,7 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
     redis_config_state = str(runtime_data.get("redis_config_state") or "unknown").strip()
     database_config_state = str(runtime_data.get("database_config_state") or "unknown").strip()
     vector_store_config_state = str(runtime_data.get("vector_store_config_state") or "unknown").strip()
+    validation_fallback_allowed = bool(runtime_data.get("validation_fallback_allowed"))
 
     blockers: list[str] = []
     if bool(runtime_data.get("provider_stub_enabled")) and launch_mode in {"limited_rollout", "broad_launch"}:
@@ -513,6 +514,8 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
         blockers.append(f"beta_keys_not_safe:{beta_keys_state}")
     if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and redis_config_state not in _DURABLE_REDIS_STATES:
         blockers.append(f"redis_not_durable_for_launch_mode:{launch_mode}:{redis_config_state}")
+    if launch_mode in {"limited_rollout", "broad_launch"} and validation_fallback_allowed:
+        blockers.append(f"validation_fallback_enabled_for_launch_mode:{launch_mode}")
 
     warnings: list[str] = []
     if app_env not in _PROD_APP_ENVS:
@@ -530,6 +533,8 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
         warnings.append(f"vector_store_not_durable:{vector_store_config_state}")
     elif vector_store_config_state == "unknown":
         warnings.append("vector_store_config_state_unavailable")
+    if "validation_fallback_allowed" not in runtime_data:
+        warnings.append("validation_fallback_policy_unavailable")
     return blockers, warnings
 
 
@@ -646,6 +651,8 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             f"- `real_provider_preference`: `{report['real_provider_preference']}`",
             f"- `effective_provider_source`: `{report['effective_provider_source']}`",
             f"- `effective_provider_model_identifier`: `{report['effective_model_identifier']}`",
+            f"- `validation_fallback_allowed`: `{report['validation_fallback_allowed']}`",
+            f"- `validation_fallback_policy`: `{report['validation_fallback_policy'] or 'unset'}`",
             f"- `preview_pipeline_enabled`: `{report['preview_pipeline_enabled']}`",
             f"- `route_gates`: `{json.dumps(report['route_gates'], sort_keys=True)}`",
             f"- `route_gate_sources`: `{json.dumps(report['route_gate_sources'], sort_keys=True)}`",
@@ -777,6 +784,10 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
     if _has_blocker(report, "preview_route_enabled_for_launch_mode:limited_rollout"):
         steps.append(
             "Keep preview disabled for `limited_rollout` by removing any explicit preview-route override before recapturing runtime snapshots."
+        )
+    if _has_blocker(report, "validation_fallback_enabled_for_launch_mode:"):
+        steps.append(
+            "Disable deterministic validation fallback for launch mode; launch environments must fail closed on CTCO validation failure."
         )
     if _artifact_needs_operator_refresh(report, "localhost_smoke"):
         steps.append(
@@ -921,6 +932,8 @@ def _read_launch_report(
         "effective_provider": runtime_data.get("effective_provider"),
         "effective_model": runtime_data.get("effective_model"),
         "effective_model_identifier": runtime_data.get("effective_model_identifier"),
+        "validation_fallback_allowed": bool(runtime_data.get("validation_fallback_allowed")),
+        "validation_fallback_policy": runtime_data.get("validation_fallback_policy"),
         "launch_mode": runtime_data.get("launch_mode"),
         "route_gates": dict(runtime_data.get("route_gates") or {}),
         "route_gate_sources": dict(runtime_data.get("route_gate_sources") or {}),

@@ -777,6 +777,8 @@ async def test_web_debug_config_surfaces_launch_mode_and_route_gates():
         assert payload["beta_keys_state"] == "explicit_pinned"
         assert payload["web_rate_limit_per_min"] == 300
         assert payload["web_rate_limit_source"] == "explicit_env"
+        assert payload["validation_fallback_allowed"] is False
+        assert payload["validation_fallback_policy"] == "dev_only_fail_closed_in_launch_modes"
 
 
 @pytest.mark.asyncio

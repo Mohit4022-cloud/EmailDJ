@@ -11,7 +11,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from email_generation.model_cascade import get_model
-from email_generation.runtime_policies import resolve_runtime_policies
+from email_generation.runtime_policies import is_production_like_environment, resolve_runtime_policies
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
@@ -47,6 +47,8 @@ _RUNTIME_DEBUG_RECOMMENDED_FIELDS = (
     "effective_provider",
     "effective_model",
     "effective_model_identifier",
+    "validation_fallback_allowed",
+    "validation_fallback_policy",
 )
 
 
@@ -181,6 +183,10 @@ def _vector_store_config_state() -> str:
     return "vector_store_configured_unknown"
 
 
+def _validation_fallback_allowed(*, app_env: str, launch_mode: str) -> bool:
+    return launch_mode == "dev" and not is_production_like_environment(app_env)
+
+
 def validate_runtime_debug_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise TypeError("runtime debug payload must be a JSON object")
@@ -254,6 +260,11 @@ def build_runtime_debug_payload() -> dict[str, Any]:
         "effective_provider": effective_provider,
         "effective_model": effective_model,
         "effective_model_identifier": f"{effective_provider}/{effective_model}",
+        "validation_fallback_allowed": _validation_fallback_allowed(
+            app_env=policies.app_env,
+            launch_mode=policies.launch_mode,
+        ),
+        "validation_fallback_policy": "dev_only_fail_closed_in_launch_modes",
         "release_fingerprint": release_fingerprint,
         "release_fingerprint_available": bool(release_fingerprint),
         **release_fields,

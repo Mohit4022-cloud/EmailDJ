@@ -32,6 +32,8 @@ def _runtime_snapshot_payload(**overrides) -> dict:
         "effective_provider": "openai",
         "effective_model": "gpt-5-nano",
         "effective_model_identifier": "openai/gpt-5-nano",
+        "validation_fallback_allowed": False,
+        "validation_fallback_policy": "dev_only_fail_closed_in_launch_modes",
         "launch_mode": "limited_rollout",
         "route_gates": {"generate": True, "remix": True, "preview": False},
         "route_gate_sources": {
@@ -666,7 +668,22 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "## Origin And Beta-Key Safety" in markdown
     assert "`effective_provider_source`" in markdown
     assert "`effective_provider_model_identifier`" in markdown
+    assert "`validation_fallback_allowed`" in markdown
     assert "`comparison_fields`" in markdown
+
+
+def test_launch_check_blocks_validation_fallback_in_launch_mode(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(validation_fallback_allowed=True)
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "validation_fallback_enabled_for_launch_mode:limited_rollout" in report["config_blockers"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
 
 
 def test_launch_check_markdown_includes_operator_next_steps_for_release_mismatch(monkeypatch, tmp_path):
