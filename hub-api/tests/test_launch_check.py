@@ -684,8 +684,32 @@ def test_launch_check_markdown_includes_operator_next_steps_for_release_mismatch
     _, md_path = lc._write_launch_report(report)
     markdown = md_path.read_text(encoding="utf-8")
 
-    assert "## Operator Next Step" in markdown
+    assert "## Operator Next Steps" in markdown
     assert "Production runtime fingerprint differs from approved staging." in markdown
+
+
+def test_launch_check_operator_next_steps_include_config_blockers(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(
+        chrome_extension_origin="chrome-extension://dev",
+        chrome_extension_origin_state="default_dev_placeholder",
+        web_app_origin=None,
+        web_app_origin_state="unset",
+        beta_keys_state="default_dev_placeholder",
+        redis_config_state="forced_inmemory",
+    )
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "Set `WEB_APP_ORIGIN`" in steps
+    assert "Set `CHROME_EXTENSION_ORIGIN`" in steps
+    assert "Set `EMAILDJ_WEB_BETA_KEYS`" in steps
+    assert "Provision managed Redis" in steps
 
 
 def test_launch_check_uses_provider_specific_report_dirs():

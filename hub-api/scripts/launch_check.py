@@ -709,7 +709,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             lines.append(f"- `{error}`")
     operator_next_steps = list(report.get("operator_next_steps") or [])
     if operator_next_steps:
-        lines.extend(["", "## Operator Next Step", ""])
+        lines.extend(["", "## Operator Next Steps", ""])
         for step in operator_next_steps:
             lines.append(f"- {step}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -732,8 +732,42 @@ def _capture_command_for(label: str) -> str:
     )
 
 
+def _has_blocker(report: dict[str, Any], prefix: str) -> bool:
+    return any(str(blocker).startswith(prefix) for blocker in report.get("config_blockers") or [])
+
+
 def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactStatus, production_snapshot: ArtifactStatus) -> list[str]:
     steps: list[str] = []
+    if _has_blocker(report, "web_app_origin_not_pinned:"):
+        steps.append(
+            "Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
+        )
+    if _has_blocker(report, "chrome_extension_origin_not_pinned:"):
+        steps.append(
+            "Set `CHROME_EXTENSION_ORIGIN` to the deployed Chrome extension origin (`chrome-extension://<extension-id>`), then re-capture staging and production runtime snapshots."
+        )
+    if _has_blocker(report, "beta_keys_not_safe:"):
+        steps.append(
+            "Set `EMAILDJ_WEB_BETA_KEYS` to explicit non-dev beta key values and use one matching value as `$BETA_KEY` for runtime snapshot capture and localhost/deployed smoke checks."
+        )
+    if _has_blocker(report, "redis_not_durable_for_launch_mode:"):
+        steps.append(
+            "Provision managed Redis for the launch environment, set `REDIS_URL`, and ensure `REDIS_FORCE_INMEMORY` is unset or `0` before re-running launch checks."
+        )
+    if _has_blocker(report, "provider_stub_enabled_for_launch_mode:") or _has_blocker(
+        report, "resolved_provider_source_not_external_provider:"
+    ):
+        steps.append(
+            "Set `USE_PROVIDER_STUB=0` with a real provider configured so limited rollout resolves to `effective_provider_source=external_provider`."
+        )
+    if _has_blocker(report, "configured_quick_generate_mode_mismatch:"):
+        steps.append(
+            "Align `EMAILDJ_QUICK_GENERATE_MODE` with the resolved runtime mode, or remove the override and let launch mode choose the effective real-provider path."
+        )
+    if _has_blocker(report, "preview_route_enabled_for_launch_mode:limited_rollout"):
+        steps.append(
+            "Keep preview disabled for `limited_rollout` by removing any explicit preview-route override before recapturing runtime snapshots."
+        )
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
             steps.append(
