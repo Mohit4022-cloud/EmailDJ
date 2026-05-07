@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-05-07T23:20:10.016419Z",
-  "current_git_sha": "983d887d75c99dc3349adef662672717127ced14",
+  "generated_at": "2026-05-07T23:27:39.968256Z",
+  "current_git_sha": "a91329d3b0ae556b26c3920923940706f113e39e",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "983d887d75c99dc3349adef662672717127ced14",
+    "workspace_git_sha_at_audit": "a91329d3b0ae556b26c3920923940706f113e39e",
     "web_app_probe_workspace_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
     "web_app_probe_source_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
     "currentness_blockers": [
-      "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
-      "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+      "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae",
+      "deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae"
     ],
     "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
     "refresh_command": "make launch-probe-web-app && make launch-audit"
@@ -51,7 +51,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T21:08:43.596966Z"
+        "launch_report_generated_at=2026-05-07T23:27:37.483952Z"
       ],
       "blockers": []
     },
@@ -131,7 +131,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=983d887d75c99dc3349adef662672717127ced14",
+        "current_git_sha=a91329d3b0ae556b26c3920923940706f113e39e",
         "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
@@ -145,8 +145,8 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
         "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
-        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae"
       ]
     },
     {
@@ -155,12 +155,11 @@
       "status": "blocked",
       "evidence": [
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=043906e45907",
+        "release_fingerprint=git_sha=a91329d3b0ae",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
       "blockers": [
-        "release_fingerprint_unavailable",
         "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
         "release_fingerprint_comparison_fields_missing"
       ]
@@ -256,7 +255,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T21:08:43.596966Z"
+        "launch_report_generated_at=2026-05-07T23:27:37.483952Z"
       ],
       "blockers": [],
       "note": ""
@@ -299,14 +298,13 @@
         "validation_fallback_policy=dev_only_fail_closed_in_launch_modes",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=043906e45907",
+        "release_fingerprint=git_sha=a91329d3b0ae",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
       "blockers": [
         "chrome_extension_origin_not_pinned:default_dev_placeholder",
         "web_app_origin_not_pinned:unset",
-        "release_fingerprint_unavailable",
         "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
         "release_fingerprint_comparison_fields_missing"
       ],
@@ -324,7 +322,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=983d887d75c99dc3349adef662672717127ced14",
+        "current_git_sha=a91329d3b0ae556b26c3920923940706f113e39e",
         "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
@@ -338,8 +336,8 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
         "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
-        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae"
       ],
       "note": "Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled."
     },
@@ -454,14 +452,13 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
         "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
-        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae"
       ]
     },
     {
       "id": "release_fingerprint_parity",
       "blockers": [
-        "release_fingerprint_unavailable",
         "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
         "release_fingerprint_comparison_fields_missing"
       ]

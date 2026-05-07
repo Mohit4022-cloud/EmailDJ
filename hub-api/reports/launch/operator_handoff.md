@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T23:20:12.540262Z`
+- Generated at: `2026-05-07T23:27:42.197781Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -9,7 +9,7 @@
 - Evidence snapshot: `point_in_time_snapshot`
 - Snapshot refresh command: `make launch-probe-web-app && make launch-audit`
 - Snapshot contract: Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.
-- Currentness blockers: `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9`<br>`deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9`
+- Currentness blockers: `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae`<br>`deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae`
 
 ## Shell Exports
 
@@ -88,8 +88,8 @@ make launch-handoff
 - `runtime_snapshots`: `staging_runtime_snapshot_missing`, `production_runtime_snapshot_missing`
 - `pinned_origins_beta_provider`: `chrome_extension_origin_not_pinned:default_dev_placeholder`, `web_app_origin_not_pinned:unset`
 - `durable_infra`: `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`, `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`, `vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend`
-- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`, `web_app_deployment_probe_not_usable`, `web_app_deployment_probe:http_error:401`, `web_app_deployment_probe:web_app_deployment_requires_auth`, `web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass`, `web_app_deployment_probe:vercel_protection_bypass_secret_missing`, `web_app_deployment_probe:no_same_origin_bundle_assets_found`, `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9`, `deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9`
-- `release_fingerprint_parity`: `release_fingerprint_unavailable`, `release_fingerprint_parity_not_from_production_runtime_snapshot:local_env`, `release_fingerprint_comparison_fields_missing`
+- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`, `web_app_deployment_probe_not_usable`, `web_app_deployment_probe:http_error:401`, `web_app_deployment_probe:web_app_deployment_requires_auth`, `web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass`, `web_app_deployment_probe:vercel_protection_bypass_secret_missing`, `web_app_deployment_probe:no_same_origin_bundle_assets_found`, `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=a91329d3b0ae`, `deployment_discovery_stale_for_current_head:5127b41db9c8!=a91329d3b0ae`
+- `release_fingerprint_parity`: `release_fingerprint_parity_not_from_production_runtime_snapshot:local_env`, `release_fingerprint_comparison_fields_missing`
 - `chrome_extension_real_target`: `chrome_extension_origin_not_pinned:default_dev_placeholder`
 - `launch_report_recommendation`: `launch_check_not_ready`
 

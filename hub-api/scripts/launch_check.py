@@ -653,8 +653,10 @@ def _release_comparison(
         for field in _RELEASE_FINGERPRINT_FIELDS
         if staging_fields.get(field) and production_fields.get(field)
     ]
-    if runtime_source_used != "production_runtime_snapshot" or not comparable_fields:
-        warnings.append("release_fingerprint_unavailable")
+    if runtime_source_used != "production_runtime_snapshot":
+        warnings.append("release_fingerprint_parity_not_from_production_runtime_snapshot")
+    elif not comparable_fields:
+        warnings.append("release_fingerprint_comparison_fields_missing")
     else:
         for field in comparable_fields:
             if staging_fields[field] != production_fields[field]:

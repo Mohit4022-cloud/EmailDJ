@@ -535,6 +535,22 @@ def test_launch_check_warns_when_release_fingerprint_unavailable(monkeypatch, tm
     assert report["config_blockers"] == []
 
 
+def test_launch_check_separates_local_fingerprint_from_missing_deployed_parity(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setenv("EMAILDJ_GIT_SHA", "localsha123456")
+    _write_launch_artifacts(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["release_fingerprint_available"] is True
+    assert report["release_fingerprint"] == "git_sha=localsha123456"
+    assert "release_fingerprint_unavailable" not in report["config_warnings"]
+    assert "release_fingerprint_parity_not_from_production_runtime_snapshot" in report["config_warnings"]
+    assert report["release_fingerprint_parity"]["runtime_source_used"] == "local_env"
+
+
 def test_launch_check_blocks_preview_enabled_limited_rollout(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
