@@ -28,6 +28,23 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 
 If an existing Vercel project still points at `frontend/`, use the same `VITE_HUB_URL` contract there as well.
 
+## Chrome Extension Build Steps
+
+1. Build from `chrome-extension/`.
+2. Set extension build env vars:
+   - `VITE_HUB_URL=https://<staging-or-prod-hub-api-domain>`
+   - `VITE_EMAILDJ_BETA_KEY=<one-beta-key-for-that-environment>`
+3. Run `npm test`, `npm run check:syntax`, and `npm run build`.
+4. Load or publish the generated `dist/` extension package.
+5. After Chrome assigns the shipped extension ID, set `CHROME_EXTENSION_ORIGIN=chrome-extension://<extension-id>` on the hub-api and redeploy the hub-api.
+
+The side panel also exposes runtime Settings backed by Chrome sync storage. Operators can override:
+
+- `emaildjHubUrl`
+  Runtime hub-api root URL override.
+- `emaildjBetaKey`
+  Runtime beta key override, sent as `X-EmailDJ-Beta-Key` when present.
+
 ## Hub API Deploy Steps
 
 1. Create a Render web service rooted at `hub-api/`.
@@ -45,6 +62,13 @@ If an existing Vercel project still points at `frontend/`, use the same `VITE_HU
   Use the hub-api root URL. The production build now fails immediately if this is missing.
 - `VITE_PRESET_PREVIEW_PIPELINE`
   Mirror the backend preview exposure (`on` only when `EMAILDJ_PRESET_PREVIEW_PIPELINE=on` on the hub-api).
+
+### Chrome Extension (`chrome-extension`)
+
+- `VITE_HUB_URL`
+  Use the hub-api root URL baked into the extension build. Operators can override it later in the side panel Settings tab.
+- `VITE_EMAILDJ_BETA_KEY`
+  Optional build-time beta key. Operators can override it later in the side panel Settings tab. Do not bake `dev-beta-key` into staging or prod packages.
 
 ### Hub API (Render)
 
@@ -84,6 +108,7 @@ If an existing Vercel project still points at `frontend/`, use the same `VITE_HU
 
 - Local-only defaults:
   - `VITE_HUB_URL=http://127.0.0.1:8000`
+  - `VITE_EMAILDJ_BETA_KEY=dev-beta-key`
   - `WEB_APP_ORIGIN=http://localhost:5174`
   - `EMAILDJ_WEB_BETA_KEYS=dev-beta-key`
   - `REDIS_FORCE_INMEMORY=1`

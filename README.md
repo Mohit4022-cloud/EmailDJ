@@ -40,6 +40,7 @@ npm install
 ```bash
 cd chrome-extension
 npm install
+cp .env.example .env
 ```
 
 ## Run (one command)
