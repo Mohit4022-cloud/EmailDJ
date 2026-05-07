@@ -102,6 +102,14 @@ def test_output_token_budget_keeps_higher_override(monkeypatch):
     assert remix_engine._output_token_budget({"length_short_long": 50}) == 640
 
 
+def test_openai_default_retry_budget_is_launch_hardened(monkeypatch):
+    import email_generation.model_cascade as model_cascade
+
+    monkeypatch.delenv("EMAILDJ_CASCADE_MAX_RETRIES_OPENAI", raising=False)
+
+    assert model_cascade._provider_max_retries("openai") == 3
+
+
 class _DummyResponse:
     def __init__(self, payload: dict):
         self.status_code = 200

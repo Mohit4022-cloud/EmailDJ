@@ -1,0 +1,492 @@
+{
+  "generated_at": "2026-05-07T03:35:23.003819Z",
+  "mode": "real",
+  "selection": {
+    "selection_mode": "smoke",
+    "tags": []
+  },
+  "summary": {
+    "total_cases": 10,
+    "passed_cases": 0,
+    "failed_cases": 10,
+    "pass_rate": 0.0,
+    "violation_count": 10,
+    "failure_count_by_code": {
+      "OFFER_MISSING": 10
+    },
+    "greeting_pass_rate": 1.0,
+    "offer_binding_pass_rate": 0.0,
+    "cta_lock_pass_rate": 1.0,
+    "research_containment_pass_rate": 1.0,
+    "internal_leakage_pass_rate": 1.0,
+    "claim_safety_pass_rate": 1.0,
+    "provider_source": "external_provider",
+    "failure_bucket_counts": {
+      "transport_or_provider": 10
+    },
+    "transport_failure_count": 10,
+    "route_pass_fail_counts": {
+      "generate": {
+        "pass": 0,
+        "fail": 10
+      }
+    },
+    "preset_pass_fail_counts": {},
+    "top_violation_codes": {
+      "OFFER_MISSING": 10
+    },
+    "required_field_miss_count": 10,
+    "under_length_miss_count": 0,
+    "claims_policy_intervention_count": 0
+  },
+  "top_recurring_failures": [
+    {
+      "code": "OFFER_MISSING",
+      "count": 10,
+      "cases": [
+        "lc_001",
+        "lc_007",
+        "lc_013",
+        "lc_019",
+        "lc_025",
+        "lc_031",
+        "lc_037",
+        "lc_043",
+        "lc_049",
+        "lc_055"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "id": "lc_001",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_brand_protection"
+      ],
+      "passed": false,
+      "duration_ms": 68,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_007",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_neutral",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_sequence_governance"
+      ],
+      "passed": false,
+      "duration_ms": 12,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_013",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_conflicting_injection",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_inbox_placement_audit"
+      ],
+      "passed": false,
+      "duration_ms": 31,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_019",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_long_noisy",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_compliance_qa"
+      ],
+      "passed": false,
+      "duration_ms": 12,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_025",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_taboo_claims",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_brand_protection"
+      ],
+      "passed": false,
+      "duration_ms": 41,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_031",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_empty",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_sequence_governance"
+      ],
+      "passed": false,
+      "duration_ms": 12,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_037",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_neutral",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_inbox_placement_audit"
+      ],
+      "passed": false,
+      "duration_ms": 11,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_043",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_conflicting_injection",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_compliance_qa"
+      ],
+      "passed": false,
+      "duration_ms": 29,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_049",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_long_noisy",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_brand_protection"
+      ],
+      "passed": false,
+      "duration_ms": 12,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    },
+    {
+      "id": "lc_055",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_taboo_claims",
+        "name_first_last",
+        "cta_15_min_chat",
+        "offer_sequence_governance"
+      ],
+      "passed": false,
+      "duration_ms": 39,
+      "mode": "real",
+      "subject": "",
+      "body": "",
+      "draft": "",
+      "violations": [
+        {
+          "code": "OFFER_MISSING",
+          "reason": "Pipeline error: all_cascade_providers_failed:openai,anthropic,groq",
+          "snippet": ""
+        }
+      ],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "failure_bucket": "transport_or_provider"
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [
+        "Lock violation `OFFER_MISSING`: Pipeline error: all_cascade_providers_failed:openai,anthropic,groq"
+      ],
+      "error": "all_cascade_providers_failed:openai,anthropic,groq"
+    }
+  ]
+}

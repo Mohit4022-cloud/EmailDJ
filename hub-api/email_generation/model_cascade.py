@@ -24,7 +24,7 @@ class ModelSpec:
 
 _PROVIDER_DEFAULTS: dict[str, tuple[str, float, float]] = {
     # provider -> (default_model, default_timeout, default_max_retries)
-    "openai": ("", 30.0, 2),
+    "openai": ("", 30.0, 3),
     "anthropic": ("claude-3-5-haiku-latest", 35.0, 2),
     "groq": ("llama-3.3-70b-versatile", 20.0, 1),
 }
