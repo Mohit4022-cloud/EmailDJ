@@ -26,7 +26,8 @@ uvicorn main:app --host 0.0.0.0 --port $PORT
 3. Set frontend env vars:
    - `VITE_HUB_URL=https://<staging-or-prod-hub-api-domain>`
    - `VITE_PRESET_PREVIEW_PIPELINE=on|off`
-4. Redeploy after the hub-api URL is known.
+4. Run `make launch-verify-web-app` from the repo root.
+5. Redeploy after the hub-api URL is known.
 
 If an existing Vercel project still points at `frontend/`, use the same `VITE_HUB_URL` contract there as well.
 
@@ -66,6 +67,8 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
   Use the hub-api root URL. The production build now fails immediately if this is missing.
 - `VITE_PRESET_PREVIEW_PIPELINE`
   Mirror the backend preview exposure (`on` only when `EMAILDJ_PRESET_PREVIEW_PIPELINE=on` on the hub-api).
+
+`make launch-verify-web-app` accepts `EMAILDJ_EXPECTED_HUB_URL` and `EMAILDJ_EXPECTED_PRESET_PREVIEW_PIPELINE` as explicit release verification inputs. If those are unset, it falls back to `VITE_HUB_URL` and `VITE_PRESET_PREVIEW_PIPELINE`.
 
 ### Chrome Extension (`chrome-extension`)
 

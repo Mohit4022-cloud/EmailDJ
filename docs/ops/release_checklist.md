@@ -101,7 +101,16 @@ python hub-api/scripts/real_mode_smoke.py
 
 Pass criteria: generation completes, offer_lock appears in output, CTA lock enforced.
 
-### 3.3 Extension Build Verification
+### 3.3 Web App Build Verification
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-verify-web-app
+```
+
+Pass criteria: tests, syntax checks, build, and `dist/` release config verification pass against the deployed Hub API URL and explicit preview-pipeline flag.
+
+### 3.4 Extension Build Verification
 
 ```bash
 cd /Users/mohit/EmailDJ

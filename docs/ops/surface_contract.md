@@ -22,6 +22,7 @@ This repo has one launch-owned product path and two legacy parity surfaces. The 
 - `make test` and `make build` cover only launch-owned surfaces.
 - `make launch-gates-local` starts with `make surface-contract` and then runs primary surface tests, evals, and launch check.
 - `make launch-verify-deployed` is the deployed-service gate: preflight, staging and production runtime snapshots, real-provider smoke, staging Hub API HTTP smoke for `generate,remix`, then launch check.
+- `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.
 - The general CI `checks` job runs the surface contract, hub-api checks, web-app tests/build, and chrome-extension tests/build.
 - `.github/workflows/eval_regression.yml` is intentionally path-scoped to `backend/**` and named as legacy backend evidence.

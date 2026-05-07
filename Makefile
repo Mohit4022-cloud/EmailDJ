@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local launch-verify-deployed launch-verify-extension surface-contract \
+.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -74,6 +74,9 @@ localhost-smoke:
 
 launch-verify-deployed:
 	./scripts/launch-verify-deployed.sh
+
+launch-verify-web-app:
+	cd web-app && npm test && npm run check:syntax && npm run build && npm run check:release-config
 
 launch-verify-extension:
 	cd chrome-extension && npm test && npm run check:syntax && npm run build && npm run check:release-config

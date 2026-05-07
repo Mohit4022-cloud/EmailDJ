@@ -86,6 +86,14 @@ make launch-verify-deployed
 
 This runs launch preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, then runs the launch check as a failing gate. Set `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
+Web app release gate, after `VITE_HUB_URL` or `EMAILDJ_EXPECTED_HUB_URL` points at the deployed Hub API and `VITE_PRESET_PREVIEW_PIPELINE` is explicitly set:
+
+```bash
+make launch-verify-web-app
+```
+
+This runs web app tests, syntax checks, build, and release config verification against the built `dist/` package.
+
 Extension release gate, after `VITE_HUB_URL` or `EMAILDJ_EXPECTED_HUB_URL` points at the deployed Hub API:
 
 ```bash
