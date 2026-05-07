@@ -263,19 +263,6 @@ def _required_provider_env() -> tuple[str, str]:
     return provider, key_name
 
 
-def _write_backend_artifact(*, ok: bool, error: str | None = None) -> Path:
-    path = ROOT / "reports" / "launch" / "backend_suite.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "generated_at": _timestamp_to_text(_utc_now()),
-        "backend_green": "green" if ok else "red",
-        "ok": ok,
-        "error": error,
-    }
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    return path
-
-
 def _run_command(command: list[str], *, cwd: Path) -> tuple[bool, str]:
     completed = subprocess.run(
         command,
@@ -293,8 +280,7 @@ def _run_fresh_checks() -> dict[str, str]:
     shim_dir = ROOT / "debug_runs" / "launch_ops" / "provider_shim" / timestamp
     external_dir = ROOT / "debug_runs" / "launch_ops" / "external_provider" / timestamp
 
-    ok, output = _run_command([sys.executable, "-m", "pytest", "-q", "tests"], cwd=ROOT)
-    _write_backend_artifact(ok=ok, error=None if ok else output)
+    _run_command([sys.executable, str(ROOT / "scripts" / "run_backend_suite.py")], cwd=ROOT)
 
     _run_command([str(ROOT / "scripts" / "eval:full")], cwd=ROOT)
     _run_command(

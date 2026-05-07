@@ -19,7 +19,7 @@ chrome-extension-setup:
 	cd chrome-extension && npm install
 
 hub-api-test:
-	cd hub-api && source .venv/bin/activate && pytest -q tests
+	cd hub-api && source .venv/bin/activate && python scripts/run_backend_suite.py
 
 web-app-test:
 	cd web-app && npm test && npm run check:syntax

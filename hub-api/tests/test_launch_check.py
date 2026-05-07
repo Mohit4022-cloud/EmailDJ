@@ -1008,6 +1008,25 @@ def test_launch_check_main_blocks_when_preflight_fails(monkeypatch, tmp_path, ca
     assert "operator_input_missing" in captured.err
 
 
+def test_launch_check_fresh_checks_use_backend_suite_runner(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    commands = []
+
+    def fake_run_command(command, *, cwd):  # noqa: ARG001
+        commands.append(command)
+        return True, ""
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(lc, "_run_command", fake_run_command)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    lc._run_fresh_checks()
+
+    assert commands[0] == [sys.executable, str(tmp_path / "scripts" / "run_backend_suite.py")]
+    assert [sys.executable, "-m", "pytest", "-q", "tests"] not in commands
+
+
 def test_launch_check_main_allow_not_ready_writes_report_and_returns_zero(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
