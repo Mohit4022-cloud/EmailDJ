@@ -23,6 +23,8 @@ def _apply_env(monkeypatch, values: dict[str, str]):
             "APP_ENV",
             "CHROME_EXTENSION_ORIGIN",
             "WEB_APP_ORIGIN",
+            "REDIS_FORCE_INMEMORY",
+            "REDIS_URL",
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GROQ_API_KEY",
@@ -193,3 +195,55 @@ def test_validate_env_prod_rejects_missing_rate_limit(monkeypatch):
 
     with pytest.raises(RuntimeError, match="EMAILDJ_WEB_RATE_LIMIT_PER_MIN"):
         _validate_env()
+
+
+def _limited_rollout_env() -> dict[str, str]:
+    env = _base_env()
+    env["APP_ENV"] = "staging"
+    env["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
+    env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    return env
+
+
+def test_validate_env_limited_rollout_rejects_forced_inmemory_redis(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_FORCE_INMEMORY"] = "1"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="REDIS_FORCE_INMEMORY"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_missing_redis_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="REDIS_URL"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_redis_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "redis://localhost:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_accepts_external_redis(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    _validate_env()

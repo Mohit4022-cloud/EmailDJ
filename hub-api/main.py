@@ -65,6 +65,8 @@ _PROVIDER_KEY_ENV = {
     "groq": "GROQ_API_KEY",
 }
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
+_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
 _LOCAL_WEB_ALLOW_ORIGINS = [
     "http://localhost",
     "http://localhost:5173",
@@ -129,6 +131,29 @@ def _require_safe_production_web_contract(app_env: str) -> None:
         raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.") from exc
     if rate_limit < 1:
         raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
+
+
+def _redis_url_is_external(raw_url: str) -> bool:
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    return parsed.scheme in {"redis", "rediss"} and bool(host) and host not in _LOCAL_INFRA_HOSTS
+
+
+def _require_durable_redis_for_launch(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    if (os.environ.get("REDIS_FORCE_INMEMORY") or "").strip() == "1":
+        raise RuntimeError(
+            f"{launch_mode} requires managed Redis; unset REDIS_FORCE_INMEMORY "
+            "and set REDIS_URL to a non-local redis/rediss URL."
+        )
+
+    redis_url = (os.environ.get("REDIS_URL") or "").strip()
+    if not redis_url:
+        raise RuntimeError(f"{launch_mode} requires managed Redis; set REDIS_URL to a non-local redis/rediss URL.")
+    if not _redis_url_is_external(redis_url):
+        raise RuntimeError(f"{launch_mode} requires managed Redis; REDIS_URL must use a non-local redis/rediss host.")
 
 
 def _cors_allow_origins() -> list[str]:
@@ -214,6 +239,7 @@ def _validate_env() -> None:
     mode = policies.quick_generate_mode
     provider = policies.real_provider_preference
     _require_safe_production_web_contract(policies.app_env)
+    _require_durable_redis_for_launch(policies.launch_mode)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
             "EMAILDJ_QUICK_GENERATE_MODE=mock ignored unless %s=1; continuing in REAL mode.",
