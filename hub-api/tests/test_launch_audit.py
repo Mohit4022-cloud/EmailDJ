@@ -38,6 +38,8 @@ def _write_base_artifacts(root: Path, repo_root: Path, *, ready: bool = False) -
             "provider_source": "external_provider",
             "provider_stub_enabled": False,
             "effective_provider_source": "external_provider",
+            "validation_fallback_allowed": False,
+            "validation_fallback_policy": "dev_only_fail_closed_in_launch_modes",
             "release_fingerprint_available": ready,
             "release_fingerprint": "git_sha=abc123" if ready else None,
             "web_app_origin_state": "explicit_pinned" if ready else "unset",
@@ -138,6 +140,11 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     assert len(checklist) == 10
     assert checklist[1]["status"] == "pass"
     assert checklist[4]["status"] == "blocked"
+    assert checklist[5]["mapped_requirements"] == [
+        "pinned_origins_beta_provider",
+        "validation_fallback_fail_closed",
+        "release_fingerprint_parity",
+    ]
     assert checklist[6]["mapped_requirements"] == ["deployed_http_smoke"]
     assert "Limited rollout proves generate/remix" in checklist[6]["note"]
 
@@ -156,6 +163,30 @@ def test_launch_audit_can_mark_complete_when_artifacts_cover_requirements(monkey
     assert payload["final_status"] == "complete"
     assert payload["open_blocker_count"] == 0
     assert all(item["status"] == "pass" for item in payload["objective_checklist"])
+
+
+def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):
+    import scripts.launch_audit as audit
+
+    repo_root = tmp_path / "repo"
+    root = repo_root / "hub-api"
+    _write_base_artifacts(root, repo_root, ready=True)
+    latest_path = root / "reports" / "launch" / "latest.json"
+    latest = json.loads(latest_path.read_text(encoding="utf-8"))
+    latest["validation_fallback_allowed"] = True
+    latest["config_blockers"] = ["validation_fallback_enabled_for_launch_mode:limited_rollout"]
+    latest["final_recommendation"] = "Not yet launch-ready"
+    latest_path.write_text(json.dumps(latest, indent=2), encoding="utf-8")
+    monkeypatch.setattr(audit, "ROOT", root)
+    monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+
+    payload = audit.build_launch_audit()
+    item = next(item for item in payload["items"] if item["id"] == "validation_fallback_fail_closed")
+    checklist = {item["number"]: item for item in payload["objective_checklist"]}
+
+    assert item["status"] == "blocked"
+    assert "validation_fallback_enabled_for_launch_mode:limited_rollout" in item["blockers"]
+    assert checklist[5]["status"] == "blocked"
 
 
 def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):

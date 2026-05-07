@@ -177,8 +177,8 @@ def _objective_checklist(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ),
         _objective_entry(
             number=5,
-            objective="Pin real staging/prod origins, beta keys, provider mode, and release fingerprints.",
-            item_ids=["pinned_origins_beta_provider", "release_fingerprint_parity"],
+            objective="Pin real staging/prod origins, beta keys, provider mode, validation fallback policy, and release fingerprints.",
+            item_ids=["pinned_origins_beta_provider", "validation_fallback_fail_closed", "release_fingerprint_parity"],
             items_by_id=items_by_id,
         ),
         _objective_entry(
@@ -245,6 +245,11 @@ def build_launch_audit() -> dict[str, Any]:
     ]
     http_smoke_blockers = [
         blocker for blocker in report.get("config_blockers") or [] if str(blocker).startswith("http_smoke_")
+    ]
+    validation_fallback_blockers = [
+        blocker
+        for blocker in report.get("config_blockers") or []
+        if str(blocker).startswith("validation_fallback_")
     ]
 
     items = [
@@ -340,6 +345,21 @@ def build_launch_audit() -> dict[str, Any]:
                 f"vector_store_config_state={report.get('vector_store_config_state')}",
             ],
             blockers=durable_blockers,
+        ),
+        _item(
+            item_id="validation_fallback_fail_closed",
+            requirement="Fail closed on CTCO validation failures in limited rollout and broader launch modes.",
+            passed=report.get("validation_fallback_allowed") is False and not validation_fallback_blockers,
+            evidence=[
+                f"validation_fallback_allowed={report.get('validation_fallback_allowed')}",
+                f"validation_fallback_policy={report.get('validation_fallback_policy') or 'unset'}",
+            ],
+            blockers=[
+                *validation_fallback_blockers,
+                "validation_fallback_policy_unavailable"
+                if _has_warning(report, "validation_fallback_policy_unavailable")
+                else "",
+            ],
         ),
         _item(
             item_id="deployed_http_smoke",

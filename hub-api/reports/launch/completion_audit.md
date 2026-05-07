@@ -1,6 +1,6 @@
 # Launch Completion Audit
 
-- Generated at: `2026-05-07T20:19:09.069589Z`
+- Generated at: `2026-05-07T20:26:00.191801Z`
 - Final status: `not_complete`
 - Launch report recommendation: `Not yet launch-ready`
 - Open blocker count: `8`
@@ -14,6 +14,7 @@
 | `runtime_snapshots` | `blocked` | `staging_snapshot_missing=True`<br>`production_snapshot_missing=True` | `staging_runtime_snapshot_missing`<br>`production_runtime_snapshot_missing` |
 | `pinned_origins_beta_provider` | `blocked` | `web_app_origin_state=unset`<br>`chrome_extension_origin_state=default_dev_placeholder`<br>`beta_keys_state=explicit_pinned`<br>`effective_provider_source=external_provider` | `chrome_extension_origin_not_pinned:default_dev_placeholder`<br>`web_app_origin_not_pinned:unset` |
 | `durable_infra` | `blocked` | `redis_config_state=forced_inmemory`<br>`database_config_state=default_local_sqlite`<br>`vector_store_config_state=memory_backend` | `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`<br>`redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`<br>`vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend` |
+| `validation_fallback_fail_closed` | `pass` | `validation_fallback_allowed=False`<br>`validation_fallback_policy=dev_only_fail_closed_in_launch_modes` | `none` |
 | `deployed_http_smoke` | `blocked` | `required_http_smoke_routes=['generate', 'remix']`<br>`route_gates={'generate': True, 'remix': True, 'preview': False}`<br>`localhost_smoke_provider_source_counts={'provider_stub': 60}` | `http_smoke_external_provider_missing_for_launch_mode:limited_rollout` |
 | `release_fingerprint_parity` | `blocked` | `release_fingerprint_available=True`<br>`release_fingerprint=git_sha=69f5f964d6cb`<br>`runtime_source_used=local_env` | `release_fingerprint_unavailable` |
 | `chrome_extension_real_target` | `blocked` | `chrome_extension_origin=chrome-extension://dev`<br>`chrome_extension_origin_state=default_dev_placeholder` | `chrome_extension_origin_not_pinned:default_dev_placeholder` |
@@ -29,7 +30,7 @@
 | 2 | Get a fresh live-provider run green, not just mock/provider-stub. | `pass` | `live_provider_harness` | `none` |  |
 | 3 | Re-run lock compliance, parity, adversarial, full eval, and launch checks with fresh artifacts. | `pass` | `lock_and_launch_artifacts` | `none` |  |
 | 4 | Capture staging and production runtime snapshots. | `blocked` | `runtime_snapshots` | `staging_runtime_snapshot_missing`<br>`production_runtime_snapshot_missing` |  |
-| 5 | Pin real staging/prod origins, beta keys, provider mode, and release fingerprints. | `blocked` | `pinned_origins_beta_provider`<br>`release_fingerprint_parity` | `chrome_extension_origin_not_pinned:default_dev_placeholder`<br>`web_app_origin_not_pinned:unset`<br>`release_fingerprint_unavailable` |  |
+| 5 | Pin real staging/prod origins, beta keys, provider mode, validation fallback policy, and release fingerprints. | `blocked` | `pinned_origins_beta_provider`<br>`validation_fallback_fail_closed`<br>`release_fingerprint_parity` | `chrome_extension_origin_not_pinned:default_dev_placeholder`<br>`web_app_origin_not_pinned:unset`<br>`release_fingerprint_unavailable` |  |
 | 6 | Prove web app generate/remix/preset preview against deployed hub-api. | `blocked` | `deployed_http_smoke` | `http_smoke_external_provider_missing_for_launch_mode:limited_rollout` | Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled. |
 | 7 | Prove Chrome extension flow in the real target surface. | `blocked` | `chrome_extension_real_target` | `chrome_extension_origin_not_pinned:default_dev_placeholder` |  |
 | 8 | Decide and clean up the parallel stack story. | `pass` | `parallel_stack_story` | `none` |  |

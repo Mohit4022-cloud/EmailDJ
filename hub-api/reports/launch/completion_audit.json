@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T20:19:09.069589Z",
+  "generated_at": "2026-05-07T20:26:00.191801Z",
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
@@ -98,6 +98,16 @@
         "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
         "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend"
       ]
+    },
+    {
+      "id": "validation_fallback_fail_closed",
+      "requirement": "Fail closed on CTCO validation failures in limited rollout and broader launch modes.",
+      "status": "pass",
+      "evidence": [
+        "validation_fallback_allowed=False",
+        "validation_fallback_policy=dev_only_fail_closed_in_launch_modes"
+      ],
+      "blockers": []
     },
     {
       "id": "deployed_http_smoke",
@@ -241,10 +251,11 @@
     },
     {
       "number": 5,
-      "objective": "Pin real staging/prod origins, beta keys, provider mode, and release fingerprints.",
+      "objective": "Pin real staging/prod origins, beta keys, provider mode, validation fallback policy, and release fingerprints.",
       "status": "blocked",
       "mapped_requirements": [
         "pinned_origins_beta_provider",
+        "validation_fallback_fail_closed",
         "release_fingerprint_parity"
       ],
       "evidence": [
@@ -253,6 +264,9 @@
         "chrome_extension_origin_state=default_dev_placeholder",
         "beta_keys_state=explicit_pinned",
         "effective_provider_source=external_provider",
+        "validation_fallback_fail_closed=pass",
+        "validation_fallback_allowed=False",
+        "validation_fallback_policy=dev_only_fail_closed_in_launch_modes",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
         "release_fingerprint=git_sha=69f5f964d6cb",
