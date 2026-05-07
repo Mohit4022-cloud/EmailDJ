@@ -782,6 +782,17 @@ def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkey
     assert "EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke" in steps
 
 
+def test_launch_check_args_default_to_canonical_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["launch_check.py"])
+
+    args = lc._parse_args()
+
+    assert args.localhost_smoke_summary == str(tmp_path / "debug_runs" / "smoke" / "manual" / "summary.json")
+
+
 def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 

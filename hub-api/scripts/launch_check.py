@@ -55,6 +55,7 @@ class ArtifactStatus:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute EmailDJ launch readiness.")
+    default_localhost_smoke_summary_path = ROOT / "debug_runs" / "smoke" / "manual" / "summary.json"
     default_staging_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "staging.json"
     default_production_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "production.json"
     parser.add_argument("--from-artifacts", action="store_true", help="Read existing artifacts only.")
@@ -65,8 +66,11 @@ def _parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--localhost-smoke-summary",
-        default="",
-        help="Optional path to a localhost smoke summary.json artifact to include.",
+        default=str(default_localhost_smoke_summary_path),
+        help=(
+            "Path to the localhost smoke summary.json artifact to include "
+            f"(default: {default_localhost_smoke_summary_path})."
+        ),
     )
     parser.add_argument(
         "--staging-debug-config",

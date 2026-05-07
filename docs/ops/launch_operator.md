@@ -139,11 +139,13 @@ python scripts/launch_check.py --from-artifacts --allow-not-ready
 
 `launch_check.py` now loads `hub-api/.env` before resolving runtime policies, so artifact-only runs reflect the repo's configured `APP_ENV` and default `launch_mode` unless explicit shell env overrides them.
 
-With localhost smoke included:
+The artifact-only read includes the canonical localhost smoke summary by default:
 
 ```bash
-python scripts/launch_check.py --from-artifacts --allow-not-ready --localhost-smoke-summary debug_runs/smoke/manual/summary.json
+debug_runs/smoke/manual/summary.json
 ```
+
+Use `--localhost-smoke-summary <path>` only when reviewing a nonstandard smoke artifact.
 
 Canonical launch artifacts:
 - `reports/launch/latest.json`

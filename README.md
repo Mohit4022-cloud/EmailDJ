@@ -91,6 +91,8 @@ Refresh the launch report from existing artifacts without treating known launch 
 make launch-check
 ```
 
+`make launch-check` includes the canonical localhost smoke artifact at `hub-api/debug_runs/smoke/manual/summary.json` when computing freshness and provenance. If that artifact is missing or stale, the report stays honest and lists the guarded smoke as an operator next step.
+
 Run a guarded localhost smoke against an already-running Hub API:
 
 ```bash
