@@ -156,6 +156,8 @@ Canonical launch artifacts:
 
 In `limited_rollout`, preview is disabled by default unless `EMAILDJ_ROUTE_PREVIEW_ENABLED=1` is set explicitly. A preview `route_disabled` artifact is expected in that mode and is not a launch blocker.
 
+Deterministic validation fallback is only allowed in `EMAILDJ_LAUNCH_MODE=dev`. `limited_rollout` and `broad_launch` fail closed on CTCO validation failures instead of emitting deterministic fallback drafts.
+
 `Stable for broad launch` requires:
 - `EMAILDJ_LAUNCH_MODE=broad_launch`
 - `backend_green=green`

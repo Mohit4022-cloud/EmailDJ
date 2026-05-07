@@ -126,3 +126,4 @@ make legacy-build
 - manual overrides win over AI fields
 - slider/remix paths use blueprint, not raw deep research
 - deterministic validation for CTA drift/repetition/truncation/leakage/length
+- deterministic validation fallback is dev-only; launch modes fail closed on validation failure

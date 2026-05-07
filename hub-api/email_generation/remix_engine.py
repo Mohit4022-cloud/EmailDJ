@@ -67,6 +67,7 @@ from email_generation.runtime_policies import (
     feature_structured_output_enabled,
     feature_sentence_safe_truncation_enabled,
     is_production_like_environment,
+    launch_mode,
     repair_loop_enabled,
     strict_lock_enforcement_level,
     web_mvp_output_token_budget_default,
@@ -100,7 +101,7 @@ def _remix_warn_retry_on_empty_parse_output(session: dict[str, Any], raw_output:
 
 
 def _validation_fallback_allowed() -> bool:
-    return not is_production_like_environment()
+    return launch_mode() == "dev" and not is_production_like_environment()
 
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
