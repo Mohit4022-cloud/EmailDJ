@@ -328,6 +328,7 @@ def test_launch_check_uses_dotenv_app_env_when_shell_env_missing(monkeypatch, tm
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
     monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
     monkeypatch.setenv("REDIS_URL", "rediss://cache.emaildj.test:6379/0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://db.emaildj.test/emaildj")
     (tmp_path / ".env").write_text("APP_ENV=staging\n", encoding="utf-8")
     _write_launch_artifacts(tmp_path)
 
@@ -396,7 +397,7 @@ def test_launch_check_blocks_non_durable_redis_in_limited_rollout(monkeypatch, t
     assert report["final_recommendation"] == "Not yet launch-ready"
 
 
-def test_launch_check_warns_on_local_database_and_vector_store(monkeypatch, tmp_path):
+def test_launch_check_blocks_local_database_and_warns_on_vector_store(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
@@ -417,9 +418,9 @@ def test_launch_check_warns_on_local_database_and_vector_store(monkeypatch, tmp_
 
     report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
 
-    assert "database_not_durable:default_local_sqlite" in report["config_warnings"]
+    assert "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite" in report["config_blockers"]
     assert "vector_store_not_durable:memory_backend" in report["config_warnings"]
-    assert report["config_blockers"] == []
+    assert report["final_recommendation"] == "Not yet launch-ready"
 
 
 def test_launch_check_blocks_quick_generate_mode_mismatch(monkeypatch, tmp_path):

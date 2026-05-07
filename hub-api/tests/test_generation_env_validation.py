@@ -25,6 +25,7 @@ def _apply_env(monkeypatch, values: dict[str, str]):
             "WEB_APP_ORIGIN",
             "REDIS_FORCE_INMEMORY",
             "REDIS_URL",
+            "DATABASE_URL",
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GROQ_API_KEY",
@@ -207,6 +208,7 @@ def _limited_rollout_env() -> dict[str, str]:
     env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
     env["USE_PROVIDER_STUB"] = "0"
     env["OPENAI_API_KEY"] = "test-key"
+    env["DATABASE_URL"] = "postgresql+asyncpg://db.emaildj.test/emaildj"
     return env
 
 
@@ -301,6 +303,42 @@ def test_validate_env_limited_rollout_rejects_local_redis_url(monkeypatch):
     _apply_env(monkeypatch, env)
 
     with pytest.raises(RuntimeError, match="non-local"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_missing_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env.pop("DATABASE_URL")
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["DATABASE_URL"] = "postgresql+asyncpg://localhost/emaildj"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local Postgres"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_sqlite_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["DATABASE_URL"] = "sqlite+aiosqlite:///./emaildj.db"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="Postgres"):
         _validate_env()
 
 

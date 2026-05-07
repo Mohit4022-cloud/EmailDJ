@@ -33,6 +33,7 @@ _PROD_APP_ENVS = {"staging", "prod", "production"}
 _RELEASE_FINGERPRINT_FIELDS = ("git_sha", "build_id", "image_tag", "release_version")
 _LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
 _DURABLE_REDIS_STATES = {"external_redis_configured"}
+_DURABLE_DATABASE_STATES = {"external_postgres_configured"}
 _LOCAL_DATABASE_STATES = {"default_local_sqlite", "local_sqlite", "local_postgres"}
 _NON_DURABLE_VECTOR_STATES = {"memory_backend", "pinecone_missing_config", "pgvector_missing_postgres_config"}
 
@@ -575,6 +576,8 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
         blockers.append(f"beta_keys_not_safe:{beta_keys_state}")
     if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and redis_config_state not in _DURABLE_REDIS_STATES:
         blockers.append(f"redis_not_durable_for_launch_mode:{launch_mode}:{redis_config_state}")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and database_config_state not in _DURABLE_DATABASE_STATES:
+        blockers.append(f"database_not_durable_for_launch_mode:{launch_mode}:{database_config_state}")
     if launch_mode in {"limited_rollout", "broad_launch"} and validation_fallback_allowed:
         blockers.append(f"validation_fallback_enabled_for_launch_mode:{launch_mode}")
 
@@ -586,9 +589,9 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
             warnings.append(f"{route_name}_disabled_explicitly")
     if str(runtime_data.get("web_rate_limit_source") or "").strip() != "explicit_env":
         warnings.append("web_rate_limit_default_drift_unpinned")
-    if database_config_state in _LOCAL_DATABASE_STATES:
+    if database_config_state in _LOCAL_DATABASE_STATES and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
         warnings.append(f"database_not_durable:{database_config_state}")
-    elif database_config_state == "unknown":
+    elif database_config_state == "unknown" and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
         warnings.append("database_config_state_unavailable")
     if vector_store_config_state in _NON_DURABLE_VECTOR_STATES:
         warnings.append(f"vector_store_not_durable:{vector_store_config_state}")
@@ -850,6 +853,10 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
     if _has_blocker(report, "redis_not_durable_for_launch_mode:"):
         steps.append(
             "Provision managed Redis for the launch environment, set `REDIS_URL`, and ensure `REDIS_FORCE_INMEMORY` is unset or `0` before re-running launch checks."
+        )
+    if _has_blocker(report, "database_not_durable_for_launch_mode:"):
+        steps.append(
+            "Provision managed Postgres for the launch environment, set `DATABASE_URL` to the deployed database, and re-capture staging and production runtime snapshots."
         )
     if _has_blocker(report, "provider_stub_enabled_for_launch_mode:") or _has_blocker(
         report, "resolved_provider_source_not_external_provider:"

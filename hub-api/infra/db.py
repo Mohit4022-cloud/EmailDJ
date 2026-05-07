@@ -12,7 +12,7 @@ except Exception:  # pragma: no cover
     async_sessionmaker = None  # type: ignore[assignment]
     create_async_engine = None  # type: ignore[assignment]
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./emaildj.db")
+DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./emaildj.db"
 
 engine = None
 AsyncSessionLocal = None
@@ -24,8 +24,9 @@ def init_engine() -> None:
         return
     if engine is not None and AsyncSessionLocal is not None:
         return
+    database_url = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
     engine = create_async_engine(
-        DATABASE_URL,
+        database_url,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,

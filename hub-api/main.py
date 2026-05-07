@@ -172,6 +172,13 @@ def _redis_url_is_external(raw_url: str) -> bool:
     return parsed.scheme in {"redis", "rediss"} and bool(host) and host not in _LOCAL_INFRA_HOSTS
 
 
+def _database_url_is_external_postgres(raw_url: str) -> bool:
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    scheme = (parsed.scheme or "").strip().lower()
+    return scheme.startswith("postgres") and bool(host) and host not in _LOCAL_INFRA_HOSTS
+
+
 def _require_durable_redis_for_launch(launch_mode: str) -> None:
     if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
         return
@@ -187,6 +194,17 @@ def _require_durable_redis_for_launch(launch_mode: str) -> None:
         raise RuntimeError(f"{launch_mode} requires managed Redis; set REDIS_URL to a non-local redis/rediss URL.")
     if not _redis_url_is_external(redis_url):
         raise RuntimeError(f"{launch_mode} requires managed Redis; REDIS_URL must use a non-local redis/rediss host.")
+
+
+def _require_durable_database_for_launch(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    database_url = (os.environ.get("DATABASE_URL") or "").strip()
+    if not database_url:
+        raise RuntimeError(f"{launch_mode} requires managed Postgres; set DATABASE_URL to a non-local Postgres URL.")
+    if not _database_url_is_external_postgres(database_url):
+        raise RuntimeError(f"{launch_mode} requires managed Postgres; DATABASE_URL must use a non-local Postgres host.")
 
 
 def _require_real_runtime_for_launch(policies: object) -> None:
@@ -290,6 +308,7 @@ def _validate_env() -> None:
     _require_safe_production_web_contract(policies.app_env)
     _require_pinned_launch_surfaces(policies.launch_mode)
     _require_durable_redis_for_launch(policies.launch_mode)
+    _require_durable_database_for_launch(policies.launch_mode)
     _require_real_runtime_for_launch(policies)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
