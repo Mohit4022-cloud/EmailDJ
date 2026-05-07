@@ -50,6 +50,15 @@ def _require_snippet(text: str, snippet: str, path: str) -> None:
         raise AssertionError(f"Missing required snippet in {path}: {snippet}")
 
 
+def _require_ordered_snippets(text: str, snippets: list[str], path: str) -> None:
+    cursor = -1
+    for snippet in snippets:
+        index = text.find(snippet, cursor + 1)
+        if index == -1:
+            raise AssertionError(f"Missing ordered snippet in {path}: {snippet}")
+        cursor = index
+
+
 def _check_makefile() -> list[str]:
     failures: list[str] = []
     makefile = _read("Makefile")
@@ -65,6 +74,43 @@ def _check_makefile() -> list[str]:
             failures.append(f"Makefile target `{target}` is missing primary prerequisite(s): {', '.join(missing)}")
         if legacy:
             failures.append(f"Makefile target `{target}` includes legacy prerequisite(s): {', '.join(legacy)}")
+    return failures
+
+
+def _check_deployed_gate() -> list[str]:
+    failures: list[str] = []
+    path = "scripts/launch-verify-deployed.sh"
+    try:
+        script = _read(path)
+        for snippet in [
+            'RELEASE_HUB_URL="${EMAILDJ_EXPECTED_HUB_URL:-${STAGING_BASE_URL:-}}"',
+            'RELEASE_BETA_KEY="${EMAILDJ_EXPECTED_BETA_KEY:-${BETA_KEY:-}}"',
+            "python scripts/launch_preflight.py",
+            "make launch-verify-web-app",
+            "make launch-verify-extension",
+            "python scripts/capture_runtime_snapshot.py",
+            "./scripts/eval:full --real --mode smoke",
+            "python -m devtools.http_smoke_runner",
+            "python scripts/merge_http_smoke_summaries.py",
+            "python scripts/launch_check.py",
+        ]:
+            _require_snippet(script, snippet, path)
+        _require_ordered_snippets(
+            script,
+            [
+                "python scripts/launch_preflight.py",
+                "make launch-verify-web-app",
+                "make launch-verify-extension",
+                "python scripts/capture_runtime_snapshot.py",
+                "./scripts/eval:full --real --mode smoke",
+                "python -m devtools.http_smoke_runner",
+                "python scripts/merge_http_smoke_summaries.py",
+                "python scripts/launch_check.py",
+            ],
+            path,
+        )
+    except (AssertionError, FileNotFoundError) as exc:
+        failures.append(str(exc))
     return failures
 
 
@@ -144,7 +190,7 @@ def _check_ci() -> list[str]:
 
 
 def main() -> int:
-    failures = _check_makefile() + _check_docs() + _check_ci()
+    failures = _check_makefile() + _check_deployed_gate() + _check_docs() + _check_ci()
     if failures:
         print("Surface contract check FAILED")
         for failure in failures:
