@@ -218,6 +218,7 @@ def _objective_checklist(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def build_launch_audit() -> dict[str, Any]:
     report = _read_json(ROOT / "reports" / "launch" / "latest.json")
     preflight = _read_json(ROOT / "reports" / "launch" / "preflight.json")
+    web_app_probe = _read_json(ROOT / "reports" / "launch" / "web_app_deployment_probe.json")
     backend_suite = _read_json(ROOT / "reports" / "launch" / "backend_suite.json")
     provider_stub = _read_json(ROOT / "reports" / "provider_stub" / "latest.json")
     external_provider = _read_json(ROOT / "reports" / "external_provider" / "latest.json")
@@ -246,6 +247,16 @@ def build_launch_audit() -> dict[str, Any]:
     http_smoke_blockers = [
         blocker for blocker in report.get("config_blockers") or [] if str(blocker).startswith("http_smoke_")
     ]
+    web_app_probe_failures = [str(item) for item in web_app_probe.get("failures") or []]
+    if not web_app_probe:
+        web_app_probe_blockers = ["web_app_deployment_probe_missing"]
+    elif web_app_probe.get("client_bundle_usable") is not True:
+        web_app_probe_blockers = [
+            "web_app_deployment_probe_not_usable",
+            *[f"web_app_deployment_probe:{failure}" for failure in web_app_probe_failures[:5]],
+        ]
+    else:
+        web_app_probe_blockers = []
     validation_fallback_blockers = [
         blocker
         for blocker in report.get("config_blockers") or []
@@ -364,13 +375,15 @@ def build_launch_audit() -> dict[str, Any]:
         _item(
             item_id="deployed_http_smoke",
             requirement="Prove deployed web generate/remix coverage against staging; require preview smoke only when preview is enabled.",
-            passed=not http_smoke_blockers,
+            passed=not http_smoke_blockers and not web_app_probe_blockers,
             evidence=[
                 f"required_http_smoke_routes={report.get('required_http_smoke_routes')}",
                 f"route_gates={report.get('route_gates')}",
                 f"localhost_smoke_provider_source_counts={(report.get('localhost_smoke') or {}).get('provider_source_counts')}",
+                f"web_app_client_bundle_usable={web_app_probe.get('client_bundle_usable') if web_app_probe else 'missing'}",
+                f"web_app_probe_failures={web_app_probe_failures}",
             ],
-            blockers=http_smoke_blockers,
+            blockers=[*http_smoke_blockers, *web_app_probe_blockers],
         ),
         _item(
             item_id="release_fingerprint_parity",
@@ -436,6 +449,7 @@ def build_launch_audit() -> dict[str, Any]:
         "source_artifacts": {
             "launch_report": str(ROOT / "reports" / "launch" / "latest.json"),
             "preflight": str(ROOT / "reports" / "launch" / "preflight.json"),
+            "web_app_deployment_probe": str(ROOT / "reports" / "launch" / "web_app_deployment_probe.json"),
             "surface_manifest": str(REPO_ROOT / "docs" / "ops" / "launch_surfaces.json"),
         },
         "items": items,

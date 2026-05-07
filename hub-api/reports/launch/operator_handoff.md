@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T21:17:54.873884Z`
+- Generated at: `2026-05-07T21:40:38.321965Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -49,6 +49,20 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 |---|---|---|---|
 | `4614098730` | `Preview` | `4f323ae5ee8530886f267733f85c3c2061d27ca1` | `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app` |
 
+## Web App Deployment Probe
+
+- Web app URL: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- Client bundle usable: `False`
+- Detected VITE_HUB_URL: `none`
+- Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
+- Clears launch blockers: `False`
+
+Failures:
+- `http_error:401`
+- `no_same_origin_bundle_assets_found`
+- `vite_hub_url_not_found_in_bundle`
+- `vite_preview_pipeline_not_found_in_bundle`
+
 ## Commands
 
 ```bash
@@ -57,6 +71,7 @@ make launch-preflight
 make launch-verify-deployed
 make launch-audit
 make launch-discover-deployment
+make launch-probe-web-app
 make launch-handoff
 ```
 
@@ -90,3 +105,4 @@ make launch-handoff
 - `launch_report`: `/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json`
 - `preflight`: `/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json`
 - `deployment_discovery`: `/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json`
+- `web_app_deployment_probe`: `/Users/mohit/EmailDJ/hub-api/reports/launch/web_app_deployment_probe.json`

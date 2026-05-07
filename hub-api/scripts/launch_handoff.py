@@ -157,6 +157,8 @@ def build_launch_handoff() -> dict[str, Any]:
     preflight = _read_json(ROOT / "reports" / "launch" / "preflight.json")
     deployment_discovery_path = ROOT / "reports" / "launch" / "deployment_discovery.json"
     deployment_discovery = _read_json(deployment_discovery_path)
+    web_app_probe_path = ROOT / "reports" / "launch" / "web_app_deployment_probe.json"
+    web_app_probe = _read_json(web_app_probe_path)
     blocked = _blocked_ids(audit)
     missing_inputs = set(preflight.get("missing_inputs") or [])
     preflight_needs_inputs = preflight.get("ready") is not True
@@ -318,6 +320,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "make launch-verify-deployed",
         "make launch-audit",
         "make launch-discover-deployment",
+        "make launch-probe-web-app",
         "make launch-handoff",
     ]
 
@@ -345,11 +348,22 @@ def build_launch_handoff() -> dict[str, Any]:
             "current_head_deployments": deployment_discovery.get("current_head_deployments") or [],
             "historical_production_candidates": deployment_discovery.get("historical_production_candidates") or [],
         },
+        "web_app_deployment_probe": {
+            "artifact": str(web_app_probe_path),
+            "client_bundle_usable": bool(web_app_probe.get("client_bundle_usable")),
+            "web_app_url": web_app_probe.get("web_app_url"),
+            "detected_vite_hub_url": web_app_probe.get("detected_vite_hub_url"),
+            "detected_preview_pipeline": web_app_probe.get("detected_preview_pipeline"),
+            "clears_launch_blockers": bool(web_app_probe.get("clears_launch_blockers")),
+            "failures": web_app_probe.get("failures") or [],
+            "warnings": web_app_probe.get("warnings") or [],
+        },
         "source_artifacts": {
             "completion_audit": str(ROOT / "reports" / "launch" / "completion_audit.json"),
             "launch_report": str(ROOT / "reports" / "launch" / "latest.json"),
             "preflight": str(ROOT / "reports" / "launch" / "preflight.json"),
             "deployment_discovery": str(deployment_discovery_path),
+            "web_app_deployment_probe": str(web_app_probe_path),
         },
     }
 
@@ -416,6 +430,29 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
                 )
         else:
             lines.append("| `none` | `none` | `none` | `none` |")
+
+    web_probe = handoff.get("web_app_deployment_probe") or {}
+    if web_probe.get("failures") or web_probe.get("web_app_url") or web_probe.get("detected_vite_hub_url"):
+        lines.extend(
+            [
+                "",
+                "## Web App Deployment Probe",
+                "",
+                f"- Web app URL: `{web_probe.get('web_app_url') or 'unset'}`",
+                f"- Client bundle usable: `{web_probe.get('client_bundle_usable')}`",
+                f"- Detected VITE_HUB_URL: `{web_probe.get('detected_vite_hub_url') or 'none'}`",
+                f"- Detected VITE_PRESET_PREVIEW_PIPELINE: `{web_probe.get('detected_preview_pipeline') or 'none'}`",
+                f"- Clears launch blockers: `{web_probe.get('clears_launch_blockers')}`",
+                "",
+                "Failures:",
+            ]
+        )
+        failures = web_probe.get("failures") or []
+        if failures:
+            for failure in failures:
+                lines.append(f"- `{failure}`")
+        else:
+            lines.append("- `none`")
 
     lines.extend(["", "## Commands", "", "```bash", *handoff["commands"], "```", "", "## Open Blockers", ""])
     for blocker in handoff["open_blockers"]:

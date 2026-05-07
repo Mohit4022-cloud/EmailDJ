@@ -1,10 +1,11 @@
 {
-  "generated_at": "2026-05-07T21:17:54.883629Z",
+  "generated_at": "2026-05-07T21:40:38.343322Z",
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
     "launch_report": "/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json",
     "preflight": "/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json",
+    "web_app_deployment_probe": "/Users/mohit/EmailDJ/hub-api/reports/launch/web_app_deployment_probe.json",
     "surface_manifest": "/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json"
   },
   "items": [
@@ -116,10 +117,17 @@
       "evidence": [
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
-        "localhost_smoke_provider_source_counts={'provider_stub': 60}"
+        "localhost_smoke_provider_source_counts={'provider_stub': 60}",
+        "web_app_client_bundle_usable=False",
+        "web_app_probe_failures=['http_error:401', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
       "blockers": [
-        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout",
+        "web_app_deployment_probe_not_usable",
+        "web_app_deployment_probe:http_error:401",
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe:vite_hub_url_not_found_in_bundle",
+        "web_app_deployment_probe:vite_preview_pipeline_not_found_in_bundle"
       ]
     },
     {
@@ -290,10 +298,17 @@
         "deployed_http_smoke=blocked",
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
-        "localhost_smoke_provider_source_counts={'provider_stub': 60}"
+        "localhost_smoke_provider_source_counts={'provider_stub': 60}",
+        "web_app_client_bundle_usable=False",
+        "web_app_probe_failures=['http_error:401', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
       "blockers": [
-        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout",
+        "web_app_deployment_probe_not_usable",
+        "web_app_deployment_probe:http_error:401",
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe:vite_hub_url_not_found_in_bundle",
+        "web_app_deployment_probe:vite_preview_pipeline_not_found_in_bundle"
       ],
       "note": "Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled."
     },
@@ -401,7 +416,12 @@
     {
       "id": "deployed_http_smoke",
       "blockers": [
-        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout",
+        "web_app_deployment_probe_not_usable",
+        "web_app_deployment_probe:http_error:401",
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe:vite_hub_url_not_found_in_bundle",
+        "web_app_deployment_probe:vite_preview_pipeline_not_found_in_bundle"
       ]
     },
     {

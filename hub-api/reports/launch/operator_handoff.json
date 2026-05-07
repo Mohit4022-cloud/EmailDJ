@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T21:17:54.873884Z",
+  "generated_at": "2026-05-07T21:40:38.321965Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -131,6 +131,7 @@
     "make launch-verify-deployed",
     "make launch-audit",
     "make launch-discover-deployment",
+    "make launch-probe-web-app",
     "make launch-handoff"
   ],
   "open_blockers": [
@@ -271,10 +272,26 @@
     ],
     "historical_production_candidates": []
   },
+  "web_app_deployment_probe": {
+    "artifact": "/Users/mohit/EmailDJ/hub-api/reports/launch/web_app_deployment_probe.json",
+    "client_bundle_usable": false,
+    "web_app_url": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+    "detected_vite_hub_url": null,
+    "detected_preview_pipeline": null,
+    "clears_launch_blockers": false,
+    "failures": [
+      "http_error:401",
+      "no_same_origin_bundle_assets_found",
+      "vite_hub_url_not_found_in_bundle",
+      "vite_preview_pipeline_not_found_in_bundle"
+    ],
+    "warnings": []
+  },
   "source_artifacts": {
     "completion_audit": "/Users/mohit/EmailDJ/hub-api/reports/launch/completion_audit.json",
     "launch_report": "/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json",
     "preflight": "/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json",
-    "deployment_discovery": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json"
+    "deployment_discovery": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
+    "web_app_deployment_probe": "/Users/mohit/EmailDJ/hub-api/reports/launch/web_app_deployment_probe.json"
   }
 }

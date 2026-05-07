@@ -76,6 +76,16 @@ def _write_base_artifacts(root: Path, repo_root: Path, *, ready: bool = False) -
         },
     )
     _write_json(
+        root / "reports" / "launch" / "web_app_deployment_probe.json",
+        {
+            "client_bundle_usable": ready,
+            "detected_vite_hub_url": "https://hub.example.com" if ready else None,
+            "detected_preview_pipeline": "off" if ready else None,
+            "failures": [] if ready else ["http_error:401"],
+            "clears_launch_blockers": False,
+        },
+    )
+    _write_json(
         root / "reports" / "launch" / "backend_suite.json",
         {"ok": True, "backend_green": "green", "summary": "389 passed"},
     )
@@ -134,6 +144,9 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     assert "runtime_snapshots" in blocked_ids
     assert "durable_infra" in blocked_ids
     assert "deployed_http_smoke" in blocked_ids
+    deployed_http = {item["id"]: item for item in payload["items"]}["deployed_http_smoke"]
+    assert "web_app_deployment_probe_not_usable" in deployed_http["blockers"]
+    assert "web_app_deployment_probe:http_error:401" in deployed_http["blockers"]
     assert "parallel_stack_story" not in blocked_ids
     assert "draft_workspace_ux" not in blocked_ids
     checklist = {item["number"]: item for item in payload["objective_checklist"]}

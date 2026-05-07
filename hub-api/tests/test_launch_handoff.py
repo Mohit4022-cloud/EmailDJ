@@ -98,6 +98,21 @@ def _write_deployment_discovery(root: Path) -> None:
     )
 
 
+def _write_web_app_probe(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "web_app_deployment_probe.json",
+        {
+            "web_app_url": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+            "client_bundle_usable": False,
+            "detected_vite_hub_url": None,
+            "detected_preview_pipeline": None,
+            "clears_launch_blockers": False,
+            "failures": ["http_error:401"],
+            "warnings": [],
+        },
+    )
+
+
 def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tmp_path):
     import scripts.launch_handoff as handoff
 
@@ -129,6 +144,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make launch-verify-deployed",
         "make launch-audit",
         "make launch-discover-deployment",
+        "make launch-probe-web-app",
         "make launch-handoff",
     ]
 
@@ -163,6 +179,7 @@ def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(
     repo_root = root.parent
     _write_artifacts(root)
     _write_deployment_discovery(root)
+    _write_web_app_probe(root)
     monkeypatch.setattr(handoff, "ROOT", root)
     monkeypatch.setattr(handoff, "REPO_ROOT", repo_root)
 
@@ -174,6 +191,8 @@ def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(
         "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
     )
     assert payload["deployment_discovery"]["clears_launch_blockers"] is False
+    assert payload["web_app_deployment_probe"]["client_bundle_usable"] is False
+    assert payload["web_app_deployment_probe"]["failures"] == ["http_error:401"]
     assert dashboard_inputs["WEB_APP_ORIGIN"]["value"] == "https://<deployed-web-app-origin>"
     assert dashboard_inputs["WEB_APP_ORIGIN"]["candidate_value"] == (
         "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
@@ -183,3 +202,5 @@ def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(
     assert "Discovered Deployment Metadata" in markdown
     assert "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app" in markdown
     assert "Clears launch blockers: `False`" in markdown
+    assert "Web App Deployment Probe" in markdown
+    assert "`http_error:401`" in markdown
