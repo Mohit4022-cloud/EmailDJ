@@ -34,6 +34,46 @@ test('resolveHubConfigFromValues prefers stored operator config over build defau
   });
 });
 
+test('resolveHubConfigFromValues fails closed in production when hub URL is missing', () => {
+  assert.throws(
+    () => resolveHubConfigFromValues({ env: { PROD: true } }),
+    /Missing VITE_HUB_URL/,
+  );
+});
+
+test('resolveHubConfigFromValues rejects localhost hub URLs in production', () => {
+  assert.throws(
+    () => resolveHubConfigFromValues({ env: { PROD: true, VITE_HUB_URL: 'http://127.0.0.1:8000' } }),
+    /deployed https:\/\/ hub-api origin/,
+  );
+});
+
+test('resolveHubConfigFromValues rejects dev beta key in production', () => {
+  assert.throws(
+    () => resolveHubConfigFromValues({
+      env: {
+        PROD: true,
+        VITE_HUB_URL: 'https://hub.example.com',
+        VITE_EMAILDJ_BETA_KEY: 'dev-beta-key',
+      },
+    }),
+    /cannot be dev-beta-key/,
+  );
+});
+
+test('resolveHubConfigFromValues allows production operator override without build-time hub URL', () => {
+  const config = resolveHubConfigFromValues({
+    env: { PROD: true },
+    storedHubUrl: 'https://runtime-hub.example.com/',
+    storedBetaKey: 'runtime-key',
+  });
+
+  assert.deepEqual(config, {
+    hubUrl: 'https://runtime-hub.example.com',
+    betaKey: 'runtime-key',
+  });
+});
+
 test('buildHubHeaders adds beta key without dropping caller headers', () => {
   assert.deepEqual(
     buildHubHeaders({ betaKey: 'ops-key' }, { 'Content-Type': 'application/json' }),

@@ -1,7 +1,7 @@
 /** Hub client for side panel. */
 
 const BUILD_ENV = import.meta.env || {};
-const DEFAULT_HUB_URL = 'http://127.0.0.1:8000';
+export const DEFAULT_HUB_URL = 'http://127.0.0.1:8000';
 const HUB_URL_STORAGE_KEY = 'emaildjHubUrl';
 const BETA_KEY_STORAGE_KEY = 'emaildjBetaKey';
 
@@ -23,9 +23,40 @@ export function normalizeHubUrl(value, fallback = DEFAULT_HUB_URL) {
   }
 }
 
+export function isProductionLikeEnv(env = BUILD_ENV) {
+  return Boolean(env?.PROD) || String(env?.MODE || '').toLowerCase() === 'production';
+}
+
+export function isLocalHubUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(url.hostname);
+  } catch {
+    return true;
+  }
+}
+
+export function assertLaunchSafeHubConfig({ env = BUILD_ENV, hubUrl = '', betaKey = '', rawHubUrl = '' } = {}) {
+  if (!isProductionLikeEnv(env)) return;
+  if (!String(rawHubUrl || '').trim()) {
+    throw new Error(
+      'Missing VITE_HUB_URL for a production extension runtime. Set it to the deployed hub-api root URL or save a runtime override.'
+    );
+  }
+  const url = new URL(hubUrl);
+  if (url.protocol !== 'https:' || isLocalHubUrl(hubUrl)) {
+    throw new Error('Production extension hub URL must be a deployed https:// hub-api origin, not localhost.');
+  }
+  if (String(betaKey || '').trim() === 'dev-beta-key') {
+    throw new Error('Production extension beta key cannot be dev-beta-key. Use a non-dev key or leave it empty for operator override.');
+  }
+}
+
 export function resolveHubConfigFromValues({ env = BUILD_ENV, storedHubUrl = '', storedBetaKey = '' } = {}) {
-  const hubUrl = normalizeHubUrl(storedHubUrl || env.VITE_HUB_URL || DEFAULT_HUB_URL);
+  const rawHubUrl = storedHubUrl || env.VITE_HUB_URL || '';
+  const hubUrl = normalizeHubUrl(rawHubUrl || DEFAULT_HUB_URL);
   const betaKey = String(storedBetaKey || env.VITE_EMAILDJ_BETA_KEY || '').trim();
+  assertLaunchSafeHubConfig({ env, hubUrl, betaKey, rawHubUrl });
   return { hubUrl, betaKey };
 }
 
