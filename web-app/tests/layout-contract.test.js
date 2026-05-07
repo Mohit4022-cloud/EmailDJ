@@ -15,7 +15,25 @@ test('draft workspace renders before brief inputs while preserving control mount
   assert.ok(inputIndex > -1, 'input panel mount is missing');
   assert.ok(workspaceIndex < inputIndex, 'draft workspace should be the primary panel');
 
-  for (const id of ['editorMount', 'sliderBoard', 'statusLine', 'generateBtn', 'saveRemixBtn', 'presetLibraryMount']) {
+  const workspaceCommandIndex = mainSource.indexOf('id="workspaceCommandStrip"');
+  const editorIndex = mainSource.indexOf('id="editorMount"');
+
+  assert.ok(workspaceCommandIndex > -1, 'workspace command strip is missing');
+  assert.ok(editorIndex > -1, 'editor mount is missing');
+  assert.ok(workspaceCommandIndex < editorIndex, 'workspace command strip should sit above the draft editor');
+
+  for (const id of [
+    'editorMount',
+    'sliderBoard',
+    'statusLine',
+    'generateBtn',
+    'workspaceGenerateBtn',
+    'workspaceProspectChip',
+    'workspaceOfferChip',
+    'workspaceResearchChip',
+    'saveRemixBtn',
+    'presetLibraryMount',
+  ]) {
     assert.ok(mainSource.includes(`id="${id}"`), `${id} mount is missing`);
   }
 });

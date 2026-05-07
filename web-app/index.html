@@ -161,6 +161,55 @@
         gap: 8px;
         min-width: 0;
       }
+      .workspace-command-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border: 1px solid #e1e5f0;
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 10px;
+      }
+      .workspace-brief-chips {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+        min-width: 0;
+      }
+      .workspace-chip {
+        min-width: 0;
+        border: 1px solid #e7ebf5;
+        border-radius: 8px;
+        background: #fbfcff;
+        padding: 7px 8px;
+        display: grid;
+        gap: 2px;
+      }
+      .workspace-chip span {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+      .workspace-chip strong {
+        min-width: 0;
+        color: #1f2742;
+        font-size: 0.86rem;
+        font-weight: 650;
+        line-height: 1.2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .workspace-chip.is-empty strong {
+        color: #8a6270;
+      }
+      .workspace-generate-btn {
+        min-width: 132px;
+        white-space: nowrap;
+      }
       .field {
         display: flex;
         flex-direction: column;
@@ -343,6 +392,15 @@
         }
         .workspace-actions {
           justify-content: flex-start;
+          width: 100%;
+        }
+        .workspace-command-strip {
+          grid-template-columns: 1fr;
+        }
+        .workspace-brief-chips {
+          grid-template-columns: 1fr;
+        }
+        .workspace-generate-btn {
           width: 100%;
         }
         .workspace-actions > button,
