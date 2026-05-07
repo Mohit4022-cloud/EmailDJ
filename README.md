@@ -75,7 +75,7 @@ Local launch gates:
 make launch-gates-local
 ```
 
-This runs the three surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, and `make launch-check`.
+This runs the three surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, and `make launch-check`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 
 ## Build
 ```bash

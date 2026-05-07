@@ -69,7 +69,7 @@ launch-check:
 localhost-smoke:
 	./scripts/localhost-smoke.sh
 
-launch-gates-local: hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial launch-check
+launch-gates-local: hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check
 
 legacy-setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
