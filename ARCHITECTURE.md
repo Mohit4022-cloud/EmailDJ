@@ -1,6 +1,6 @@
 # EmailDJ Architecture
 
-Snapshot date: March 18, 2026  
+Snapshot date: March 18, 2026
 Repository snapshot basis: local git HEAD on March 18, 2026
 
 Status legend used throughout this document:
