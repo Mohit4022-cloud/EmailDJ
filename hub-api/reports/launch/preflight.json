@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-17T23:09:41.175250Z",
+  "generated_at": "2026-05-07T03:29:39.117318Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -8,12 +8,13 @@
   "required_inputs_present": {
     "STAGING_BASE_URL": false,
     "PROD_BASE_URL": false,
-    "BETA_KEY": true,
+    "BETA_KEY": false,
     "OPENAI_API_KEY": true
   },
   "missing_inputs": [
     "STAGING_BASE_URL",
-    "PROD_BASE_URL"
+    "PROD_BASE_URL",
+    "BETA_KEY"
   ],
   "transport_checked": false,
   "transport_ok": null,
@@ -23,6 +24,7 @@
   "transport_error": null,
   "next_steps": [
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
-    "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification."
+    "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
+    "Set `BETA_KEY` to one exact deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
   ]
 }

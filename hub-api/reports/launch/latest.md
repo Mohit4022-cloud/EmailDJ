@@ -1,6 +1,6 @@
 # Launch Check
 
-- Generated at: `2026-03-17T23:09:41.074361Z`
+- Generated at: `2026-05-07T03:32:20.218428Z`
 - Launch mode: `limited_rollout`
 - Final recommendation: `Not yet launch-ready`
 - Hard freshness threshold (hours): `72`
@@ -8,7 +8,7 @@
 
 | Field | Value |
 |---|---|
-| backend_green | `red` |
+| backend_green | `green` |
 | harness_green | `red` |
 | shim_green | `red` |
 | provider_green | `red` |
@@ -52,11 +52,11 @@
 
 ## Artifact Freshness And Provenance
 
-- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-03-07T22:01:09.442759Z` age_hours=`241.14` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-03-07T22:01:10.112801Z` age_hours=`241.14` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-03-10T03:22:16.383352Z` age_hours=`187.79` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare/summary.json` timestamp=`2026-03-10T03:22:03.047576Z` age_hours=`187.79` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification/summary.json` timestamp=`2026-03-10T03:22:14.703519Z` age_hours=`187.79` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
+- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-05-07T03:32:10Z` age_hours=`0.0` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-03-07T22:01:10.112801Z` age_hours=`1445.52` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-03-10T03:22:16.383352Z` age_hours=`1392.17` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare/summary.json` timestamp=`2026-03-10T03:22:03.047576Z` age_hours=`1392.17` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/verification/summary.json` timestamp=`2026-03-10T03:22:14.703519Z` age_hours=`1392.17` stale=`True` malformed=`False` schema_incomplete=`False` missing=`False`
 - `localhost_smoke` path=`missing` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
 - `staging_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
 - `production_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
@@ -96,7 +96,6 @@
 
 ## Errors
 
-- `backend:stale:/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json`
 - `provider_stub_harness:stale:/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json`
 - `external_provider_harness:stale:/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json`
 - `provider_shim_capture:stale:/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/staging_compare/summary.json`

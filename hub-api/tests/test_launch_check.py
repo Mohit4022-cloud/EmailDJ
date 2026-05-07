@@ -124,6 +124,23 @@ def _write_launch_artifacts(root: Path, *, backend_hours_ago: int = 0) -> None:
     )
 
 
+_LOCAL_RUNTIME_ENV_KEYS = (
+    "APP_ENV",
+    "EMAILDJ_LAUNCH_MODE",
+    "USE_PROVIDER_STUB",
+    "EMAILDJ_QUICK_GENERATE_MODE",
+    "EMAILDJ_ROUTE_GENERATE_ENABLED",
+    "EMAILDJ_ROUTE_REMIX_ENABLED",
+    "EMAILDJ_ROUTE_PREVIEW_ENABLED",
+    "EMAILDJ_PRESET_PREVIEW_PIPELINE",
+)
+
+
+def _clear_local_runtime_env(monkeypatch) -> None:
+    for name in _LOCAL_RUNTIME_ENV_KEYS:
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
@@ -262,8 +279,7 @@ def test_launch_check_uses_dotenv_app_env_when_shell_env_missing(monkeypatch, tm
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
-    monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    _clear_local_runtime_env(monkeypatch)
     monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-staging")
     monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
@@ -282,8 +298,8 @@ def test_launch_check_shell_launch_mode_overrides_dotenv(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _clear_local_runtime_env(monkeypatch)
     monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "dev")
-    monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-staging")
     monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")

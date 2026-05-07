@@ -38,7 +38,11 @@ def _utc_now_text() -> str:
 
 
 def _load_launch_env() -> None:
+    explicit_operator_inputs = {name: name in os.environ for name in _REQUIRED_INPUTS}
     load_dotenv(dotenv_path=ROOT / ".env", override=False)
+    for name, was_explicit in explicit_operator_inputs.items():
+        if not was_explicit:
+            os.environ.pop(name, None)
 
 
 def _required_provider_env() -> tuple[str, str]:

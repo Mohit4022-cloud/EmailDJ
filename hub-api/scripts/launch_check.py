@@ -711,7 +711,7 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
             continue
         if status.stale:
             steps.append(
-                f"Re-capture the stale {label} hub-api runtime snapshot with the backend URL "
+                f"Re-capture the stale {label} runtime snapshot with the backend URL "
                 f"(`{'$STAGING_BASE_URL' if label == 'staging' else '$PROD_BASE_URL'}`) and matching `BETA_KEY`: `{_capture_command_for(label)}`"
             )
             continue

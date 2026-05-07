@@ -17,8 +17,6 @@ on:
 permissions:
   contents: read
   actions: read
-  schedule:
-    - cron: '0 7 * * *'
 
 jobs:
   doc-freshness:

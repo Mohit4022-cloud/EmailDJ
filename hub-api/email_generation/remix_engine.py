@@ -65,6 +65,7 @@ from email_generation.runtime_policies import (
     feature_shadow_mode_enabled,
     feature_structured_output_enabled,
     feature_sentence_safe_truncation_enabled,
+    is_production_like_environment,
     repair_loop_enabled,
     strict_lock_enforcement_level,
     web_mvp_output_token_budget_default,
@@ -95,6 +96,11 @@ def _request_endpoint(session: dict[str, Any]) -> str:
 
 def _remix_warn_retry_on_empty_parse_output(session: dict[str, Any], raw_output: str, *, throttled: bool) -> bool:
     return _request_endpoint(session) == "remix" and not throttled and not raw_output.strip()
+
+
+def _validation_fallback_allowed() -> bool:
+    return not is_production_like_environment()
+
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
@@ -2665,6 +2671,17 @@ async def build_draft(
                 raise
             fallback_codes = _parse_ctco_violation_codes(raw_error)
             if any(code.startswith("invalid_json_output") for code in fallback_codes):
+                raise
+            if not _validation_fallback_allowed():
+                logger.warning(
+                    "web_mvp_validation_fallback_blocked",
+                    extra={
+                        "session_id": session_id,
+                        "fallback_reason": raw_error,
+                        "violation_codes": fallback_codes,
+                        "enforcement_level": enforcement_level,
+                    },
+                )
                 raise
             fallback_reason = raw_error
             generation_status = "fallback_after_validation_failure"
