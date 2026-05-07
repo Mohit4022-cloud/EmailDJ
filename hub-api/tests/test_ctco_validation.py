@@ -366,6 +366,23 @@ def test_validate_ctco_output_flags_specific_sounding_vagueness():
     assert "specific_sounding_vagueness" in violations
 
 
+def test_validate_ctco_output_flags_incomplete_subject_fragment():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: A quick note on improving first-touch quality at\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio helps your SDR team keep messaging relevant while preserving control over tone and accuracy.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "fluency_incomplete_subject_ending" in violations
+
+
 def test_validate_ctco_output_flags_hook_strength_mismatch_and_repair_preserves_middle():
     from email_generation.remix_engine import (
         _deterministic_compliance_repair,

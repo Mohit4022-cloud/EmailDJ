@@ -279,7 +279,7 @@ _FACT_ENTITY_RE = re.compile(r"\b(?:[A-Z][a-z]+|[A-Z]{2,})\b")
 
 _INCOMPLETE_SENTENCE_END_CHARS = (",", ";", ":", "-", "/", "(")
 _TRAILING_FRAGMENT_RE = re.compile(
-    r"(?:\b(?:and|or|to|with|for|of|from|that|which|while|because|so)\b)\s*$",
+    r"(?:\b(?:and|or|to|with|for|of|from|at|by|in|on|that|which|while|because|so)\b)\s*$",
     flags=re.IGNORECASE,
 )
 _HANGING_CONNECTOR_END_RE = re.compile(r"(?:\b(?:and|to|with)\b)\s*$", flags=re.IGNORECASE)
@@ -1353,6 +1353,15 @@ def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> lis
     return _unique_ordered(violations)
 
 
+def _subject_fluency_violations(subject: str) -> list[str]:
+    normalized = _collapse_ws(subject).rstrip(".!?")
+    if not normalized:
+        return []
+    if normalized.endswith(_INCOMPLETE_SENTENCE_END_CHARS) or _TRAILING_FRAGMENT_RE.search(normalized):
+        return ["fluency_incomplete_subject_ending"]
+    return []
+
+
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
     violations: list[str] = []
     plan = GenerationPlan.from_dict(session.get("generation_plan"))
@@ -1360,6 +1369,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
     subject, body = _extract_subject_and_body(draft)
     if not subject:
         violations.append("missing_subject")
+    else:
+        violations.extend(_subject_fluency_violations(subject))
     if not body:
         violations.append("missing_body")
 
