@@ -121,6 +121,15 @@ The smoke runner now fails clearly if the localhost server is not healthy. The r
 
 ## Launch-check command
 
+Fastest deployed verification path, once `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-verify-deployed
+```
+
+This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, and then runs launch check as a failing gate.
+
 Fresh run:
 
 ```bash

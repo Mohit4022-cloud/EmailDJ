@@ -149,6 +149,14 @@ operator STAGING_BASE_URL=https://hub-staging.example.com
 frontend VITE_HUB_URL=https://hub-staging.example.com
 ```
 
+After those operator-machine values are exported, run the deployed launch gate from the repo root:
+
+```bash
+make launch-verify-deployed
+```
+
+This command fails early if required operator inputs or provider transport are missing. If preflight passes, it captures staging and production runtime snapshots, runs a small real-provider smoke, and then runs `launch_check.py` as a failing gate.
+
 ## Manual Values You Still Need To Create
 
 - Real provider API keys.

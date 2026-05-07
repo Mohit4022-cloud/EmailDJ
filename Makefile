@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local surface-contract \
+.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local launch-verify-deployed surface-contract \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -71,6 +71,9 @@ launch-check:
 
 localhost-smoke:
 	./scripts/localhost-smoke.sh
+
+launch-verify-deployed:
+	./scripts/launch-verify-deployed.sh
 
 launch-gates-local: surface-contract hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check
 

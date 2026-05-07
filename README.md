@@ -78,6 +78,14 @@ make launch-gates-local
 
 This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, and `make launch-check`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 
+Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
+
+```bash
+make launch-verify-deployed
+```
+
+This runs launch preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, then runs the launch check as a failing gate.
+
 ## Build
 ```bash
 make build
