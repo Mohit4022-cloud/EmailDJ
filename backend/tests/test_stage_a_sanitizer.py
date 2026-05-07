@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from app.engine.brief_honesty import hook_has_strong_claim_language
 from app.engine.stage_a_sanitizer import sanitize_stage_a_brief
 
 
@@ -212,6 +213,64 @@ def test_sanitize_stage_a_brief_caps_unearned_hook_confidence_and_adds_gap_flag(
     assert report["sanitation_action_counts"]["cap_hook_confidence_level"] == 1
     assert report["sanitation_action_counts"]["cap_hook_evidence_strength"] == 1
     assert report["sanitation_action_counts"]["add_hook_required_risk_flag"] == 1
+    assert "hook_support_posture" in report["semantic_change_reasons"]
+
+
+def test_sanitize_stage_a_brief_softens_unearned_strong_hook_claims() -> None:
+    raw_brief = {
+        "version": "1.0",
+        "brief_id": "brief_strong_claim",
+        "facts_from_input": [
+            {"fact_id": "fact_01", "source_field": "product_summary", "fact_kind": "seller_context", "text": "EmailDJ"},
+            {
+                "fact_id": "fact_02",
+                "source_field": "research_text",
+                "fact_kind": "prospect_context",
+                "text": "Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts.",
+            },
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "hook_01",
+                "hook_type": "pain",
+                "grounded_observation": "Lattice Harbor is trying to reduce outbound inconsistency.",
+                "inferred_relevance": "That may make enablement quality relevant.",
+                "seller_support": "EmailDJ constrains sparse context before drafting.",
+                "hook_text": "I noticed Lattice Harbor is focused on consistency in outbound for new hires - would you be open to a quick chat?",
+                "supported_by_fact_ids": ["fact_02"],
+                "seller_fact_ids": ["fact_01"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            }
+        ],
+        "persona_cues": {"likely_kpis": [], "likely_initiatives": [], "day_to_day": [], "tools_stack": [], "notes": ""},
+        "do_not_say": [],
+        "forbidden_claim_patterns": [],
+        "prohibited_overreach": [],
+        "grounding_policy": {},
+        "brief_quality": {"quality_notes": []},
+    }
+
+    sanitized, report, _raw_hygiene = sanitize_stage_a_brief(
+        raw_brief,
+        source_text="Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts.",
+        source_payload={
+            "user_company": {"product_summary": "EmailDJ"},
+            "prospect": {
+                "company": "Lattice Harbor",
+                "research_text": "Lattice Harbor is trying to reduce outbound inconsistency across new-hire cohorts.",
+            },
+            "cta": {},
+        },
+    )
+
+    hook = sanitized["hooks"][0]
+    assert "is focused on" not in hook["hook_text"].lower()
+    assert "may be working on consistency" in hook["hook_text"]
+    assert hook_has_strong_claim_language(hook) is False
+    assert report["sanitation_action_counts"]["soften_hook_unearned_strong_claim"] == 1
     assert "hook_support_posture" in report["semantic_change_reasons"]
 
 

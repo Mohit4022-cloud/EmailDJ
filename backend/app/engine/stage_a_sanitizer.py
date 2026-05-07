@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import re
 from typing import Any
 
 from .brief_honesty import (
@@ -12,6 +13,7 @@ from .brief_honesty import (
     fact_map_by_id,
     hook_confidence_level,
     hook_evidence_strength,
+    hook_has_strong_claim_language,
     hook_mentions_initiative,
     hook_mentions_recency,
     hook_support_posture,
@@ -91,6 +93,25 @@ def _normalized_string_list(value: Any) -> list[str]:
         seen.add(key)
         out.append(text)
     return out
+
+
+def _soften_strong_claim_language(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    replacements = (
+        (r"\bis focused on\b", "may be working on"),
+        (r"\bis prioritizing\b", "may be prioritizing"),
+        (r"\bpriority now\b", "possible priority"),
+        (r"\bspecific need\b", "possible need"),
+        (r"\bmust be\b", "may be"),
+        (r"\bclearly\b", ""),
+        (r"\bdefinitely\b", ""),
+    )
+    out = text
+    for pattern, replacement in replacements:
+        out = re.sub(pattern, replacement, out, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", out).strip()
 
 
 def _normalize_persona_cues(raw: Any) -> dict[str, Any]:
@@ -677,6 +698,21 @@ def sanitize_stage_a_brief(
                 to_value=capped_evidence,
                 reason="seller_proof_cap",
             )
+        if hook_has_strong_claim_language(hook) and not posture["has_explicit_seller_proof"]:
+            changed_fields: list[str] = []
+            for field in ("grounded_observation", "inferred_relevance", "hook_text"):
+                original = str(hook.get(field) or "").strip()
+                softened = _soften_strong_claim_language(original)
+                if softened != original:
+                    hook[field] = softened
+                    changed_fields.append(field)
+            if changed_fields:
+                record(
+                    "soften_hook_unearned_strong_claim",
+                    hook_id=hook_id,
+                    fields=changed_fields,
+                    reason="missing_seller_proof",
+                )
         posture_sanitized_hooks.append(hook)
     sanitized["hooks"] = posture_sanitized_hooks
 
@@ -742,6 +778,7 @@ def sanitize_stage_a_brief(
             "cap_hook_confidence_level",
             "cap_hook_evidence_strength",
             "normalize_hook_unbacked_seller_support",
+            "soften_hook_unearned_strong_claim",
             "drop_hook_missing_fact_reference",
         )
     ):
