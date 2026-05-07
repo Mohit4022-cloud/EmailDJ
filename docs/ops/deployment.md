@@ -63,6 +63,8 @@ The Blueprint provisions `emaildj-hub-api`, `emaildj-postgres`, and `emaildj-red
 
 Render's Postgres reference may emit a plain `postgresql://` connection string. The Hub API normalizes that at startup to the async SQLAlchemy driver URL, and `asyncpg` is pinned in `hub-api/requirements.txt` for deployed boot safety.
 
+Render also sets `RENDER_GIT_COMMIT` at runtime. The Hub API runtime debug surface uses that as a `git_sha` fallback, so deployed staging/prod snapshots can prove which Git commit is actually running without a separate `EMAILDJ_GIT_SHA` injection.
+
 ### Render Blueprint Manual Inputs
 
 Fill these Dashboard values during Blueprint creation or before first successful deploy:

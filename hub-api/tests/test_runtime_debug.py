@@ -43,3 +43,17 @@ def test_runtime_debug_surfaces_external_infra_config(monkeypatch):
     assert payload["vector_store_config_state"] == "pgvector_configured"
     assert payload["vector_store_backend"] == "pgvector"
     assert payload["validation_fallback_allowed"] is False
+
+
+def test_runtime_debug_uses_render_git_commit_as_release_fingerprint(monkeypatch):
+    import runtime_debug
+
+    monkeypatch.delenv("EMAILDJ_GIT_SHA", raising=False)
+    monkeypatch.delenv("GITHUB_SHA", raising=False)
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "rendercommit123")
+    monkeypatch.setattr(runtime_debug, "_git_sha_from_repo", lambda: None)
+
+    fields = runtime_debug._release_fingerprint_fields()
+
+    assert fields["git_sha"] == "rendercommit123"
+    assert runtime_debug._release_fingerprint(fields) == "git_sha=rendercommit123"

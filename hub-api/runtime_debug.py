@@ -84,7 +84,7 @@ def _git_sha_from_repo() -> str | None:
 
 def _release_fingerprint_fields() -> dict[str, str | None]:
     return {
-        "git_sha": _env_value("EMAILDJ_GIT_SHA", "GITHUB_SHA") or _git_sha_from_repo(),
+        "git_sha": _env_value("EMAILDJ_GIT_SHA", "GITHUB_SHA", "RENDER_GIT_COMMIT") or _git_sha_from_repo(),
         "build_id": _env_value("EMAILDJ_BUILD_ID", "BUILD_ID"),
         "image_tag": _env_value("EMAILDJ_IMAGE_TAG", "IMAGE_TAG"),
         "release_version": _env_value("EMAILDJ_RELEASE_VERSION"),

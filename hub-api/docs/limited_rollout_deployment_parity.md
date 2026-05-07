@@ -47,7 +47,7 @@ The runtime debug surface exposes these release identity fields when available:
 
 Release fingerprint precedence:
 
-- `git_sha`: `EMAILDJ_GIT_SHA`, `GITHUB_SHA`, then repo git metadata if available
+- `git_sha`: `EMAILDJ_GIT_SHA`, `GITHUB_SHA`, `RENDER_GIT_COMMIT`, then repo git metadata if available
 - `build_id`: `EMAILDJ_BUILD_ID`, `BUILD_ID`
 - `image_tag`: `EMAILDJ_IMAGE_TAG`, `IMAGE_TAG`
 - `release_version`: `EMAILDJ_RELEASE_VERSION`
@@ -64,7 +64,7 @@ Launch rule:
 Deployment expectation:
 
 - production should expose at least one stable fingerprint field
-- if git metadata is not available on-host, deployment must inject one of the env-backed identifiers above
+- if git metadata is not available on-host, deployment must inject one of the env-backed identifiers above. Render services expose `RENDER_GIT_COMMIT`, so Render-backed runtime snapshots should have a `git_sha` fingerprint without additional release-env wiring.
 
 ## Resolved Runtime Field Meanings
 

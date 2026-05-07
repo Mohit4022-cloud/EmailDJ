@@ -48,6 +48,10 @@ ENV_PATTERNS = [
     re.compile(r"import\.meta\.env\.([A-Z][A-Z0-9_]+)"),
     re.compile(r"secrets\.([A-Z][A-Z0-9_]+)"),
 ]
+ENV_HELPER_CALL_PATTERNS = [
+    re.compile(r"_env_value\((?P<args>[^)]*)\)", re.DOTALL),
+]
+ENV_NAME_PATTERN = re.compile(r"['\"]([A-Z][A-Z0-9_]+)['\"]")
 
 
 def _iter_source_files() -> list[Path]:
@@ -96,6 +100,10 @@ def _collect_env_usage() -> dict[str, set[str]]:
         for pattern in ENV_PATTERNS:
             for match in pattern.findall(text):
                 usage.setdefault(match, set()).add(rel)
+        for pattern in ENV_HELPER_CALL_PATTERNS:
+            for call in pattern.finditer(text):
+                for match in ENV_NAME_PATTERN.findall(call.group("args")):
+                    usage.setdefault(match, set()).add(rel)
     return usage
 
 
