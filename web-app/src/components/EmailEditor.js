@@ -8,14 +8,28 @@ export class EmailEditor {
 
   render() {
     this.container.innerHTML = `
-      <div id="emailBody" class="editor" contenteditable="true" spellcheck="false"></div>
-      <div class="actions" style="margin-top:10px;">
-        <button id="copyBtn" class="btn-secondary" disabled>Copy</button>
+      <div class="editor-frame" id="editorFrame" data-state="empty">
+        <div class="editor-toolbar">
+          <div>
+            <div class="editor-kicker">Draft canvas</div>
+            <div class="editor-title" id="draftCanvasTitle">Ready for first draft</div>
+          </div>
+          <button id="copyBtn" class="btn-secondary editor-copy-btn" disabled>Copy</button>
+        </div>
+        <div
+          id="emailBody"
+          class="editor"
+          contenteditable="true"
+          spellcheck="false"
+          data-placeholder="Draft will stream here. Generate once, then use sliders to remix."
+        ></div>
+        <div class="meta" id="draftMeta">Draft not generated yet.</div>
       </div>
-      <div class="meta" id="draftMeta">Draft not generated yet.</div>
     `;
+    this.frameEl = this.container.querySelector('#editorFrame');
     this.editorEl = this.container.querySelector('#emailBody');
     this.copyBtn = this.container.querySelector('#copyBtn');
+    this.titleEl = this.container.querySelector('#draftCanvasTitle');
     this.metaEl = this.container.querySelector('#draftMeta');
     this.copyBtn?.addEventListener('click', () => this.copy());
   }
@@ -24,6 +38,9 @@ export class EmailEditor {
     if (!this.editorEl) return;
     this.editorEl.textContent = '';
     this.originalDraft = '';
+    if (this.frameEl) this.frameEl.dataset.state = 'generating';
+    if (this.titleEl) this.titleEl.textContent = 'Streaming draft';
+    this.editorEl.dataset.placeholder = 'Draft is streaming into this canvas...';
     if (this.copyBtn) this.copyBtn.disabled = true;
     if (this.metaEl) this.metaEl.textContent = 'Generating draft...';
   }
@@ -38,6 +55,9 @@ export class EmailEditor {
     if (!this.editorEl) return;
     this.editorEl.textContent = text;
     this.originalDraft = text;
+    if (this.frameEl) this.frameEl.dataset.state = text ? 'ready' : 'empty';
+    if (this.titleEl) this.titleEl.textContent = text ? 'Draft ready' : 'Ready for first draft';
+    this.editorEl.dataset.placeholder = 'Draft will stream here. Generate once, then use sliders to remix.';
   }
 
   setText(text) {
@@ -46,6 +66,11 @@ export class EmailEditor {
 
   markComplete(latencyMs = null) {
     this.originalDraft = this.getText();
+    if (this.frameEl) this.frameEl.dataset.state = this.originalDraft ? 'ready' : 'empty';
+    if (this.titleEl) this.titleEl.textContent = this.originalDraft ? 'Draft ready' : 'Ready for first draft';
+    if (this.editorEl) {
+      this.editorEl.dataset.placeholder = 'Draft will stream here. Generate once, then use sliders to remix.';
+    }
     if (this.copyBtn) this.copyBtn.disabled = !this.originalDraft;
     if (this.metaEl) {
       this.metaEl.textContent = latencyMs == null ? 'Draft complete.' : `Draft complete in ${latencyMs}ms.`;
