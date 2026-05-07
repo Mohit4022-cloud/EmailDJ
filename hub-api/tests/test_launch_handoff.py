@@ -142,9 +142,8 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make render-blueprint-check",
         "make launch-preflight",
         "make launch-verify-deployed",
-        "make launch-audit",
-        "make launch-discover-deployment",
         "make launch-probe-web-app",
+        "make launch-audit",
         "make launch-handoff",
     ]
 

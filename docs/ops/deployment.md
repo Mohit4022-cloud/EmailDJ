@@ -194,6 +194,7 @@ After those operator-machine values are exported, run the deployed launch gate f
 ```bash
 make launch-preflight
 make launch-verify-deployed
+make launch-probe-web-app
 make launch-audit
 make launch-handoff
 ```
@@ -202,7 +203,7 @@ make launch-handoff
 
 `make launch-probe-web-app` also supports protected Vercel previews. Export `VERCEL_AUTOMATION_BYPASS_SECRET` on the operator machine before running it when the previous probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`. The probe sends that value as `x-vercel-protection-bypass`; the generated JSON/Markdown reports never include the secret itself.
 
-`make launch-audit` writes the artifact-backed completion readout after the gate runs, mapping every launch requirement to current evidence or blockers.
+Run `make launch-probe-web-app` before `make launch-audit` so the audit reads the current deployed frontend candidate and its bundle/auth state. `make launch-audit` then writes the artifact-backed completion readout, mapping every launch requirement to current evidence or blockers.
 
 `make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets.
 

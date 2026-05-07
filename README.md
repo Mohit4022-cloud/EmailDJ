@@ -123,10 +123,11 @@ make launch-check
 Build the A-to-Z completion audit from the current artifacts:
 
 ```bash
+make launch-probe-web-app
 make launch-audit
 ```
 
-This writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
+`make launch-probe-web-app` refreshes the deployed frontend candidate and static bundle/auth evidence. `make launch-audit` then writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
 
 Translate the current audit/preflight state into an operator handoff:
 

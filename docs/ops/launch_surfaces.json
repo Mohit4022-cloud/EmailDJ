@@ -10,6 +10,7 @@
       "evidence": [
         "make hub-api-test",
         "make launch-check",
+        "make launch-probe-web-app",
         "make launch-audit",
         "make launch-handoff",
         "make launch-verify-deployed",

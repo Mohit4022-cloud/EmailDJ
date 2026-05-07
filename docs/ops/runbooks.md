@@ -149,4 +149,4 @@ must show `effective_provider_source=external_provider`.
 1. Provision managed Redis and set `REDIS_URL`.
 2. Provision managed Postgres and set `DATABASE_URL`.
 3. Set `VECTOR_STORE_BACKEND=pgvector`.
-4. Rerun `make launch-verify-deployed`, then `make launch-audit` and `make launch-handoff`.
+4. Rerun `make launch-verify-deployed`, then `make launch-probe-web-app`, `make launch-audit`, and `make launch-handoff`.

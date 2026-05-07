@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T22:24:29.802353Z`
+- Generated at: `2026-05-07T22:42:30.311335Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -73,9 +73,8 @@ Failures:
 make render-blueprint-check
 make launch-preflight
 make launch-verify-deployed
-make launch-audit
-make launch-discover-deployment
 make launch-probe-web-app
+make launch-audit
 make launch-handoff
 ```
 

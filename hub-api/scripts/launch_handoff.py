@@ -327,9 +327,8 @@ def build_launch_handoff() -> dict[str, Any]:
         "make render-blueprint-check",
         "make launch-preflight",
         "make launch-verify-deployed",
-        "make launch-audit",
-        "make launch-discover-deployment",
         "make launch-probe-web-app",
+        "make launch-audit",
         "make launch-handoff",
     ]
 
