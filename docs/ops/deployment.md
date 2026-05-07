@@ -8,6 +8,8 @@
 
 The launch-owned surface contract lives in [`docs/ops/surface_contract.md`](/Users/mohit/EmailDJ/docs/ops/surface_contract.md). `backend/` and `frontend/` are explicit legacy parity surfaces; their tests can catch migration drift, but they do not count as launch-readiness evidence.
 
+The same decision is pinned in the machine-readable manifest at [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json). Treat that manifest as the source of truth for automation or status reporting that needs to distinguish launch-owned evidence from legacy parity evidence.
+
 ## Why Hub API Is Not A Good Vercel Fit
 
 - `hub-api` stores pending generate/remix stream state in process-local memory before `/web/v1/stream/{request_id}` consumes it. That pattern is implemented in [`hub-api/api/routes/web_mvp.py`](/Users/mohit/EmailDJ/hub-api/api/routes/web_mvp.py) and is unsafe on autoscaled serverless instances.

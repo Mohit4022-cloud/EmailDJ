@@ -2,6 +2,8 @@
 
 This repo has one launch-owned product path and two legacy parity surfaces. The contract is here so local gates, CI, deployment docs, and operator language all point at the same evidence.
 
+Machine-readable manifest: [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json). `make surface-contract` validates this manifest before it checks the Makefile, CI, Render Blueprint handoff, and docs.
+
 ## Launch-Owned Surfaces
 
 | Surface | Role | Launch evidence |

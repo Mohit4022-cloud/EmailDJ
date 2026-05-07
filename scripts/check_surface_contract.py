@@ -7,6 +7,7 @@ treated as launch evidence and keeps the CI/Makefile/docs story aligned.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -35,6 +36,7 @@ PRIMARY_TARGETS = {
 }
 
 LEGACY_TARGETS = {"legacy-setup", "legacy-backend-test", "legacy-frontend-test", "legacy-build"}
+SURFACE_MANIFEST_PATH = "docs/ops/launch_surfaces.json"
 
 
 def _read(relative_path: str) -> str:
@@ -60,6 +62,53 @@ def _require_ordered_snippets(text: str, snippets: list[str], path: str) -> None
         if index == -1:
             raise AssertionError(f"Missing ordered snippet in {path}: {snippet}")
         cursor = index
+
+
+def _check_surface_manifest() -> list[str]:
+    failures: list[str] = []
+    try:
+        manifest = json.loads(_read(SURFACE_MANIFEST_PATH))
+    except (json.JSONDecodeError, FileNotFoundError) as exc:
+        return [f"Surface manifest is missing or invalid: {exc}"]
+
+    launch_owned = {item.get("path"): item for item in manifest.get("launch_owned") or []}
+    deployment_handoff = {item.get("path"): item for item in manifest.get("deployment_handoff") or []}
+    legacy = {item.get("path"): item for item in manifest.get("legacy_explicit_only") or []}
+
+    expected_launch_owned = {"hub-api/", "web-app/", "chrome-extension/"}
+    expected_legacy = {"backend/", "frontend/"}
+    if set(launch_owned) != expected_launch_owned:
+        failures.append(
+            "Surface manifest launch_owned paths mismatch: "
+            f"expected {sorted(expected_launch_owned)}, got {sorted(launch_owned)}"
+        )
+    if set(legacy) != expected_legacy:
+        failures.append(
+            f"Surface manifest legacy paths mismatch: expected {sorted(expected_legacy)}, got {sorted(legacy)}"
+        )
+    if "render.yaml" not in deployment_handoff:
+        failures.append("Surface manifest is missing render.yaml deployment handoff")
+
+    for path, item in launch_owned.items():
+        evidence = item.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            failures.append(f"Surface manifest launch-owned surface `{path}` has no evidence list")
+        if bool(item.get("launch_readiness_evidence")) is False and "launch_readiness_evidence" in item:
+            failures.append(f"Surface manifest launch-owned surface `{path}` must not opt out of launch evidence")
+
+    for path, item in legacy.items():
+        if item.get("launch_readiness_evidence") is not False:
+            failures.append(f"Surface manifest legacy surface `{path}` must set launch_readiness_evidence=false")
+        explicit_targets = set(item.get("explicit_targets") or [])
+        if not explicit_targets:
+            failures.append(f"Surface manifest legacy surface `{path}` must list explicit targets")
+        if not all(target.startswith("make legacy-") for target in explicit_targets):
+            failures.append(f"Surface manifest legacy surface `{path}` may only list legacy make targets")
+
+    rules = manifest.get("rules")
+    if not isinstance(rules, list) or len(rules) < 3:
+        failures.append("Surface manifest must include explicit launch/legacy evidence rules")
+    return failures
 
 
 def _check_makefile() -> list[str]:
@@ -182,6 +231,7 @@ def _check_docs() -> list[str]:
         "README.md": [
             "`web-app/` primary",
             "`hub-api/` primary",
+            "docs/ops/launch_surfaces.json",
             "`frontend/` legacy parity UI",
             "`backend/` legacy backend",
             "make launch-preflight",
@@ -195,6 +245,7 @@ def _check_docs() -> list[str]:
             "Frontend: deploy [`web-app`]",
             "Hub API: deploy [`hub-api`]",
             "Legacy parity:",
+            "docs/ops/launch_surfaces.json",
             "render.yaml",
             "Render Blueprint Manual Inputs",
             "make launch-preflight",
@@ -205,6 +256,7 @@ def _check_docs() -> list[str]:
         ],
         "docs/ops/surface_contract.md": [
             "Launch-Owned Surfaces",
+            "docs/ops/launch_surfaces.json",
             "Legacy Surfaces",
             "These surfaces do not produce launch-readiness evidence",
             "make launch-preflight",
@@ -216,6 +268,7 @@ def _check_docs() -> list[str]:
         ],
         "docs/ops/release_checklist.md": [
             "Surface contract",
+            "docs/ops/launch_surfaces.json",
             "Render Blueprint contract",
             "Web app tests",
             "Web app build",
@@ -269,7 +322,8 @@ def _check_ci() -> list[str]:
 
 def main() -> int:
     failures = (
-        _check_makefile()
+        _check_surface_manifest()
+        + _check_makefile()
         + _check_deployed_gate()
         + _check_localhost_smoke()
         + _check_render_blueprint()

@@ -2,7 +2,7 @@
 
 <!-- AUTO-DRAFTED: review before merge -->
 
-Source: `.github/workflows/ci.yml`, `hub-api/scripts/checks.sh`, `docs/judge_eval_runbook.md`,
+Source: `.github/workflows/ci.yml`, `hub-api/scripts/checks.sh`, `docs/ops/launch_surfaces.json`, `docs/judge_eval_runbook.md`,
 `docs/lock_compliance_runbook.md`
 Last reviewed: 2026-03-02
 
@@ -18,7 +18,7 @@ All steps in the `checks` CI job must be green:
 
 | Gate | Command | Pass Criteria |
 |---|---|---|
-| Surface contract | `python3 scripts/check_surface_contract.py` | Exit 0 -- launch evidence is scoped to `hub-api`, `web-app`, and `chrome-extension`; legacy surfaces are explicit-only |
+| Surface contract | `python3 scripts/check_surface_contract.py` | Exit 0 -- `docs/ops/launch_surfaces.json`, Makefile, CI, and docs agree that launch evidence is scoped to `hub-api`, `web-app`, and `chrome-extension`; legacy surfaces are explicit-only |
 | Render Blueprint contract | `make render-blueprint-check` | Repo-root `render.yaml` provisions Hub API with managed Redis/Postgres references, provider-stub disabled, pinned launch defaults, and no hardcoded operator secrets |
 | Doc freshness | `python3 scripts/docops/check_doc_freshness.py` | Exit 0 — no bound code changed without doc update |
 | Generated docs fresh | `python3 scripts/docops/generate_docs.py --check` | Exit 0 — no stale generated docs |

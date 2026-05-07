@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "updated": "2026-05-07",
+  "purpose": "Machine-readable source of truth for which repo surfaces produce launch-readiness evidence.",
+  "launch_owned": [
+    {
+      "path": "hub-api/",
+      "kind": "backend",
+      "role": "Backend of record for web generate/remix, SSE, validation, evals, runtime debug, and launch checks.",
+      "evidence": [
+        "make hub-api-test",
+        "make launch-check",
+        "make launch-verify-deployed",
+        "hub-api/reports/launch/latest.json"
+      ]
+    },
+    {
+      "path": "web-app/",
+      "kind": "frontend",
+      "role": "Frontend of record for the Remix Studio web app.",
+      "evidence": [
+        "make web-app-test",
+        "make web-app-build",
+        "make launch-verify-web-app"
+      ]
+    },
+    {
+      "path": "chrome-extension/",
+      "kind": "extension",
+      "role": "Chrome extension client surface.",
+      "evidence": [
+        "make chrome-extension-test",
+        "make chrome-extension-build",
+        "make launch-verify-extension"
+      ]
+    }
+  ],
+  "deployment_handoff": [
+    {
+      "path": "render.yaml",
+      "kind": "render_blueprint",
+      "role": "Render Blueprint handoff for the launch Hub API and managed Redis/Postgres resources.",
+      "evidence": [
+        "make render-blueprint-check",
+        "deployed runtime snapshots",
+        "deployed HTTP smoke"
+      ]
+    }
+  ],
+  "legacy_explicit_only": [
+    {
+      "path": "backend/",
+      "kind": "legacy_backend",
+      "role": "Legacy backend and eval harness retained for explicit parity checks.",
+      "launch_readiness_evidence": false,
+      "explicit_targets": [
+        "make legacy-backend-test"
+      ]
+    },
+    {
+      "path": "frontend/",
+      "kind": "legacy_frontend",
+      "role": "Legacy frontend retained for explicit parity checks.",
+      "launch_readiness_evidence": false,
+      "explicit_targets": [
+        "make legacy-frontend-test",
+        "make legacy-build"
+      ]
+    }
+  ],
+  "rules": [
+    "Launch reports and release status must name the launch-owned surface that produced the evidence.",
+    "Legacy backend/frontend evidence must be labeled legacy parity evidence and cannot satisfy launch readiness.",
+    "Primary Makefile test/build/launch gates must not depend on legacy targets."
+  ]
+}

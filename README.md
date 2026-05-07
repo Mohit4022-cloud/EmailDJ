@@ -19,6 +19,8 @@ This repo preserves the existing Remix Studio UI flow and adds:
 - `shared/` contract notes
 - `docs/` port list + acceptance checklist
 
+The machine-readable launch surface manifest lives at [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json). `make surface-contract` validates that manifest, the Makefile gates, CI, and operator docs agree on the same launch-owned surfaces.
+
 ## Local setup
 
 ### 1) Hub API
