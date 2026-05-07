@@ -51,8 +51,10 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 2. Build with `pip install -r requirements.txt`.
 3. Start with `uvicorn main:app --host 0.0.0.0 --port $PORT`.
 4. Attach a managed Redis instance and set `REDIS_URL`.
-5. Set `APP_ENV=staging` first, then promote to `APP_ENV=prod` when ready.
-6. Start with `EMAILDJ_LAUNCH_MODE=limited_rollout`.
+5. Attach a managed Postgres instance and set `DATABASE_URL`.
+6. Set `VECTOR_STORE_BACKEND=pgvector` so context vectors persist in managed Postgres.
+7. Set `APP_ENV=staging` first, then promote to `APP_ENV=prod` when ready.
+8. Start with `EMAILDJ_LAUNCH_MODE=limited_rollout`.
 
 ## Exact Env Vars By Service
 
@@ -85,7 +87,13 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 - `GROQ_API_KEY`
   Required when `EMAILDJ_REAL_PROVIDER=groq`.
 - `REDIS_URL`
-  Required for deployed services.
+  Required for deployed services. Must not point to localhost in launch modes.
+- `REDIS_FORCE_INMEMORY`
+  Must be unset or `0` for deployed services.
+- `DATABASE_URL`
+  Required for deployed services. Must use a non-local managed Postgres host in launch modes.
+- `VECTOR_STORE_BACKEND`
+  Required value for launch modes: `pgvector`.
 - `WEB_APP_ORIGIN`
   The deployed Vercel frontend origin, for example `https://app.example.com`.
 - `CHROME_EXTENSION_ORIGIN`
@@ -99,11 +107,6 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 - `EMAILDJ_PRESET_PREVIEW_PIPELINE`
   `off` by default. Turn `on` only when you intentionally expose preview routes and have `OPENAI_API_KEY` set.
 
-### Optional But Recommended
-
-- `DATABASE_URL`
-  Optional for the current limited-rollout web flow, but recommended if you want persistent relational storage beyond the Redis-backed paths.
-
 ## Local-Only Vs Deployed-Service Vars
 
 - Local-only defaults:
@@ -112,9 +115,13 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
   - `WEB_APP_ORIGIN=http://localhost:5174`
   - `EMAILDJ_WEB_BETA_KEYS=dev-beta-key`
   - `REDIS_FORCE_INMEMORY=1`
+  - `DATABASE_URL=sqlite+aiosqlite:///./emaildj.db`
+  - `VECTOR_STORE_BACKEND=memory`
 - Deployed-service vars:
   - `APP_ENV`
   - `REDIS_URL`
+  - `DATABASE_URL`
+  - `VECTOR_STORE_BACKEND=pgvector`
   - `WEB_APP_ORIGIN`
   - `CHROME_EXTENSION_ORIGIN`
   - `EMAILDJ_WEB_BETA_KEYS`

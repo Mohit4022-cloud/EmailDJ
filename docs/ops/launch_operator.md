@@ -10,6 +10,7 @@ Deployment contract and env handoff live in [`docs/ops/deployment.md`](/Users/mo
   - `CHROME_EXTENSION_ORIGIN`
   - `EMAILDJ_WEB_BETA_KEYS`
   - `REDIS_FORCE_INMEMORY=1` for local verification
+  - `REDIS_URL`, `DATABASE_URL`, and `VECTOR_STORE_BACKEND=pgvector` for launch-mode services
 - Launch mode:
   - `EMAILDJ_LAUNCH_MODE=dev|limited_rollout|broad_launch`
 - Real provider:
@@ -63,7 +64,7 @@ Expected summary artifact:
 - `debug_runs/launch_ops/external_provider/manual/summary.json`
 - `provider_source` must be `external_provider`
 
-If credentials are missing, the command fails closed and names the required env var.
+The capture tool reads the first configured `EMAILDJ_WEB_BETA_KEYS` value for `X-EmailDJ-Beta-Key`. It defaults `EMAILDJ_LAUNCH_MODE=dev` for local capture unless explicitly overridden, so preview can be exercised even when `.env` has `APP_ENV=staging`. If credentials or beta access are wrong, the command fails closed with the endpoint and HTTP status.
 
 ## External-provider full harness
 
@@ -150,6 +151,9 @@ Canonical launch artifacts:
 - `harness_green=green`
 - `shim_green=green`
 - `remix_green=green`
+- pinned `WEB_APP_ORIGIN` and `CHROME_EXTENSION_ORIGIN`
+- non-dev `EMAILDJ_WEB_BETA_KEYS`
+- managed Redis, managed Postgres, and `VECTOR_STORE_BACKEND=pgvector`
 - `required_field_miss_count=0`
 - `under_length_miss_count=0`
 - `provider_green` may be `green` or `not_run`
