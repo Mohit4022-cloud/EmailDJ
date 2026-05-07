@@ -1,11 +1,15 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T22:42:30.311335Z`
+- Generated at: `2026-05-07T23:20:12.540262Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
 - Provider: `openai`
 - Provider env: `OPENAI_API_KEY`
+- Evidence snapshot: `point_in_time_snapshot`
+- Snapshot refresh command: `make launch-probe-web-app && make launch-audit`
+- Snapshot contract: Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.
+- Currentness blockers: `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9`<br>`deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9`
 
 ## Shell Exports
 
@@ -84,7 +88,7 @@ make launch-handoff
 - `runtime_snapshots`: `staging_runtime_snapshot_missing`, `production_runtime_snapshot_missing`
 - `pinned_origins_beta_provider`: `chrome_extension_origin_not_pinned:default_dev_placeholder`, `web_app_origin_not_pinned:unset`
 - `durable_infra`: `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`, `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`, `vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend`
-- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`, `web_app_deployment_probe_not_usable`, `web_app_deployment_probe:http_error:401`, `web_app_deployment_probe:web_app_deployment_requires_auth`, `web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass`, `web_app_deployment_probe:vercel_protection_bypass_secret_missing`, `web_app_deployment_probe:no_same_origin_bundle_assets_found`
+- `deployed_http_smoke`: `http_smoke_external_provider_missing_for_launch_mode:limited_rollout`, `web_app_deployment_probe_not_usable`, `web_app_deployment_probe:http_error:401`, `web_app_deployment_probe:web_app_deployment_requires_auth`, `web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass`, `web_app_deployment_probe:vercel_protection_bypass_secret_missing`, `web_app_deployment_probe:no_same_origin_bundle_assets_found`, `web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9`, `deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9`
 - `release_fingerprint_parity`: `release_fingerprint_unavailable`, `release_fingerprint_parity_not_from_production_runtime_snapshot:local_env`, `release_fingerprint_comparison_fields_missing`
 - `chrome_extension_real_target`: `chrome_extension_origin_not_pinned:default_dev_placeholder`
 - `launch_report_recommendation`: `launch_check_not_ready`
@@ -100,7 +104,7 @@ make launch-handoff
 | `deployed_http_smoke` | Run make launch-verify-deployed against staging. Default limited rollout proves generate and remix; use EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview only when preview is intentionally enabled. | hub-api/debug_runs/smoke/deployed/summary.json proves external_provider traffic and green required route coverage. |
 | `release_fingerprint_parity` | Capture both staging and production runtime snapshots from deployed services after release metadata is available. | launch latest has release_fingerprint_parity.runtime_source_used from deployed snapshots and non-empty comparison_fields. |
 | `chrome_extension_real_target` | Set CHROME_EXTENSION_ORIGIN to the shipped chrome-extension://<extension-id> and verify the side-panel flow in Chrome. | launch latest shows chrome_extension_origin_state=explicit_pinned and the extension release config passes. |
-| `launch_report_recommendation` | After clearing the blocker groups above, rerun make launch-audit and make launch-handoff. | completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready. |
+| `launch_report_recommendation` | After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, and make launch-handoff. | completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready. |
 
 ## Source Artifacts
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T22:42:30.311335Z",
+  "generated_at": "2026-05-07T23:20:12.540262Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -139,6 +139,18 @@
     "make launch-audit",
     "make launch-handoff"
   ],
+  "artifact_snapshot": {
+    "status": "point_in_time_snapshot",
+    "workspace_git_sha_at_audit": "983d887d75c99dc3349adef662672717127ced14",
+    "web_app_probe_workspace_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+    "web_app_probe_source_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+    "currentness_blockers": [
+      "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+      "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+    ],
+    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
+    "refresh_command": "make launch-probe-web-app && make launch-audit"
+  },
   "open_blockers": [
     {
       "id": "deployed_preflight_inputs",
@@ -184,7 +196,9 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
       ]
     },
     {
@@ -249,7 +263,7 @@
     },
     {
       "id": "launch_report_recommendation",
-      "action": "After clearing the blocker groups above, rerun make launch-audit and make launch-handoff.",
+      "action": "After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, and make launch-handoff.",
       "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready."
     }
   ],

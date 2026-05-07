@@ -1,6 +1,18 @@
 {
-  "generated_at": "2026-05-07T22:24:27.010793Z",
-  "current_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+  "generated_at": "2026-05-07T23:20:10.016419Z",
+  "current_git_sha": "983d887d75c99dc3349adef662672717127ced14",
+  "artifact_snapshot": {
+    "status": "point_in_time_snapshot",
+    "workspace_git_sha_at_audit": "983d887d75c99dc3349adef662672717127ced14",
+    "web_app_probe_workspace_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+    "web_app_probe_source_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+    "currentness_blockers": [
+      "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+      "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
+    ],
+    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
+    "refresh_command": "make launch-probe-web-app && make launch-audit"
+  },
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
@@ -119,7 +131,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "current_git_sha=983d887d75c99dc3349adef662672717127ced14",
         "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
@@ -132,7 +144,9 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
       ]
     },
     {
@@ -310,7 +324,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "current_git_sha=983d887d75c99dc3349adef662672717127ced14",
         "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
@@ -323,7 +337,9 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
       ],
       "note": "Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled."
     },
@@ -437,7 +453,9 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
+        "web_app_deployment_probe_stale_for_current_head:5127b41db9c8!=983d887d75c9",
+        "deployment_discovery_stale_for_current_head:5127b41db9c8!=983d887d75c9"
       ]
     },
     {
