@@ -71,6 +71,33 @@ def _write_artifacts(root: Path, *, provider: str = "openai", provider_env: str 
     )
 
 
+def _write_deployment_discovery(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "deployment_discovery.json",
+        {
+            "generated_at": "2026-05-07T20:30:00Z",
+            "found": True,
+            "current_git_sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+            "candidate_web_app_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+            "usable_as_web_app_origin_candidate": True,
+            "clears_launch_blockers": False,
+            "launch_blocker_note": (
+                "Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API "
+                "deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots."
+            ),
+            "current_head_deployments": [
+                {
+                    "id": 4614098730,
+                    "environment": "Preview",
+                    "sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+                    "successful_vercel_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+                }
+            ],
+            "historical_production_candidates": [],
+        },
+    )
+
+
 def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tmp_path):
     import scripts.launch_handoff as handoff
 
@@ -101,6 +128,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make launch-preflight",
         "make launch-verify-deployed",
         "make launch-audit",
+        "make launch-discover-deployment",
         "make launch-handoff",
     ]
 
@@ -126,3 +154,32 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "`OPENAI_API_KEY`" in markdown
     assert "Blocker Clearance Plan" in markdown
     assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
+
+
+def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(monkeypatch, tmp_path):
+    import scripts.launch_handoff as handoff
+
+    root = tmp_path / "repo" / "hub-api"
+    repo_root = root.parent
+    _write_artifacts(root)
+    _write_deployment_discovery(root)
+    monkeypatch.setattr(handoff, "ROOT", root)
+    monkeypatch.setattr(handoff, "REPO_ROOT", repo_root)
+
+    json_path, md_path, payload = handoff.write_launch_handoff()
+    dashboard_inputs = {item["name"]: item for item in payload["dashboard_inputs"]}
+
+    assert json_path.exists()
+    assert payload["deployment_discovery"]["candidate_web_app_origin"] == (
+        "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
+    )
+    assert payload["deployment_discovery"]["clears_launch_blockers"] is False
+    assert dashboard_inputs["WEB_APP_ORIGIN"]["value"] == "https://<deployed-web-app-origin>"
+    assert dashboard_inputs["WEB_APP_ORIGIN"]["candidate_value"] == (
+        "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
+    )
+
+    markdown = md_path.read_text(encoding="utf-8")
+    assert "Discovered Deployment Metadata" in markdown
+    assert "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app" in markdown
+    assert "Clears launch blockers: `False`" in markdown

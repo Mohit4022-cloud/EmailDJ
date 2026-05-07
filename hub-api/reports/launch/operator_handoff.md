@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T20:26:02.926836Z`
+- Generated at: `2026-05-07T20:59:54.025261Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -38,6 +38,17 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 | `VECTOR_STORE_BACKEND` | `pgvector` | `True` |
 | `REDIS_FORCE_INMEMORY` | `<unset or 0>` | `True` |
 
+## Discovered Deployment Metadata
+
+- Candidate WEB_APP_ORIGIN: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`
+- Usable as WEB_APP_ORIGIN candidate: `True`
+- Clears launch blockers: `False`
+- Operator note: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
+
+| Deployment | Environment | SHA | Vercel origin |
+|---|---|---|---|
+| `4614098730` | `Preview` | `4f323ae5ee8530886f267733f85c3c2061d27ca1` | `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app` |
+
 ## Commands
 
 ```bash
@@ -45,6 +56,7 @@ make render-blueprint-check
 make launch-preflight
 make launch-verify-deployed
 make launch-audit
+make launch-discover-deployment
 make launch-handoff
 ```
 
@@ -77,3 +89,4 @@ make launch-handoff
 - `completion_audit`: `/Users/mohit/EmailDJ/hub-api/reports/launch/completion_audit.json`
 - `launch_report`: `/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json`
 - `preflight`: `/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json`
+- `deployment_discovery`: `/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json`

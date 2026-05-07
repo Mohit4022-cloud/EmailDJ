@@ -155,6 +155,8 @@ def build_launch_handoff() -> dict[str, Any]:
     audit = _read_json(ROOT / "reports" / "launch" / "completion_audit.json")
     latest = _read_json(ROOT / "reports" / "launch" / "latest.json")
     preflight = _read_json(ROOT / "reports" / "launch" / "preflight.json")
+    deployment_discovery_path = ROOT / "reports" / "launch" / "deployment_discovery.json"
+    deployment_discovery = _read_json(deployment_discovery_path)
     blocked = _blocked_ids(audit)
     missing_inputs = set(preflight.get("missing_inputs") or [])
     preflight_needs_inputs = preflight.get("ready") is not True
@@ -167,6 +169,9 @@ def build_launch_handoff() -> dict[str, Any]:
     provider = str(provider).strip().lower() or "openai"
     provider_env = str(preflight.get("provider_env") or _provider_env_for(provider))
     launch_mode = str(latest.get("launch_mode") or "limited_rollout")
+    web_app_origin_candidate = None
+    if deployment_discovery.get("usable_as_web_app_origin_candidate"):
+        web_app_origin_candidate = deployment_discovery.get("candidate_web_app_origin")
 
     required_exports = [
         {
@@ -257,6 +262,13 @@ def build_launch_handoff() -> dict[str, Any]:
             "name": "WEB_APP_ORIGIN",
             "value": "https://<deployed-web-app-origin>",
             "required_when": "pinned_origins_beta_provider" in blocked,
+            "candidate_value": web_app_origin_candidate,
+            "note": (
+                "Candidate was discovered from GitHub/Vercel deployment metadata; still operator-owned and must be pinned "
+                "in the Hub API deployment dashboard."
+                if web_app_origin_candidate
+                else "Must be the intended deployed web-app origin."
+            ),
         },
         {
             "name": "CHROME_EXTENSION_ORIGIN",
@@ -305,6 +317,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "make launch-preflight",
         "make launch-verify-deployed",
         "make launch-audit",
+        "make launch-discover-deployment",
         "make launch-handoff",
     ]
 
@@ -320,10 +333,23 @@ def build_launch_handoff() -> dict[str, Any]:
         "commands": commands,
         "open_blockers": _audit_blockers(audit),
         "blocker_clearance_plan": _blocker_clearance_plan(blocked, provider_env=provider_env),
+        "deployment_discovery": {
+            "artifact": str(deployment_discovery_path),
+            "found": bool(deployment_discovery.get("found")),
+            "candidate_web_app_origin": web_app_origin_candidate,
+            "usable_as_web_app_origin_candidate": bool(
+                deployment_discovery.get("usable_as_web_app_origin_candidate")
+            ),
+            "clears_launch_blockers": bool(deployment_discovery.get("clears_launch_blockers")),
+            "launch_blocker_note": deployment_discovery.get("launch_blocker_note"),
+            "current_head_deployments": deployment_discovery.get("current_head_deployments") or [],
+            "historical_production_candidates": deployment_discovery.get("historical_production_candidates") or [],
+        },
         "source_artifacts": {
             "completion_audit": str(ROOT / "reports" / "launch" / "completion_audit.json"),
             "launch_report": str(ROOT / "reports" / "launch" / "latest.json"),
             "preflight": str(ROOT / "reports" / "launch" / "preflight.json"),
+            "deployment_discovery": str(deployment_discovery_path),
         },
     }
 
@@ -362,6 +388,34 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
     ]
     for item in handoff["dashboard_inputs"]:
         lines.append(f"| `{_md_cell(item['name'])}` | `{_md_cell(item['value'])}` | `{bool(item['required_when'])}` |")
+
+    discovery = handoff.get("deployment_discovery") or {}
+    if discovery.get("found") or discovery.get("candidate_web_app_origin"):
+        lines.extend(
+            [
+                "",
+                "## Discovered Deployment Metadata",
+                "",
+                f"- Candidate WEB_APP_ORIGIN: `{discovery.get('candidate_web_app_origin') or 'none'}`",
+                f"- Usable as WEB_APP_ORIGIN candidate: `{discovery.get('usable_as_web_app_origin_candidate')}`",
+                f"- Clears launch blockers: `{discovery.get('clears_launch_blockers')}`",
+                f"- Operator note: {discovery.get('launch_blocker_note')}",
+                "",
+                "| Deployment | Environment | SHA | Vercel origin |",
+                "|---|---|---|---|",
+            ]
+        )
+        current_deployments = discovery.get("current_head_deployments") or []
+        if current_deployments:
+            for deployment in current_deployments:
+                lines.append(
+                    f"| `{_md_cell(deployment.get('id'))}` | "
+                    f"`{_md_cell(deployment.get('environment'))}` | "
+                    f"`{_md_cell(deployment.get('sha'))}` | "
+                    f"`{_md_cell(deployment.get('successful_vercel_origin') or 'none')}` |"
+                )
+        else:
+            lines.append("| `none` | `none` | `none` | `none` |")
 
     lines.extend(["", "## Commands", "", "```bash", *handoff["commands"], "```", "", "## Open Blockers", ""])
     for blocker in handoff["open_blockers"]:
