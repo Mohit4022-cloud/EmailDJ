@@ -66,6 +66,7 @@ STAGE_TIMEOUT_SECONDS = 25.0
 SALVAGE_STAGE = "EMAIL_REWRITE_SALVAGE"
 _ATOM_WORD_RE = re.compile(r"[a-z0-9]+")
 _ATOM_NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?%?\b")
+_BRACKET_PLACEHOLDER_RE = re.compile(r"\[[^\]]+\]")
 
 
 @dataclass(slots=True)
@@ -686,6 +687,63 @@ class AIOrchestrator:
             return False
         return True
 
+    def _message_atom_persona_label(self, messaging_brief: dict[str, Any]) -> str:
+        facts = [item for item in (messaging_brief.get("facts_from_input") or []) if isinstance(item, dict)]
+        title_text = ""
+        for fact in facts:
+            if str(fact.get("source_field") or "").strip().lower() == "title":
+                title_text = str(fact.get("text") or "").strip().lower()
+                break
+        if not title_text:
+            return "Teams"
+
+        persona_map = (
+            ("sales enablement", "Sales enablement teams"),
+            ("revenue operations", "RevOps teams"),
+            ("revops", "RevOps teams"),
+            ("customer success", "Customer success teams"),
+            ("marketing", "Marketing teams"),
+            ("growth", "Growth teams"),
+            ("enablement", "Enablement teams"),
+            ("sales", "Sales teams"),
+            ("operations", "Operations teams"),
+        )
+        for token, label in persona_map:
+            if token in title_text:
+                return label
+        return "Teams"
+
+    def _fallback_placeholder_opener_atom(self, selected_angle: dict[str, Any]) -> str:
+        angle_text = " ".join(
+            str(selected_angle.get(field) or "").strip().lower()
+            for field in ("primary_pain", "pain", "impact", "primary_value_motion", "value")
+        )
+        if "quality" in angle_text:
+            return "Message quality can get harder to control as volume grows."
+        if "consisten" in angle_text or "drift" in angle_text:
+            return "Inconsistent outreach can make message quality harder to control."
+        if "pipeline" in angle_text or "conversion" in angle_text:
+            return "Pipeline pressure can expose gaps in message consistency."
+        return "Message consistency can get harder to control at scale."
+
+    def _fallback_placeholder_value_atom(self, *, selected_angle: dict[str, Any], messaging_brief: dict[str, Any]) -> str:
+        persona = self._message_atom_persona_label(messaging_brief)
+        angle_text = " ".join(
+            str(selected_angle.get(field) or "").strip().lower()
+            for field in ("primary_pain", "pain", "impact", "primary_value_motion", "value")
+        )
+        if "quality" in angle_text:
+            outcome = "message quality"
+        elif "consisten" in angle_text or "drift" in angle_text:
+            outcome = "message consistency"
+        elif "forecast" in angle_text:
+            outcome = "forecast confidence"
+        elif "pipeline" in angle_text or "conversion" in angle_text:
+            outcome = "pipeline quality"
+        else:
+            outcome = "message quality"
+        return f"{persona} tighten {outcome} without adding review drag."
+
     def _sanitize_message_atoms_payload(
         self,
         atoms: dict[str, Any],
@@ -715,6 +773,19 @@ class AIOrchestrator:
             if normalized != str(raw_value or ""):
                 actions.append(f"normalize_{field}_whitespace")
             out[field] = normalized
+
+        if _BRACKET_PLACEHOLDER_RE.search(str(out.get("opener_atom") or "")):
+            out["opener_atom"] = self._fallback_placeholder_opener_atom(selected_angle)
+            actions.append("repair_atoms_placeholder_opener_atom")
+        if _BRACKET_PLACEHOLDER_RE.search(str(out.get("opener_line") or "")):
+            out["opener_line"] = str(out.get("opener_atom") or "")
+            actions.append("repair_atoms_placeholder_opener_line")
+        if _BRACKET_PLACEHOLDER_RE.search(str(out.get("value_atom") or "")):
+            out["value_atom"] = self._fallback_placeholder_value_atom(
+                selected_angle=selected_angle,
+                messaging_brief=messaging_brief,
+            )
+            actions.append("repair_atoms_placeholder_value_atom")
 
         selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
         raw_hook_ids = list(out.get("used_hook_ids") or [])

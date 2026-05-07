@@ -439,6 +439,42 @@ def _extract_context_json_from_user_prompt(content: str) -> dict[str, Any]:
     return json.loads(content[start:end])
 
 
+def test_atoms_sanitizer_repairs_bracket_placeholder_slots() -> None:
+    orchestrator = _orchestrator([])
+    brief = _brief()
+    brief["facts_from_input"].append(
+        {
+            "fact_id": "fact_title",
+            "source_field": "title",
+            "fact_kind": "prospect_context",
+            "text": "Head of RevOps",
+        }
+    )
+    atoms = _atoms_for("direct")
+    atoms["opener_atom"] = "[Prospect] is trying to improve outbound consistency."
+    atoms["opener_line"] = "[Prospect] is trying to improve outbound consistency."
+    atoms["value_atom"] = "[Persona's team] gains [specific capability] without [specific cost or tradeoff]."
+
+    sanitized, metadata = orchestrator._sanitize_message_atoms_payload(
+        atoms,
+        preset_id="direct",
+        selected_angle=_angles()["angles"][0],
+        cta_line=CTA,
+        messaging_brief=brief,
+        budget_plan={"target_total_words": 51},
+    )
+
+    actions = metadata["atom_sanitation_report"]["actions"]
+    assert "repair_atoms_placeholder_opener_atom" in actions
+    assert "repair_atoms_placeholder_value_atom" in actions
+    assert "[" not in sanitized["opener_atom"]
+    assert "[" not in sanitized["opener_line"]
+    assert "[" not in sanitized["value_atom"]
+    assert sanitized["opener_line"] == sanitized["opener_atom"]
+    assert sanitized["value_atom"] == "RevOps teams tighten message quality without adding review drag."
+    assert sanitized["target_sentence_budget"] == 3
+
+
 def test_stage_a_invalid_json_fails_closed_no_subject_body() -> None:
     req = _request()
     orchestrator = _orchestrator([{}, {}])
