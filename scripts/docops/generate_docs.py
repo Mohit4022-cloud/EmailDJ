@@ -326,6 +326,7 @@ def _build_openapi_diff_markdown(previous_snapshot: dict | None, current_snapsho
         return "\n".join(lines)
 
     lines.append("Diff computed against previous committed `docs/contracts/openapi_snapshot.json`.")
+    lines.append("Regenerate this file with `python3 scripts/docops/generate_docs.py` whenever `hub-api/openapi.json` changes.")
     lines.append("")
     lines.append("## Endpoint changes")
     lines.append("")

@@ -50,6 +50,8 @@ Launch command and artifact reference:
 **Prevention**
 - Redis is required for session continuity and context vault. Use a managed Redis with
   replication (e.g. Redis Cloud, ElastiCache) in production.
+- Launch modes are stricter than CI/test: `REDIS_FORCE_INMEMORY=1` is blocked by
+  launch checks and reported as `redis_not_durable_for_launch_mode`.
 
 ---
 
@@ -93,7 +95,9 @@ Launch command and artifact reference:
 2. Ensure the correct provider API key is set for `EMAILDJ_REAL_PROVIDER`.
 3. Restart Hub API.
 
----
+For `limited_rollout` and `broad_launch`, `USE_PROVIDER_STUB=1` and missing
+provider credentials are startup/launch blockers. A launch-ready runtime report
+must show `effective_provider_source=external_provider`.
 
 ## RB-05: Cost Guard Blocking Requests
 
@@ -126,3 +130,23 @@ Launch command and artifact reference:
 **Remediation**
 1. Set `EMAILDJ_PRESET_PREVIEW_PIPELINE=on` and ensure `OPENAI_API_KEY` is set.
 2. Restart Hub API.
+
+---
+
+## RB-07: Launch Durable Infra Blocked
+
+**Symptoms**
+- `make launch-audit` reports `durable_infra` as blocked.
+- Launch report includes `database_not_durable_for_launch_mode`,
+  `redis_not_durable_for_launch_mode`, or `vector_store_not_durable_for_launch_mode`.
+
+**Diagnosis**
+1. Check deployment Dashboard values for `REDIS_URL`, `DATABASE_URL`, and `VECTOR_STORE_BACKEND`.
+2. Confirm `REDIS_FORCE_INMEMORY` is unset or `0`.
+3. Confirm runtime snapshots were captured from deployed staging/prod services, not local env.
+
+**Remediation**
+1. Provision managed Redis and set `REDIS_URL`.
+2. Provision managed Postgres and set `DATABASE_URL`.
+3. Set `VECTOR_STORE_BACKEND=pgvector`.
+4. Rerun `make launch-verify-deployed`, then `make launch-audit` and `make launch-handoff`.
