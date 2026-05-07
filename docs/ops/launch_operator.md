@@ -46,6 +46,17 @@ make surface-contract
 
 This fails if primary launch gates or CI drift back toward the legacy `backend/` or `frontend/` surfaces.
 
+## Deployed preflight
+
+Run this from the repo root before the full deployed gate:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-preflight
+```
+
+This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+
 ## Backend tests
 
 ```bash

@@ -117,6 +117,14 @@ make launch-check
 
 `make launch-check` includes the canonical localhost smoke artifact at `hub-api/debug_runs/smoke/manual/summary.json` when computing freshness and provenance. If that artifact is missing or stale, the report stays honest and lists the guarded smoke as an operator next step.
 
+Check the deployed-run operator inputs before running the full deployed gate:
+
+```bash
+make launch-preflight
+```
+
+This is intentionally strict. It exits nonzero until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+
 Run a guarded localhost smoke against an already-running Hub API:
 
 ```bash

@@ -157,10 +157,11 @@ frontend VITE_HUB_URL=https://hub-staging.example.com
 After those operator-machine values are exported, run the deployed launch gate from the repo root:
 
 ```bash
+make launch-preflight
 make launch-verify-deployed
 ```
 
-This command fails early if required operator inputs or provider transport are missing. If preflight passes, it verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+`make launch-preflight` is the fast operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport. `make launch-verify-deployed` runs the same preflight again, then verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
 ## Manual Values You Still Need To Create
 
