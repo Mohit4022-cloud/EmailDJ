@@ -205,6 +205,8 @@ def _limited_rollout_env() -> dict[str, str]:
     env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
     env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
     env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    env["USE_PROVIDER_STUB"] = "0"
+    env["OPENAI_API_KEY"] = "test-key"
     return env
 
 
@@ -243,6 +245,30 @@ def test_validate_env_limited_rollout_rejects_dev_beta_key_outside_prod(monkeypa
     _apply_env(monkeypatch, env)
 
     with pytest.raises(RuntimeError, match="dev-beta-key"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_provider_stub(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["USE_PROVIDER_STUB"] = "1"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="real provider mode"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_preview_route_override(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "1"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="preview route disabled"):
         _validate_env()
 
 

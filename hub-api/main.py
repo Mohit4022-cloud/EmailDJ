@@ -189,6 +189,22 @@ def _require_durable_redis_for_launch(launch_mode: str) -> None:
         raise RuntimeError(f"{launch_mode} requires managed Redis; REDIS_URL must use a non-local redis/rediss host.")
 
 
+def _require_real_runtime_for_launch(policies: object) -> None:
+    launch_mode = getattr(policies, "launch_mode", "")
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    if bool(getattr(policies, "provider_stub_enabled", False)):
+        raise RuntimeError(f"{launch_mode} requires real provider mode; set {PROVIDER_STUB_ENV_VAR}=0.")
+
+    route_gates = dict(getattr(policies, "route_gates", {}) or {})
+    if launch_mode == "limited_rollout" and route_gates.get("preview") is True:
+        raise RuntimeError(
+            "limited_rollout requires preview route disabled; unset EMAILDJ_ROUTE_PREVIEW_ENABLED "
+            "or set it to 0."
+        )
+
+
 def _cors_allow_origins() -> list[str]:
     policies = resolve_runtime_policies()
     allow_origins: list[str] = []
@@ -274,6 +290,7 @@ def _validate_env() -> None:
     _require_safe_production_web_contract(policies.app_env)
     _require_pinned_launch_surfaces(policies.launch_mode)
     _require_durable_redis_for_launch(policies.launch_mode)
+    _require_real_runtime_for_launch(policies)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
             "EMAILDJ_QUICK_GENERATE_MODE=mock ignored unless %s=1; continuing in REAL mode.",
