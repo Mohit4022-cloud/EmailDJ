@@ -135,6 +135,8 @@ This smoke can call the provider configured on the running Hub API. Defaults are
 
 Launch modes are fail-closed at Hub API startup. `limited_rollout` and `broad_launch` require pinned `WEB_APP_ORIGIN`, pinned `CHROME_EXTENSION_ORIGIN`, non-dev `EMAILDJ_WEB_BETA_KEYS`, explicit `EMAILDJ_WEB_RATE_LIMIT_PER_MIN`, real provider mode, managed `REDIS_URL`, managed `DATABASE_URL`, and `VECTOR_STORE_BACKEND=pgvector`.
 
+The repo-root [`render.yaml`](/Users/mohit/EmailDJ/render.yaml) is the deployment handoff for the Hub API. It provisions the Render web service plus managed Postgres and Redis, keeps provider-stub mode off, and leaves environment-specific launch inputs as Dashboard-filled values. See [docs/ops/deployment.md](/Users/mohit/EmailDJ/docs/ops/deployment.md) before creating or updating the Blueprint.
+
 Legacy surfaces remain available only through explicit targets:
 
 ```bash

@@ -141,6 +141,39 @@ def _check_localhost_smoke() -> list[str]:
     return failures
 
 
+def _check_render_blueprint() -> list[str]:
+    failures: list[str] = []
+    path = "render.yaml"
+    try:
+        blueprint = _read(path)
+        for snippet in [
+            "name: emaildj-hub-api",
+            "fromGroup: emaildj-hub-api-launch-defaults",
+            "key: USE_PROVIDER_STUB",
+            'value: "0"',
+            "key: EMAILDJ_LAUNCH_MODE",
+            "value: limited_rollout",
+            "key: VECTOR_STORE_BACKEND",
+            "value: pgvector",
+            "key: DATABASE_URL",
+            "name: emaildj-postgres",
+            "key: REDIS_URL",
+            "name: emaildj-redis",
+            "key: WEB_APP_ORIGIN",
+            "sync: false",
+            "key: CHROME_EXTENSION_ORIGIN",
+            "key: EMAILDJ_WEB_BETA_KEYS",
+            "key: OPENAI_API_KEY",
+        ]:
+            _require_snippet(blueprint, snippet, path)
+        for forbidden in ["dev-beta-key", "localhost", "127.0.0.1"]:
+            if forbidden in blueprint:
+                failures.append(f"Render Blueprint must not contain local/dev value `{forbidden}`")
+    except (AssertionError, FileNotFoundError) as exc:
+        failures.append(str(exc))
+    return failures
+
+
 def _check_docs() -> list[str]:
     failures: list[str] = []
     required = {
@@ -153,11 +186,14 @@ def _check_docs() -> list[str]:
             "make launch-verify-deployed",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "render.yaml",
         ],
         "docs/ops/deployment.md": [
             "Frontend: deploy [`web-app`]",
             "Hub API: deploy [`hub-api`]",
             "Legacy parity:",
+            "render.yaml",
+            "Render Blueprint Manual Inputs",
             "make launch-preflight",
             "make launch-verify-deployed",
             "make launch-verify-web-app",
@@ -171,11 +207,14 @@ def _check_docs() -> list[str]:
             "make launch-verify-deployed",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "render.yaml",
         ],
         "docs/ops/release_checklist.md": [
             "Surface contract",
+            "Render Blueprint contract",
             "Web app tests",
             "Web app build",
+            "render.yaml",
             "make launch-preflight",
             "make launch-verify-web-app",
             "make launch-verify-extension",
@@ -225,6 +264,7 @@ def main() -> int:
         _check_makefile()
         + _check_deployed_gate()
         + _check_localhost_smoke()
+        + _check_render_blueprint()
         + _check_docs()
         + _check_ci()
     )

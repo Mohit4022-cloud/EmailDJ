@@ -18,13 +18,21 @@ engine = None
 AsyncSessionLocal = None
 
 
+def _normalize_async_database_url(database_url: str) -> str:
+    if database_url.startswith("postgres://"):
+        return f"postgresql+asyncpg://{database_url.removeprefix('postgres://')}"
+    if database_url.startswith("postgresql://"):
+        return f"postgresql+asyncpg://{database_url.removeprefix('postgresql://')}"
+    return database_url
+
+
 def init_engine() -> None:
     global engine, AsyncSessionLocal
     if create_async_engine is None or async_sessionmaker is None:
         return
     if engine is not None and AsyncSessionLocal is not None:
         return
-    database_url = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+    database_url = _normalize_async_database_url(os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL))
     engine = create_async_engine(
         database_url,
         pool_pre_ping=True,

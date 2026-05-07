@@ -9,6 +9,7 @@ This repo has one launch-owned product path and two legacy parity surfaces. The 
 | `hub-api/` | Backend of record for web generate/remix, SSE, validation, evals, runtime debug, and launch checks | `hub-api/tests`, `hub-api/scripts/checks.sh`, `hub-api/reports/launch/*`, runtime snapshots |
 | `web-app/` | Frontend of record for the Remix Studio web app | `web-app/tests`, `npm run check:syntax`, `npm run build`, rendered generate/remix QA |
 | `chrome-extension/` | Chrome extension client surface | `chrome-extension/tests`, `npm run check:syntax`, `npm run build`, extension flow QA |
+| `render.yaml` | Render Blueprint handoff for the launch Hub API and managed Redis/Postgres resources | Blueprint syntax/static contract check, deployed runtime snapshots, deployed HTTP smoke |
 
 ## Legacy Surfaces
 
@@ -25,6 +26,7 @@ This repo has one launch-owned product path and two legacy parity surfaces. The 
 - `make launch-verify-deployed` is the deployed-service gate: preflight, web-app and Chrome-extension release bundle verification, staging and production runtime snapshots, real-provider smoke, staging Hub API HTTP smoke for `generate,remix`, then launch check.
 - `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.
+- The repo-root `render.yaml` is the Hub API deployment handoff. It must keep provider-stub mode disabled, use managed Redis/Postgres references, and leave operator-specific origins/beta keys/secrets as Dashboard-filled values.
 - The general CI `checks` job runs the surface contract, hub-api checks, web-app tests/build, and chrome-extension tests/build.
 - `.github/workflows/eval_regression.yml` is intentionally path-scoped to `backend/**` and named as legacy backend evidence.
 - Passing legacy tests can be useful during migration, but it never satisfies launch readiness on its own.

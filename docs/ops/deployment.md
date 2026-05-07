@@ -50,14 +50,35 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 
 ## Hub API Deploy Steps
 
-1. Create a Render web service rooted at `hub-api/`.
+1. Use the repo-root [`render.yaml`](/Users/mohit/EmailDJ/render.yaml) Blueprint to create the Render Hub API service and managed datastore resources.
 2. Build with `pip install -r requirements.txt`.
 3. Start with `uvicorn main:app --host 0.0.0.0 --port $PORT`.
-4. Attach a managed Redis instance and set `REDIS_URL`.
-5. Attach a managed Postgres instance and set `DATABASE_URL`.
-6. Set `VECTOR_STORE_BACKEND=pgvector` so context vectors persist in managed Postgres.
+4. Attach the managed Redis instance through the Blueprint `REDIS_URL` reference.
+5. Attach the managed Postgres instance through the Blueprint `DATABASE_URL` reference.
+6. Keep `VECTOR_STORE_BACKEND=pgvector` so context vectors persist in managed Postgres.
 7. Set `APP_ENV=staging` first, then promote to `APP_ENV=prod` when ready.
 8. Start with `EMAILDJ_LAUNCH_MODE=limited_rollout`.
+
+The Blueprint provisions `emaildj-hub-api`, `emaildj-postgres`, and `emaildj-redis` on free plans by default. Upgrade the plans in Render before broad launch if sustained SSE traffic, database size, or uptime requirements outgrow the limited-rollout footprint.
+
+Render's Postgres reference may emit a plain `postgresql://` connection string. The Hub API normalizes that at startup to the async SQLAlchemy driver URL, and `asyncpg` is pinned in `hub-api/requirements.txt` for deployed boot safety.
+
+### Render Blueprint Manual Inputs
+
+Fill these Dashboard values during Blueprint creation or before first successful deploy:
+
+- `WEB_APP_ORIGIN`
+  The deployed Vercel frontend origin.
+- `CHROME_EXTENSION_ORIGIN`
+  The shipped Chrome extension origin.
+- `EMAILDJ_WEB_BETA_KEYS`
+  Comma-separated non-dev beta keys.
+- `OPENAI_API_KEY`
+  Required while `EMAILDJ_REAL_PROVIDER=openai`.
+- `SLACK_WEBHOOK_URL` and `PROVIDER_FAILURE_METRICS_WEBHOOK_URL`
+  Optional alert sinks for provider failure monitoring.
+- `SALESFORCE_INSTANCE_URL`, `SALESFORCE_ACCESS_TOKEN`, and `BOMBORA_API_KEY`
+  Optional live campaign-intelligence providers. Without these, `EMAILDJ_CAMPAIGN_INTELLIGENCE_MODE=auto` falls back to mock provider data for that surface.
 
 ## Exact Env Vars By Service
 

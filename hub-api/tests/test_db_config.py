@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 
 def test_init_engine_reads_database_url_at_call_time(monkeypatch):
     import infra.db as db
@@ -25,3 +27,30 @@ def test_init_engine_reads_database_url_at_call_time(monkeypatch):
     assert calls[0][0] == "postgresql+asyncpg://db.emaildj.test/emaildj"
     assert db.engine is fake_engine
     assert db.AsyncSessionLocal == {"engine": fake_engine, "expire_on_commit": False}
+
+
+@pytest.mark.parametrize(
+    ("raw_url", "expected_url"),
+    [
+        (
+            "postgres://user:pass@db.emaildj.test:5432/emaildj",
+            "postgresql+asyncpg://user:pass@db.emaildj.test:5432/emaildj",
+        ),
+        (
+            "postgresql://user:pass@db.emaildj.test:5432/emaildj",
+            "postgresql+asyncpg://user:pass@db.emaildj.test:5432/emaildj",
+        ),
+        (
+            "postgresql+asyncpg://user:pass@db.emaildj.test:5432/emaildj",
+            "postgresql+asyncpg://user:pass@db.emaildj.test:5432/emaildj",
+        ),
+        (
+            "sqlite+aiosqlite:///./emaildj.db",
+            "sqlite+aiosqlite:///./emaildj.db",
+        ),
+    ],
+)
+def test_normalize_async_database_url_for_render_connection_strings(raw_url, expected_url):
+    import infra.db as db
+
+    assert db._normalize_async_database_url(raw_url) == expected_url
