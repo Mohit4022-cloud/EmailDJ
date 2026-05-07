@@ -1,6 +1,6 @@
 # Launch Preflight
 
-- Generated at: `2026-05-07T16:13:14.750513Z`
+- Generated at: `2026-05-07T19:43:55.024613Z`
 - Ready: `False`
 - Failure bucket: `operator_input_missing`
 - Provider: `openai`
