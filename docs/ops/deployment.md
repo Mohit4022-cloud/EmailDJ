@@ -64,7 +64,7 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 ### Frontend (`web-app` on Vercel)
 
 - `VITE_HUB_URL`
-  Use the hub-api root URL. The production build now fails immediately if this is missing.
+  Use the hub-api root URL. The production build now fails immediately if this is missing. Release verification requires a deployed HTTPS root URL with no path, query, or fragment.
 - `VITE_PRESET_PREVIEW_PIPELINE`
   Mirror the backend preview exposure (`on` only when `EMAILDJ_PRESET_PREVIEW_PIPELINE=on` on the hub-api).
 
@@ -73,9 +73,9 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 ### Chrome Extension (`chrome-extension`)
 
 - `VITE_HUB_URL`
-  Use the hub-api root URL baked into the extension build. Operators can override it later in the side panel Settings tab. In production-like runtime, the extension refuses the localhost fallback and requires a deployed `https://` hub-api origin unless a saved operator override is present.
+  Use the hub-api root URL baked into the extension build. Operators can override it later in the side panel Settings tab. In production-like runtime, the extension refuses the localhost fallback and requires a deployed HTTPS hub-api root URL with no path, query, or fragment unless a saved operator override is present.
 - `VITE_EMAILDJ_BETA_KEY`
-  Optional build-time beta key. Operators can override it later in the side panel Settings tab. Production-like runtime rejects `dev-beta-key`; use a non-dev key or leave it empty for operator override.
+  Required for release verification. Operators can override it later in the side panel Settings tab. Production-like runtime rejects missing values and `dev-beta-key`; use a non-dev key.
 
 `make launch-verify-extension` accepts `EMAILDJ_EXPECTED_HUB_URL` and `EMAILDJ_EXPECTED_BETA_KEY` as explicit release verification inputs. If those are unset, it falls back to `VITE_HUB_URL` and `VITE_EMAILDJ_BETA_KEY`.
 

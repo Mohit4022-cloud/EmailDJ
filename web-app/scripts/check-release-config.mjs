@@ -15,12 +15,19 @@ function compactValueCandidates(...values) {
   return [...new Set(values.map((value) => String(value || '').trim()).filter(Boolean))];
 }
 
-function isSafeHttpsUrl(value) {
+function hubUrlFinding(value) {
   try {
     const url = new URL(String(value || '').trim());
-    return url.protocol === 'https:' && !LOCAL_HOSTS.has(url.hostname);
+    if (url.protocol !== 'https:') return 'expected_hub_url_not_deployed_https';
+    if (LOCAL_HOSTS.has(url.hostname) || url.hostname.endsWith('.local')) {
+      return 'expected_hub_url_not_deployed_https';
+    }
+    if (url.pathname !== '/' || url.search || url.hash || url.username || url.password) {
+      return 'expected_hub_url_not_root';
+    }
+    return null;
   } catch {
-    return false;
+    return 'expected_hub_url_not_deployed_https';
   }
 }
 
@@ -71,8 +78,9 @@ export function inspectReleaseConfig({
   const normalizedHubUrl = rawHubUrl.replace(/\/+$/, '');
   if (!normalizedHubUrl) {
     failures.push('expected_hub_url_missing');
-  } else if (!isSafeHttpsUrl(normalizedHubUrl)) {
-    failures.push('expected_hub_url_not_deployed_https');
+  } else {
+    const finding = hubUrlFinding(normalizedHubUrl);
+    if (finding) failures.push(finding);
   }
 
   const rawPreview = String(expectedPreviewPipeline || '').trim();

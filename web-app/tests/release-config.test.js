@@ -69,6 +69,19 @@ test('release config rejects local hub URL and missing preview flag', () => {
   assert.ok(result.failures.includes('expected_preview_pipeline_missing'));
 });
 
+test('release config rejects deployed hub URL with path or query', () => {
+  const dist = makeDist({ hubUrl: 'https://hub.example.com/web/v1?debug=1' });
+
+  const result = inspectReleaseConfig({
+    distDir: dist,
+    expectedHubUrl: 'https://hub.example.com/web/v1?debug=1',
+    expectedPreviewPipeline: 'off',
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.failures.includes('expected_hub_url_not_root'));
+});
+
 test('release config rejects stale dist bundle that lacks expected values', () => {
   const dist = makeDist({ hubUrl: 'https://old-hub.example.com', previewPipeline: 'on' });
 

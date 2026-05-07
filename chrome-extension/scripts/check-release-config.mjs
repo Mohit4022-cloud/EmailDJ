@@ -4,12 +4,19 @@ import { pathToFileURL } from 'node:url';
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]']);
 
-function isSafeHttpsUrl(value) {
+function hubUrlFinding(value) {
   try {
     const url = new URL(String(value || '').trim());
-    return url.protocol === 'https:' && !LOCAL_HOSTS.has(url.hostname);
+    if (url.protocol !== 'https:') return 'expected_hub_url_not_deployed_https';
+    if (LOCAL_HOSTS.has(url.hostname) || url.hostname.endsWith('.local')) {
+      return 'expected_hub_url_not_deployed_https';
+    }
+    if (url.pathname !== '/' || url.search || url.hash || url.username || url.password) {
+      return 'expected_hub_url_not_root';
+    }
+    return null;
   } catch {
-    return false;
+    return 'expected_hub_url_not_deployed_https';
   }
 }
 
@@ -68,12 +75,15 @@ export function inspectReleaseConfig({
   const normalizedHubUrl = String(expectedHubUrl || '').trim().replace(/\/+$/, '');
   if (!normalizedHubUrl) {
     failures.push('expected_hub_url_missing');
-  } else if (!isSafeHttpsUrl(normalizedHubUrl)) {
-    failures.push('expected_hub_url_not_deployed_https');
+  } else {
+    const finding = hubUrlFinding(normalizedHubUrl);
+    if (finding) failures.push(finding);
   }
 
   const normalizedBetaKey = String(expectedBetaKey || '').trim();
-  if (normalizedBetaKey === 'dev-beta-key') {
+  if (!normalizedBetaKey) {
+    failures.push('expected_beta_key_missing');
+  } else if (normalizedBetaKey === 'dev-beta-key') {
     failures.push('expected_beta_key_is_dev');
   }
 
