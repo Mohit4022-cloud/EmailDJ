@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T16:36:48.913172Z",
+  "generated_at": "2026-05-07T16:38:39.101125Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -192,6 +192,48 @@
       "blockers": [
         "launch_check_not_ready"
       ]
+    }
+  ],
+  "blocker_clearance_plan": [
+    {
+      "id": "deployed_preflight_inputs",
+      "action": "Export STAGING_BASE_URL, PROD_BASE_URL, and BETA_KEY on the operator machine, then run make launch-preflight.",
+      "evidence": "hub-api/reports/launch/preflight.json has ready=true and no missing_inputs."
+    },
+    {
+      "id": "runtime_snapshots",
+      "action": "Run make launch-verify-deployed after the operator exports are set; it captures staging and production runtime snapshots with the deployed beta key.",
+      "evidence": "hub-api/reports/launch/runtime_snapshots/staging.json and production.json exist and share comparable release fingerprint fields."
+    },
+    {
+      "id": "pinned_origins_beta_provider",
+      "action": "Set WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, EMAILDJ_WEB_BETA_KEYS, EMAILDJ_REAL_PROVIDER, OPENAI_API_KEY, USE_PROVIDER_STUB=0, and EMAILDJ_WEB_RATE_LIMIT_PER_MIN in the deployment dashboard.",
+      "evidence": "launch latest shows web_app_origin_state=explicit_pinned, chrome_extension_origin_state=explicit_pinned, beta_keys_state=explicit_pinned, and effective_provider_source=external_provider."
+    },
+    {
+      "id": "durable_infra",
+      "action": "Provision managed Redis and Postgres, set REDIS_URL and DATABASE_URL, set VECTOR_STORE_BACKEND=pgvector, and keep REDIS_FORCE_INMEMORY unset or 0.",
+      "evidence": "launch latest shows redis_config_state=external_redis_configured, database_config_state=external_postgres_configured, and vector_store_config_state=pgvector_configured."
+    },
+    {
+      "id": "deployed_http_smoke",
+      "action": "Run make launch-verify-deployed against staging. Default limited rollout proves generate and remix; use EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview only when preview is intentionally enabled.",
+      "evidence": "hub-api/debug_runs/smoke/deployed/summary.json proves external_provider traffic and green required route coverage."
+    },
+    {
+      "id": "release_fingerprint_parity",
+      "action": "Capture both staging and production runtime snapshots from deployed services after release metadata is available.",
+      "evidence": "launch latest has release_fingerprint_parity.runtime_source_used from deployed snapshots and non-empty comparison_fields."
+    },
+    {
+      "id": "chrome_extension_real_target",
+      "action": "Set CHROME_EXTENSION_ORIGIN to the shipped chrome-extension://<extension-id> and verify the side-panel flow in Chrome.",
+      "evidence": "launch latest shows chrome_extension_origin_state=explicit_pinned and the extension release config passes."
+    },
+    {
+      "id": "launch_report_recommendation",
+      "action": "After clearing the blocker groups above, rerun make launch-audit and make launch-handoff.",
+      "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready."
     }
   ],
   "source_artifacts": {

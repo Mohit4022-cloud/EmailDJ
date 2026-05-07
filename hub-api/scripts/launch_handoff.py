@@ -59,6 +59,98 @@ def _md_cell(value: Any) -> str:
     return str(value).replace("|", "\\|")
 
 
+def _blocker_clearance_plan(blocked: set[str], *, provider_env: str) -> list[dict[str, str]]:
+    plan: list[dict[str, str]] = []
+    if "deployed_preflight_inputs" in blocked:
+        plan.append(
+            {
+                "id": "deployed_preflight_inputs",
+                "action": "Export STAGING_BASE_URL, PROD_BASE_URL, and BETA_KEY on the operator machine, then run make launch-preflight.",
+                "evidence": "hub-api/reports/launch/preflight.json has ready=true and no missing_inputs.",
+            }
+        )
+    if "runtime_snapshots" in blocked:
+        plan.append(
+            {
+                "id": "runtime_snapshots",
+                "action": (
+                    "Run make launch-verify-deployed after the operator exports are set; it captures staging and production "
+                    "runtime snapshots with the deployed beta key."
+                ),
+                "evidence": (
+                    "hub-api/reports/launch/runtime_snapshots/staging.json and production.json exist and share comparable "
+                    "release fingerprint fields."
+                ),
+            }
+        )
+    if "pinned_origins_beta_provider" in blocked:
+        plan.append(
+            {
+                "id": "pinned_origins_beta_provider",
+                "action": (
+                    "Set WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, EMAILDJ_WEB_BETA_KEYS, EMAILDJ_REAL_PROVIDER, "
+                    f"{provider_env}, USE_PROVIDER_STUB=0, and EMAILDJ_WEB_RATE_LIMIT_PER_MIN in the deployment dashboard."
+                ),
+                "evidence": (
+                    "launch latest shows web_app_origin_state=explicit_pinned, chrome_extension_origin_state=explicit_pinned, "
+                    "beta_keys_state=explicit_pinned, and effective_provider_source=external_provider."
+                ),
+            }
+        )
+    if "durable_infra" in blocked:
+        plan.append(
+            {
+                "id": "durable_infra",
+                "action": (
+                    "Provision managed Redis and Postgres, set REDIS_URL and DATABASE_URL, set VECTOR_STORE_BACKEND=pgvector, "
+                    "and keep REDIS_FORCE_INMEMORY unset or 0."
+                ),
+                "evidence": (
+                    "launch latest shows redis_config_state=external_redis_configured, database_config_state=external_postgres_configured, "
+                    "and vector_store_config_state=pgvector_configured."
+                ),
+            }
+        )
+    if "deployed_http_smoke" in blocked:
+        plan.append(
+            {
+                "id": "deployed_http_smoke",
+                "action": (
+                    "Run make launch-verify-deployed against staging. Default limited rollout proves generate and remix; "
+                    "use EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview only when preview is intentionally enabled."
+                ),
+                "evidence": (
+                    "hub-api/debug_runs/smoke/deployed/summary.json proves external_provider traffic and green required route coverage."
+                ),
+            }
+        )
+    if "release_fingerprint_parity" in blocked:
+        plan.append(
+            {
+                "id": "release_fingerprint_parity",
+                "action": "Capture both staging and production runtime snapshots from deployed services after release metadata is available.",
+                "evidence": "launch latest has release_fingerprint_parity.runtime_source_used from deployed snapshots and non-empty comparison_fields.",
+            }
+        )
+    if "chrome_extension_real_target" in blocked:
+        plan.append(
+            {
+                "id": "chrome_extension_real_target",
+                "action": "Set CHROME_EXTENSION_ORIGIN to the shipped chrome-extension://<extension-id> and verify the side-panel flow in Chrome.",
+                "evidence": "launch latest shows chrome_extension_origin_state=explicit_pinned and the extension release config passes.",
+            }
+        )
+    if "launch_report_recommendation" in blocked:
+        plan.append(
+            {
+                "id": "launch_report_recommendation",
+                "action": "After clearing the blocker groups above, rerun make launch-audit and make launch-handoff.",
+                "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready.",
+            }
+        )
+    return plan
+
+
 def build_launch_handoff() -> dict[str, Any]:
     audit = _read_json(ROOT / "reports" / "launch" / "completion_audit.json")
     latest = _read_json(ROOT / "reports" / "launch" / "latest.json")
@@ -227,6 +319,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "dashboard_inputs": dashboard_inputs,
         "commands": commands,
         "open_blockers": _audit_blockers(audit),
+        "blocker_clearance_plan": _blocker_clearance_plan(blocked, provider_env=provider_env),
         "source_artifacts": {
             "completion_audit": str(ROOT / "reports" / "launch" / "completion_audit.json"),
             "launch_report": str(ROOT / "reports" / "launch" / "latest.json"),
@@ -274,6 +367,10 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
     for blocker in handoff["open_blockers"]:
         values = ", ".join(f"`{value}`" for value in blocker["blockers"]) or "`none`"
         lines.append(f"- `{blocker['id']}`: {values}")
+
+    lines.extend(["", "## Blocker Clearance Plan", "", "| Blocker | Operator action | Evidence to expect |", "|---|---|---|"])
+    for item in handoff["blocker_clearance_plan"]:
+        lines.append(f"| `{_md_cell(item['id'])}` | {_md_cell(item['action'])} | {_md_cell(item['evidence'])} |")
 
     lines.extend(["", "## Source Artifacts", ""])
     for key, value in handoff["source_artifacts"].items():

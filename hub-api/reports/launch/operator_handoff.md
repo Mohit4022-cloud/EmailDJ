@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T16:36:48.913172Z`
+- Generated at: `2026-05-07T16:38:39.101125Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -58,6 +58,19 @@ make launch-handoff
 - `release_fingerprint_parity`: `release_fingerprint_unavailable`
 - `chrome_extension_real_target`: `chrome_extension_origin_not_pinned:default_dev_placeholder`
 - `launch_report_recommendation`: `launch_check_not_ready`
+
+## Blocker Clearance Plan
+
+| Blocker | Operator action | Evidence to expect |
+|---|---|---|
+| `deployed_preflight_inputs` | Export STAGING_BASE_URL, PROD_BASE_URL, and BETA_KEY on the operator machine, then run make launch-preflight. | hub-api/reports/launch/preflight.json has ready=true and no missing_inputs. |
+| `runtime_snapshots` | Run make launch-verify-deployed after the operator exports are set; it captures staging and production runtime snapshots with the deployed beta key. | hub-api/reports/launch/runtime_snapshots/staging.json and production.json exist and share comparable release fingerprint fields. |
+| `pinned_origins_beta_provider` | Set WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, EMAILDJ_WEB_BETA_KEYS, EMAILDJ_REAL_PROVIDER, OPENAI_API_KEY, USE_PROVIDER_STUB=0, and EMAILDJ_WEB_RATE_LIMIT_PER_MIN in the deployment dashboard. | launch latest shows web_app_origin_state=explicit_pinned, chrome_extension_origin_state=explicit_pinned, beta_keys_state=explicit_pinned, and effective_provider_source=external_provider. |
+| `durable_infra` | Provision managed Redis and Postgres, set REDIS_URL and DATABASE_URL, set VECTOR_STORE_BACKEND=pgvector, and keep REDIS_FORCE_INMEMORY unset or 0. | launch latest shows redis_config_state=external_redis_configured, database_config_state=external_postgres_configured, and vector_store_config_state=pgvector_configured. |
+| `deployed_http_smoke` | Run make launch-verify-deployed against staging. Default limited rollout proves generate and remix; use EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview only when preview is intentionally enabled. | hub-api/debug_runs/smoke/deployed/summary.json proves external_provider traffic and green required route coverage. |
+| `release_fingerprint_parity` | Capture both staging and production runtime snapshots from deployed services after release metadata is available. | launch latest has release_fingerprint_parity.runtime_source_used from deployed snapshots and non-empty comparison_fields. |
+| `chrome_extension_real_target` | Set CHROME_EXTENSION_ORIGIN to the shipped chrome-extension://<extension-id> and verify the side-panel flow in Chrome. | launch latest shows chrome_extension_origin_state=explicit_pinned and the extension release config passes. |
+| `launch_report_recommendation` | After clearing the blocker groups above, rerun make launch-audit and make launch-handoff. | completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready. |
 
 ## Source Artifacts
 

@@ -31,6 +31,12 @@ def _write_artifacts(root: Path, *, provider: str = "openai", provider_env: str 
                     "blockers": ["redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory"],
                 },
                 {
+                    "id": "pinned_origins_beta_provider",
+                    "requirement": "Pin deployed origins, beta keys, and provider mode.",
+                    "status": "blocked",
+                    "blockers": ["web_app_origin_not_pinned:unset"],
+                },
+                {
                     "id": "hub_api_full_suite",
                     "requirement": "Keep backend green.",
                     "status": "pass",
@@ -86,6 +92,10 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert dashboard_inputs["EMAILDJ_REAL_PROVIDER"]["value"] == "anthropic"
     assert dashboard_inputs["ANTHROPIC_API_KEY"]["required_when"] is True
     assert dashboard_inputs["REDIS_URL"]["required_when"] is True
+    clearance = {item["id"]: item for item in payload["blocker_clearance_plan"]}
+    assert "deployed_preflight_inputs" in clearance
+    assert "durable_infra" in clearance
+    assert "ANTHROPIC_API_KEY" in clearance["pinned_origins_beta_provider"]["action"]
     assert payload["commands"] == [
         "make render-blueprint-check",
         "make launch-preflight",
@@ -114,3 +124,5 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert 'export STAGING_BASE_URL="https://<staging-hub-api-root>"' in markdown
     assert 'export VITE_EMAILDJ_BETA_KEY="$BETA_KEY"' in markdown
     assert "`OPENAI_API_KEY`" in markdown
+    assert "Blocker Clearance Plan" in markdown
+    assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
