@@ -128,7 +128,7 @@ cd /Users/mohit/EmailDJ
 make launch-verify-deployed
 ```
 
-This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs a staging Hub API HTTP smoke, and then runs launch check as a failing gate.
+This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
 Fresh run:
 
