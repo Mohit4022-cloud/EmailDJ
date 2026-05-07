@@ -274,6 +274,56 @@ def test_sanitize_stage_a_brief_softens_unearned_strong_hook_claims() -> None:
     assert "hook_support_posture" in report["semantic_change_reasons"]
 
 
+def test_sanitize_stage_a_brief_drops_initiative_type_without_research_support() -> None:
+    raw_brief = {
+        "version": "1.0",
+        "brief_id": "brief_cta_initiative",
+        "facts_from_input": [
+            {"fact_id": "fact_01", "source_field": "company", "fact_kind": "prospect_context", "text": "Vector Source"},
+            {"fact_id": "fact_02", "source_field": "product_summary", "fact_kind": "seller_context", "text": "EmailDJ"},
+        ],
+        "assumptions": [],
+        "hooks": [
+            {
+                "hook_id": "hook_01",
+                "hook_type": "initiative",
+                "grounded_observation": "Vector Source is a target account.",
+                "inferred_relevance": "Outbound QA may be relevant.",
+                "seller_support": "EmailDJ keeps outreach tied to source facts.",
+                "hook_text": "Would comparing grounded outbound QA be useful?",
+                "supported_by_fact_ids": ["fact_01"],
+                "seller_fact_ids": ["fact_02"],
+                "confidence_level": "medium",
+                "evidence_strength": "moderate",
+                "risk_flags": [],
+            }
+        ],
+        "persona_cues": {"likely_kpis": [], "likely_initiatives": [], "day_to_day": [], "tools_stack": [], "notes": ""},
+        "do_not_say": [],
+        "forbidden_claim_patterns": [],
+        "prohibited_overreach": [],
+        "grounding_policy": {},
+        "brief_quality": {"quality_notes": []},
+    }
+
+    sanitized, report, _raw_hygiene = sanitize_stage_a_brief(
+        raw_brief,
+        source_text="No verifiable external research provided.",
+        source_payload={
+            "user_company": {"product_summary": "EmailDJ"},
+            "prospect": {
+                "company": "Vector Source",
+                "research_text": "No verifiable external research provided.",
+            },
+            "cta": {"cta_final_line": "Would a short walkthrough of grounded outbound QA be useful?"},
+        },
+    )
+
+    assert sanitized["hooks"] == []
+    assert report["sanitation_action_counts"]["drop_hook_unsupported_initiative_or_recency"] == 1
+    assert report["removed_hook_ids"] == ["hook_01"]
+
+
 def test_sanitize_stage_a_brief_repairs_hook_references_to_surviving_research_fact() -> None:
     raw_brief = {
         "version": "1.0",

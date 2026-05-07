@@ -16,6 +16,7 @@ from .brief_honesty import (
     hook_has_strong_claim_language,
     hook_mentions_initiative,
     hook_mentions_recency,
+    hook_requires_grounded_research,
     hook_support_posture,
     normalize_text_key,
     normalize_forbidden_claim_patterns,
@@ -644,7 +645,7 @@ def sanitize_stage_a_brief(
                 reason="contaminated_research",
             )
             continue
-        if (hook_mentions_initiative(hook) or hook_mentions_recency(hook)) and not posture["supports_initiative_or_trigger"]:
+        if hook_requires_grounded_research(hook) and not posture["supports_initiative_or_trigger"]:
             record(
                 "drop_hook_unsupported_initiative_or_recency",
                 hook_id=hook_id,

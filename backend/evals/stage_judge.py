@@ -823,6 +823,12 @@ def _check_outcome_like(text: str) -> bool:
         "keeps",
         "maintain",
         "maintains",
+        "prevent",
+        "prevents",
+        "prevented",
+        "avoid",
+        "avoids",
+        "avoided",
         "standardize",
         "standardized",
         "tighten",
@@ -856,6 +862,7 @@ def _check_outcome_like(text: str) -> bool:
         "handoff",
         "forecast",
         "pipeline",
+        "drift",
     )
     gain_fallback = bool(re.search(r"\bgain(?:s|ed)?\b", lowered)) and any(
         word in lowered for word in concrete_outcome_words

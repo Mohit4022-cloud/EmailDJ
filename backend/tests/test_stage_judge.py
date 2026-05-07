@@ -172,6 +172,7 @@ async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch:
 
 def test_outcome_like_accepts_quality_scale_value_without_metric() -> None:
     assert stage_judge._check_outcome_like("SDR managers scale opener quality without template drift.") is True
+    assert stage_judge._check_outcome_like("Vector Source prevents generic copy drift without adding another QA process.") is True
     assert stage_judge._check_outcome_like("Use our opener QA platform for scoring and tracking.") is False
 
 
