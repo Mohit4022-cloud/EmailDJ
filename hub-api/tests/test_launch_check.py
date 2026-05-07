@@ -130,6 +130,39 @@ def _write_launch_artifacts(root: Path, *, backend_hours_ago: int = 0) -> None:
     )
 
 
+def _write_localhost_smoke(
+    root: Path,
+    *,
+    pass_count: int = 30,
+    fail_count: int = 0,
+    error_count: int = 0,
+    provider_source_counts: dict | None = None,
+) -> Path:
+    total = pass_count + fail_count + error_count
+    path = root / "debug_runs" / "smoke" / "manual" / "summary.json"
+    _write_json(
+        path,
+        {
+            "timestamp_utc": _now_text(),
+            "run_id": "smoke-test",
+            "mode": "smoke",
+            "total": total,
+            "pass": pass_count,
+            "fail": fail_count,
+            "errors": error_count,
+            "pass_rate_pct": round((pass_count / total) * 100, 1) if total else 0,
+            "provider_source_counts": provider_source_counts or {"provider_stub": total},
+            "launch_gates": {
+                "shim_green": "green" if fail_count == 0 and error_count == 0 else "red",
+                "provider_green": "not_run",
+                "remix_green": "not_run",
+            },
+            "fail_tag_counts": {},
+        },
+    )
+    return path
+
+
 _LOCAL_RUNTIME_ENV_KEYS = (
     "APP_ENV",
     "EMAILDJ_LAUNCH_MODE",
@@ -664,6 +697,7 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "## Release Fingerprint Parity" in markdown
     assert "## Resolved Runtime Path" in markdown
     assert "## Preview Route Invariant" in markdown
+    assert "## Localhost Smoke Evidence" in markdown
     assert "## Artifact Freshness And Provenance" in markdown
     assert "## Origin And Beta-Key Safety" in markdown
     assert "`effective_provider_source`" in markdown
@@ -744,6 +778,46 @@ def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkey
     steps = "\n".join(report["operator_next_steps"])
 
     assert "EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke" in steps
+
+
+def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(tmp_path, provider_source_counts={"provider_stub": 30})
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+
+    assert report["localhost_smoke"]["green"] == "green"
+    assert report["localhost_smoke"]["total"] == 30
+    assert report["localhost_smoke"]["provider_source_counts"] == {"provider_stub": 30}
+    assert "localhost_smoke_provider_stub_only" in report["config_warnings"]
+
+
+def test_launch_check_blocks_failed_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(tmp_path, pass_count=29, fail_count=1)
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert report["localhost_smoke"]["green"] == "red"
+    assert "localhost_smoke_not_green:pass=29:fail=1:errors=0" in report["config_blockers"]
+    assert "Investigate the failing localhost smoke cases" in steps
 
 
 def test_launch_check_uses_provider_specific_report_dirs():

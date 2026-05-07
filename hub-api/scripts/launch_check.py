@@ -406,6 +406,67 @@ def _artifact_provenance(
     }
 
 
+def _int_field(payload: dict[str, Any], key: str) -> int:
+    try:
+        return int(payload.get(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _localhost_smoke_evidence(status: ArtifactStatus) -> dict[str, Any]:
+    if status.missing:
+        return {
+            "green": "not_run",
+            "state": "missing",
+            "path": status.path,
+            "timestamp": None,
+            "mode": None,
+            "total": 0,
+            "pass": 0,
+            "fail": 0,
+            "errors": 0,
+            "pass_rate_pct": None,
+            "provider_source_counts": {},
+            "launch_gates": {},
+        }
+    if status.malformed or status.stale or status.payload is None:
+        return {
+            "green": "red",
+            "state": "invalid",
+            "path": status.path,
+            "timestamp": _timestamp_to_text(status.timestamp),
+            "mode": None,
+            "total": 0,
+            "pass": 0,
+            "fail": 0,
+            "errors": 0,
+            "pass_rate_pct": None,
+            "provider_source_counts": {},
+            "launch_gates": {},
+        }
+
+    payload = status.payload
+    total = _int_field(payload, "total")
+    pass_count = _int_field(payload, "pass")
+    fail_count = _int_field(payload, "fail")
+    error_count = _int_field(payload, "errors")
+    green = "green" if total > 0 and pass_count == total and fail_count == 0 and error_count == 0 else "red"
+    return {
+        "green": green,
+        "state": "present",
+        "path": status.path,
+        "timestamp": _timestamp_to_text(status.timestamp),
+        "mode": payload.get("mode"),
+        "total": total,
+        "pass": pass_count,
+        "fail": fail_count,
+        "errors": error_count,
+        "pass_rate_pct": payload.get("pass_rate_pct"),
+        "provider_source_counts": dict(payload.get("provider_source_counts") or {}),
+        "launch_gates": dict(payload.get("launch_gates") or {}),
+    }
+
+
 def _recommended_age_warnings(
     artifact_statuses: dict[str, ArtifactStatus],
     *,
@@ -582,6 +643,7 @@ def _final_recommendation(
 def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     runtime_reference = dict(report.get("runtime_reference") or {})
     release_parity = dict(report.get("release_fingerprint_parity") or {})
+    localhost_smoke = dict(report.get("localhost_smoke") or {})
     artifact_provenance = dict(report.get("artifact_provenance") or {})
     origin_fields = {
         "chrome_extension_origin": report.get("chrome_extension_origin"),
@@ -667,6 +729,24 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         lines.append("- `limited_rollout_blocker`: `preview_route_enabled_for_launch_mode:limited_rollout`")
     else:
         lines.append("- `limited_rollout_blocker`: `none`")
+
+    lines.extend(
+        [
+            "",
+            "## Localhost Smoke Evidence",
+            "",
+            f"- `green`: `{localhost_smoke.get('green') or 'not_run'}`",
+            f"- `state`: `{localhost_smoke.get('state') or 'missing'}`",
+            f"- `mode`: `{localhost_smoke.get('mode') or 'unset'}`",
+            f"- `total`: {localhost_smoke.get('total') or 0}",
+            f"- `pass`: {localhost_smoke.get('pass') or 0}",
+            f"- `fail`: {localhost_smoke.get('fail') or 0}",
+            f"- `errors`: {localhost_smoke.get('errors') or 0}",
+            f"- `pass_rate_pct`: `{localhost_smoke.get('pass_rate_pct') if localhost_smoke.get('pass_rate_pct') is not None else 'n/a'}`",
+            f"- `provider_source_counts`: `{json.dumps(localhost_smoke.get('provider_source_counts') or {}, sort_keys=True)}`",
+            f"- `launch_gates`: `{json.dumps(localhost_smoke.get('launch_gates') or {}, sort_keys=True)}`",
+        ]
+    )
 
     lines.extend(["", "## Artifact Freshness And Provenance", ""])
     for label, summary in artifact_provenance.items():
@@ -793,6 +873,10 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
         steps.append(
             "Run the guarded localhost smoke against the intended Hub API process with `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`, then rerun `make launch-check`."
         )
+    if _has_blocker(report, "localhost_smoke_not_green:"):
+        steps.append(
+            "Investigate the failing localhost smoke cases, fix the harness or generation path, then rerun `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`."
+        )
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
             steps.append(
@@ -909,6 +993,14 @@ def _read_launch_report(
         production_snapshot=production_snapshot,
         runtime_source_used=runtime_source_used,
     )
+    localhost_smoke = _localhost_smoke_evidence(smoke_summary)
+    if localhost_smoke["green"] == "red":
+        config_blockers.append(
+            f"localhost_smoke_not_green:pass={localhost_smoke['pass']}:fail={localhost_smoke['fail']}:errors={localhost_smoke['errors']}"
+        )
+    localhost_provider_counts = dict(localhost_smoke.get("provider_source_counts") or {})
+    if localhost_provider_counts and set(localhost_provider_counts) == {"provider_stub"}:
+        config_warnings.append("localhost_smoke_provider_stub_only")
     config_blockers.extend(release_blockers)
     config_warnings.extend(release_warnings)
     config_warnings.extend(_recommended_age_warnings(artifact_statuses, recommended_max_age=recommended_max_age))
@@ -975,6 +1067,7 @@ def _read_launch_report(
             "snapshot_path": production_snapshot.path if runtime_source_used == "production_runtime_snapshot" else None,
         },
         "release_fingerprint_parity": release_parity,
+        "localhost_smoke": localhost_smoke,
         "artifact_sources": _artifact_sources(**artifact_statuses),
         "artifact_provenance": {
             label: _artifact_provenance(label, status, recommended_max_age=recommended_max_age)
