@@ -57,6 +57,23 @@ def _provider_env_for(provider: str) -> str:
     return mapping.get(provider, "OPENAI_API_KEY")
 
 
+def _artifact_snapshot_for_handoff(audit: dict[str, Any]) -> dict[str, Any]:
+    snapshot = dict(audit.get("artifact_snapshot") or {})
+    snapshot.setdefault("status", "point_in_time_snapshot")
+    snapshot.setdefault("workspace_git_sha_at_audit", audit.get("current_git_sha"))
+    snapshot.setdefault("currentness_blockers", [])
+    snapshot.setdefault("refresh_command", "make launch-probe-web-app && make launch-audit")
+    snapshot.setdefault(
+        "operator_contract",
+        (
+            "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. "
+            "After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app "
+            "and make launch-audit in the operator session before treating the handoff as launch proof."
+        ),
+    )
+    return snapshot
+
+
 def _md_cell(value: Any) -> str:
     return str(value).replace("|", "\\|")
 
@@ -146,7 +163,10 @@ def _blocker_clearance_plan(blocked: set[str], *, provider_env: str) -> list[dic
         plan.append(
             {
                 "id": "launch_report_recommendation",
-                "action": "After clearing the blocker groups above, rerun make launch-audit and make launch-handoff.",
+                "action": (
+                    "After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, "
+                    "and make launch-handoff."
+                ),
                 "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready.",
             }
         )
@@ -342,6 +362,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "required_exports": required_exports,
         "dashboard_inputs": dashboard_inputs,
         "commands": commands,
+        "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
         "blocker_clearance_plan": _blocker_clearance_plan(blocked, provider_env=provider_env),
         "deployment_discovery": {
@@ -391,6 +412,8 @@ def _shell_exports(handoff: dict[str, Any]) -> list[str]:
 
 
 def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
+    artifact_snapshot = handoff.get("artifact_snapshot") or {}
+    currentness_blockers = artifact_snapshot.get("currentness_blockers") or []
     lines = [
         "# Launch Operator Handoff",
         "",
@@ -400,6 +423,12 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
         f"- Preflight ready: `{handoff['preflight_ready']}`",
         f"- Provider: `{handoff['provider']}`",
         f"- Provider env: `{handoff['provider_env']}`",
+        f"- Evidence snapshot: `{artifact_snapshot.get('status') or 'unknown'}`",
+        f"- Snapshot refresh command: `{artifact_snapshot.get('refresh_command') or 'make launch-probe-web-app && make launch-audit'}`",
+        "- Snapshot contract: "
+        f"{artifact_snapshot.get('operator_contract') or 'Rerun launch probes before treating this handoff as launch proof.'}",
+        "- Currentness blockers: "
+        + ("<br>".join(f"`{entry}`" for entry in currentness_blockers) if currentness_blockers else "`none`"),
         "",
         "## Shell Exports",
         "",

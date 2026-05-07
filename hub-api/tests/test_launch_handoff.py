@@ -42,6 +42,12 @@ def _write_artifacts(root: Path, *, provider: str = "openai", provider_env: str 
                     "status": "pass",
                     "blockers": [],
                 },
+                {
+                    "id": "launch_report_recommendation",
+                    "requirement": "Launch-check must no longer report Not yet launch-ready.",
+                    "status": "blocked",
+                    "blockers": ["launch_check_not_ready"],
+                },
             ],
         },
     )
@@ -134,10 +140,13 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert dashboard_inputs["EMAILDJ_REAL_PROVIDER"]["value"] == "anthropic"
     assert dashboard_inputs["ANTHROPIC_API_KEY"]["required_when"] is True
     assert dashboard_inputs["REDIS_URL"]["required_when"] is True
+    assert payload["artifact_snapshot"]["status"] == "point_in_time_snapshot"
+    assert payload["artifact_snapshot"]["refresh_command"] == "make launch-probe-web-app && make launch-audit"
     clearance = {item["id"]: item for item in payload["blocker_clearance_plan"]}
     assert "deployed_preflight_inputs" in clearance
     assert "durable_infra" in clearance
     assert "ANTHROPIC_API_KEY" in clearance["pinned_origins_beta_provider"]["action"]
+    assert "make launch-probe-web-app" in clearance["launch_report_recommendation"]["action"]
     assert payload["commands"] == [
         "make render-blueprint-check",
         "make launch-preflight",
@@ -199,6 +208,9 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert 'export STAGING_BASE_URL="https://<staging-hub-api-root>"' in markdown
     assert 'export VITE_EMAILDJ_BETA_KEY="$BETA_KEY"' in markdown
     assert "`OPENAI_API_KEY`" in markdown
+    assert "Evidence snapshot" in markdown
+    assert "Snapshot contract" in markdown
+    assert "make launch-probe-web-app && make launch-audit" in markdown
     assert "Blocker Clearance Plan" in markdown
     assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
 
