@@ -345,6 +345,8 @@ def _write_markdown(path: Path, payload: dict) -> None:
         f"- Vercel bypass configured: `{payload.get('vercel_protection_bypass_configured')}`",
         f"- Vercel bypass header used: `{payload.get('vercel_protection_bypass_header') or 'none'}`",
         f"- Client bundle usable: `{payload.get('client_bundle_usable')}`",
+        f"- Probe exit policy: `{payload.get('probe_exit_policy') or 'strict_client_bundle_required'}`",
+        f"- Probe exit allows blocked deployment: `{payload.get('probe_exit_allows_blocked') or False}`",
         f"- Detected VITE_HUB_URL: `{payload.get('detected_vite_hub_url') or 'none'}`",
         f"- Detected VITE_PRESET_PREVIEW_PIPELINE: `{payload.get('detected_preview_pipeline') or 'none'}`",
         f"- Clears launch blockers: `{payload.get('clears_launch_blockers')}`",
@@ -382,7 +384,12 @@ def _write_markdown(path: Path, payload: dict) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def write_probe(*, web_app_url: str | None = None, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> tuple[Path, Path, dict]:
+def write_probe(
+    *,
+    web_app_url: str | None = None,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    allow_blocked_exit: bool = False,
+) -> tuple[Path, Path, dict]:
     discovery = _read_json(ROOT / "reports" / "launch" / "deployment_discovery.json")
     target_url = web_app_url or _web_app_url_from_discovery()
     vercel_bypass_secret = (os.environ.get("VERCEL_AUTOMATION_BYPASS_SECRET") or "").strip()
@@ -394,6 +401,10 @@ def write_probe(*, web_app_url: str | None = None, timeout_seconds: float = DEFA
         vercel_protection_bypass_configured=bool(vercel_bypass_secret),
         fetch_headers=fetch_headers,
         timeout_seconds=timeout_seconds,
+    )
+    payload["probe_exit_allows_blocked"] = allow_blocked_exit
+    payload["probe_exit_policy"] = (
+        "nonblocking_artifact_refresh" if allow_blocked_exit else "strict_client_bundle_required"
     )
     report_dir = ROOT / "reports" / "launch"
     json_path = report_dir / "web_app_deployment_probe.json"
@@ -412,12 +423,30 @@ def _parse_args() -> argparse.Namespace:
         default=DEFAULT_TIMEOUT_SECONDS,
         help=f"HTTP timeout in seconds (default: {DEFAULT_TIMEOUT_SECONDS}).",
     )
+    parser.add_argument(
+        "--allow-blocked",
+        action="store_true",
+        help=(
+            "Exit 0 after writing artifacts even when the deployed bundle is not usable. "
+            "Use only for operator readouts; strict launch gates should omit this flag."
+        ),
+    )
     return parser.parse_args()
+
+
+def _exit_code_for_probe(payload: dict, *, allow_blocked: bool) -> int:
+    if payload.get("client_bundle_usable"):
+        return 0
+    return 0 if allow_blocked else 1
 
 
 def main() -> int:
     args = _parse_args()
-    json_path, md_path, payload = write_probe(web_app_url=args.url or None, timeout_seconds=args.timeout_seconds)
+    json_path, md_path, payload = write_probe(
+        web_app_url=args.url or None,
+        timeout_seconds=args.timeout_seconds,
+        allow_blocked_exit=args.allow_blocked,
+    )
     print(
         json.dumps(
             {
@@ -427,12 +456,13 @@ def main() -> int:
                 "detected_vite_hub_url": payload.get("detected_vite_hub_url"),
                 "detected_preview_pipeline": payload.get("detected_preview_pipeline"),
                 "vercel_protection_bypass_configured": payload.get("vercel_protection_bypass_configured"),
+                "probe_exit_policy": payload.get("probe_exit_policy"),
                 "failures": payload.get("failures"),
             },
             indent=2,
         )
     )
-    return 0 if payload.get("client_bundle_usable") else 1
+    return _exit_code_for_probe(payload, allow_blocked=args.allow_blocked)
 
 
 if __name__ == "__main__":

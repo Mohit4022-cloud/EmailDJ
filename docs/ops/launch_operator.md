@@ -156,7 +156,7 @@ make launch-verify-deployed
 
 This runs preflight, verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
-After the deployed gate, run `make launch-probe-web-app` before `make launch-audit` so the completion audit reads the current deployed frontend candidate and its bundle/auth state.
+After the deployed gate, run `make launch-probe-web-app` before `make launch-audit` so the completion audit reads the current deployed frontend candidate and its bundle/auth state. If the preview is still protected and you only need a current readout, run `make launch-probe-web-app-readout`; it exits 0 after writing probe artifacts but leaves `client_bundle_usable=false` and does not clear launch blockers.
 
 Release verification defaults:
 
@@ -218,6 +218,8 @@ Artifacts:
 - `reports/launch/completion_audit.md`
 
 The audit maps each A-to-Z launch requirement to concrete evidence or explicit blockers. It is non-blocking by default so operators can refresh the readout while work remains; use `cd hub-api && python scripts/launch_audit.py --fail-if-incomplete` when a hard completion gate is needed.
+
+Use `make launch-probe-web-app-readout` only for blocked evidence refreshes, such as a Vercel preview that still needs `VERCEL_AUTOMATION_BYPASS_SECRET`. The strict completion path must still use `make launch-probe-web-app` before launch proof is accepted.
 
 Treat the checked-in `reports/launch/*` files as point-in-time evidence snapshots, not proof that the latest commit is deployed and verified. After every target commit deploy or Vercel deployment change, rerun `make launch-probe-web-app && make launch-audit` in the same operator session before using `completion_audit.*` as current launch proof.
 

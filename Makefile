@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-preflight launch-check launch-audit launch-discover-deployment launch-probe-web-app launch-handoff localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
+.PHONY: setup test build dev launch-preflight launch-check launch-audit launch-discover-deployment launch-probe-web-app launch-probe-web-app-readout launch-handoff localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -80,6 +80,9 @@ launch-discover-deployment:
 
 launch-probe-web-app: launch-discover-deployment
 	cd hub-api && source .venv/bin/activate && python scripts/probe_web_app_deployment.py
+
+launch-probe-web-app-readout: launch-discover-deployment
+	cd hub-api && source .venv/bin/activate && python scripts/probe_web_app_deployment.py --allow-blocked
 
 launch-handoff:
 	cd hub-api && source .venv/bin/activate && python scripts/launch_handoff.py

@@ -188,3 +188,50 @@ def test_probe_reads_default_web_app_candidate_from_deployment_discovery(monkeyp
     monkeypatch.setattr(probe, "ROOT", tmp_path)
 
     assert probe._web_app_url_from_discovery() == "https://email.example.test"
+
+
+def test_probe_exit_code_stays_strict_unless_readout_allows_blocked():
+    import scripts.probe_web_app_deployment as probe
+
+    blocked_payload = {"client_bundle_usable": False}
+    usable_payload = {"client_bundle_usable": True}
+
+    assert probe._exit_code_for_probe(blocked_payload, allow_blocked=False) == 1
+    assert probe._exit_code_for_probe(blocked_payload, allow_blocked=True) == 0
+    assert probe._exit_code_for_probe(usable_payload, allow_blocked=False) == 0
+
+
+def test_write_probe_marks_nonblocking_readout_mode(monkeypatch, tmp_path):
+    import scripts.probe_web_app_deployment as probe
+
+    def fake_inspect(*args, **kwargs):  # noqa: ARG001
+        return {
+            "generated_at": "2026-05-07T20:30:00Z",
+            "web_app_url": "https://email.example.test",
+            "normalized_web_app_origin": "https://email.example.test",
+            "source_git_sha": "sha",
+            "workspace_git_sha_at_probe": "sha",
+            "probe_matches_workspace_head": True,
+            "vercel_protection_bypass_env": probe.VERCEL_BYPASS_ENV,
+            "vercel_protection_bypass_configured": False,
+            "vercel_protection_bypass_header": None,
+            "client_bundle_usable": False,
+            "failures": ["web_app_deployment_requires_auth"],
+            "warnings": [],
+            "clears_launch_blockers": False,
+            "launch_blocker_note": probe.LAUNCH_BLOCKER_NOTE,
+        }
+
+    monkeypatch.setattr(probe, "ROOT", tmp_path)
+    monkeypatch.setattr(probe, "_git_head_sha", lambda: "sha")
+    monkeypatch.setattr(probe, "_web_app_url_from_discovery", lambda: "https://email.example.test")
+    monkeypatch.setattr(probe, "inspect_web_app_deployment", fake_inspect)
+
+    json_path, md_path, payload = probe.write_probe(allow_blocked_exit=True)
+
+    assert json_path.exists()
+    assert md_path.exists()
+    assert payload["client_bundle_usable"] is False
+    assert payload["probe_exit_allows_blocked"] is True
+    assert payload["probe_exit_policy"] == "nonblocking_artifact_refresh"
+    assert "Probe exit policy: `nonblocking_artifact_refresh`" in md_path.read_text(encoding="utf-8")
