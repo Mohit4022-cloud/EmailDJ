@@ -69,6 +69,14 @@ make web-app-test
 make chrome-extension-test
 ```
 
+Local launch gates:
+
+```bash
+make launch-gates-local
+```
+
+This runs the three surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, and `make launch-check`.
+
 ## Build
 ```bash
 make build
