@@ -42,59 +42,20 @@ jobs:
         run: |
           source .venv/bin/activate
           REPORT_PATH="backend/evals/reports/ci_emaildj.json"
+          GOLDEN_PRESENT=0
           python -m backend.evals.eval_run --payloads emaildj --stages all --raw --report "$REPORT_PATH"
 
           if ls backend/evals/golden/*.json >/dev/null 2>&1; then
+            GOLDEN_PRESENT=1
             REPORT_PATH="backend/evals/reports/ci_emaildj_golden.json"
             python -m backend.evals.eval_run --payloads emaildj --stages all --raw --golden --report "$REPORT_PATH"
           fi
 
-          python - "$REPORT_PATH" <<'PY'
-          import json
-          import sys
-          from pathlib import Path
-
-          report_path = Path(sys.argv[1])
-          report = json.loads(report_path.read_text(encoding="utf-8"))
-
-          hard_fail_payloads = [
-              item.get("payload_id")
-              for item in report.get("payload_results", [])
-              if item.get("hard_fail_triggered")
-          ]
-
-          regressed = []
-          regression = report.get("regression_vs_golden")
-          if isinstance(regression, dict):
-              regressed = list(regression.get("regressed") or [])
-
-          c0_rate = float((report.get("stage_pass_rates") or {}).get("ONE_LINER_COMPRESSOR") or 0.0)
-
-          summary_lines = [
-              f"Report: {report_path}",
-              f"Payload count: {report.get('payload_count', 0)}",
-              f"Overall pass rate: {report.get('overall_pass_rate', 0.0):.2%}",
-              f"ONE_LINER_COMPRESSOR pass rate: {c0_rate:.2%}",
-              f"Hard-fail payloads: {', '.join(hard_fail_payloads) if hard_fail_payloads else 'none'}",
-              f"Regressed payloads: {', '.join(regressed) if regressed else 'none'}",
-          ]
-          summary = "\n".join(summary_lines)
-          print(summary)
-
-          Path("backend/evals/reports/ci_summary.txt").write_text(summary, encoding="utf-8")
-
-          failures = []
-          if hard_fail_payloads:
-              failures.append("hard_fail_triggered on emaildj payloads")
-          if regressed:
-              failures.append("regression_vs_golden detected")
-          if c0_rate < 0.6:
-              failures.append("ONE_LINER_COMPRESSOR pass rate below 0.6")
-
-          if failures:
-              print("\nBlocking conditions:\n- " + "\n- ".join(failures))
-              sys.exit(1)
-          PY
+          GATE_ARGS=()
+          if [ "$GOLDEN_PRESENT" = "1" ]; then
+            GATE_ARGS+=(--golden-present)
+          fi
+          python -m backend.evals.ci_gate "$REPORT_PATH" --summary backend/evals/reports/ci_summary.txt "${GATE_ARGS[@]}"
 
           echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
 

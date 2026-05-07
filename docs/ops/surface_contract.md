@@ -34,7 +34,7 @@ Machine-readable manifest: [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailD
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.
 - The repo-root `render.yaml` is the Hub API deployment handoff. It must keep provider-stub mode disabled, use managed Redis/Postgres references, and leave operator-specific origins/beta keys/secrets as Dashboard-filled values.
 - The general CI `checks` job runs the surface contract, hub-api checks, web-app tests/build, chrome-extension tests/build, the full mock eval artifact, launch check, completion audit, and operator handoff.
-- `.github/workflows/eval_regression.yml` is intentionally path-scoped to `backend/**` and named as legacy backend evidence.
+- `.github/workflows/eval_regression.yml` is intentionally path-scoped to `backend/**` and named as legacy backend evidence. Without checked-in `backend/evals/golden/*.json` baselines, live quality signals are advisory; checked-in golden regressions remain blocking.
 - Passing legacy tests can be useful during migration, but it never satisfies launch readiness on its own.
 
 ## Operator Read
