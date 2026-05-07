@@ -1,23 +1,18 @@
 {
-  "run_id": "merged_20260507T142959Z",
+  "run_id": "smoke_20260507T142956Z",
   "mode": "smoke",
-  "timestamp_utc": "2026-05-07T14:29:59.727772Z",
-  "elapsed_seconds": 2.9,
-  "total": 60,
-  "pass": 60,
+  "timestamp_utc": "2026-05-07T14:29:57.578104Z",
+  "elapsed_seconds": 1.0,
+  "total": 30,
+  "pass": 30,
   "fail": 0,
   "errors": 0,
   "pass_rate_pct": 100.0,
   "provider_source_counts": {
-    "provider_stub": 60
+    "provider_stub": 30
   },
   "route_pass_fail_counts": {
     "generate": {
-      "total": 30,
-      "pass": 30,
-      "fail": 0
-    },
-    "remix": {
       "total": 30,
       "pass": 30,
       "fail": 0
@@ -25,13 +20,13 @@
   },
   "preset_pass_fail_counts": {
     "straight_shooter": {
-      "total": 30,
-      "pass": 30,
+      "total": 15,
+      "pass": 15,
       "fail": 0
     },
     "c_suite_sniper": {
-      "total": 30,
-      "pass": 30,
+      "total": 15,
+      "pass": 15,
       "fail": 0
     }
   },
@@ -49,52 +44,32 @@
     "harness_green": "not_run",
     "shim_green": "green",
     "provider_green": "not_run",
-    "remix_green": "green"
+    "remix_green": "not_run"
   },
   "fail_tag_counts": {},
   "top_10_worst": [],
   "breakdown_by_persona_type": {
     "exec": {
-      "total": 24,
-      "pass": 24
-    },
-    "practitioner": {
-      "total": 24,
-      "pass": 24
-    },
-    "manager": {
       "total": 12,
       "pass": 12
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 12
+    },
+    "manager": {
+      "total": 6,
+      "pass": 6
     }
   },
   "breakdown_by_preset": {
     "straight_shooter": {
-      "total": 30,
-      "pass": 30
+      "total": 15,
+      "pass": 15
     },
     "c_suite_sniper": {
-      "total": 30,
-      "pass": 30
+      "total": 15,
+      "pass": 15
     }
-  },
-  "source_summaries": [
-    {
-      "path": "debug_runs/smoke/manual/generate/summary.json",
-      "run_id": "smoke_20260507T142956Z",
-      "mode": "smoke",
-      "total": 30,
-      "pass": 30,
-      "fail": 0,
-      "errors": 0
-    },
-    {
-      "path": "debug_runs/smoke/manual/remix/summary.json",
-      "run_id": "smoke_20260507T142957Z",
-      "mode": "smoke",
-      "total": 30,
-      "pass": 30,
-      "fail": 0,
-      "errors": 0
-    }
-  ]
+  }
 }

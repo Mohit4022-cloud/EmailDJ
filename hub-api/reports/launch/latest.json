@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T14:27:11.532869Z",
+  "generated_at": "2026-05-07T14:48:40.002567Z",
   "max_age_hours": 72,
   "recommended_max_age_hours": 48,
   "app_env": "staging",
@@ -26,9 +26,9 @@
     "preview": "launch_mode:limited_rollout"
   },
   "preview_pipeline_enabled": false,
-  "release_fingerprint": "git_sha=92ad23e22917",
+  "release_fingerprint": "git_sha=42393b8cc974",
   "release_fingerprint_available": true,
-  "git_sha": "92ad23e22917",
+  "git_sha": "42393b8cc974",
   "build_id": null,
   "image_tag": null,
   "release_version": null,
@@ -57,13 +57,11 @@
     "chrome_extension_origin_not_pinned:default_dev_placeholder",
     "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite",
     "http_smoke_external_provider_missing_for_launch_mode:limited_rollout",
-    "http_smoke_route_missing:remix",
     "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
     "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend",
     "web_app_origin_not_pinned:unset"
   ],
   "config_warnings": [
-    "http_smoke_missing_required_route_coverage:remix",
     "localhost_smoke_provider_stub_only",
     "production_runtime_snapshot_missing",
     "release_fingerprint_unavailable",
@@ -94,18 +92,23 @@
     "green": "green",
     "state": "present",
     "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json",
-    "timestamp": "2026-05-07T12:10:43.879082Z",
+    "timestamp": "2026-05-07T14:29:59.727772Z",
     "mode": "smoke",
-    "total": 30,
-    "pass": 30,
+    "total": 60,
+    "pass": 60,
     "fail": 0,
     "errors": 0,
     "pass_rate_pct": 100.0,
     "provider_source_counts": {
-      "provider_stub": 30
+      "provider_stub": 60
     },
     "route_pass_fail_counts": {
       "generate": {
+        "total": 30,
+        "pass": 30,
+        "fail": 0
+      },
+      "remix": {
         "total": 30,
         "pass": 30,
         "fail": 0
@@ -116,7 +119,7 @@
       "harness_green": "not_run",
       "shim_green": "green",
       "provider_green": "not_run",
-      "remix_green": "not_run"
+      "remix_green": "green"
     },
     "required_routes": [
       "generate",
@@ -138,7 +141,7 @@
       "label": "backend",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
       "timestamp": "2026-05-07T14:21:35.436284Z",
-      "age_hours": 0.09,
+      "age_hours": 0.45,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -152,7 +155,7 @@
       "label": "provider_stub_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",
       "timestamp": "2026-05-07T14:27:09.067997Z",
-      "age_hours": 0.0,
+      "age_hours": 0.36,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -166,7 +169,7 @@
       "label": "external_provider_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json",
       "timestamp": "2026-05-07T14:26:09.024582Z",
-      "age_hours": 0.02,
+      "age_hours": 0.38,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -180,7 +183,7 @@
       "label": "provider_shim_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json",
       "timestamp": "2026-05-07T03:38:14.704193Z",
-      "age_hours": 10.82,
+      "age_hours": 11.17,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -194,7 +197,7 @@
       "label": "external_provider_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T123230Z/summary.json",
       "timestamp": "2026-05-07T12:33:10.589611Z",
-      "age_hours": 1.9,
+      "age_hours": 2.26,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -207,8 +210,8 @@
     "localhost_smoke": {
       "label": "localhost_smoke",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/smoke/manual/summary.json",
-      "timestamp": "2026-05-07T12:10:43.879082Z",
-      "age_hours": 2.27,
+      "timestamp": "2026-05-07T14:29:59.727772Z",
+      "age_hours": 0.31,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
