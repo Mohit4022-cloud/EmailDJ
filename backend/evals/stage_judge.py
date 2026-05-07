@@ -817,6 +817,16 @@ def _check_outcome_like(text: str) -> bool:
         "cut",
         "protect",
         "stabilize",
+        "scale",
+        "scaled",
+        "keep",
+        "keeps",
+        "maintain",
+        "maintains",
+        "standardize",
+        "standardized",
+        "tighten",
+        "tightened",
     )
     has_outcome_verb = any(word in lowered for word in outcome_words)
     mechanism_words = (
