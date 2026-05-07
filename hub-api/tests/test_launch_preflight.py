@@ -17,6 +17,7 @@ class _FakeResponse:
 def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypatch):
     import scripts.launch_preflight as lp
 
+    monkeypatch.setattr(lp, "ROOT", Path("/tmp/emaildj-missing-preflight-env"))
     monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.delenv("STAGING_BASE_URL", raising=False)
@@ -34,9 +35,50 @@ def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypa
     assert result["failure_bucket"] == "operator_input_missing"
     assert result["transport_checked"] is False
     assert result["missing_inputs"] == ["STAGING_BASE_URL", "PROD_BASE_URL", "BETA_KEY"]
+    assert result["operator_input_sources"]["BETA_KEY"] == {
+        "explicit_env_present": False,
+        "dotenv_value_present": False,
+        "dotenv_value_ignored": False,
+        "effective_present": False,
+    }
     assert "hub-api root URL" in result["next_steps"][0]
     assert "hub-api root URL" in result["next_steps"][1]
     assert "EMAILDJ_WEB_BETA_KEYS" in result["next_steps"][2]
+
+
+def test_launch_preflight_reports_dotenv_operator_inputs_as_ignored(monkeypatch, tmp_path):
+    import scripts.launch_preflight as lp
+
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "STAGING_BASE_URL=https://staging.example.com",
+                "PROD_BASE_URL=https://prod.example.com",
+                "BETA_KEY=dotenv-beta-key",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(lp, "ROOT", tmp_path)
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("STAGING_BASE_URL", raising=False)
+    monkeypatch.delenv("PROD_BASE_URL", raising=False)
+    monkeypatch.delenv("BETA_KEY", raising=False)
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_missing"
+    assert result["missing_inputs"] == ["STAGING_BASE_URL", "PROD_BASE_URL", "BETA_KEY"]
+    assert result["operator_input_sources"]["STAGING_BASE_URL"] == {
+        "explicit_env_present": False,
+        "dotenv_value_present": True,
+        "dotenv_value_ignored": True,
+        "effective_present": False,
+    }
+    assert result["operator_input_sources"]["PROD_BASE_URL"]["dotenv_value_ignored"] is True
+    assert result["operator_input_sources"]["BETA_KEY"]["dotenv_value_ignored"] is True
 
 
 def test_launch_preflight_blocks_transport_failure(monkeypatch):
@@ -95,5 +137,6 @@ def test_launch_preflight_main_writes_reports(monkeypatch, tmp_path, capsys):
 
     assert exit_code == 0
     assert payload["ready"] is True
+    assert payload["operator_input_sources"]["BETA_KEY"]["explicit_env_present"] is True
     assert '"ready": true' in captured.out
     assert (tmp_path / "reports" / "launch" / "preflight.md").exists()

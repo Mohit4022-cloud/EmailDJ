@@ -1,6 +1,6 @@
 # Launch Preflight
 
-- Generated at: `2026-05-07T04:17:03.451389Z`
+- Generated at: `2026-05-07T04:19:01.274802Z`
 - Ready: `False`
 - Failure bucket: `operator_input_missing`
 - Provider: `openai`
@@ -15,6 +15,12 @@
 - `PROD_BASE_URL` present=`False`
 - `BETA_KEY` present=`False`
 - `OPENAI_API_KEY` present=`True`
+
+## Operator Input Sources
+
+- `STAGING_BASE_URL` explicit_env_present=`False` dotenv_value_present=`False` dotenv_value_ignored=`False` effective_present=`False`
+- `PROD_BASE_URL` explicit_env_present=`False` dotenv_value_present=`False` dotenv_value_ignored=`False` effective_present=`False`
+- `BETA_KEY` explicit_env_present=`False` dotenv_value_present=`True` dotenv_value_ignored=`True` effective_present=`False`
 
 ## Transport Probe
 

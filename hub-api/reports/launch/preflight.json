@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T04:17:03.451389Z",
+  "generated_at": "2026-05-07T04:19:01.274802Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -10,6 +10,26 @@
     "PROD_BASE_URL": false,
     "BETA_KEY": false,
     "OPENAI_API_KEY": true
+  },
+  "operator_input_sources": {
+    "STAGING_BASE_URL": {
+      "explicit_env_present": false,
+      "dotenv_value_present": false,
+      "dotenv_value_ignored": false,
+      "effective_present": false
+    },
+    "PROD_BASE_URL": {
+      "explicit_env_present": false,
+      "dotenv_value_present": false,
+      "dotenv_value_ignored": false,
+      "effective_present": false
+    },
+    "BETA_KEY": {
+      "explicit_env_present": false,
+      "dotenv_value_present": true,
+      "dotenv_value_ignored": true,
+      "effective_present": false
+    }
   },
   "missing_inputs": [
     "STAGING_BASE_URL",

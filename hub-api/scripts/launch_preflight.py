@@ -37,12 +37,25 @@ def _utc_now_text() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def _load_launch_env() -> None:
-    explicit_operator_inputs = {name: name in os.environ for name in _REQUIRED_INPUTS}
+def _load_launch_env() -> dict[str, dict[str, bool]]:
+    explicit_operator_inputs = {
+        name: bool((os.environ.get(name) or "").strip())
+        for name in _REQUIRED_INPUTS
+    }
     load_dotenv(dotenv_path=ROOT / ".env", override=False)
+    source_state: dict[str, dict[str, bool]] = {}
     for name, was_explicit in explicit_operator_inputs.items():
-        if not was_explicit:
+        value_after_dotenv = bool((os.environ.get(name) or "").strip())
+        dotenv_value_ignored = bool(value_after_dotenv and not was_explicit)
+        if dotenv_value_ignored:
             os.environ.pop(name, None)
+        source_state[name] = {
+            "explicit_env_present": was_explicit,
+            "dotenv_value_present": dotenv_value_ignored,
+            "dotenv_value_ignored": dotenv_value_ignored,
+            "effective_present": bool((os.environ.get(name) or "").strip()),
+        }
+    return source_state
 
 
 def _required_provider_env() -> tuple[str, str]:
@@ -84,7 +97,7 @@ def _report_paths() -> tuple[Path, Path]:
 
 
 def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
-    _load_launch_env()
+    operator_input_sources = _load_launch_env()
     provider, provider_env = _required_provider_env()
     presence = {name: bool((os.environ.get(name) or "").strip()) for name in (*_REQUIRED_INPUTS, provider_env)}
     missing_inputs = [name for name, present in presence.items() if not present]
@@ -97,6 +110,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
         "provider_env": provider_env,
         "timeout_seconds": timeout_seconds,
         "required_inputs_present": presence,
+        "operator_input_sources": operator_input_sources,
         "missing_inputs": missing_inputs,
         "transport_checked": False,
         "transport_ok": None,
@@ -163,6 +177,17 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
     ]
     for name, present in dict(result.get("required_inputs_present") or {}).items():
         lines.append(f"- `{name}` present=`{present}`")
+
+    operator_sources = dict(result.get("operator_input_sources") or {})
+    if operator_sources:
+        lines.extend(["", "## Operator Input Sources", ""])
+        for name, source in operator_sources.items():
+            lines.append(
+                f"- `{name}` explicit_env_present=`{source.get('explicit_env_present')}` "
+                f"dotenv_value_present=`{source.get('dotenv_value_present')}` "
+                f"dotenv_value_ignored=`{source.get('dotenv_value_ignored')}` "
+                f"effective_present=`{source.get('effective_present')}`"
+            )
 
     lines.extend(
         [
