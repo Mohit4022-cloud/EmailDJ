@@ -712,6 +712,23 @@ def test_launch_check_operator_next_steps_include_config_blockers(monkeypatch, t
     assert "Provision managed Redis" in steps
 
 
+def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke" in steps
+
+
 def test_launch_check_uses_provider_specific_report_dirs():
     from evals.runner import _resolved_report_dir
 

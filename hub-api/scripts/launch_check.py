@@ -736,6 +736,16 @@ def _has_blocker(report: dict[str, Any], prefix: str) -> bool:
     return any(str(blocker).startswith(prefix) for blocker in report.get("config_blockers") or [])
 
 
+def _artifact_needs_operator_refresh(report: dict[str, Any], label: str) -> bool:
+    artifact = dict((report.get("artifact_provenance") or {}).get(label) or {})
+    return bool(
+        artifact.get("missing")
+        or artifact.get("stale")
+        or artifact.get("malformed")
+        or artifact.get("schema_incomplete")
+    )
+
+
 def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactStatus, production_snapshot: ArtifactStatus) -> list[str]:
     steps: list[str] = []
     if _has_blocker(report, "web_app_origin_not_pinned:"):
@@ -767,6 +777,10 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
     if _has_blocker(report, "preview_route_enabled_for_launch_mode:limited_rollout"):
         steps.append(
             "Keep preview disabled for `limited_rollout` by removing any explicit preview-route override before recapturing runtime snapshots."
+        )
+    if _artifact_needs_operator_refresh(report, "localhost_smoke"):
+        steps.append(
+            "Run the guarded localhost smoke against the intended Hub API process with `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`, then rerun `make launch-check`."
         )
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
