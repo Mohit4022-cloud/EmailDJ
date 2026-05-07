@@ -10,6 +10,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -31,6 +32,8 @@ _PROVIDER_PROBE_URLS = {
     "anthropic": "https://api.anthropic.com/v1/models",
     "groq": "https://api.groq.com/openai/v1/models",
 }
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+_DEV_BETA_KEYS = {"dev-beta-key"}
 
 
 def _utc_now_text() -> str:
@@ -86,8 +89,60 @@ def _operator_input_step(name: str) -> str:
     if name == "PROD_BASE_URL":
         return "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification."
     if name == "BETA_KEY":
-        return "Set `BETA_KEY` to one exact deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
+        return "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
     return f"Set `{name}` before running launch verification."
+
+
+def _normalize_url(raw_url: str) -> str:
+    parsed = urlparse(raw_url.strip())
+    path = parsed.path.rstrip("/")
+    return parsed._replace(path=path, params="", query="", fragment="").geturl().rstrip("/")
+
+
+def _validate_base_url(name: str, raw_url: str) -> list[str]:
+    errors: list[str] = []
+    parsed = urlparse(raw_url.strip())
+    host = (parsed.hostname or "").strip().lower()
+    path = (parsed.path or "").strip()
+    if parsed.scheme != "https":
+        errors.append(f"{name}:must_use_https")
+    if not parsed.netloc or not host:
+        errors.append(f"{name}:invalid_url")
+        return errors
+    if host in _LOCAL_HOSTS or host.endswith(".local"):
+        errors.append(f"{name}:must_not_be_localhost")
+    if path not in {"", "/"}:
+        errors.append(f"{name}:must_be_hub_api_root_url")
+    if parsed.params or parsed.query or parsed.fragment:
+        errors.append(f"{name}:must_not_include_query_or_fragment")
+    return errors
+
+
+def _validate_operator_inputs() -> list[str]:
+    errors: list[str] = []
+    staging_url = (os.environ.get("STAGING_BASE_URL") or "").strip()
+    prod_url = (os.environ.get("PROD_BASE_URL") or "").strip()
+    beta_key = (os.environ.get("BETA_KEY") or "").strip()
+    errors.extend(_validate_base_url("STAGING_BASE_URL", staging_url))
+    errors.extend(_validate_base_url("PROD_BASE_URL", prod_url))
+    if staging_url and prod_url and _normalize_url(staging_url) == _normalize_url(prod_url):
+        errors.append("STAGING_BASE_URL:must_differ_from_PROD_BASE_URL")
+    if beta_key in _DEV_BETA_KEYS:
+        errors.append("BETA_KEY:must_not_be_dev_placeholder")
+    return errors
+
+
+def _invalid_operator_input_steps(errors: list[str]) -> list[str]:
+    steps: list[str] = []
+    if any(error.startswith("STAGING_BASE_URL:") for error in errors):
+        steps.append("Set `STAGING_BASE_URL` to the deployed staging hub-api root URL using HTTPS, with no path, query, or localhost host.")
+    if any(error.startswith("PROD_BASE_URL:") for error in errors):
+        steps.append("Set `PROD_BASE_URL` to the deployed production hub-api root URL using HTTPS, with no path, query, or localhost host.")
+    if "STAGING_BASE_URL:must_differ_from_PROD_BASE_URL" in errors:
+        steps.append("Use distinct staging and production hub-api roots; launch verification must prove both environments separately.")
+    if any(error.startswith("BETA_KEY:") for error in errors):
+        steps.append("Set `BETA_KEY` to a non-dev deployed beta key that exactly matches one `EMAILDJ_WEB_BETA_KEYS` value.")
+    return list(dict.fromkeys(steps))
 
 
 def _report_paths() -> tuple[Path, Path]:
@@ -101,6 +156,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
     provider, provider_env = _required_provider_env()
     presence = {name: bool((os.environ.get(name) or "").strip()) for name in (*_REQUIRED_INPUTS, provider_env)}
     missing_inputs = [name for name, present in presence.items() if not present]
+    operator_input_errors = [] if missing_inputs else _validate_operator_inputs()
 
     result: dict[str, Any] = {
         "generated_at": _utc_now_text(),
@@ -112,6 +168,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
         "required_inputs_present": presence,
         "operator_input_sources": operator_input_sources,
         "missing_inputs": missing_inputs,
+        "operator_input_errors": operator_input_errors,
         "transport_checked": False,
         "transport_ok": None,
         "probe_url": None,
@@ -123,6 +180,10 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
     if missing_inputs:
         result["failure_bucket"] = "operator_input_missing"
         result["next_steps"] = [_operator_input_step(name) for name in missing_inputs]
+        return result
+    if operator_input_errors:
+        result["failure_bucket"] = "operator_input_invalid"
+        result["next_steps"] = _invalid_operator_input_steps(operator_input_errors)
         return result
 
     probe_url, headers = _provider_probe(provider, provider_env)
@@ -170,13 +231,19 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
         f"- Provider env: `{result['provider_env']}`",
         f"- Timeout seconds: `{result['timeout_seconds']}`",
         "",
-        "> `STAGING_BASE_URL` and `PROD_BASE_URL` must be hub-api root URLs, not frontend URLs. `BETA_KEY` must match one deployed `EMAILDJ_WEB_BETA_KEYS` value.",
+        "> `STAGING_BASE_URL` and `PROD_BASE_URL` must be HTTPS hub-api root URLs, not frontend URLs. `BETA_KEY` must match one non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value.",
         "",
         "## Required Inputs",
         "",
     ]
     for name, present in dict(result.get("required_inputs_present") or {}).items():
         lines.append(f"- `{name}` present=`{present}`")
+
+    input_errors = list(result.get("operator_input_errors") or [])
+    if input_errors:
+        lines.extend(["", "## Operator Input Validation", ""])
+        for error in input_errors:
+            lines.append(f"- `{error}`")
 
     operator_sources = dict(result.get("operator_input_sources") or {})
     if operator_sources:

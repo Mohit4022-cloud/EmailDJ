@@ -139,11 +139,11 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 ## Launch Verification Contract
 
 - `STAGING_BASE_URL`
-  The staging hub-api root URL, not the Vercel frontend URL.
+  The staging hub-api root URL, not the Vercel frontend URL. Must be an HTTPS root URL with no path, query, or localhost host.
 - `PROD_BASE_URL`
-  The production hub-api root URL, not the Vercel frontend URL.
+  The production hub-api root URL, not the Vercel frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
-  One exact key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list.
+  One exact non-dev key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list.
 
 Example mapping:
 

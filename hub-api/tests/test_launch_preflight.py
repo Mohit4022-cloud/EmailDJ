@@ -100,6 +100,51 @@ def test_launch_preflight_blocks_transport_failure(monkeypatch):
     assert result["transport_error_type"] == "ConnectError"
 
 
+def test_launch_preflight_blocks_invalid_operator_urls_without_transport_probe(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "http://localhost:8000/web/v1/debug/config")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "dev-beta-key")
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when operator inputs are invalid")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert "STAGING_BASE_URL:must_use_https" in result["operator_input_errors"]
+    assert "STAGING_BASE_URL:must_not_be_localhost" in result["operator_input_errors"]
+    assert "STAGING_BASE_URL:must_be_hub_api_root_url" in result["operator_input_errors"]
+    assert "BETA_KEY:must_not_be_dev_placeholder" in result["operator_input_errors"]
+    assert "deployed staging hub-api root URL" in result["next_steps"][0]
+    assert "non-dev deployed beta key" in "\n".join(result["next_steps"])
+
+
+def test_launch_preflight_blocks_identical_staging_and_prod_urls(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://hub.example.com/")
+    monkeypatch.setenv("PROD_BASE_URL", "https://hub.example.com")
+    monkeypatch.setenv("BETA_KEY", "ops-beta-key")
+    monkeypatch.setattr(lp.httpx, "get", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no probe")))
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert result["operator_input_errors"] == ["STAGING_BASE_URL:must_differ_from_PROD_BASE_URL"]
+
+
 def test_launch_preflight_blocks_provider_http_error(monkeypatch):
     import scripts.launch_preflight as lp
 

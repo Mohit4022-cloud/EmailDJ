@@ -27,11 +27,11 @@ Launch-owned versus legacy surface boundaries live in [`docs/ops/surface_contrac
 ## Operator machine env
 
 - `STAGING_BASE_URL`
-  Must point to the staging hub-api root URL, not the frontend URL.
+  Must point to the staging hub-api root URL, not the frontend URL. Must be an HTTPS root URL with no path, query, or localhost host.
 - `PROD_BASE_URL`
-  Must point to the production hub-api root URL, not the frontend URL.
+  Must point to the production hub-api root URL, not the frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
-  Must exactly match one deployed value from `EMAILDJ_WEB_BETA_KEYS`.
+  Must exactly match one non-dev deployed value from `EMAILDJ_WEB_BETA_KEYS`.
 
 ## Backend tests
 
