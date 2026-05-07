@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-07T23:34:44.437438Z`
+- Generated at: `2026-05-07T23:51:46.280246Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -70,6 +70,20 @@ Failures:
 - `no_same_origin_bundle_assets_found`
 - `vite_hub_url_not_found_in_bundle`
 - `vite_preview_pipeline_not_found_in_bundle`
+
+## Blocked Evidence Refresh
+
+### `web_app_deployment_probe_readout`
+
+- When: Use only while the web-app deployment is still auth/protection blocked and the operator needs a fresh artifact readout before the strict launch gate can pass.
+- Evidence: hub-api/reports/launch/web_app_deployment_probe.json records probe_exit_policy=nonblocking_artifact_refresh and client_bundle_usable remains false until the strict probe succeeds.
+
+```bash
+make launch-probe-web-app-readout
+make launch-audit
+make launch-handoff
+```
+
 
 ## Commands
 

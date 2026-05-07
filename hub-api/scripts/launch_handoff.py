@@ -12,6 +12,18 @@ ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
 VERCEL_BYPASS_ENV = "VERCEL_AUTOMATION_BYPASS_SECRET"
 VERCEL_BYPASS_HEADER = "x-vercel-protection-bypass"
+WEB_APP_BLOCKED_READOUT_COMMANDS = [
+    "make launch-probe-web-app-readout",
+    "make launch-audit",
+    "make launch-handoff",
+]
+WEB_APP_AUTH_OR_PROTECTION_FAILURES = {
+    "http_error:401",
+    "web_app_deployment_requires_auth",
+    "web_app_deployment_requires_auth_or_vercel_protection_bypass",
+    "vercel_protection_bypass_secret_missing",
+    "vercel_protection_bypass_secret_rejected_or_stale",
+}
 
 
 def _utc_now_text() -> str:
@@ -171,6 +183,27 @@ def _blocker_clearance_plan(blocked: set[str], *, provider_env: str) -> list[dic
             }
         )
     return plan
+
+
+def _blocked_evidence_refresh_commands(web_app_probe: dict[str, Any]) -> list[dict[str, Any]]:
+    failures = set(web_app_probe.get("failures") or [])
+    if not failures.intersection(WEB_APP_AUTH_OR_PROTECTION_FAILURES):
+        return []
+    return [
+        {
+            "id": "web_app_deployment_probe_readout",
+            "commands": WEB_APP_BLOCKED_READOUT_COMMANDS,
+            "when": (
+                "Use only while the web-app deployment is still auth/protection blocked and the operator needs a fresh "
+                "artifact readout before the strict launch gate can pass."
+            ),
+            "evidence": (
+                "hub-api/reports/launch/web_app_deployment_probe.json records "
+                "probe_exit_policy=nonblocking_artifact_refresh and client_bundle_usable remains false until the strict "
+                "probe succeeds."
+            ),
+        }
+    ]
 
 
 def build_launch_handoff() -> dict[str, Any]:
@@ -362,6 +395,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "required_exports": required_exports,
         "dashboard_inputs": dashboard_inputs,
         "commands": commands,
+        "blocked_evidence_refresh_commands": _blocked_evidence_refresh_commands(web_app_probe),
         "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
         "blocker_clearance_plan": _blocker_clearance_plan(blocked, provider_env=provider_env),
@@ -494,6 +528,24 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
                 lines.append(f"- `{failure}`")
         else:
             lines.append("- `none`")
+
+    blocked_refresh = handoff.get("blocked_evidence_refresh_commands") or []
+    if blocked_refresh:
+        lines.extend(["", "## Blocked Evidence Refresh", ""])
+        for item in blocked_refresh:
+            lines.extend(
+                [
+                    f"### `{item.get('id')}`",
+                    "",
+                    f"- When: {item.get('when')}",
+                    f"- Evidence: {item.get('evidence')}",
+                    "",
+                    "```bash",
+                    *list(item.get("commands") or []),
+                    "```",
+                    "",
+                ]
+            )
 
     lines.extend(["", "## Commands", "", "```bash", *handoff["commands"], "```", "", "## Open Blockers", ""])
     for blocker in handoff["open_blockers"]:

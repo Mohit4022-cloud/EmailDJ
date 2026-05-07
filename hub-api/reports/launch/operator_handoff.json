@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T23:34:44.437438Z",
+  "generated_at": "2026-05-07T23:51:46.280246Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -138,6 +138,18 @@
     "make launch-probe-web-app",
     "make launch-audit",
     "make launch-handoff"
+  ],
+  "blocked_evidence_refresh_commands": [
+    {
+      "id": "web_app_deployment_probe_readout",
+      "commands": [
+        "make launch-probe-web-app-readout",
+        "make launch-audit",
+        "make launch-handoff"
+      ],
+      "when": "Use only while the web-app deployment is still auth/protection blocked and the operator needs a fresh artifact readout before the strict launch gate can pass.",
+      "evidence": "hub-api/reports/launch/web_app_deployment_probe.json records probe_exit_policy=nonblocking_artifact_refresh and client_bundle_usable remains false until the strict probe succeeds."
+    }
   ],
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",

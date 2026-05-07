@@ -155,6 +155,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make launch-audit",
         "make launch-handoff",
     ]
+    assert payload["blocked_evidence_refresh_commands"] == []
 
 
 def test_launch_handoff_exports_vercel_bypass_when_web_probe_is_protected(monkeypatch, tmp_path):
@@ -187,6 +188,14 @@ def test_launch_handoff_exports_vercel_bypass_when_web_probe_is_protected(monkey
     assert export["required_when"] is True
     assert "x-vercel-protection-bypass" in export["note"]
     assert payload["web_app_deployment_probe"]["vercel_protection_bypass_configured"] is False
+    refresh = payload["blocked_evidence_refresh_commands"]
+    assert refresh[0]["id"] == "web_app_deployment_probe_readout"
+    assert refresh[0]["commands"] == [
+        "make launch-probe-web-app-readout",
+        "make launch-audit",
+        "make launch-handoff",
+    ]
+    assert "strict launch gate" in refresh[0]["when"]
 
 
 def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
@@ -247,3 +256,5 @@ def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(
     assert "Clears launch blockers: `False`" in markdown
     assert "Web App Deployment Probe" in markdown
     assert "`http_error:401`" in markdown
+    assert "Blocked Evidence Refresh" in markdown
+    assert "make launch-probe-web-app-readout" in markdown

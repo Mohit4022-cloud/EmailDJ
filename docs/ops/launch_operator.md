@@ -232,6 +232,8 @@ cd /Users/mohit/EmailDJ
 make launch-handoff
 ```
 
+When the latest web-app probe is blocked by Vercel/auth protection, the handoff also includes a separate blocked evidence refresh section with `make launch-probe-web-app-readout`, `make launch-audit`, and `make launch-handoff`. That section is a readout aid only; launch proof still requires the strict `make launch-probe-web-app` path to pass.
+
 Artifacts:
 - `reports/launch/operator_handoff.json`
 - `reports/launch/operator_handoff.md`
