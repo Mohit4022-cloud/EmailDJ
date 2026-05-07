@@ -37,6 +37,8 @@ _DURABLE_DATABASE_STATES = {"external_postgres_configured"}
 _DURABLE_VECTOR_STATES = {"pgvector_configured"}
 _LOCAL_DATABASE_STATES = {"default_local_sqlite", "local_sqlite", "local_postgres"}
 _NON_DURABLE_VECTOR_STATES = {"memory_backend", "pinecone_missing_config", "pgvector_missing_postgres_config"}
+_LAUNCH_MODES_REQUIRING_HTTP_SMOKE = {"limited_rollout", "broad_launch"}
+_BASE_REQUIRED_HTTP_SMOKE_ROUTES = ("generate", "remix")
 
 
 @dataclass
@@ -433,6 +435,7 @@ def _localhost_smoke_evidence(status: ArtifactStatus) -> dict[str, Any]:
             "errors": 0,
             "pass_rate_pct": None,
             "provider_source_counts": {},
+            "route_pass_fail_counts": {},
             "launch_gates": {},
         }
     if status.malformed or status.stale or status.payload is None:
@@ -448,6 +451,7 @@ def _localhost_smoke_evidence(status: ArtifactStatus) -> dict[str, Any]:
             "errors": 0,
             "pass_rate_pct": None,
             "provider_source_counts": {},
+            "route_pass_fail_counts": {},
             "launch_gates": {},
         }
 
@@ -469,8 +473,61 @@ def _localhost_smoke_evidence(status: ArtifactStatus) -> dict[str, Any]:
         "errors": error_count,
         "pass_rate_pct": payload.get("pass_rate_pct"),
         "provider_source_counts": dict(payload.get("provider_source_counts") or {}),
+        "route_pass_fail_counts": dict(payload.get("route_pass_fail_counts") or {}),
         "launch_gates": dict(payload.get("launch_gates") or {}),
     }
+
+
+def _required_http_smoke_routes(runtime_data: dict[str, Any]) -> list[str]:
+    routes = list(_BASE_REQUIRED_HTTP_SMOKE_ROUTES)
+    route_gates = dict(runtime_data.get("route_gates") or {})
+    if route_gates.get("preview") is True:
+        routes.append("preview")
+    return routes
+
+
+def _http_smoke_findings(
+    *,
+    launch_mode: str,
+    smoke: dict[str, Any],
+    required_routes: list[str],
+) -> tuple[list[str], list[str]]:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_HTTP_SMOKE:
+        return [], []
+    if smoke.get("path") is None:
+        return [], []
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    state = str(smoke.get("state") or "missing")
+    if state == "missing":
+        blockers.append(f"http_smoke_missing_for_launch_mode:{launch_mode}")
+        return blockers, warnings
+    if state == "invalid":
+        blockers.append(f"http_smoke_invalid_for_launch_mode:{launch_mode}")
+        return blockers, warnings
+
+    provider_counts = dict(smoke.get("provider_source_counts") or {})
+    if int(provider_counts.get("external_provider", 0) or 0) <= 0:
+        blockers.append(f"http_smoke_external_provider_missing_for_launch_mode:{launch_mode}")
+
+    route_counts = dict(smoke.get("route_pass_fail_counts") or {})
+    for route in required_routes:
+        counts = dict(route_counts.get(route) or {})
+        total = _int_field(counts, "total")
+        passed = _int_field(counts, "pass")
+        failed = _int_field(counts, "fail")
+        if total <= 0:
+            blockers.append(f"http_smoke_route_missing:{route}")
+            continue
+        if passed != total or failed > 0:
+            blockers.append(f"http_smoke_route_not_green:{route}:pass={passed}:fail={failed}:total={total}")
+
+    proven_routes = sorted(route for route, counts in route_counts.items() if _int_field(dict(counts or {}), "total") > 0)
+    missing_routes = [route for route in required_routes if route not in proven_routes]
+    if missing_routes:
+        warnings.append(f"http_smoke_missing_required_route_coverage:{','.join(missing_routes)}")
+    return blockers, warnings
 
 
 def _recommended_age_warnings(
@@ -754,6 +811,8 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             f"- `errors`: {localhost_smoke.get('errors') or 0}",
             f"- `pass_rate_pct`: `{localhost_smoke.get('pass_rate_pct') if localhost_smoke.get('pass_rate_pct') is not None else 'n/a'}`",
             f"- `provider_source_counts`: `{json.dumps(localhost_smoke.get('provider_source_counts') or {}, sort_keys=True)}`",
+            f"- `route_pass_fail_counts`: `{json.dumps(localhost_smoke.get('route_pass_fail_counts') or {}, sort_keys=True)}`",
+            f"- `required_routes`: `{json.dumps(localhost_smoke.get('required_routes') or [])}`",
             f"- `launch_gates`: `{json.dumps(localhost_smoke.get('launch_gates') or {}, sort_keys=True)}`",
         ]
     )
@@ -895,6 +954,19 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
         steps.append(
             "Investigate the failing localhost smoke cases, fix the harness or generation path, then rerun `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`."
         )
+    if (
+        _has_blocker(report, "http_smoke_missing_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_invalid_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_external_provider_missing_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_route_missing:")
+        or _has_blocker(report, "http_smoke_route_not_green:")
+    ):
+        required_routes = ",".join(report.get("required_http_smoke_routes") or ["generate", "remix"])
+        steps.append(
+            "Run deployed Hub API HTTP smoke against staging with external-provider runtime evidence "
+            f"(`EMAILDJ_DEPLOYED_SMOKE_FLOWS={required_routes} make launch-verify-deployed` after exporting "
+            "`STAGING_BASE_URL`, `PROD_BASE_URL`, and `BETA_KEY`)."
+        )
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
             steps.append(
@@ -1012,6 +1084,7 @@ def _read_launch_report(
         runtime_source_used=runtime_source_used,
     )
     localhost_smoke = _localhost_smoke_evidence(smoke_summary)
+    required_http_smoke_routes = _required_http_smoke_routes(runtime_data)
     if localhost_smoke["green"] == "red":
         config_blockers.append(
             f"localhost_smoke_not_green:pass={localhost_smoke['pass']}:fail={localhost_smoke['fail']}:errors={localhost_smoke['errors']}"
@@ -1019,6 +1092,13 @@ def _read_launch_report(
     localhost_provider_counts = dict(localhost_smoke.get("provider_source_counts") or {})
     if localhost_provider_counts and set(localhost_provider_counts) == {"provider_stub"}:
         config_warnings.append("localhost_smoke_provider_stub_only")
+    smoke_blockers, smoke_warnings = _http_smoke_findings(
+        launch_mode=str(runtime_data.get("launch_mode") or ""),
+        smoke=localhost_smoke,
+        required_routes=required_http_smoke_routes,
+    )
+    config_blockers.extend(smoke_blockers)
+    config_warnings.extend(smoke_warnings)
     config_blockers.extend(release_blockers)
     config_warnings.extend(release_warnings)
     config_warnings.extend(_recommended_age_warnings(artifact_statuses, recommended_max_age=recommended_max_age))
@@ -1085,7 +1165,11 @@ def _read_launch_report(
             "snapshot_path": production_snapshot.path if runtime_source_used == "production_runtime_snapshot" else None,
         },
         "release_fingerprint_parity": release_parity,
-        "localhost_smoke": localhost_smoke,
+        "required_http_smoke_routes": required_http_smoke_routes,
+        "localhost_smoke": {
+            **localhost_smoke,
+            "required_routes": required_http_smoke_routes,
+        },
         "artifact_sources": _artifact_sources(**artifact_statuses),
         "artifact_provenance": {
             label: _artifact_provenance(label, status, recommended_max_age=recommended_max_age)

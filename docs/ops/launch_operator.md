@@ -130,6 +130,13 @@ make launch-verify-deployed
 
 This runs preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
+Launch-check treats the merged HTTP smoke summary as route coverage evidence. In `limited_rollout` and `broad_launch`, the canonical smoke artifact must prove:
+
+- `provider_source_counts.external_provider > 0`
+- green `generate` route coverage
+- green `remix` route coverage
+- green `preview` route coverage only when the deployed runtime snapshot has preview enabled
+
 Fresh run:
 
 ```bash
@@ -167,6 +174,8 @@ Canonical launch artifacts:
 - `provider_source=external_provider`: actual provider-backed verification exists
 - `provider_green=green` only counts when an external-provider artifact exists
 - `provider_green=not_run` means no external-provider artifact was produced
+- `http_smoke_route_missing:<route>` means the deployed HTTP smoke artifact did not prove that route
+- `http_smoke_external_provider_missing_for_launch_mode:<mode>` means the smoke artifact was not provider-backed and cannot satisfy launch evidence
 
 ## Launch categories
 
@@ -179,6 +188,7 @@ Canonical launch artifacts:
 - pinned `WEB_APP_ORIGIN` and `CHROME_EXTENSION_ORIGIN`
 - non-dev `EMAILDJ_WEB_BETA_KEYS`
 - managed Redis, managed Postgres, and `VECTOR_STORE_BACKEND=pgvector`
+- deployed HTTP smoke for `generate` and `remix` with `external_provider` evidence
 - `required_field_miss_count=0`
 - `under_length_miss_count=0`
 - `provider_green` may be `green` or `not_run`
@@ -195,5 +205,6 @@ Deterministic validation fallback is only allowed in `EMAILDJ_LAUNCH_MODE=dev`. 
 - `provider_green=green`
 - `remix_green=green`
 - `provider_source=external_provider`
+- deployed HTTP smoke for all enabled routes with `external_provider` evidence
 - `required_field_miss_count=0`
 - `under_length_miss_count=0`

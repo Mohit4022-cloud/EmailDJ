@@ -137,8 +137,22 @@ def _write_localhost_smoke(
     fail_count: int = 0,
     error_count: int = 0,
     provider_source_counts: dict | None = None,
+    route_pass_fail_counts: dict | None = None,
 ) -> Path:
     total = pass_count + fail_count + error_count
+    if route_pass_fail_counts is None:
+        if fail_count == 0 and error_count == 0:
+            generate_total = total // 2
+            remix_total = total - generate_total
+            route_pass_fail_counts = {
+                "generate": {"total": generate_total, "pass": generate_total, "fail": 0},
+                "remix": {"total": remix_total, "pass": remix_total, "fail": 0},
+            }
+        else:
+            route_pass_fail_counts = {
+                "generate": {"total": pass_count, "pass": pass_count, "fail": 0},
+                "remix": {"total": fail_count + error_count, "pass": 0, "fail": fail_count + error_count},
+            }
     path = root / "debug_runs" / "smoke" / "manual" / "summary.json"
     _write_json(
         path,
@@ -151,7 +165,8 @@ def _write_localhost_smoke(
             "fail": fail_count,
             "errors": error_count,
             "pass_rate_pct": round((pass_count / total) * 100, 1) if total else 0,
-            "provider_source_counts": provider_source_counts or {"provider_stub": total},
+            "provider_source_counts": provider_source_counts or {"external_provider": total},
+            "route_pass_fail_counts": route_pass_fail_counts,
             "launch_gates": {
                 "shim_green": "green" if fail_count == 0 and error_count == 0 else "red",
                 "provider_green": "not_run",
@@ -230,8 +245,9 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     staging = _runtime_snapshot_payload()
     production = _runtime_snapshot_payload()
     _write_runtime_snapshots(tmp_path, staging=staging, production=production)
+    smoke_path = _write_localhost_smoke(tmp_path)
 
-    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
 
     assert report["backend_green"] == "green"
     assert report["harness_green"] == "green"
@@ -245,6 +261,9 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     assert report["effective_provider_source"] == "external_provider"
     assert report["route_gates"] == {"generate": True, "remix": True, "preview": False}
     assert report["route_gate_sources"]["preview"] == "launch_mode:limited_rollout"
+    assert report["required_http_smoke_routes"] == ["generate", "remix"]
+    assert report["localhost_smoke"]["route_pass_fail_counts"]["generate"]["pass"] > 0
+    assert report["localhost_smoke"]["route_pass_fail_counts"]["remix"]["pass"] > 0
     assert report["config_blockers"] == []
     assert report["config_warnings"] == []
     assert report["final_recommendation"] == "Stable for MVP launch behind limited rollout"
@@ -782,6 +801,28 @@ def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkey
     assert "EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke" in steps
 
 
+def test_launch_check_blocks_missing_canonical_http_smoke_in_launch_mode(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(
+        localhost_smoke_summary=str(tmp_path / "debug_runs" / "smoke" / "manual" / "summary.json"),
+        max_age_hours=72,
+    )
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "http_smoke_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
+    assert "Run deployed Hub API HTTP smoke against staging" in steps
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
 def test_launch_check_args_default_to_canonical_localhost_smoke(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
@@ -791,6 +832,28 @@ def test_launch_check_args_default_to_canonical_localhost_smoke(monkeypatch, tmp
     args = lc._parse_args()
 
     assert args.localhost_smoke_summary == str(tmp_path / "debug_runs" / "smoke" / "manual" / "summary.json")
+
+
+def test_launch_check_blocks_missing_required_http_smoke_route(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(
+        tmp_path,
+        route_pass_fail_counts={"generate": {"total": 30, "pass": 30, "fail": 0}},
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+
+    assert "http_smoke_route_missing:remix" in report["config_blockers"]
+    assert "http_smoke_missing_required_route_coverage:remix" in report["config_warnings"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
 
 
 def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_path):
@@ -811,6 +874,7 @@ def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_pa
     assert report["localhost_smoke"]["total"] == 30
     assert report["localhost_smoke"]["provider_source_counts"] == {"provider_stub": 30}
     assert "localhost_smoke_provider_stub_only" in report["config_warnings"]
+    assert "http_smoke_external_provider_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
 
 
 def test_launch_check_blocks_failed_localhost_smoke(monkeypatch, tmp_path):

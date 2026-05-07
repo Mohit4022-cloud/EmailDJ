@@ -160,7 +160,7 @@ After those operator-machine values are exported, run the deployed launch gate f
 make launch-verify-deployed
 ```
 
-This command fails early if required operator inputs or provider transport are missing. If preflight passes, it captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+This command fails early if required operator inputs or provider transport are missing. If preflight passes, it captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
 ## Manual Values You Still Need To Create
 
