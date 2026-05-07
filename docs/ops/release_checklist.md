@@ -18,8 +18,11 @@ All steps in the `checks` CI job must be green:
 
 | Gate | Command | Pass Criteria |
 |---|---|---|
+| Surface contract | `python3 scripts/check_surface_contract.py` | Exit 0 -- launch evidence is scoped to `hub-api`, `web-app`, and `chrome-extension`; legacy surfaces are explicit-only |
 | Doc freshness | `python3 scripts/docops/check_doc_freshness.py` | Exit 0 — no bound code changed without doc update |
 | Generated docs fresh | `python3 scripts/docops/generate_docs.py --check` | Exit 0 — no stale generated docs |
+| Web app tests | `npm test && npm run check:syntax` (`web-app`) | Unit tests pass and JS syntax checks cleanly |
+| Web app build | `npm run build` (`web-app`) | Vite production build completes |
 | Backend compile | `./scripts/checks.sh` (step 1) | No import errors, all modules load |
 | pytest suite | `./scripts/checks.sh` (step 2) | All tests pass |
 | OpenAPI snapshot | `./scripts/checks.sh` (step 3) | `openapi.json` matches routes |
@@ -142,6 +145,7 @@ Copy-paste for PR description:
 ```
 ## Release Checklist
 - [ ] CI `checks` job green
+- [ ] Surface contract gate passes
 - [ ] Doc freshness gate passes
 - [ ] Lock compliance smoke passes (if email_generation/ changed)
 - [ ] Pairwise regression gate passes (if prompts.py/rubric.py changed)

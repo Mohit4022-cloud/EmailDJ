@@ -3,6 +3,7 @@
 Run from [`hub-api`](/Users/mohit/EmailDJ/hub-api).
 
 Deployment contract and env handoff live in [`docs/ops/deployment.md`](/Users/mohit/EmailDJ/docs/ops/deployment.md).
+Launch-owned versus legacy surface boundaries live in [`docs/ops/surface_contract.md`](/Users/mohit/EmailDJ/docs/ops/surface_contract.md).
 
 ## Required env vars
 
@@ -31,6 +32,19 @@ Deployment contract and env handoff live in [`docs/ops/deployment.md`](/Users/mo
   Must point to the production hub-api root URL, not the frontend URL.
 - `BETA_KEY`
   Must exactly match one deployed value from `EMAILDJ_WEB_BETA_KEYS`.
+
+## Backend tests
+
+## Surface contract
+
+Run this from the repo root before interpreting launch evidence:
+
+```bash
+cd /Users/mohit/EmailDJ
+make surface-contract
+```
+
+This fails if primary launch gates or CI drift back toward the legacy `backend/` or `frontend/` surfaces.
 
 ## Backend tests
 

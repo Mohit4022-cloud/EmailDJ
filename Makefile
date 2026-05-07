@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local \
+.PHONY: setup test build dev launch-check localhost-smoke launch-gates-local surface-contract \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -60,6 +60,9 @@ lint-copy:
 secret-scan:
 	./scripts/check_no_secrets.sh
 
+surface-contract:
+	python3 scripts/check_surface_contract.py
+
 dev:
 	./scripts/dev.sh
 
@@ -69,7 +72,7 @@ launch-check:
 localhost-smoke:
 	./scripts/localhost-smoke.sh
 
-launch-gates-local: hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check
+launch-gates-local: surface-contract hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check
 
 legacy-setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt

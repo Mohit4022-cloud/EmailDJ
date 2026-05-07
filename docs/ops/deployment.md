@@ -6,6 +6,8 @@
 - Hub API: deploy [`hub-api`](/Users/mohit/EmailDJ/hub-api) as a separate service. Prefer Render for this repo.
 - Legacy parity: [`frontend`](/Users/mohit/EmailDJ/frontend) now shares the same fail-closed `VITE_HUB_URL` behavior, but `web-app` is the documented frontend of record.
 
+The launch-owned surface contract lives in [`docs/ops/surface_contract.md`](/Users/mohit/EmailDJ/docs/ops/surface_contract.md). `backend/` and `frontend/` are explicit legacy parity surfaces; their tests can catch migration drift, but they do not count as launch-readiness evidence.
+
 ## Why Hub API Is Not A Good Vercel Fit
 
 - `hub-api` stores pending generate/remix stream state in process-local memory before `/web/v1/stream/{request_id}` consumes it. That pattern is implemented in [`hub-api/api/routes/web_mvp.py`](/Users/mohit/EmailDJ/hub-api/api/routes/web_mvp.py) and is unsafe on autoscaled serverless instances.
