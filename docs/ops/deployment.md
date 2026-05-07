@@ -36,7 +36,7 @@ If an existing Vercel project still points at `frontend/`, use the same `VITE_HU
 2. Set extension build env vars:
    - `VITE_HUB_URL=https://<staging-or-prod-hub-api-domain>`
    - `VITE_EMAILDJ_BETA_KEY=<one-beta-key-for-that-environment>`
-3. Run `npm test`, `npm run check:syntax`, and `npm run build`.
+3. Run `make launch-verify-extension` from the repo root.
 4. Load or publish the generated `dist/` extension package.
 5. After Chrome assigns the shipped extension ID, set `CHROME_EXTENSION_ORIGIN=chrome-extension://<extension-id>` on the hub-api and redeploy the hub-api.
 
@@ -73,6 +73,8 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
   Use the hub-api root URL baked into the extension build. Operators can override it later in the side panel Settings tab. In production-like runtime, the extension refuses the localhost fallback and requires a deployed `https://` hub-api origin unless a saved operator override is present.
 - `VITE_EMAILDJ_BETA_KEY`
   Optional build-time beta key. Operators can override it later in the side panel Settings tab. Production-like runtime rejects `dev-beta-key`; use a non-dev key or leave it empty for operator override.
+
+`make launch-verify-extension` accepts `EMAILDJ_EXPECTED_HUB_URL` and `EMAILDJ_EXPECTED_BETA_KEY` as explicit release verification inputs. If those are unset, it falls back to `VITE_HUB_URL` and `VITE_EMAILDJ_BETA_KEY`.
 
 ### Hub API (Render)
 

@@ -27,6 +27,7 @@ PRIMARY_TARGETS = {
         "launch-check",
     },
     "launch-verify-deployed": set(),
+    "launch-verify-extension": set(),
 }
 
 LEGACY_TARGETS = {"legacy-setup", "legacy-backend-test", "legacy-frontend-test", "legacy-build"}
@@ -75,23 +76,27 @@ def _check_docs() -> list[str]:
             "`frontend/` legacy parity UI",
             "`backend/` legacy backend",
             "make launch-verify-deployed",
+            "make launch-verify-extension",
         ],
         "docs/ops/deployment.md": [
             "Frontend: deploy [`web-app`]",
             "Hub API: deploy [`hub-api`]",
             "Legacy parity:",
             "make launch-verify-deployed",
+            "make launch-verify-extension",
         ],
         "docs/ops/surface_contract.md": [
             "Launch-Owned Surfaces",
             "Legacy Surfaces",
             "These surfaces do not produce launch-readiness evidence",
             "make launch-verify-deployed",
+            "make launch-verify-extension",
         ],
         "docs/ops/release_checklist.md": [
             "Surface contract",
             "Web app tests",
             "Web app build",
+            "make launch-verify-extension",
         ],
     }
     for path, snippets in required.items():

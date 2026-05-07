@@ -104,10 +104,9 @@ Pass criteria: generation completes, offer_lock appears in output, CTA lock enfo
 ### 3.3 Extension Build Verification
 
 ```bash
-cd chrome-extension
-npm run build
-# Confirm dist/ is generated without errors
-# Load unpacked in Chrome and verify side panel opens on Gmail
+cd /Users/mohit/EmailDJ
+make launch-verify-extension
+# Load unpacked in Chrome and verify side panel opens on the target CRM.
 ```
 
 ---
