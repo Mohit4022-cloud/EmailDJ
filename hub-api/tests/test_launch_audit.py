@@ -81,6 +81,9 @@ def _write_base_artifacts(root: Path, repo_root: Path, *, ready: bool = False) -
             "client_bundle_usable": ready,
             "detected_vite_hub_url": "https://hub.example.com" if ready else None,
             "detected_preview_pipeline": "off" if ready else None,
+            "source_git_sha": "current-sha",
+            "workspace_git_sha_at_probe": "current-sha",
+            "probe_matches_workspace_head": True,
             "failures": [] if ready else ["http_error:401"],
             "clears_launch_blockers": False,
         },
@@ -135,6 +138,7 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     _write_base_artifacts(root, repo_root, ready=False)
     monkeypatch.setattr(audit, "ROOT", root)
     monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "current-sha")
 
     payload = audit.build_launch_audit()
     blocked_ids = {item["id"] for item in payload["items"] if item["status"] == "blocked"}
@@ -170,12 +174,38 @@ def test_launch_audit_can_mark_complete_when_artifacts_cover_requirements(monkey
     _write_base_artifacts(root, repo_root, ready=True)
     monkeypatch.setattr(audit, "ROOT", root)
     monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "current-sha")
 
     payload = audit.build_launch_audit()
 
     assert payload["final_status"] == "complete"
     assert payload["open_blocker_count"] == 0
     assert all(item["status"] == "pass" for item in payload["objective_checklist"])
+
+
+def test_launch_audit_blocks_stale_web_app_probe_sha(monkeypatch, tmp_path):
+    import scripts.launch_audit as audit
+
+    repo_root = tmp_path / "repo"
+    root = repo_root / "hub-api"
+    _write_base_artifacts(root, repo_root, ready=True)
+    probe_path = root / "reports" / "launch" / "web_app_deployment_probe.json"
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    probe["source_git_sha"] = "oldsha1234567890"
+    probe["workspace_git_sha_at_probe"] = "oldsha1234567890"
+    probe["probe_matches_workspace_head"] = True
+    probe_path.write_text(json.dumps(probe, indent=2), encoding="utf-8")
+    monkeypatch.setattr(audit, "ROOT", root)
+    monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "newsha1234567890")
+
+    payload = audit.build_launch_audit()
+    deployed_http = {item["id"]: item for item in payload["items"]}["deployed_http_smoke"]
+
+    assert payload["final_status"] == "not_complete"
+    assert deployed_http["status"] == "blocked"
+    assert "web_app_deployment_probe_stale_for_current_head:oldsha123456!=newsha123456" in deployed_http["blockers"]
+    assert "deployment_discovery_stale_for_current_head:oldsha123456!=newsha123456" in deployed_http["blockers"]
 
 
 def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):
@@ -192,6 +222,7 @@ def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):
     latest_path.write_text(json.dumps(latest, indent=2), encoding="utf-8")
     monkeypatch.setattr(audit, "ROOT", root)
     monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "current-sha")
 
     payload = audit.build_launch_audit()
     item = next(item for item in payload["items"] if item["id"] == "validation_fallback_fail_closed")

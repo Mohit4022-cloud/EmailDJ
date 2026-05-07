@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from html.parser import HTMLParser
 import json
 import re
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -68,6 +69,19 @@ def _read_json(path: Path) -> dict:
     except Exception:  # noqa: BLE001 - probe artifacts should fail closed into empty context
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _git_head_sha() -> str | None:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT.parent,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.strip() or None
 
 
 def _write_json(path: Path, payload: dict) -> None:
@@ -171,6 +185,8 @@ def _auth_gate_findings(result: FetchResult, *, origin: str) -> list[str]:
 def inspect_web_app_deployment(
     web_app_url: str | None,
     *,
+    source_git_sha: str | None = None,
+    workspace_git_sha: str | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     fetcher: Callable[..., FetchResult] = _fetch_text,
 ) -> dict:
@@ -187,6 +203,9 @@ def inspect_web_app_deployment(
             "generated_at": _utc_now_text(),
             "web_app_url": web_app_url,
             "normalized_web_app_origin": None,
+            "source_git_sha": source_git_sha,
+            "workspace_git_sha_at_probe": workspace_git_sha,
+            "probe_matches_workspace_head": bool(source_git_sha and workspace_git_sha and source_git_sha == workspace_git_sha),
             "client_bundle_usable": False,
             "failures": failures,
             "warnings": warnings,
@@ -195,6 +214,8 @@ def inspect_web_app_deployment(
         }
 
     index_result = fetcher(origin + "/", timeout_seconds=timeout_seconds)
+    if source_git_sha and workspace_git_sha and source_git_sha != workspace_git_sha:
+        failures.append("deployment_discovery_sha_mismatch_with_workspace_head")
     if index_result.error or not index_result.status_code or index_result.status_code >= 400:
         failures.append(index_result.error or f"index_fetch_http_{index_result.status_code}")
         failures.extend(_auth_gate_findings(index_result, origin=origin))
@@ -238,6 +259,9 @@ def inspect_web_app_deployment(
         "generated_at": _utc_now_text(),
         "web_app_url": web_app_url,
         "normalized_web_app_origin": origin,
+        "source_git_sha": source_git_sha,
+        "workspace_git_sha_at_probe": workspace_git_sha,
+        "probe_matches_workspace_head": bool(source_git_sha and workspace_git_sha and source_git_sha == workspace_git_sha),
         "index": {
             "url": index_result.url if index_result else origin + "/",
             "status_code": index_result.status_code if index_result else None,
@@ -263,6 +287,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
         f"- Generated at: `{payload.get('generated_at')}`",
         f"- Web app URL: `{payload.get('web_app_url') or 'unset'}`",
         f"- Normalized origin: `{payload.get('normalized_web_app_origin') or 'unset'}`",
+        f"- Source git SHA: `{payload.get('source_git_sha') or 'unset'}`",
+        f"- Workspace git SHA at probe: `{payload.get('workspace_git_sha_at_probe') or 'unset'}`",
+        f"- Probe matches workspace HEAD: `{payload.get('probe_matches_workspace_head')}`",
         f"- Client bundle usable: `{payload.get('client_bundle_usable')}`",
         f"- Detected VITE_HUB_URL: `{payload.get('detected_vite_hub_url') or 'none'}`",
         f"- Detected VITE_PRESET_PREVIEW_PIPELINE: `{payload.get('detected_preview_pipeline') or 'none'}`",
@@ -302,8 +329,14 @@ def _write_markdown(path: Path, payload: dict) -> None:
 
 
 def write_probe(*, web_app_url: str | None = None, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> tuple[Path, Path, dict]:
+    discovery = _read_json(ROOT / "reports" / "launch" / "deployment_discovery.json")
     target_url = web_app_url or _web_app_url_from_discovery()
-    payload = inspect_web_app_deployment(target_url, timeout_seconds=timeout_seconds)
+    payload = inspect_web_app_deployment(
+        target_url,
+        source_git_sha=discovery.get("current_git_sha") if discovery else None,
+        workspace_git_sha=_git_head_sha(),
+        timeout_seconds=timeout_seconds,
+    )
     report_dir = ROOT / "reports" / "launch"
     json_path = report_dir / "web_app_deployment_probe.json"
     md_path = report_dir / "web_app_deployment_probe.md"

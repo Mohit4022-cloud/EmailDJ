@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,19 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _git_head_sha() -> str | None:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.strip() or None
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -227,6 +241,7 @@ def build_launch_audit() -> dict[str, Any]:
     provider_summary = dict(external_provider.get("summary") or {})
     stub_summary = dict(provider_stub.get("summary") or {})
     preflight_presence = dict(preflight.get("required_inputs_present") or {})
+    current_git_sha = _git_head_sha()
 
     origin_blockers = [
         blocker
@@ -248,15 +263,27 @@ def build_launch_audit() -> dict[str, Any]:
         blocker for blocker in report.get("config_blockers") or [] if str(blocker).startswith("http_smoke_")
     ]
     web_app_probe_failures = [str(item) for item in web_app_probe.get("failures") or []]
+    web_app_probe_workspace_sha = str(web_app_probe.get("workspace_git_sha_at_probe") or "")
+    web_app_probe_source_sha = str(web_app_probe.get("source_git_sha") or "")
+    web_app_probe_staleness_blockers: list[str] = []
+    if current_git_sha and web_app_probe_workspace_sha and web_app_probe_workspace_sha != current_git_sha:
+        web_app_probe_staleness_blockers.append(
+            f"web_app_deployment_probe_stale_for_current_head:{web_app_probe_workspace_sha[:12]}!={current_git_sha[:12]}"
+        )
+    if current_git_sha and web_app_probe_source_sha and web_app_probe_source_sha != current_git_sha:
+        web_app_probe_staleness_blockers.append(
+            f"deployment_discovery_stale_for_current_head:{web_app_probe_source_sha[:12]}!={current_git_sha[:12]}"
+        )
     if not web_app_probe:
         web_app_probe_blockers = ["web_app_deployment_probe_missing"]
     elif web_app_probe.get("client_bundle_usable") is not True:
         web_app_probe_blockers = [
             "web_app_deployment_probe_not_usable",
             *[f"web_app_deployment_probe:{failure}" for failure in web_app_probe_failures[:5]],
+            *web_app_probe_staleness_blockers,
         ]
     else:
-        web_app_probe_blockers = []
+        web_app_probe_blockers = web_app_probe_staleness_blockers
     validation_fallback_blockers = [
         blocker
         for blocker in report.get("config_blockers") or []
@@ -380,6 +407,9 @@ def build_launch_audit() -> dict[str, Any]:
                 f"required_http_smoke_routes={report.get('required_http_smoke_routes')}",
                 f"route_gates={report.get('route_gates')}",
                 f"localhost_smoke_provider_source_counts={(report.get('localhost_smoke') or {}).get('provider_source_counts')}",
+                f"current_git_sha={current_git_sha or 'unknown'}",
+                f"web_app_probe_workspace_git_sha={web_app_probe_workspace_sha or 'unset'}",
+                f"web_app_probe_source_git_sha={web_app_probe_source_sha or 'unset'}",
                 f"web_app_client_bundle_usable={web_app_probe.get('client_bundle_usable') if web_app_probe else 'missing'}",
                 f"web_app_probe_failures={web_app_probe_failures}",
             ],

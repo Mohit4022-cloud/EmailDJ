@@ -36,6 +36,40 @@ def test_probe_accepts_bundle_with_deployed_hub_url_and_preview_flag():
     assert payload["failures"] == []
 
 
+def test_probe_records_git_sha_provenance_and_blocks_mismatch():
+    import scripts.probe_web_app_deployment as probe
+
+    responses = {
+        "https://email.example.test/": probe.FetchResult(
+            url="https://email.example.test/",
+            status_code=200,
+            text='<script type="module" src="/assets/index.js"></script>',
+            content_type="text/html",
+        ),
+        "https://email.example.test/assets/index.js": probe.FetchResult(
+            url="https://email.example.test/assets/index.js",
+            status_code=200,
+            text='const ENV={VITE_HUB_URL:"https://hub.example.test",VITE_PRESET_PREVIEW_PIPELINE:"off"};',
+            content_type="application/javascript",
+        ),
+    }
+
+    def fetcher(url: str, *, timeout_seconds: float):  # noqa: ARG001
+        return responses[url]
+
+    payload = probe.inspect_web_app_deployment(
+        "https://email.example.test",
+        source_git_sha="oldsha",
+        workspace_git_sha="newsha",
+        fetcher=fetcher,
+    )
+
+    assert payload["source_git_sha"] == "oldsha"
+    assert payload["workspace_git_sha_at_probe"] == "newsha"
+    assert payload["probe_matches_workspace_head"] is False
+    assert "deployment_discovery_sha_mismatch_with_workspace_head" in payload["failures"]
+
+
 def test_probe_rejects_bundle_missing_hub_url_and_preview_flag():
     import scripts.probe_web_app_deployment as probe
 

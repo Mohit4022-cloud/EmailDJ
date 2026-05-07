@@ -1,33 +1,33 @@
 {
-  "generated_at": "2026-05-07T21:48:55.720275Z",
+  "generated_at": "2026-05-07T21:57:28.614697Z",
   "source": "github_deployments_via_gh_api",
   "repo_slug": "Mohit4022-cloud/EmailDJ",
-  "current_git_sha": "483b6a7194a68387d5395906b2eb0fbcfde1dadf",
+  "current_git_sha": "dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
   "found": true,
   "current_head_deployments": [
     {
-      "id": 4614838614,
+      "id": 4614910854,
       "environment": "Preview",
-      "ref": "483b6a7194a68387d5395906b2eb0fbcfde1dadf",
-      "sha": "483b6a7194a68387d5395906b2eb0fbcfde1dadf",
+      "ref": "dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
+      "sha": "dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
       "task": "deploy",
-      "created_at": "2026-05-07T21:41:33Z",
-      "updated_at": "2026-05-07T21:41:33Z",
-      "successful_vercel_origin": "https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app",
+      "created_at": "2026-05-07T21:50:02Z",
+      "updated_at": "2026-05-07T21:50:03Z",
+      "successful_vercel_origin": "https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app",
       "latest_statuses": [
         {
           "state": "success",
-          "environment_url": "https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app",
-          "target_url": "https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app",
-          "log_url": "https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app",
+          "environment_url": "https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app",
+          "target_url": "https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app",
+          "log_url": "https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app",
           "description": "Deployment has completed",
-          "created_at": "2026-05-07T21:41:33Z",
-          "updated_at": "2026-05-07T21:41:33Z"
+          "created_at": "2026-05-07T21:50:03Z",
+          "updated_at": "2026-05-07T21:50:03Z"
         }
       ]
     }
   ],
-  "candidate_web_app_origin": "https://email-8ul2abzx3-mohits-projects-e629a988.vercel.app",
+  "candidate_web_app_origin": "https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app",
   "usable_as_web_app_origin_candidate": true,
   "historical_production_candidates": [],
   "clears_launch_blockers": false,
