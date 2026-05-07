@@ -838,6 +838,41 @@ def test_capture_ui_session_reports_required_external_provider_env(monkeypatch):
     assert _required_external_provider_env() == ("anthropic", "ANTHROPIC_API_KEY")
 
 
+def test_capture_ui_session_uses_configured_beta_key(monkeypatch):
+    from scripts.capture_ui_session import _capture_headers
+
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-key,secondary-key")
+
+    assert _capture_headers() == {"x-emaildj-beta-key": "ops-key"}
+
+
+def test_capture_ui_session_defaults_to_dev_launch_mode(monkeypatch):
+    import importlib
+    import os
+
+    import scripts.capture_ui_session as capture_ui_session
+
+    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    importlib.reload(capture_ui_session)
+
+    assert os.environ["EMAILDJ_LAUNCH_MODE"] == "dev"
+
+
+def test_capture_ui_session_surfaces_http_failures():
+    import httpx
+
+    from scripts.capture_ui_session import _json_or_raise
+
+    response = httpx.Response(status_code=401, json={"error": "unauthorized_beta_key"})
+
+    try:
+        _json_or_raise(response, endpoint="/web/v1/generate")
+    except RuntimeError as exc:
+        assert "capture_ui_session_request_failed:/web/v1/generate:401" in str(exc)
+    else:
+        raise AssertionError("expected capture failure")
+
+
 def test_capture_ui_session_treats_repaired_remix_as_clean():
     from scripts.capture_ui_session import _remix_record_clean
 

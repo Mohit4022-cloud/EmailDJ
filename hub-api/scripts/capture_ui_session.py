@@ -22,6 +22,7 @@ os.environ.setdefault("CHROME_EXTENSION_ORIGIN", "chrome-extension://dev")
 os.environ.setdefault("WEB_APP_ORIGIN", "http://localhost:5174")
 os.environ.setdefault("REDIS_FORCE_INMEMORY", "1")
 os.environ.setdefault("EMAILDJ_WEB_BETA_KEYS", "dev-beta-key")
+os.environ.setdefault("EMAILDJ_LAUNCH_MODE", "dev")
 os.environ.setdefault("EMAILDJ_PRESET_PREVIEW_PIPELINE", "on")
 os.environ.setdefault("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "warn")
 
@@ -49,6 +50,34 @@ def _required_external_provider_env() -> tuple[str, str]:
         "groq": "GROQ_API_KEY",
     }.get(provider, "OPENAI_API_KEY")
     return provider, required_key
+
+
+def _capture_beta_key() -> str:
+    raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    keys = [part.strip() for part in raw.split(",") if part.strip()]
+    return keys[0] if keys else "dev-beta-key"
+
+
+def _capture_headers() -> dict[str, str]:
+    return {"x-emaildj-beta-key": _capture_beta_key()}
+
+
+def _json_or_raise(response: httpx.Response, *, endpoint: str) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except Exception:
+        payload = {"raw_response": response.text[:500]}
+    if response.status_code >= 400:
+        raise RuntimeError(f"capture_ui_session_request_failed:{endpoint}:{response.status_code}:{payload}")
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"capture_ui_session_request_failed:{endpoint}:non_object_json")
+    return payload
+
+
+def _text_or_raise(response: httpx.Response, *, endpoint: str) -> str:
+    if response.status_code >= 400:
+        raise RuntimeError(f"capture_ui_session_request_failed:{endpoint}:{response.status_code}:{response.text[:500]}")
+    return response.text
 
 
 def _ui_generate_payload(*, title: str = "CEO", preset_id: str = "straight_shooter", length: float = -0.2) -> dict[str, Any]:
@@ -273,7 +302,7 @@ def _temporary_env(name: str, value: str):
 
 async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    headers = {"x-emaildj-beta-key": "dev-beta-key"}
+    headers = _capture_headers()
 
     original_real_generate = remix_engine._real_generate
     try:
@@ -285,7 +314,7 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
             with _temporary_env("USE_PROVIDER_STUB", "1"):
                 preview_payload = _preview_payload()
                 preview_response = await client.post("/web/v1/preset-previews/batch", json=preview_payload, headers=headers)
-                preview_json = preview_response.json()
+                preview_json = _json_or_raise(preview_response, endpoint="/web/v1/preset-previews/batch")
                 preview_record = _request_record(
                     index=index,
                     endpoint="/web/v1/preset-previews/batch",
@@ -315,9 +344,12 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
                 shim_key_ctx = _temporary_env("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", "shim-key")) if provider_path == "provider_shim" else nullcontext()
                 with shim_key_ctx:
                     generate_payload = _ui_generate_payload(title="CEO", preset_id="straight_shooter", length=-0.6)
-                    accepted = (await client.post("/web/v1/generate", json=generate_payload, headers=headers)).json()
+                    accepted = _json_or_raise(
+                        await client.post("/web/v1/generate", json=generate_payload, headers=headers),
+                        endpoint="/web/v1/generate",
+                    )
                     stream_response = await client.get(f"/web/v1/stream/{accepted['request_id']}", headers=headers)
-                    stream_text = stream_response.text
+                    stream_text = _text_or_raise(stream_response, endpoint="/web/v1/stream")
                     stream_tokens, stream_done = _extract_stream(stream_text)
                     session = await remix_engine.load_session(accepted["session_id"])
                     trace = (session or {}).get("last_generation_trace") or {}
@@ -351,9 +383,12 @@ async def _run_capture(output_dir: Path, *, provider_path: str) -> None:
                             "preset_id": preset_id,
                             "style_profile": style_profile,
                         }
-                        accepted = (await client.post("/web/v1/remix", json=remix_payload, headers=headers)).json()
+                        accepted = _json_or_raise(
+                            await client.post("/web/v1/remix", json=remix_payload, headers=headers),
+                            endpoint="/web/v1/remix",
+                        )
                         stream_response = await client.get(f"/web/v1/stream/{accepted['request_id']}", headers=headers)
-                        stream_text = stream_response.text
+                        stream_text = _text_or_raise(stream_response, endpoint="/web/v1/stream")
                         stream_tokens, stream_done = _extract_stream(stream_text)
                         session = await remix_engine.load_session(session_id)
                         trace = (session or {}).get("last_generation_trace") or {}
