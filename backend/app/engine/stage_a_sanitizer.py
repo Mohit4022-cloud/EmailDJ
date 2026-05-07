@@ -351,6 +351,11 @@ def sanitize_stage_a_brief(
     before_summary = _summary_snapshot(raw_summary_brief)
     source_field_map = _source_field_value_map(source_payload or {}) if source_payload else {}
     prospect_company = str(source_field_map.get("company") or "").strip()
+    source_text_occurrences: dict[str, int] = {}
+    for fragment in _flatten_input_text(list(source_field_map.values())):
+        key = normalize_text_key(fragment)
+        if key:
+            source_text_occurrences[key] = source_text_occurrences.get(key, 0) + 1
     seen_fact_keys: set[tuple[str, str]] = set()
     dropped_fact_rows: dict[str, dict[str, str]] = {}
 
@@ -390,13 +395,18 @@ def sanitize_stage_a_brief(
             )
             dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
-        normalized_fact_key = (source_field.lower(), normalize_text_key(text))
-        if normalized_fact_key in seen_fact_keys:
+        normalized_text = normalize_text_key(text)
+        normalized_fact_key = (canonical_fact_kind(source_field), normalized_text)
+        if (
+            normalized_fact_key in seen_fact_keys
+            and canonical_fact_kind(source_field) != "cta"
+            and source_text_occurrences.get(normalized_text, 0) <= 1
+        ):
             record(
-                "drop_fact_duplicate_text_same_source",
+                "drop_fact_duplicate_text_same_kind",
                 fact_id=fact_id,
                 source_field=source_field,
-                reason="duplicate_text_same_source",
+                reason="duplicate_text_same_kind",
             )
             dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
@@ -517,6 +527,32 @@ def sanitize_stage_a_brief(
                 if not fact_id:
                     continue
                 if fact_id in valid_fact_ids:
+                    if field == "seller_fact_ids":
+                        fact = next((fact for fact in sanitized_facts if str(fact.get("fact_id") or "").strip() == fact_id), {})
+                        fact_kind = canonical_fact_kind(str(fact.get("source_field") or "").strip())
+                        if fact_kind not in {"seller_context", "seller_proof"}:
+                            replacement_ids = replacement_pool.get(normalize_text_key(fact.get("text") or ""))
+                            if replacement_ids:
+                                for replacement_id in replacement_ids:
+                                    if replacement_id not in filtered:
+                                        filtered.append(replacement_id)
+                                record(
+                                    "repair_hook_fact_reference",
+                                    hook_id=hook_id,
+                                    field=field,
+                                    original_fact_id=fact_id,
+                                    replacement_fact_ids=list(replacement_ids),
+                                    reason="non_seller_fact_reference_text_matched_surviving_seller_fact",
+                                )
+                            else:
+                                record(
+                                    "drop_hook_non_seller_fact_reference",
+                                    hook_id=hook_id,
+                                    field=field,
+                                    original_fact_id=fact_id,
+                                    reason="seller_fact_ids_must_reference_seller_context_or_proof",
+                                )
+                            continue
                     if fact_id not in filtered:
                         filtered.append(fact_id)
                     continue
@@ -546,6 +582,16 @@ def sanitize_stage_a_brief(
                     reason="removed_fact_reference",
                 )
             hook[field] = filtered
+
+        if hook.get("seller_support") and not [
+            str(item or "").strip() for item in (hook.get("seller_fact_ids") or []) if str(item or "").strip()
+        ]:
+            hook["seller_support"] = ""
+            record(
+                "normalize_hook_unbacked_seller_support",
+                hook_id=hook_id,
+                reason="no_valid_seller_fact_ids",
+            )
 
         if not hook_id or not str(hook.get("hook_type") or "").strip() or not str(hook.get("hook_text") or "").strip():
             record("drop_hook_structurally_empty", hook_id=hook_id, reason="missing_core_fields")
