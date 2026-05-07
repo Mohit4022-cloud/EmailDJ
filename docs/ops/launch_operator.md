@@ -32,6 +32,8 @@ Launch-owned versus legacy surface boundaries live in [`docs/ops/surface_contrac
   Must point to the production hub-api root URL, not the frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
   Must exactly match one non-dev deployed value from `EMAILDJ_WEB_BETA_KEYS`.
+- `VERCEL_AUTOMATION_BYPASS_SECRET`
+  Required only when the discovered Vercel web-app deployment is protected. The probe sends it as `x-vercel-protection-bypass` and records only whether the secret was present.
 
 ## Backend tests
 
@@ -67,6 +69,8 @@ make launch-preflight
 ```
 
 This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+
+If the latest web-app deployment probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`, `make launch-preflight` also requires `VERCEL_AUTOMATION_BYPASS_SECRET` before web-app probing can clear the protected-preview blocker.
 
 ## Backend tests
 

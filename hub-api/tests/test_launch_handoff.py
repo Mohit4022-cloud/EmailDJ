@@ -149,6 +149,38 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     ]
 
 
+def test_launch_handoff_exports_vercel_bypass_when_web_probe_is_protected(monkeypatch, tmp_path):
+    import scripts.launch_handoff as handoff
+
+    root = tmp_path / "repo" / "hub-api"
+    repo_root = root.parent
+    _write_artifacts(root)
+    _write_web_app_probe(root)
+    preflight_path = root / "reports" / "launch" / "preflight.json"
+    preflight = json.loads(preflight_path.read_text(encoding="utf-8"))
+    preflight["required_inputs_present"]["VERCEL_AUTOMATION_BYPASS_SECRET"] = False
+    preflight["missing_inputs"].append("VERCEL_AUTOMATION_BYPASS_SECRET")
+    preflight_path.write_text(json.dumps(preflight, indent=2), encoding="utf-8")
+    probe_path = root / "reports" / "launch" / "web_app_deployment_probe.json"
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    probe["failures"].extend(
+        [
+            "web_app_deployment_requires_auth_or_vercel_protection_bypass",
+            "vercel_protection_bypass_secret_missing",
+        ]
+    )
+    probe_path.write_text(json.dumps(probe, indent=2), encoding="utf-8")
+    monkeypatch.setattr(handoff, "ROOT", root)
+    monkeypatch.setattr(handoff, "REPO_ROOT", repo_root)
+
+    payload = handoff.build_launch_handoff()
+    export = {item["name"]: item for item in payload["required_exports"]}["VERCEL_AUTOMATION_BYPASS_SECRET"]
+
+    assert export["required_when"] is True
+    assert "x-vercel-protection-bypass" in export["note"]
+    assert payload["web_app_deployment_probe"]["vercel_protection_bypass_configured"] is False
+
+
 def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     import scripts.launch_handoff as handoff
 

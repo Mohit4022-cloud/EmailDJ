@@ -92,6 +92,7 @@ Generated from `hub-api/.env.example` + repository env usage.
 | STAGING_BASE_URL | no | - | 1 | hub-api/scripts/launch_preflight.py |
 | USE_PROVIDER_STUB | yes | 0                 # Deployed services must use 0. Set 1 o... | 10 | hub-api/evals/runner.py, hub-api/scripts/debug_run_harness.py, hub-api/scripts/mock_e2e_smoke.py |
 | VECTOR_STORE_BACKEND | yes | memory     # Local dev default. limited_rollout/broad_lau... | 3 | hub-api/infra/vector_store.py, hub-api/main.py, hub-api/runtime_debug.py |
+| VERCEL_AUTOMATION_BYPASS_SECRET | yes | # Optional operator/probe secret for protected Vercel dep... | 2 | hub-api/scripts/launch_preflight.py, hub-api/scripts/probe_web_app_deployment.py |
 | VITE_ALLOW_MOCK_AI | no | - | 1 | web-app/src/main.js |
 | VITE_RESPONSE_CONTRACT | no | - | 1 | web-app/src/main.js |
 | WEB_APP_ORIGIN | yes | http://localhost:5174                         # Required... | 7 | hub-api/main.py, hub-api/runtime_debug.py, hub-api/scripts/capture_ui_session.py |

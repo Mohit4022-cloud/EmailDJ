@@ -7,6 +7,7 @@ import argparse
 from dataclasses import dataclass
 from html.parser import HTMLParser
 import json
+import os
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -30,6 +31,8 @@ LAUNCH_BLOCKER_NOTE = (
     "Web-app bundle probing checks static client configuration only. It does not clear deployed Hub API smoke, runtime "
     "snapshot, origin pinning, beta-key, or durable infra blockers."
 )
+VERCEL_BYPASS_ENV = "VERCEL_AUTOMATION_BYPASS_SECRET"
+VERCEL_BYPASS_HEADER = "x-vercel-protection-bypass"
 
 
 @dataclass
@@ -104,8 +107,15 @@ def _web_app_url_from_discovery() -> str | None:
     return origin
 
 
-def _fetch_text(url: str, *, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> FetchResult:
-    request = Request(url, headers={"User-Agent": "EmailDJLaunchProbe/1.0"})
+def _fetch_text(
+    url: str,
+    *,
+    timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+    headers: dict[str, str] | None = None,
+) -> FetchResult:
+    request_headers = {"User-Agent": "EmailDJLaunchProbe/1.0"}
+    request_headers.update(headers or {})
+    request = Request(url, headers=request_headers)
     try:
         with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310 - operator-supplied launch URL probe
             raw = response.read()
@@ -172,13 +182,30 @@ def _preview_finding(value: str | None) -> str | None:
     return None
 
 
-def _auth_gate_findings(result: FetchResult, *, origin: str) -> list[str]:
+def _fetch_with_headers(
+    fetcher: Callable[..., FetchResult],
+    url: str,
+    *,
+    timeout_seconds: float,
+    headers: dict[str, str] | None,
+) -> FetchResult:
+    if headers:
+        return fetcher(url, timeout_seconds=timeout_seconds, headers=headers)
+    return fetcher(url, timeout_seconds=timeout_seconds)
+
+
+def _auth_gate_findings(result: FetchResult, *, origin: str, vercel_bypass_configured: bool) -> list[str]:
     if result.status_code != 401:
         return []
     findings = ["web_app_deployment_requires_auth"]
     host = (urlparse(origin).hostname or "").lower()
     if host.endswith(".vercel.app"):
         findings.append("web_app_deployment_requires_auth_or_vercel_protection_bypass")
+        findings.append(
+            "vercel_protection_bypass_secret_rejected_or_stale"
+            if vercel_bypass_configured
+            else "vercel_protection_bypass_secret_missing"
+        )
     return findings
 
 
@@ -187,6 +214,8 @@ def inspect_web_app_deployment(
     *,
     source_git_sha: str | None = None,
     workspace_git_sha: str | None = None,
+    vercel_protection_bypass_configured: bool = False,
+    fetch_headers: dict[str, str] | None = None,
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     fetcher: Callable[..., FetchResult] = _fetch_text,
 ) -> dict:
@@ -206,6 +235,9 @@ def inspect_web_app_deployment(
             "source_git_sha": source_git_sha,
             "workspace_git_sha_at_probe": workspace_git_sha,
             "probe_matches_workspace_head": bool(source_git_sha and workspace_git_sha and source_git_sha == workspace_git_sha),
+            "vercel_protection_bypass_env": VERCEL_BYPASS_ENV,
+            "vercel_protection_bypass_configured": vercel_protection_bypass_configured,
+            "vercel_protection_bypass_header": VERCEL_BYPASS_HEADER if vercel_protection_bypass_configured else None,
             "client_bundle_usable": False,
             "failures": failures,
             "warnings": warnings,
@@ -213,12 +245,23 @@ def inspect_web_app_deployment(
             "launch_blocker_note": LAUNCH_BLOCKER_NOTE,
         }
 
-    index_result = fetcher(origin + "/", timeout_seconds=timeout_seconds)
+    index_result = _fetch_with_headers(
+        fetcher,
+        origin + "/",
+        timeout_seconds=timeout_seconds,
+        headers=fetch_headers,
+    )
     if source_git_sha and workspace_git_sha and source_git_sha != workspace_git_sha:
         failures.append("deployment_discovery_sha_mismatch_with_workspace_head")
     if index_result.error or not index_result.status_code or index_result.status_code >= 400:
         failures.append(index_result.error or f"index_fetch_http_{index_result.status_code}")
-        failures.extend(_auth_gate_findings(index_result, origin=origin))
+        failures.extend(
+            _auth_gate_findings(
+                index_result,
+                origin=origin,
+                vercel_bypass_configured=vercel_protection_bypass_configured,
+            )
+        )
     built_text += index_result.text or ""
 
     assets = _asset_urls(index_result.text or "", base_url=index_result.url or origin + "/")
@@ -226,7 +269,12 @@ def inspect_web_app_deployment(
     if not same_origin_assets:
         failures.append("no_same_origin_bundle_assets_found")
     for asset_url in same_origin_assets[:30]:
-        asset_result = fetcher(asset_url, timeout_seconds=timeout_seconds)
+        asset_result = _fetch_with_headers(
+            fetcher,
+            asset_url,
+            timeout_seconds=timeout_seconds,
+            headers=fetch_headers,
+        )
         asset_results.append(
             {
                 "url": asset_result.url,
@@ -262,6 +310,9 @@ def inspect_web_app_deployment(
         "source_git_sha": source_git_sha,
         "workspace_git_sha_at_probe": workspace_git_sha,
         "probe_matches_workspace_head": bool(source_git_sha and workspace_git_sha and source_git_sha == workspace_git_sha),
+        "vercel_protection_bypass_env": VERCEL_BYPASS_ENV,
+        "vercel_protection_bypass_configured": vercel_protection_bypass_configured,
+        "vercel_protection_bypass_header": VERCEL_BYPASS_HEADER if vercel_protection_bypass_configured else None,
         "index": {
             "url": index_result.url if index_result else origin + "/",
             "status_code": index_result.status_code if index_result else None,
@@ -290,6 +341,9 @@ def _write_markdown(path: Path, payload: dict) -> None:
         f"- Source git SHA: `{payload.get('source_git_sha') or 'unset'}`",
         f"- Workspace git SHA at probe: `{payload.get('workspace_git_sha_at_probe') or 'unset'}`",
         f"- Probe matches workspace HEAD: `{payload.get('probe_matches_workspace_head')}`",
+        f"- Vercel bypass env: `{payload.get('vercel_protection_bypass_env') or 'unset'}`",
+        f"- Vercel bypass configured: `{payload.get('vercel_protection_bypass_configured')}`",
+        f"- Vercel bypass header used: `{payload.get('vercel_protection_bypass_header') or 'none'}`",
         f"- Client bundle usable: `{payload.get('client_bundle_usable')}`",
         f"- Detected VITE_HUB_URL: `{payload.get('detected_vite_hub_url') or 'none'}`",
         f"- Detected VITE_PRESET_PREVIEW_PIPELINE: `{payload.get('detected_preview_pipeline') or 'none'}`",
@@ -331,10 +385,14 @@ def _write_markdown(path: Path, payload: dict) -> None:
 def write_probe(*, web_app_url: str | None = None, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> tuple[Path, Path, dict]:
     discovery = _read_json(ROOT / "reports" / "launch" / "deployment_discovery.json")
     target_url = web_app_url or _web_app_url_from_discovery()
+    vercel_bypass_secret = (os.environ.get("VERCEL_AUTOMATION_BYPASS_SECRET") or "").strip()
+    fetch_headers = {VERCEL_BYPASS_HEADER: vercel_bypass_secret} if vercel_bypass_secret else None
     payload = inspect_web_app_deployment(
         target_url,
         source_git_sha=discovery.get("current_git_sha") if discovery else None,
         workspace_git_sha=_git_head_sha(),
+        vercel_protection_bypass_configured=bool(vercel_bypass_secret),
+        fetch_headers=fetch_headers,
         timeout_seconds=timeout_seconds,
     )
     report_dir = ROOT / "reports" / "launch"
@@ -368,6 +426,7 @@ def main() -> int:
                 "client_bundle_usable": payload.get("client_bundle_usable"),
                 "detected_vite_hub_url": payload.get("detected_vite_hub_url"),
                 "detected_preview_pipeline": payload.get("detected_preview_pipeline"),
+                "vercel_protection_bypass_configured": payload.get("vercel_protection_bypass_configured"),
                 "failures": payload.get("failures"),
             },
             indent=2,

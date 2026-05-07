@@ -177,6 +177,8 @@ Fill these Dashboard values during Blueprint creation or before first successful
   The production hub-api root URL, not the Vercel frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
   One exact non-dev key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list.
+- `VERCEL_AUTOMATION_BYPASS_SECRET`
+  Required only when the discovered Vercel web-app deployment is protected. The web-app probe sends it as the `x-vercel-protection-bypass` header and records only whether it was present.
 
 Example mapping:
 
@@ -198,6 +200,8 @@ make launch-handoff
 
 `make launch-preflight` is the fast operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport. `make launch-verify-deployed` runs the same preflight again, then verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
+`make launch-probe-web-app` also supports protected Vercel previews. Export `VERCEL_AUTOMATION_BYPASS_SECRET` on the operator machine before running it when the previous probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`. The probe sends that value as `x-vercel-protection-bypass`; the generated JSON/Markdown reports never include the secret itself.
+
 `make launch-audit` writes the artifact-backed completion readout after the gate runs, mapping every launch requirement to current evidence or blockers.
 
 `make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets.
@@ -207,5 +211,6 @@ make launch-handoff
 - Real provider API keys.
 - Non-dev beta key values for staging and prod.
 - Final Vercel frontend origin(s).
+- Vercel Protection Bypass for Automation secret, if preview deployments remain protected.
 - Final extension origin(s).
 - Managed Redis connection string.

@@ -10,6 +10,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
+VERCEL_BYPASS_ENV = "VERCEL_AUTOMATION_BYPASS_SECRET"
+VERCEL_BYPASS_HEADER = "x-vercel-protection-bypass"
 
 
 def _utc_now_text() -> str:
@@ -207,6 +209,13 @@ def build_launch_handoff() -> dict[str, Any]:
             "note": "Must be exported explicitly in the shell; .env values are intentionally ignored.",
         },
         {
+            "name": VERCEL_BYPASS_ENV,
+            "value": "<vercel-automation-bypass-secret>",
+            "required_when": VERCEL_BYPASS_ENV in missing_inputs
+            or "vercel_protection_bypass_secret_missing" in set(web_app_probe.get("failures") or []),
+            "note": f"Required only when the Vercel web-app deployment is protected; sent as `{VERCEL_BYPASS_HEADER}`.",
+        },
+        {
             "name": "EMAILDJ_EXPECTED_HUB_URL",
             "value": "$STAGING_BASE_URL",
             "required_when": "deployed_http_smoke" in blocked or "runtime_snapshots" in blocked,
@@ -355,6 +364,10 @@ def build_launch_handoff() -> dict[str, Any]:
             "detected_vite_hub_url": web_app_probe.get("detected_vite_hub_url"),
             "detected_preview_pipeline": web_app_probe.get("detected_preview_pipeline"),
             "clears_launch_blockers": bool(web_app_probe.get("clears_launch_blockers")),
+            "vercel_protection_bypass_configured": bool(
+                web_app_probe.get("vercel_protection_bypass_configured")
+            ),
+            "vercel_protection_bypass_env": web_app_probe.get("vercel_protection_bypass_env"),
             "failures": web_app_probe.get("failures") or [],
             "warnings": web_app_probe.get("warnings") or [],
         },
