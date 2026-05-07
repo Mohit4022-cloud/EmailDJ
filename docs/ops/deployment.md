@@ -73,7 +73,7 @@ The side panel also exposes runtime Settings backed by Chrome sync storage. Oper
 ### Chrome Extension (`chrome-extension`)
 
 - `VITE_HUB_URL`
-  Use the hub-api root URL baked into the extension build. Operators can override it later in the side panel Settings tab. In production-like runtime, the extension refuses the localhost fallback and requires a deployed HTTPS hub-api root URL with no path, query, or fragment unless a saved operator override is present.
+  Use the hub-api root URL baked into the extension build. The build uses this value to emit a narrow `host_permissions` entry such as `https://hub-staging.example.com/*`. Operators can override the URL later in the side panel Settings tab, but a launch package must still be built and verified against the intended Hub API origin. In production-like runtime, the extension refuses the localhost fallback and requires a deployed HTTPS hub-api root URL with no path, query, or fragment unless a saved operator override is present.
 - `VITE_EMAILDJ_BETA_KEY`
   Required for release verification. Operators can override it later in the side panel Settings tab. Production-like runtime rejects missing values and `dev-beta-key`; use a non-dev key.
 

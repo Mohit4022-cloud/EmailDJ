@@ -46,6 +46,11 @@ function readBuiltJavaScript(distDir) {
     .join('\n');
 }
 
+function expectedHubHostPermission(value) {
+  const url = new URL(String(value || '').trim());
+  return `${url.origin}/*`;
+}
+
 export function inspectReleaseConfig({
   distDir = path.resolve('dist'),
   expectedHubUrl = process.env.EMAILDJ_EXPECTED_HUB_URL || process.env.VITE_HUB_URL || '',
@@ -78,6 +83,13 @@ export function inspectReleaseConfig({
   } else {
     const finding = hubUrlFinding(normalizedHubUrl);
     if (finding) failures.push(finding);
+  }
+  if (normalizedHubUrl && !failures.includes('expected_hub_url_not_deployed_https') && !failures.includes('expected_hub_url_not_root')) {
+    const hostPermissions = Array.isArray(manifest.host_permissions) ? manifest.host_permissions : [];
+    const expectedPermission = expectedHubHostPermission(normalizedHubUrl);
+    if (!hostPermissions.includes(expectedPermission)) {
+      failures.push('expected_hub_host_permission_missing');
+    }
   }
 
   const normalizedBetaKey = String(expectedBetaKey || '').trim();

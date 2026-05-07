@@ -6,16 +6,20 @@ import path from 'node:path';
 
 import { inspectReleaseConfig } from '../scripts/check-release-config.mjs';
 
-function makeDist({ hubUrl = 'https://hub.example.com', betaKey = 'ops-key' } = {}) {
+function makeDist({ hubUrl = 'https://hub.example.com', betaKey = 'ops-key', hostPermissions } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'emaildj-extension-release-'));
   const dist = path.join(root, 'dist');
   const assets = path.join(dist, 'assets');
+  const resolvedHostPermissions = hostPermissions === undefined
+    ? ['https://hub.example.com/*']
+    : hostPermissions;
   fs.mkdirSync(assets, { recursive: true });
   fs.writeFileSync(
     path.join(dist, 'manifest.json'),
     JSON.stringify({
       manifest_version: 3,
       permissions: ['storage', 'sidePanel'],
+      host_permissions: resolvedHostPermissions,
       background: { service_worker: 'service-worker-loader.js' },
       side_panel: { default_path: 'src/side-panel/index.html' },
     }),
@@ -89,6 +93,19 @@ test('release config rejects missing beta key', () => {
 
   assert.equal(result.ok, false);
   assert.ok(result.failures.includes('expected_beta_key_missing'));
+});
+
+test('release config rejects missing hub host permission', () => {
+  const dist = makeDist({ hostPermissions: [] });
+
+  const result = inspectReleaseConfig({
+    distDir: dist,
+    expectedHubUrl: 'https://hub.example.com',
+    expectedBetaKey: 'ops-key',
+  });
+
+  assert.equal(result.ok, false);
+  assert.ok(result.failures.includes('expected_hub_host_permission_missing'));
 });
 
 test('release config rejects stale dist bundle that lacks expected hub URL', () => {
