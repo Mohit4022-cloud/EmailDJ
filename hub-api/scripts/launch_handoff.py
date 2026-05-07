@@ -213,6 +213,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "make launch-preflight",
         "make launch-verify-deployed",
         "make launch-audit",
+        "make launch-handoff",
     ]
 
     return {

@@ -91,6 +91,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make launch-preflight",
         "make launch-verify-deployed",
         "make launch-audit",
+        "make launch-handoff",
     ]
 
 
