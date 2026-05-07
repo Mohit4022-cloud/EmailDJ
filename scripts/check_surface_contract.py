@@ -304,6 +304,7 @@ def _check_docs() -> list[str]:
 def _check_ci() -> list[str]:
     failures: list[str] = []
     ci = _read(".github/workflows/ci.yml")
+    backend_checks = _read("hub-api/scripts/checks.sh")
     legacy_eval = _read(".github/workflows/eval_regression.yml")
     required_ci_snippets = [
         "Surface contract gate",
@@ -318,6 +319,16 @@ def _check_ci() -> list[str]:
     for snippet in required_ci_snippets:
         if snippet not in ci:
             failures.append(f"CI checks job is missing `{snippet}`")
+
+    required_backend_check_snippets = [
+        '"$ROOT/scripts/eval:full"',
+        'python3 "$ROOT/scripts/launch_check.py" --from-artifacts --allow-not-ready',
+        'python3 "$ROOT/scripts/launch_audit.py"',
+        'python3 "$ROOT/scripts/launch_handoff.py"',
+    ]
+    for snippet in required_backend_check_snippets:
+        if snippet not in backend_checks:
+            failures.append(f"Backend checks script is missing `{snippet}`")
 
     required_legacy_snippets = [
         "name: Legacy Backend Eval Regression",

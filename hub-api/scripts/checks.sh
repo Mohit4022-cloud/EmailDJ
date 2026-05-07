@@ -15,45 +15,48 @@ if ! command -v node >/dev/null 2>&1; then
   exit 127
 fi
 
-echo "[1/11] python compile"
+echo "[1/12] python compile"
 python3 -m py_compile $(find "$ROOT" -name '*.py' -type f)
 
-echo "[2/11] pytest"
+echo "[2/12] pytest"
 python3 "$ROOT/scripts/run_backend_suite.py"
 
-echo "[3/11] generate openapi"
+echo "[3/12] generate openapi"
 python3 "$ROOT/scripts/generate_openapi.py"
 
-echo "[4/11] extension js syntax"
+echo "[4/12] extension js syntax"
 for f in $(find "$ROOT/../chrome-extension/src" -name '*.js' -type f); do
   node --check "$f"
 done
 
-echo "[5/11] extension build"
+echo "[5/12] extension build"
 (cd "$ROOT/../chrome-extension" && npm run build)
 
-echo "[6/11] mock e2e smoke"
+echo "[6/12] mock e2e smoke"
 python3 "$ROOT/scripts/mock_e2e_smoke.py"
 
-echo "[7/11] lock compliance eval smoke"
+echo "[7/12] lock compliance eval smoke"
 "$ROOT/scripts/eval:smoke"
 
-echo "[8/11] preview/generate parity gate"
+echo "[8/12] preview/generate parity gate"
 "$ROOT/scripts/eval:parity"
 
-echo "[9/11] adversarial eval suite (mock)"
+echo "[9/12] adversarial eval suite (mock)"
 "$ROOT/scripts/eval:adversarial"
 
+echo "[10/12] full eval suite (mock)"
+"$ROOT/scripts/eval:full"
+
 if [ "${EMAILDJ_RUN_JUDGE_SMOKE:-0}" = "1" ]; then
-  echo "[10/13] judge smoke (5-case)"
+  echo "[11/14] judge smoke (5-case)"
   "$ROOT/scripts/eval:judge:smoke"
-  echo "[11/13] judge sanity sentinel suite"
+  echo "[12/14] judge sanity sentinel suite"
   "$ROOT/scripts/eval:judge:sanity"
-  STEP_REAL_FAILFAST="[12/13]"
-  STEP_REAL_SMOKE="[13/13]"
+  STEP_REAL_FAILFAST="[13/14]"
+  STEP_REAL_SMOKE="[14/14]"
 else
-  STEP_REAL_FAILFAST="[10/11]"
-  STEP_REAL_SMOKE="[11/11]"
+  STEP_REAL_FAILFAST="[11/12]"
+  STEP_REAL_SMOKE="[12/12]"
 fi
 
 echo "${STEP_REAL_FAILFAST} real mode fail-fast smoke (missing creds must fail)"
@@ -69,5 +72,9 @@ else
 fi
 
 echo "launch check"
-python3 "$ROOT/scripts/launch_check.py" --from-artifacts
+python3 "$ROOT/scripts/launch_check.py" --from-artifacts --allow-not-ready
+echo "launch completion audit"
+python3 "$ROOT/scripts/launch_audit.py"
+echo "launch operator handoff"
+python3 "$ROOT/scripts/launch_handoff.py"
 echo "all checks passed"

@@ -32,7 +32,7 @@ Machine-readable manifest: [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailD
 - `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.
 - The repo-root `render.yaml` is the Hub API deployment handoff. It must keep provider-stub mode disabled, use managed Redis/Postgres references, and leave operator-specific origins/beta keys/secrets as Dashboard-filled values.
-- The general CI `checks` job runs the surface contract, hub-api checks, web-app tests/build, and chrome-extension tests/build.
+- The general CI `checks` job runs the surface contract, hub-api checks, web-app tests/build, chrome-extension tests/build, the full mock eval artifact, launch check, completion audit, and operator handoff.
 - `.github/workflows/eval_regression.yml` is intentionally path-scoped to `backend/**` and named as legacy backend evidence.
 - Passing legacy tests can be useful during migration, but it never satisfies launch readiness on its own.
 

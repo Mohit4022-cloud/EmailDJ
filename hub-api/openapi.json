@@ -165,6 +165,62 @@
         }
       }
     },
+    "/web/v1/debug/config": {
+      "get": {
+        "tags": [
+          "web-mvp"
+        ],
+        "summary": "Debug Config",
+        "operationId": "debug_config_web_v1_debug_config_get",
+        "parameters": [
+          {
+            "name": "endpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(generate|remix|preview|stream)$",
+              "default": "generate",
+              "title": "Endpoint"
+            }
+          },
+          {
+            "name": "bucket_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "debug",
+              "title": "Bucket Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Debug Config Web V1 Debug Config Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/web/v1/generate": {
       "post": {
         "tags": [
@@ -321,6 +377,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/web/v1/debug/eval": {
+      "get": {
+        "tags": [
+          "web-mvp"
+        ],
+        "summary": "Debug Eval Report",
+        "operationId": "debug_eval_report_web_v1_debug_eval_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Debug Eval Report Web V1 Debug Eval Get"
                 }
               }
             }
@@ -970,6 +1049,59 @@
           }
         }
       }
+    },
+    "/debug/config": {
+      "get": {
+        "summary": "Debug Config",
+        "operationId": "debug_config_debug_config_get",
+        "parameters": [
+          {
+            "name": "endpoint",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(generate|remix|preview|stream|startup)$",
+              "default": "generate",
+              "title": "Endpoint"
+            }
+          },
+          {
+            "name": "bucket_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "debug",
+              "title": "Bucket Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Debug Config Debug Config Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1564,6 +1696,39 @@
             ],
             "title": "Cta Type"
           },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id",
+            "description": "Optional strategy preset id (e.g., straight_shooter, headliner)."
+          },
+          "response_contract": {
+            "type": "string",
+            "enum": [
+              "legacy_text",
+              "rc_tco_json_v1"
+            ],
+            "title": "Response Contract",
+            "description": "Response contract mode. legacy_text streams Subject/Body text; rc_tco_json_v1 streams strict JSON payload.",
+            "default": "legacy_text"
+          },
+          "pipeline_meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WebPipelineMeta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "style_profile": {
             "$ref": "#/components/schemas/WebStyleProfile"
           },
@@ -1579,10 +1744,79 @@
         ],
         "title": "WebGenerateRequest"
       },
+      "WebPipelineMeta": {
+        "properties": {
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "preview",
+                  "generate"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "model_hint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Hint"
+          },
+          "throttled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Throttled"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "type": "object",
+        "title": "WebPipelineMeta"
+      },
       "WebPresetPreviewBatchRequest": {
         "properties": {
           "prospect": {
             "$ref": "#/components/schemas/WebProspectInput"
+          },
+          "prospect_first_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 60
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prospect First Name",
+            "description": "Optional first name override used for greeting normalization in previews."
           },
           "product_context": {
             "$ref": "#/components/schemas/WebPreviewProductContext"
@@ -1610,11 +1844,66 @@
             "description": "Single product/offering to pitch. Must match product_context.product_name."
           },
           "cta_lock": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Cta Lock",
-            "description": "Exact CTA text used once at the end of every preview email body."
+            "description": "Legacy CTA lock field. If set, it is treated as CTA lock override text."
+          },
+          "cta_lock_text": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Lock Text",
+            "description": "CTA lock override text. If non-empty, this exact text is used as CTA."
+          },
+          "cta_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "question",
+                  "time_ask",
+                  "value_asset",
+                  "pilot",
+                  "referral",
+                  "event_invite"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta Type"
+          },
+          "hook_strategy": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "research_anchored",
+                  "risk_framed",
+                  "domain_hook",
+                  "outcome_hook"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook Strategy"
           }
         },
         "type": "object",
@@ -1624,8 +1913,7 @@
           "raw_research",
           "global_sliders",
           "presets",
-          "offer_lock",
-          "cta_lock"
+          "offer_lock"
         ],
         "title": "WebPresetPreviewBatchRequest"
       },
@@ -1698,6 +1986,17 @@
               }
             ],
             "title": "Generation Mode"
+          },
+          "provider_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Source"
           },
           "provider": {
             "type": "string",
@@ -1789,6 +2088,26 @@
             "title": "Repair Loop Enabled",
             "default": true
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "degraded"
+            ],
+            "title": "Status",
+            "default": "success"
+          },
+          "degraded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degraded Reason"
+          },
           "cache_hit": {
             "type": "boolean",
             "title": "Cache Hit"
@@ -1797,6 +2116,44 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Latency Ms"
+          },
+          "flags_effective": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "boolean"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flags Effective"
+          },
+          "prompt_template_versions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Template Versions"
+          },
+          "execution_trace": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Trace"
           }
         },
         "type": "object",
@@ -2172,6 +2529,19 @@
             "type": "string",
             "minLength": 1,
             "title": "Session Id"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 80
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id",
+            "description": "Optional strategy preset id override for this remix request."
           },
           "style_profile": {
             "$ref": "#/components/schemas/WebStyleProfile"
