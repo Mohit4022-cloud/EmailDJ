@@ -114,6 +114,32 @@ def _check_deployed_gate() -> list[str]:
     return failures
 
 
+def _check_localhost_smoke() -> list[str]:
+    failures: list[str] = []
+    path = "scripts/localhost-smoke.sh"
+    try:
+        script = _read(path)
+        for snippet in [
+            'FLOWS="${EMAILDJ_SMOKE_FLOWS:-${EMAILDJ_SMOKE_FLOW:-generate,remix}}"',
+            "-m devtools.http_smoke_runner",
+            "python scripts/merge_http_smoke_summaries.py",
+            "python scripts/launch_check.py",
+        ]:
+            _require_snippet(script, snippet, path)
+        _require_ordered_snippets(
+            script,
+            [
+                "-m devtools.http_smoke_runner",
+                "python scripts/merge_http_smoke_summaries.py",
+                "python scripts/launch_check.py",
+            ],
+            path,
+        )
+    except (AssertionError, FileNotFoundError) as exc:
+        failures.append(str(exc))
+    return failures
+
+
 def _check_docs() -> list[str]:
     failures: list[str] = []
     required = {
@@ -190,7 +216,13 @@ def _check_ci() -> list[str]:
 
 
 def main() -> int:
-    failures = _check_makefile() + _check_deployed_gate() + _check_docs() + _check_ci()
+    failures = (
+        _check_makefile()
+        + _check_deployed_gate()
+        + _check_localhost_smoke()
+        + _check_docs()
+        + _check_ci()
+    )
     if failures:
         print("Surface contract check FAILED")
         for failure in failures:

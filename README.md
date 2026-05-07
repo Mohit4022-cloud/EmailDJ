@@ -123,7 +123,7 @@ Run a guarded localhost smoke against an already-running Hub API:
 EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke
 ```
 
-This smoke can call the provider configured on the running Hub API. Defaults are `http://127.0.0.1:8000`, `dev-beta-key`, `mode=smoke`, and `flow=generate`. The command writes `hub-api/debug_runs/smoke/manual/summary.json`, then refreshes `hub-api/reports/launch/latest.json` and `hub-api/reports/launch/latest.md`.
+This smoke can call the provider configured on the running Hub API. Defaults are `http://127.0.0.1:8000`, `dev-beta-key`, `mode=smoke`, and `flows=generate,remix`. The command writes per-flow summaries under `hub-api/debug_runs/smoke/manual/`, merges them into `hub-api/debug_runs/smoke/manual/summary.json`, then refreshes `hub-api/reports/launch/latest.json` and `hub-api/reports/launch/latest.md`.
 
 Launch modes are fail-closed at Hub API startup. `limited_rollout` and `broad_launch` require pinned `WEB_APP_ORIGIN`, pinned `CHROME_EXTENSION_ORIGIN`, non-dev `EMAILDJ_WEB_BETA_KEYS`, explicit `EMAILDJ_WEB_RATE_LIMIT_PER_MIN`, real provider mode, managed `REDIS_URL`, managed `DATABASE_URL`, and `VECTOR_STORE_BACKEND=pgvector`.
 

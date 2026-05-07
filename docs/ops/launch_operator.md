@@ -117,7 +117,7 @@ EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke
 Expected summary artifact:
 - `debug_runs/smoke/manual/summary.json`
 
-The smoke runner now fails clearly if the localhost server is not healthy. The root command is confirmation-gated because it can call whichever provider is configured on the running Hub API.
+The smoke runner now fails clearly if the localhost server is not healthy. By default the root command runs `generate,remix`, writes per-flow summaries under `debug_runs/smoke/manual/`, and merges them into the canonical summary. The root command is confirmation-gated because it can call whichever provider is configured on the running Hub API.
 
 ## Launch-check command
 
