@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-preflight launch-check localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
+.PHONY: setup test build dev launch-preflight launch-check launch-audit localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -71,6 +71,9 @@ dev:
 
 launch-check:
 	cd hub-api && source .venv/bin/activate && python scripts/launch_check.py --from-artifacts --allow-not-ready $${LOCALHOST_SMOKE_SUMMARY:+--localhost-smoke-summary $${LOCALHOST_SMOKE_SUMMARY}}
+
+launch-audit:
+	cd hub-api && source .venv/bin/activate && python scripts/launch_audit.py
 
 launch-preflight:
 	cd hub-api && source .venv/bin/activate && python scripts/launch_preflight.py

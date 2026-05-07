@@ -27,6 +27,7 @@ Machine-readable manifest: [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailD
 - `make render-blueprint-check` is the repo-local Render Blueprint gate. It validates the Hub API service, managed datastore references, pinned launch defaults, and Dashboard-filled secrets without needing Render CLI access.
 - `make launch-preflight` is the strict deployed-run operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport.
 - `make launch-verify-deployed` is the deployed-service gate: preflight, web-app and Chrome-extension release bundle verification, staging and production runtime snapshots, real-provider smoke, staging Hub API HTTP smoke for `generate,remix`, then launch check.
+- `make launch-audit` is the artifact-backed completion readout. It maps A-to-Z launch requirements to current evidence or explicit blockers and never treats proxy green tests as completion by themselves.
 - `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.
 - `make launch-verify-extension` is the extension release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL.
 - The repo-root `render.yaml` is the Hub API deployment handoff. It must keep provider-stub mode disabled, use managed Redis/Postgres references, and leave operator-specific origins/beta keys/secrets as Dashboard-filled values.

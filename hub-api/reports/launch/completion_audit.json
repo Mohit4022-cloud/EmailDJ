@@ -1,0 +1,232 @@
+{
+  "generated_at": "2026-05-07T16:18:14.759670Z",
+  "final_status": "not_complete",
+  "launch_report_recommendation": "Not yet launch-ready",
+  "source_artifacts": {
+    "launch_report": "/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json",
+    "preflight": "/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json",
+    "surface_manifest": "/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json"
+  },
+  "items": [
+    {
+      "id": "hub_api_full_suite",
+      "requirement": "Fix and keep the Hub API full quality gate green.",
+      "status": "pass",
+      "evidence": [
+        "backend_green=green",
+        "backend_suite_summary=389 passed, 1 warning in 12.61s"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "live_provider_harness",
+      "requirement": "Get a fresh live-provider run green, not only provider-stub evidence.",
+      "status": "pass",
+      "evidence": [
+        "provider_green=green",
+        "provider_source=external_provider",
+        "external_provider_cases=10/10"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "lock_and_launch_artifacts",
+      "requirement": "Refresh lock compliance, parity/adversarial/full eval evidence, and launch check artifacts.",
+      "status": "pass",
+      "evidence": [
+        "harness_green=green",
+        "render_blueprint_green=green",
+        "provider_stub_cases=96/96",
+        "launch_report_generated_at=2026-05-07T16:11:36.891849Z"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "deployed_preflight_inputs",
+      "requirement": "Operator exports staging/prod Hub API roots and one explicit deployed beta key.",
+      "status": "blocked",
+      "evidence": [
+        "preflight_ready=False",
+        "required_inputs_present={'STAGING_BASE_URL': False, 'PROD_BASE_URL': False, 'BETA_KEY': False, 'OPENAI_API_KEY': True}",
+        "failure_bucket=operator_input_missing"
+      ],
+      "blockers": [
+        "STAGING_BASE_URL",
+        "PROD_BASE_URL",
+        "BETA_KEY"
+      ]
+    },
+    {
+      "id": "runtime_snapshots",
+      "requirement": "Capture staging and production runtime snapshots.",
+      "status": "blocked",
+      "evidence": [
+        "staging_snapshot_missing=True",
+        "production_snapshot_missing=True"
+      ],
+      "blockers": [
+        "staging_runtime_snapshot_missing",
+        "production_runtime_snapshot_missing"
+      ]
+    },
+    {
+      "id": "pinned_origins_beta_provider",
+      "requirement": "Pin deployed web/extension origins, non-dev beta keys, and real provider mode.",
+      "status": "blocked",
+      "evidence": [
+        "web_app_origin_state=unset",
+        "chrome_extension_origin_state=default_dev_placeholder",
+        "beta_keys_state=explicit_pinned",
+        "effective_provider_source=external_provider"
+      ],
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder",
+        "web_app_origin_not_pinned:unset"
+      ]
+    },
+    {
+      "id": "durable_infra",
+      "requirement": "Use durable Redis/Postgres/pgvector instead of local or in-memory state.",
+      "status": "blocked",
+      "evidence": [
+        "redis_config_state=forced_inmemory",
+        "database_config_state=default_local_sqlite",
+        "vector_store_config_state=memory_backend"
+      ],
+      "blockers": [
+        "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite",
+        "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
+        "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend"
+      ]
+    },
+    {
+      "id": "deployed_http_smoke",
+      "requirement": "Prove deployed web generate/remix coverage against staging; require preview smoke only when preview is enabled.",
+      "status": "blocked",
+      "evidence": [
+        "required_http_smoke_routes=['generate', 'remix']",
+        "route_gates={'generate': True, 'remix': True, 'preview': False}",
+        "localhost_smoke_provider_source_counts={'provider_stub': 60}"
+      ],
+      "blockers": [
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+      ]
+    },
+    {
+      "id": "release_fingerprint_parity",
+      "requirement": "Capture comparable staging/prod release fingerprints.",
+      "status": "blocked",
+      "evidence": [
+        "release_fingerprint_available=True",
+        "release_fingerprint=git_sha=a17657a02bd1",
+        "runtime_source_used=local_env"
+      ],
+      "blockers": [
+        "release_fingerprint_unavailable"
+      ]
+    },
+    {
+      "id": "chrome_extension_real_target",
+      "requirement": "Prove the Chrome extension flow against the real shipped extension origin.",
+      "status": "blocked",
+      "evidence": [
+        "chrome_extension_origin=chrome-extension://dev",
+        "chrome_extension_origin_state=default_dev_placeholder"
+      ],
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder"
+      ]
+    },
+    {
+      "id": "parallel_stack_story",
+      "requirement": "Decide and enforce which surfaces count as launch evidence.",
+      "status": "pass",
+      "evidence": [
+        "launch_owned=['chrome-extension/', 'hub-api/', 'web-app/']",
+        "legacy_explicit_only=['backend/', 'frontend/']",
+        "source=docs/ops/launch_surfaces.json"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "draft_workspace_ux",
+      "requirement": "Final UX pass makes the draft workspace primary and guarded on mobile.",
+      "status": "pass",
+      "evidence": [
+        "web-app/tests/layout-contract.test.js",
+        "web-app/src/components/EmailEditor.js"
+      ],
+      "blockers": []
+    },
+    {
+      "id": "launch_report_recommendation",
+      "requirement": "Launch-check itself must no longer report Not yet launch-ready.",
+      "status": "blocked",
+      "evidence": [
+        "final_recommendation=Not yet launch-ready",
+        "config_blocker_count=6",
+        "error_count=0"
+      ],
+      "blockers": [
+        "launch_check_not_ready"
+      ]
+    }
+  ],
+  "open_blocker_count": 8,
+  "open_blockers": [
+    {
+      "id": "deployed_preflight_inputs",
+      "blockers": [
+        "STAGING_BASE_URL",
+        "PROD_BASE_URL",
+        "BETA_KEY"
+      ]
+    },
+    {
+      "id": "runtime_snapshots",
+      "blockers": [
+        "staging_runtime_snapshot_missing",
+        "production_runtime_snapshot_missing"
+      ]
+    },
+    {
+      "id": "pinned_origins_beta_provider",
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder",
+        "web_app_origin_not_pinned:unset"
+      ]
+    },
+    {
+      "id": "durable_infra",
+      "blockers": [
+        "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite",
+        "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
+        "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend"
+      ]
+    },
+    {
+      "id": "deployed_http_smoke",
+      "blockers": [
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+      ]
+    },
+    {
+      "id": "release_fingerprint_parity",
+      "blockers": [
+        "release_fingerprint_unavailable"
+      ]
+    },
+    {
+      "id": "chrome_extension_real_target",
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder"
+      ]
+    },
+    {
+      "id": "launch_report_recommendation",
+      "blockers": [
+        "launch_check_not_ready"
+      ]
+    }
+  ]
+}

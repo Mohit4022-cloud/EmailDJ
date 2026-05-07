@@ -29,6 +29,7 @@ All steps in the `checks` CI job must be green:
 | OpenAPI snapshot | `./scripts/checks.sh` (step 3) | `openapi.json` matches routes |
 | Extension build | `npm test` (chrome-extension) | No build errors, unit tests pass |
 | Mock e2e smoke | `./scripts/mock_e2e_smoke.py` | Full generate + stream cycle completes in mock mode |
+| Launch completion audit | `make launch-audit` | Writes artifact-backed completion audit with every open blocker explicit |
 | Judge smoke (mock) | `./scripts/eval:judge:smoke` | All smoke cases pass |
 | Judge sanity (mock) | `./scripts/eval:judge:sanity` | Sentinel cases all pass |
 

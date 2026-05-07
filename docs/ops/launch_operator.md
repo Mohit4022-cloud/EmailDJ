@@ -197,6 +197,21 @@ Canonical launch artifacts:
 - `reports/launch/latest.json`
 - `reports/launch/latest.md`
 
+## Completion audit
+
+Run this from the repo root after refreshing launch artifacts:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-audit
+```
+
+Artifacts:
+- `reports/launch/completion_audit.json`
+- `reports/launch/completion_audit.md`
+
+The audit maps each A-to-Z launch requirement to concrete evidence or explicit blockers. It is non-blocking by default so operators can refresh the readout while work remains; use `cd hub-api && python scripts/launch_audit.py --fail-if-incomplete` when a hard completion gate is needed.
+
 ## How to interpret artifacts
 
 - `provider_source=provider_stub`: stub harness only

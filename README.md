@@ -120,6 +120,14 @@ make launch-check
 
 `make launch-check` includes the canonical localhost smoke artifact at `hub-api/debug_runs/smoke/manual/summary.json` when computing freshness and provenance. If that artifact is missing or stale, the report stays honest and lists the guarded smoke as an operator next step.
 
+Build the A-to-Z completion audit from the current artifacts:
+
+```bash
+make launch-audit
+```
+
+This writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
+
 Check the deployed-run operator inputs before running the full deployed gate:
 
 ```bash
