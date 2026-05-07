@@ -28,6 +28,7 @@ def _walk_and_redact(value: Any, vault: dict[str, str]) -> Any:
         return [_walk_and_redact(v, vault) for v in value]
     if isinstance(value, str):
         stage1 = analyze_and_anonymize(value)
+        vault.update(stage1.vault)
         stage2 = tokenize(stage1.redacted)
         vault.update(stage2.vault)
         return stage2.text

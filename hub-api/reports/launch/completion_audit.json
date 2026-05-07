@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T16:40:25.452072Z",
+  "generated_at": "2026-05-07T17:37:49.296940Z",
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
@@ -14,7 +14,7 @@
       "status": "pass",
       "evidence": [
         "backend_green=green",
-        "backend_suite_summary=394 passed, 1 warning in 12.69s"
+        "backend_suite_summary=396 passed in 13.59s"
       ],
       "blockers": []
     },
@@ -37,7 +37,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T16:33:25.231270Z"
+        "launch_report_generated_at=2026-05-07T17:37:49.248801Z"
       ],
       "blockers": []
     },
@@ -118,7 +118,7 @@
       "status": "blocked",
       "evidence": [
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=65f0e73b85f8",
+        "release_fingerprint=git_sha=36445e4c4bf5",
         "runtime_source_used=local_env"
       ],
       "blockers": [
@@ -183,7 +183,7 @@
       "evidence": [
         "hub_api_full_suite=pass",
         "backend_green=green",
-        "backend_suite_summary=394 passed, 1 warning in 12.69s"
+        "backend_suite_summary=396 passed in 13.59s"
       ],
       "blockers": [],
       "note": ""
@@ -216,7 +216,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T16:33:25.231270Z"
+        "launch_report_generated_at=2026-05-07T17:37:49.248801Z"
       ],
       "blockers": [],
       "note": ""
@@ -255,7 +255,7 @@
         "effective_provider_source=external_provider",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=65f0e73b85f8",
+        "release_fingerprint=git_sha=36445e4c4bf5",
         "runtime_source_used=local_env"
       ],
       "blockers": [
