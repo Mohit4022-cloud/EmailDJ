@@ -65,6 +65,14 @@ Render's Postgres reference may emit a plain `postgresql://` connection string. 
 
 Render also sets `RENDER_GIT_COMMIT` at runtime. The Hub API runtime debug surface uses that as a `git_sha` fallback, so deployed staging/prod snapshots can prove which Git commit is actually running without a separate `EMAILDJ_GIT_SHA` injection.
 
+Run the repo-local Blueprint contract check before creating or updating the Render resource:
+
+```bash
+make render-blueprint-check
+```
+
+This deterministic check does not call Render. It verifies the repo-specific launch contract: managed Redis/Postgres references, provider-stub disabled, launch defaults pinned, and operator-owned origins, beta keys, and secrets left as Dashboard-filled values.
+
 ### Render Blueprint Manual Inputs
 
 Fill these Dashboard values during Blueprint creation or before first successful deploy:

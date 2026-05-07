@@ -22,6 +22,7 @@ This repo has one launch-owned product path and two legacy parity surfaces. The 
 
 - `make test` and `make build` cover only launch-owned surfaces.
 - `make launch-gates-local` starts with `make surface-contract` and then runs primary surface tests, evals, and launch check.
+- `make render-blueprint-check` is the repo-local Render Blueprint gate. It validates the Hub API service, managed datastore references, pinned launch defaults, and Dashboard-filled secrets without needing Render CLI access.
 - `make launch-preflight` is the strict deployed-run operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport.
 - `make launch-verify-deployed` is the deployed-service gate: preflight, web-app and Chrome-extension release bundle verification, staging and production runtime snapshots, real-provider smoke, staging Hub API HTTP smoke for `generate,remix`, then launch check.
 - `make launch-verify-web-app` is the web app release gate: tests, syntax, build, and `dist/` release config verification against the deployed Hub API URL and preview-pipeline flag.

@@ -46,6 +46,17 @@ make surface-contract
 
 This fails if primary launch gates or CI drift back toward the legacy `backend/` or `frontend/` surfaces.
 
+## Render Blueprint contract
+
+Run this from the repo root before creating or updating the Render Blueprint:
+
+```bash
+cd /Users/mohit/EmailDJ
+make render-blueprint-check
+```
+
+This is a repo-local check. It does not call Render; it verifies that `render.yaml` still provisions the Hub API with managed Redis/Postgres references, provider-stub disabled, pinned launch defaults, and Dashboard-filled operator secrets.
+
 ## Deployed preflight
 
 Run this from the repo root before the full deployed gate:

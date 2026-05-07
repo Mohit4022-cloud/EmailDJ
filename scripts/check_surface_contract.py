@@ -17,6 +17,7 @@ PRIMARY_TARGETS = {
     "build": {"hub-api-build", "web-app-build", "chrome-extension-build"},
     "launch-gates-local": {
         "surface-contract",
+        "render-blueprint-check",
         "hub-api-test",
         "web-app-test",
         "chrome-extension-test",
@@ -30,6 +31,7 @@ PRIMARY_TARGETS = {
     "launch-verify-web-app": set(),
     "launch-verify-extension": set(),
     "launch-preflight": set(),
+    "render-blueprint-check": set(),
 }
 
 LEGACY_TARGETS = {"legacy-setup", "legacy-backend-test", "legacy-frontend-test", "legacy-build"}
@@ -186,6 +188,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-deployed",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "make render-blueprint-check",
             "render.yaml",
         ],
         "docs/ops/deployment.md": [
@@ -198,6 +201,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-deployed",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "make render-blueprint-check",
         ],
         "docs/ops/surface_contract.md": [
             "Launch-Owned Surfaces",
@@ -207,6 +211,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-deployed",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "make render-blueprint-check",
             "render.yaml",
         ],
         "docs/ops/release_checklist.md": [
@@ -218,6 +223,7 @@ def _check_docs() -> list[str]:
             "make launch-preflight",
             "make launch-verify-web-app",
             "make launch-verify-extension",
+            "make render-blueprint-check",
         ],
     }
     for path, snippets in required.items():

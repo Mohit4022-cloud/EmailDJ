@@ -19,7 +19,7 @@ All steps in the `checks` CI job must be green:
 | Gate | Command | Pass Criteria |
 |---|---|---|
 | Surface contract | `python3 scripts/check_surface_contract.py` | Exit 0 -- launch evidence is scoped to `hub-api`, `web-app`, and `chrome-extension`; legacy surfaces are explicit-only |
-| Render Blueprint contract | `python3 scripts/check_surface_contract.py` | Repo-root `render.yaml` exists, provisions Hub API with managed Redis/Postgres references, and does not hardcode operator secrets |
+| Render Blueprint contract | `make render-blueprint-check` | Repo-root `render.yaml` provisions Hub API with managed Redis/Postgres references, provider-stub disabled, pinned launch defaults, and no hardcoded operator secrets |
 | Doc freshness | `python3 scripts/docops/check_doc_freshness.py` | Exit 0 — no bound code changed without doc update |
 | Generated docs fresh | `python3 scripts/docops/generate_docs.py --check` | Exit 0 — no stale generated docs |
 | Web app tests | `npm test && npm run check:syntax` (`web-app`) | Unit tests pass and JS syntax checks cleanly |
@@ -82,6 +82,11 @@ Triggered automatically when `hub-api/evals/judge/prompts.py` or
 ### 3.0 Hub API Infrastructure Handoff
 
 Create or update the Render Blueprint from the repo-root `render.yaml`. Before first successful deploy, fill the Dashboard-managed values for `WEB_APP_ORIGIN`, `CHROME_EXTENSION_ORIGIN`, `EMAILDJ_WEB_BETA_KEYS`, and `OPENAI_API_KEY`.
+
+```bash
+cd /Users/mohit/EmailDJ
+make render-blueprint-check
+```
 
 ### 3.1 Mock Mode Verification
 
