@@ -112,6 +112,11 @@ def _check_surface_manifest() -> list[str]:
     rules = manifest.get("rules")
     if not isinstance(rules, list) or len(rules) < 3:
         failures.append("Surface manifest must include explicit launch/legacy evidence rules")
+    if (
+        isinstance(rules, list)
+        and "Nonblocking readout targets may refresh artifacts but cannot satisfy launch readiness." not in rules
+    ):
+        failures.append("Surface manifest must state that nonblocking readout targets cannot satisfy launch readiness")
     return failures
 
 
@@ -289,6 +294,8 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make render-blueprint-check",
+            "Optional blocked-deployment readout",
+            "This is not a release gate",
         ],
     }
     for path, snippets in required.items():
@@ -298,6 +305,13 @@ def _check_docs() -> list[str]:
                 _require_snippet(text, snippet, path)
         except (AssertionError, FileNotFoundError) as exc:
             failures.append(str(exc))
+    try:
+        release_checklist = _read("docs/ops/release_checklist.md")
+        forbidden = "| Web-app blocked readout | `make launch-probe-web-app-readout` |"
+        if forbidden in release_checklist:
+            failures.append("Release checklist must not list nonblocking readout as a Phase 1 must-pass gate")
+    except FileNotFoundError as exc:
+        failures.append(str(exc))
     return failures
 
 

@@ -74,6 +74,7 @@
   "rules": [
     "Launch reports and release status must name the launch-owned surface that produced the evidence.",
     "Legacy backend/frontend evidence must be labeled legacy parity evidence and cannot satisfy launch readiness.",
-    "Primary Makefile test/build/launch gates must not depend on legacy targets."
+    "Primary Makefile test/build/launch gates must not depend on legacy targets.",
+    "Nonblocking readout targets may refresh artifacts but cannot satisfy launch readiness."
   ]
 }
