@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-03-17T23:09:41.175250Z",
+  "generated_at": "2026-05-07T22:24:20.627578Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -8,21 +8,74 @@
   "required_inputs_present": {
     "STAGING_BASE_URL": false,
     "PROD_BASE_URL": false,
-    "BETA_KEY": true,
+    "BETA_KEY": false,
     "OPENAI_API_KEY": true
+  },
+  "operator_input_sources": {
+    "STAGING_BASE_URL": {
+      "explicit_env_present": false,
+      "dotenv_value_present": false,
+      "dotenv_value_ignored": false,
+      "effective_present": false
+    },
+    "PROD_BASE_URL": {
+      "explicit_env_present": false,
+      "dotenv_value_present": false,
+      "dotenv_value_ignored": false,
+      "effective_present": false
+    },
+    "BETA_KEY": {
+      "explicit_env_present": false,
+      "dotenv_value_present": true,
+      "dotenv_value_ignored": true,
+      "effective_present": false
+    }
   },
   "missing_inputs": [
     "STAGING_BASE_URL",
-    "PROD_BASE_URL"
+    "PROD_BASE_URL",
+    "BETA_KEY"
   ],
+  "operator_input_errors": [],
   "transport_checked": false,
   "transport_ok": null,
   "probe_url": null,
   "probe_status_code": null,
   "transport_error_type": null,
   "transport_error": null,
+  "deployment_discovery": {
+    "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
+    "state": "present",
+    "found": true,
+    "candidate_web_app_origin": "https://email-ak7wnn34m-mohits-projects-e629a988.vercel.app",
+    "usable_as_web_app_origin_candidate": true,
+    "clears_launch_blockers": false,
+    "operator_note": "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
+  },
+  "web_app_probe": {
+    "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/web_app_deployment_probe.json",
+    "state": "present",
+    "client_bundle_usable": false,
+    "failures": [
+      "http_error:401",
+      "web_app_deployment_requires_auth",
+      "web_app_deployment_requires_auth_or_vercel_protection_bypass",
+      "vercel_protection_bypass_secret_missing",
+      "no_same_origin_bundle_assets_found",
+      "vite_hub_url_not_found_in_bundle",
+      "vite_preview_pipeline_not_found_in_bundle"
+    ],
+    "requires_vercel_protection_bypass": true,
+    "vercel_bypass_env": "VERCEL_AUTOMATION_BYPASS_SECRET",
+    "vercel_bypass_env_present": false,
+    "operator_note": "The latest web-app probe is blocked by Vercel protection. Export `VERCEL_AUTOMATION_BYPASS_SECRET` before rerunning `make launch-probe-web-app`.",
+    "source_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+    "workspace_git_sha_at_probe": "5127b41db9c8a1629299ca4d3be01dea53e01bc7"
+  },
   "next_steps": [
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
-    "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification."
+    "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
+    "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification.",
+    "Use discovered web-app candidate `https://email-ak7wnn34m-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
   ]
 }

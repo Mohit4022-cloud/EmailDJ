@@ -17,8 +17,6 @@ on:
 permissions:
   contents: read
   actions: read
-  schedule:
-    - cron: '0 7 * * *'
 
 jobs:
   doc-freshness:
@@ -50,6 +48,12 @@ jobs:
 
       - name: Secret scan
         run: ./scripts/check_no_secrets.sh
+
+      - name: Surface contract gate
+        run: python3 scripts/check_surface_contract.py
+
+      - name: Render Blueprint gate
+        run: python3 scripts/check_render_blueprint.py
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -96,6 +100,17 @@ jobs:
       - name: Install extension deps
         working-directory: chrome-extension
         run: npm install
+
+      - name: Install web app deps
+        working-directory: web-app
+        run: npm install
+
+      - name: Run web app unit tests and build
+        working-directory: web-app
+        run: |
+          npm test
+          npm run check:syntax
+          npm run build
 
       - name: Run extension unit tests
         working-directory: chrome-extension

@@ -1,6 +1,7 @@
 # OpenAPI Contract Diff
 
 Diff computed against previous committed `docs/contracts/openapi_snapshot.json`.
+Regenerate this file with `python3 scripts/docops/generate_docs.py` whenever `hub-api/openapi.json` changes.
 
 ## Endpoint changes
 

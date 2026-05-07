@@ -32,6 +32,8 @@ def _runtime_snapshot_payload(**overrides) -> dict:
         "effective_provider": "openai",
         "effective_model": "gpt-5-nano",
         "effective_model_identifier": "openai/gpt-5-nano",
+        "validation_fallback_allowed": False,
+        "validation_fallback_policy": "dev_only_fail_closed_in_launch_modes",
         "launch_mode": "limited_rollout",
         "route_gates": {"generate": True, "remix": True, "preview": False},
         "route_gate_sources": {
@@ -53,6 +55,10 @@ def _runtime_snapshot_payload(**overrides) -> dict:
         "beta_keys_state": "explicit_pinned",
         "web_rate_limit_per_min": 300,
         "web_rate_limit_source": "explicit_env",
+        "redis_config_state": "external_redis_configured",
+        "database_config_state": "external_postgres_configured",
+        "vector_store_config_state": "pgvector_configured",
+        "vector_store_backend": "pgvector",
     }
     payload.update(overrides)
     return payload
@@ -63,6 +69,34 @@ def _write_runtime_snapshots(root: Path, *, staging: dict | None = None, product
         _write_json(root / "reports" / "launch" / "runtime_snapshots" / "staging.json", staging)
     if production is not None:
         _write_json(root / "reports" / "launch" / "runtime_snapshots" / "production.json", production)
+
+
+def _write_deployment_discovery(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "deployment_discovery.json",
+        {
+            "generated_at": _now_text(),
+            "found": True,
+            "current_git_sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+            "candidate_web_app_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+            "usable_as_web_app_origin_candidate": True,
+            "current_head_deployments": [
+                {
+                    "id": 4614098730,
+                    "environment": "Preview",
+                    "sha": "4f323ae5ee8530886f267733f85c3c2061d27ca1",
+                    "successful_vercel_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+                }
+            ],
+            "historical_production_candidates": [],
+            "clears_launch_blockers": False,
+            "launch_blocker_note": (
+                "Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API "
+                "deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots."
+            ),
+            "errors": [],
+        },
+    )
 
 
 def _write_launch_artifacts(root: Path, *, backend_hours_ago: int = 0) -> None:
@@ -124,6 +158,75 @@ def _write_launch_artifacts(root: Path, *, backend_hours_ago: int = 0) -> None:
     )
 
 
+def _write_localhost_smoke(
+    root: Path,
+    *,
+    pass_count: int = 30,
+    fail_count: int = 0,
+    error_count: int = 0,
+    provider_source_counts: dict | None = None,
+    route_pass_fail_counts: dict | None = None,
+) -> Path:
+    total = pass_count + fail_count + error_count
+    if route_pass_fail_counts is None:
+        if fail_count == 0 and error_count == 0:
+            generate_total = total // 2
+            remix_total = total - generate_total
+            route_pass_fail_counts = {
+                "generate": {"total": generate_total, "pass": generate_total, "fail": 0},
+                "remix": {"total": remix_total, "pass": remix_total, "fail": 0},
+            }
+        else:
+            route_pass_fail_counts = {
+                "generate": {"total": pass_count, "pass": pass_count, "fail": 0},
+                "remix": {"total": fail_count + error_count, "pass": 0, "fail": fail_count + error_count},
+            }
+    path = root / "debug_runs" / "smoke" / "manual" / "summary.json"
+    _write_json(
+        path,
+        {
+            "timestamp_utc": _now_text(),
+            "run_id": "smoke-test",
+            "mode": "smoke",
+            "total": total,
+            "pass": pass_count,
+            "fail": fail_count,
+            "errors": error_count,
+            "pass_rate_pct": round((pass_count / total) * 100, 1) if total else 0,
+            "provider_source_counts": provider_source_counts or {"external_provider": total},
+            "route_pass_fail_counts": route_pass_fail_counts,
+            "launch_gates": {
+                "shim_green": "green" if fail_count == 0 and error_count == 0 else "red",
+                "provider_green": "not_run",
+                "remix_green": "not_run",
+            },
+            "fail_tag_counts": {},
+        },
+    )
+    return path
+
+
+_LOCAL_RUNTIME_ENV_KEYS = (
+    "APP_ENV",
+    "EMAILDJ_LAUNCH_MODE",
+    "USE_PROVIDER_STUB",
+    "EMAILDJ_QUICK_GENERATE_MODE",
+    "EMAILDJ_ROUTE_GENERATE_ENABLED",
+    "EMAILDJ_ROUTE_REMIX_ENABLED",
+    "EMAILDJ_ROUTE_PREVIEW_ENABLED",
+    "EMAILDJ_PRESET_PREVIEW_PIPELINE",
+    "REDIS_FORCE_INMEMORY",
+    "REDIS_URL",
+    "DATABASE_URL",
+    "VECTOR_STORE_BACKEND",
+)
+
+
+def _clear_local_runtime_env(monkeypatch) -> None:
+    for name in _LOCAL_RUNTIME_ENV_KEYS:
+        monkeypatch.delenv(name, raising=False)
+
+
 def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
@@ -170,8 +273,9 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     staging = _runtime_snapshot_payload()
     production = _runtime_snapshot_payload()
     _write_runtime_snapshots(tmp_path, staging=staging, production=production)
+    smoke_path = _write_localhost_smoke(tmp_path)
 
-    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
 
     assert report["backend_green"] == "green"
     assert report["harness_green"] == "green"
@@ -185,6 +289,9 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     assert report["effective_provider_source"] == "external_provider"
     assert report["route_gates"] == {"generate": True, "remix": True, "preview": False}
     assert report["route_gate_sources"]["preview"] == "launch_mode:limited_rollout"
+    assert report["required_http_smoke_routes"] == ["generate", "remix"]
+    assert report["localhost_smoke"]["route_pass_fail_counts"]["generate"]["pass"] > 0
+    assert report["localhost_smoke"]["route_pass_fail_counts"]["remix"]["pass"] > 0
     assert report["config_blockers"] == []
     assert report["config_warnings"] == []
     assert report["final_recommendation"] == "Stable for MVP launch behind limited rollout"
@@ -262,12 +369,14 @@ def test_launch_check_uses_dotenv_app_env_when_shell_env_missing(monkeypatch, tm
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
-    monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    _clear_local_runtime_env(monkeypatch)
     monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-staging")
     monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
     monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
+    monkeypatch.setenv("REDIS_URL", "rediss://cache.emaildj.test:6379/0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://db.emaildj.test/emaildj")
+    monkeypatch.setenv("VECTOR_STORE_BACKEND", "pgvector")
     (tmp_path / ".env").write_text("APP_ENV=staging\n", encoding="utf-8")
     _write_launch_artifacts(tmp_path)
 
@@ -282,8 +391,8 @@ def test_launch_check_shell_launch_mode_overrides_dotenv(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _clear_local_runtime_env(monkeypatch)
     monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "dev")
-    monkeypatch.delenv("APP_ENV", raising=False)
     monkeypatch.setenv("CHROME_EXTENSION_ORIGIN", "chrome-extension://emaildj-staging")
     monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
@@ -316,6 +425,49 @@ def test_launch_check_blocks_stub_enabled_limited_rollout(monkeypatch, tmp_path)
     assert report["provider_stub_enabled"] is True
     assert "provider_stub_enabled_for_launch_mode:limited_rollout" in report["config_blockers"]
     assert "resolved_provider_source_not_external_provider:provider_stub" in report["config_blockers"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_blocks_non_durable_redis_in_limited_rollout(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(redis_config_state="default_local_redis"),
+        production=_runtime_snapshot_payload(redis_config_state="default_local_redis"),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "redis_not_durable_for_launch_mode:limited_rollout:default_local_redis" in report["config_blockers"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_blocks_local_database_and_vector_store(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(
+            database_config_state="default_local_sqlite",
+            vector_store_config_state="memory_backend",
+            vector_store_backend="memory",
+        ),
+        production=_runtime_snapshot_payload(
+            database_config_state="default_local_sqlite",
+            vector_store_config_state="memory_backend",
+            vector_store_backend="memory",
+        ),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite" in report["config_blockers"]
+    assert "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend" in report["config_blockers"]
     assert report["final_recommendation"] == "Not yet launch-ready"
 
 
@@ -594,11 +746,62 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "## Release Fingerprint Parity" in markdown
     assert "## Resolved Runtime Path" in markdown
     assert "## Preview Route Invariant" in markdown
+    assert "## Localhost Smoke Evidence" in markdown
     assert "## Artifact Freshness And Provenance" in markdown
     assert "## Origin And Beta-Key Safety" in markdown
+    assert "## Deployment Discovery Evidence" in markdown
+    assert "## Render Blueprint Handoff" in markdown
     assert "`effective_provider_source`" in markdown
     assert "`effective_provider_model_identifier`" in markdown
+    assert "`validation_fallback_allowed`" in markdown
+    assert "| render_blueprint_green |" in markdown
     assert "`comparison_fields`" in markdown
+
+
+def test_launch_check_blocks_failed_render_blueprint_contract(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        lc,
+        "_render_blueprint_contract",
+        lambda: {
+            "green": "red",
+            "checked_at": _now_text(),
+            "path": "/tmp/render.yaml",
+            "script": "/tmp/check_render_blueprint.py",
+            "exit_code": 1,
+            "errors": ["render_blueprint_contract_failed"],
+            "output_tail": ["Render Blueprint check FAILED"],
+        },
+    )
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["render_blueprint_green"] == "red"
+    assert "render_blueprint_contract_failed" in report["config_blockers"]
+    assert "Fix the repo-root Render Blueprint handoff" in "\n".join(report["operator_next_steps"])
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_blocks_validation_fallback_in_launch_mode(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(validation_fallback_allowed=True)
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "validation_fallback_enabled_for_launch_mode:limited_rollout" in report["config_blockers"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
 
 
 def test_launch_check_markdown_includes_operator_next_steps_for_release_mismatch(monkeypatch, tmp_path):
@@ -616,8 +819,173 @@ def test_launch_check_markdown_includes_operator_next_steps_for_release_mismatch
     _, md_path = lc._write_launch_report(report)
     markdown = md_path.read_text(encoding="utf-8")
 
-    assert "## Operator Next Step" in markdown
+    assert "## Operator Next Steps" in markdown
     assert "Production runtime fingerprint differs from approved staging." in markdown
+
+
+def test_launch_check_operator_next_steps_include_config_blockers(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(
+        chrome_extension_origin="chrome-extension://dev",
+        chrome_extension_origin_state="default_dev_placeholder",
+        web_app_origin=None,
+        web_app_origin_state="unset",
+        beta_keys_state="default_dev_placeholder",
+        redis_config_state="forced_inmemory",
+    )
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "Set `WEB_APP_ORIGIN`" in steps
+    assert "Set `CHROME_EXTENSION_ORIGIN`" in steps
+    assert "Set `EMAILDJ_WEB_BETA_KEYS`" in steps
+    assert "Provision managed Redis" in steps
+
+
+def test_launch_check_surfaces_deployment_discovery_candidate_without_clearing_blocker(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_deployment_discovery(tmp_path)
+    unsafe_runtime = _runtime_snapshot_payload(
+        web_app_origin=None,
+        web_app_origin_state="unset",
+    )
+    _write_runtime_snapshots(tmp_path, staging=unsafe_runtime, production=unsafe_runtime)
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    _, md_path = lc._write_launch_report(report)
+    markdown = md_path.read_text(encoding="utf-8")
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "web_app_origin_not_pinned:unset" in report["config_blockers"]
+    assert report["deployment_discovery"]["candidate_web_app_origin"] == (
+        "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
+    )
+    assert report["deployment_discovery"]["clears_launch_blockers"] is False
+    assert "Review discovered candidate `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`" in steps
+    assert "## Deployment Discovery Evidence" in markdown
+    assert "`candidate_web_app_origin`: `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app`" in markdown
+    assert "`clears_launch_blockers`: `False`" in markdown
+
+
+def test_launch_check_operator_next_steps_include_missing_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke" in steps
+
+
+def test_launch_check_blocks_missing_canonical_http_smoke_in_launch_mode(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(
+        localhost_smoke_summary=str(tmp_path / "debug_runs" / "smoke" / "manual" / "summary.json"),
+        max_age_hours=72,
+    )
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert "http_smoke_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
+    assert "Run deployed Hub API HTTP smoke against staging" in steps
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_args_default_to_canonical_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["launch_check.py"])
+
+    args = lc._parse_args()
+
+    assert args.localhost_smoke_summary == str(tmp_path / "debug_runs" / "smoke" / "manual" / "summary.json")
+
+
+def test_launch_check_blocks_missing_required_http_smoke_route(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(
+        tmp_path,
+        route_pass_fail_counts={"generate": {"total": 30, "pass": 30, "fail": 0}},
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+
+    assert "http_smoke_route_missing:remix" in report["config_blockers"]
+    assert "http_smoke_missing_required_route_coverage:remix" in report["config_warnings"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(tmp_path, provider_source_counts={"provider_stub": 30})
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+
+    assert report["localhost_smoke"]["green"] == "green"
+    assert report["localhost_smoke"]["total"] == 30
+    assert report["localhost_smoke"]["provider_source_counts"] == {"provider_stub": 30}
+    assert "localhost_smoke_provider_stub_only" in report["config_warnings"]
+    assert "http_smoke_external_provider_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
+
+
+def test_launch_check_blocks_failed_localhost_smoke(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    smoke_path = _write_localhost_smoke(tmp_path, pass_count=29, fail_count=1)
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert report["localhost_smoke"]["green"] == "red"
+    assert "localhost_smoke_not_green:pass=29:fail=1:errors=0" in report["config_blockers"]
+    assert "Investigate the failing localhost smoke cases" in steps
 
 
 def test_launch_check_uses_provider_specific_report_dirs():
@@ -634,6 +1002,41 @@ def test_capture_ui_session_reports_required_external_provider_env(monkeypatch):
 
     monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "anthropic")
     assert _required_external_provider_env() == ("anthropic", "ANTHROPIC_API_KEY")
+
+
+def test_capture_ui_session_uses_configured_beta_key(monkeypatch):
+    from scripts.capture_ui_session import _capture_headers
+
+    monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-key,secondary-key")
+
+    assert _capture_headers() == {"x-emaildj-beta-key": "ops-key"}
+
+
+def test_capture_ui_session_defaults_to_dev_launch_mode(monkeypatch):
+    import importlib
+    import os
+
+    import scripts.capture_ui_session as capture_ui_session
+
+    monkeypatch.delenv("EMAILDJ_LAUNCH_MODE", raising=False)
+    importlib.reload(capture_ui_session)
+
+    assert os.environ["EMAILDJ_LAUNCH_MODE"] == "dev"
+
+
+def test_capture_ui_session_surfaces_http_failures():
+    import httpx
+
+    from scripts.capture_ui_session import _json_or_raise
+
+    response = httpx.Response(status_code=401, json={"error": "unauthorized_beta_key"})
+
+    try:
+        _json_or_raise(response, endpoint="/web/v1/generate")
+    except RuntimeError as exc:
+        assert "capture_ui_session_request_failed:/web/v1/generate:401" in str(exc)
+    else:
+        raise AssertionError("expected capture failure")
 
 
 def test_capture_ui_session_treats_repaired_remix_as_clean():
@@ -694,3 +1097,36 @@ def test_launch_check_main_blocks_when_preflight_fails(monkeypatch, tmp_path, ca
 
     assert exit_code == 1
     assert "operator_input_missing" in captured.err
+
+
+def test_launch_check_fresh_checks_use_backend_suite_runner(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    commands = []
+
+    def fake_run_command(command, *, cwd):  # noqa: ARG001
+        commands.append(command)
+        return True, ""
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(lc, "_run_command", fake_run_command)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    lc._run_fresh_checks()
+
+    assert commands[0] == [sys.executable, str(tmp_path / "scripts" / "run_backend_suite.py")]
+    assert [sys.executable, "-m", "pytest", "-q", "tests"] not in commands
+
+
+def test_launch_check_main_allow_not_ready_writes_report_and_returns_zero(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _clear_local_runtime_env(monkeypatch)
+    monkeypatch.setattr(sys, "argv", ["launch_check.py", "--from-artifacts", "--allow-not-ready"])
+
+    exit_code = lc.main()
+
+    assert exit_code == 0
+    report = json.loads((tmp_path / "reports" / "launch" / "latest.json").read_text(encoding="utf-8"))
+    assert report["final_recommendation"] == "Not yet launch-ready"

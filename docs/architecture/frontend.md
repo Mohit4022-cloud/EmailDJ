@@ -28,6 +28,10 @@ intelligence lives in Hub API.
 | `public/icons/` | Extension icons |
 | `manifest.json` | MV3 manifest: permissions, service worker entry, side panel config |
 
+### Hub Configuration Guard
+
+The side panel resolves Hub API config from Chrome sync storage first, then build env. Local dev may fall back to `http://127.0.0.1:8000`. Production-like runtime fails closed if neither a saved override nor `VITE_HUB_URL` supplies a deployed `https://` hub-api origin, and it rejects `dev-beta-key`.
+
 ### 3-Tier DOM Parsing
 
 Gmail is a complex SPA. Extraction uses three fallback tiers:

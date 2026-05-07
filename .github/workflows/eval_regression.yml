@@ -1,11 +1,20 @@
-name: Eval Regression
+name: Legacy Backend Eval Regression
 
 on:
   pull_request:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/eval_regression.yml'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
-  eval-regression:
+  legacy-backend-eval-regression:
+    name: Legacy backend eval regression
     runs-on: ubuntu-latest
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -22,13 +31,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install backend deps
+      - name: Install legacy backend deps
         run: |
           python -m venv .venv
           source .venv/bin/activate
           pip install -r backend/requirements.txt
 
-      - name: Run emaildj eval harness
+      - name: Run legacy emaildj eval harness
         id: eval
         run: |
           source .venv/bin/activate
@@ -41,51 +50,51 @@ jobs:
           fi
 
           python - "$REPORT_PATH" <<'PY'
-import json
-import sys
-from pathlib import Path
+          import json
+          import sys
+          from pathlib import Path
 
-report_path = Path(sys.argv[1])
-report = json.loads(report_path.read_text(encoding="utf-8"))
+          report_path = Path(sys.argv[1])
+          report = json.loads(report_path.read_text(encoding="utf-8"))
 
-hard_fail_payloads = [
-    item.get("payload_id")
-    for item in report.get("payload_results", [])
-    if item.get("hard_fail_triggered")
-]
+          hard_fail_payloads = [
+              item.get("payload_id")
+              for item in report.get("payload_results", [])
+              if item.get("hard_fail_triggered")
+          ]
 
-regressed = []
-regression = report.get("regression_vs_golden")
-if isinstance(regression, dict):
-    regressed = list(regression.get("regressed") or [])
+          regressed = []
+          regression = report.get("regression_vs_golden")
+          if isinstance(regression, dict):
+              regressed = list(regression.get("regressed") or [])
 
-c0_rate = float((report.get("stage_pass_rates") or {}).get("ONE_LINER_COMPRESSOR") or 0.0)
+          c0_rate = float((report.get("stage_pass_rates") or {}).get("ONE_LINER_COMPRESSOR") or 0.0)
 
-summary_lines = [
-    f"Report: {report_path}",
-    f"Payload count: {report.get('payload_count', 0)}",
-    f"Overall pass rate: {report.get('overall_pass_rate', 0.0):.2%}",
-    f"ONE_LINER_COMPRESSOR pass rate: {c0_rate:.2%}",
-    f"Hard-fail payloads: {', '.join(hard_fail_payloads) if hard_fail_payloads else 'none'}",
-    f"Regressed payloads: {', '.join(regressed) if regressed else 'none'}",
-]
-summary = "\n".join(summary_lines)
-print(summary)
+          summary_lines = [
+              f"Report: {report_path}",
+              f"Payload count: {report.get('payload_count', 0)}",
+              f"Overall pass rate: {report.get('overall_pass_rate', 0.0):.2%}",
+              f"ONE_LINER_COMPRESSOR pass rate: {c0_rate:.2%}",
+              f"Hard-fail payloads: {', '.join(hard_fail_payloads) if hard_fail_payloads else 'none'}",
+              f"Regressed payloads: {', '.join(regressed) if regressed else 'none'}",
+          ]
+          summary = "\n".join(summary_lines)
+          print(summary)
 
-Path("backend/evals/reports/ci_summary.txt").write_text(summary, encoding="utf-8")
+          Path("backend/evals/reports/ci_summary.txt").write_text(summary, encoding="utf-8")
 
-failures = []
-if hard_fail_payloads:
-    failures.append("hard_fail_triggered on emaildj payloads")
-if regressed:
-    failures.append("regression_vs_golden detected")
-if c0_rate < 0.6:
-    failures.append("ONE_LINER_COMPRESSOR pass rate below 0.6")
+          failures = []
+          if hard_fail_payloads:
+              failures.append("hard_fail_triggered on emaildj payloads")
+          if regressed:
+              failures.append("regression_vs_golden detected")
+          if c0_rate < 0.6:
+              failures.append("ONE_LINER_COMPRESSOR pass rate below 0.6")
 
-if failures:
-    print("\nBlocking conditions:\n- " + "\n- ".join(failures))
-    sys.exit(1)
-PY
+          if failures:
+              print("\nBlocking conditions:\n- " + "\n- ".join(failures))
+              sys.exit(1)
+          PY
 
           echo "report_path=$REPORT_PATH" >> "$GITHUB_OUTPUT"
 
@@ -95,6 +104,7 @@ PY
 
       - name: Comment on PR
         if: ${{ github.event_name == 'pull_request' }}
+        continue-on-error: true
         uses: actions/github-script@v7
         with:
           script: |
@@ -104,7 +114,7 @@ PY
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: `### EmailDJ Eval Regression\n\n\`\`\`\n${body}\n\`\`\``,
+              body: `### Legacy Backend Eval Regression\n\n\`\`\`\n${body}\n\`\`\``,
             });
 
       - name: Upload eval artifacts

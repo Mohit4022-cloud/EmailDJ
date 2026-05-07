@@ -1,5 +1,5 @@
 {
-  "endpoint_count": 24,
+  "endpoint_count": 27,
   "endpoints": {
     "GET /": {
       "method": "GET",
@@ -36,6 +36,17 @@
       "tags": [
         "campaigns"
       ]
+    },
+    "GET /debug/config": {
+      "method": "GET",
+      "operation_id": "debug_config_debug_config_get",
+      "path": "/debug/config",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "object",
+        "422": "HTTPValidationError"
+      },
+      "tags": []
     },
     "GET /generate/stream/{request_id}": {
       "method": "GET",
@@ -84,6 +95,31 @@
       "response_schemas": {
         "200": "ComplianceDashboardResponse",
         "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "GET /web/v1/debug/config": {
+      "method": "GET",
+      "operation_id": "debug_config_web_v1_debug_config_get",
+      "path": "/web/v1/debug/config",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "object",
+        "422": "HTTPValidationError"
+      },
+      "tags": [
+        "web-mvp"
+      ]
+    },
+    "GET /web/v1/debug/eval": {
+      "method": "GET",
+      "operation_id": "debug_eval_report_web_v1_debug_eval_get",
+      "path": "/web/v1/debug/eval",
+      "request_schema": "-",
+      "response_schemas": {
+        "200": "object"
       },
       "tags": [
         "web-mvp"
@@ -311,7 +347,7 @@
       ]
     }
   },
-  "schema_count": 37,
+  "schema_count": 38,
   "schemas": {
     "CampaignApproveRequest": {
       "properties": [
@@ -544,12 +580,15 @@
         "cta_offer_lock",
         "cta_type",
         "offer_lock",
+        "pipeline_meta",
+        "preset_id",
         "prospect",
         "prospect_first_name",
         "research_text",
+        "response_contract",
         "style_profile"
       ],
-      "property_count": 8,
+      "property_count": 11,
       "required": [
         "offer_lock",
         "prospect",
@@ -557,19 +596,33 @@
       ],
       "required_count": 3
     },
+    "WebPipelineMeta": {
+      "properties": [
+        "mode",
+        "model_hint",
+        "request_id",
+        "throttled"
+      ],
+      "property_count": 4,
+      "required": [],
+      "required_count": 0
+    },
     "WebPresetPreviewBatchRequest": {
       "properties": [
         "cta_lock",
+        "cta_lock_text",
+        "cta_type",
         "global_sliders",
+        "hook_strategy",
         "offer_lock",
         "presets",
         "product_context",
         "prospect",
+        "prospect_first_name",
         "raw_research"
       ],
-      "property_count": 7,
+      "property_count": 11,
       "required": [
-        "cta_lock",
         "global_sliders",
         "offer_lock",
         "presets",
@@ -577,7 +630,7 @@
         "prospect",
         "raw_research"
       ],
-      "required_count": 7
+      "required_count": 6
     },
     "WebPresetPreviewBatchResponse": {
       "properties": [
@@ -595,25 +648,31 @@
     "WebPreviewBatchMeta": {
       "properties": [
         "cache_hit",
+        "degraded_reason",
         "enforcement_level",
+        "execution_trace",
         "final_violation_count",
+        "flags_effective",
         "generation_mode",
         "initial_violation_count",
         "latency_ms",
         "model",
         "pipeline_version",
+        "prompt_template_versions",
         "provider",
         "provider_attempt_count",
+        "provider_source",
         "repair_attempt_count",
         "repair_loop_enabled",
         "repaired",
         "request_id",
         "session_id",
+        "status",
         "validator_attempt_count",
         "violation_codes",
         "violation_count"
       ],
-      "property_count": 18,
+      "property_count": 24,
       "required": [
         "cache_hit",
         "latency_ms",
@@ -759,10 +818,11 @@
     },
     "WebRemixRequest": {
       "properties": [
+        "preset_id",
         "session_id",
         "style_profile"
       ],
-      "property_count": 2,
+      "property_count": 3,
       "required": [
         "session_id",
         "style_profile"

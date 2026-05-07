@@ -379,12 +379,12 @@ def _ensure_likely_prefix(items: list[str]) -> list[str]:
     for item in items[:3]:
         text = _compact(item)
         if not text:
-            text = "reviewing reply quality and outbound consistency"
+            text = "reviewing timing, relevance, and fit"
         if not text.lower().startswith("(likely)"):
             text = f"(likely) {text}"
         output.append(text)
     while len(output) < 3:
-        output.append("(likely) improving reply quality from first-touch messaging")
+        output.append("(likely) improving relevance from the first note")
     return output
 
 
@@ -891,8 +891,8 @@ def _mock_summary_pack(req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
 
     likely_priorities = _ensure_likely_prefix(
         [
-            f"improving {req.prospect.title} team reply quality",
-            "keeping outreach relevant while scaling activity",
+            f"improving {req.prospect.title} team relevance and timing",
+            "keeping outreach specific while scaling activity",
             f"moving quickly toward a {req.product_context.target_outcome}",
         ]
     )
@@ -902,10 +902,9 @@ def _mock_summary_pack(req: WebPresetPreviewBatchRequest) -> WebSummaryPack:
         req.prospect.title,
         req.product_context.product_name,
         req.product_context.target_outcome,
-        "outbound quality",
-        "reply lift",
+        "message relevance",
         "personalization",
-        "pipeline efficiency",
+        "message control",
     ]
     keywords: list[str] = []
     for item in keywords_pool:

@@ -11,26 +11,38 @@ This repo preserves the existing Remix Studio UI flow and adds:
 - prompt hash/version + trace metadata
 
 ## Repo layout
-- `frontend/` Vite + vanilla JS UI
-- `backend/` FastAPI + SSE + compile/render + enrichment services
+- `web-app/` primary Vite + vanilla JS Remix Studio web UI
+- `hub-api/` primary FastAPI Hub API + SSE + generation, validation, launch checks, and eval harness
+- `chrome-extension/` MV3 extension client surface
+- `frontend/` legacy parity UI, kept only for explicit legacy checks
+- `backend/` legacy backend, kept only for explicit legacy checks
 - `shared/` contract notes
 - `docs/` port list + acceptance checklist
 
+The machine-readable launch surface manifest lives at [`docs/ops/launch_surfaces.json`](/Users/mohit/EmailDJ/docs/ops/launch_surfaces.json). `make surface-contract` validates that manifest, the Makefile gates, CI, and operator docs agree on the same launch-owned surfaces.
+
 ## Local setup
 
-### 1) Backend
+### 1) Hub API
 ```bash
-cd backend
+cd hub-api
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 ```
 
-### 2) Frontend
+### 2) Web App
 ```bash
-cd frontend
+cd web-app
 npm install
+```
+
+### 3) Chrome Extension
+```bash
+cd chrome-extension
+npm install
+cp .env.example .env
 ```
 
 ## Run (one command)
@@ -39,10 +51,13 @@ From repo root:
 make dev
 ```
 This starts:
-- Backend: `http://127.0.0.1:8000`
-- Frontend: `http://127.0.0.1:5174`
+- Hub API: `http://127.0.0.1:8000`
+- Web App: `http://127.0.0.1:5174`
 
 Local dev now defaults to real AI (`USE_PROVIDER_STUB=0`) and requires `OPENAI_API_KEY`.
+`make dev` loads provider secrets from `hub-api/.env`, then forces a local web contract
+(`APP_ENV=local`, localhost origins, in-memory Redis, and `dev-beta-key`) so staging/prod
+values in `.env` do not accidentally poison a local run.
 
 ## Tests
 From repo root:
@@ -52,13 +67,109 @@ make test
 
 Or individually:
 ```bash
-cd backend && source .venv/bin/activate && pytest -q
-cd frontend && npm test && npm run check:syntax
+make hub-api-test
+make web-app-test
+make chrome-extension-test
 ```
+
+Local launch gates:
+
+```bash
+make launch-gates-local
+```
+
+This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, `make launch-audit`, and `make launch-handoff`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
+It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
+
+Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
+
+```bash
+make launch-verify-deployed
+```
+
+This runs launch preflight, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, then runs the launch check as a failing gate. Set `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+
+Web app release gate, after `VITE_HUB_URL` or `EMAILDJ_EXPECTED_HUB_URL` points at the deployed Hub API and `VITE_PRESET_PREVIEW_PIPELINE` is explicitly set:
+
+```bash
+make launch-verify-web-app
+```
+
+This runs web app tests, syntax checks, build, and release config verification against the built `dist/` package.
+
+Extension release gate, after `VITE_HUB_URL` or `EMAILDJ_EXPECTED_HUB_URL` points at the deployed Hub API:
+
+```bash
+make launch-verify-extension
+```
+
+This runs extension tests, syntax checks, build, and release config verification against the built `dist/` package.
 
 ## Build
 ```bash
-cd frontend && npm run build
+make build
+```
+
+## Launch Readiness
+
+Refresh the launch report from existing artifacts without treating known launch blockers as a command failure:
+
+```bash
+make launch-check
+```
+
+`make launch-check` includes the canonical localhost smoke artifact at `hub-api/debug_runs/smoke/manual/summary.json` when computing freshness and provenance. If that artifact is missing or stale, the report stays honest and lists the guarded smoke as an operator next step.
+
+Build the A-to-Z completion audit from the current artifacts:
+
+```bash
+make launch-probe-web-app
+make launch-audit
+```
+
+`make launch-probe-web-app` refreshes the deployed frontend candidate and static bundle/auth evidence. `make launch-audit` then writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
+The checked-in `hub-api/reports/launch/*` files are point-in-time evidence snapshots. After every target commit deploy or Vercel deployment change, rerun `make launch-probe-web-app && make launch-audit` in the operator session before treating those reports as current launch proof.
+
+Translate the current audit/preflight state into an operator handoff:
+
+```bash
+make launch-handoff
+```
+
+This writes `hub-api/reports/launch/operator_handoff.json` and `.md` with the exact shell export template, Render/Dashboard values, next commands, and current blocker groups. It does not include secret values.
+
+Check the deployed-run operator inputs before running the full deployed gate:
+
+```bash
+make launch-preflight
+```
+
+This is intentionally strict. It exits nonzero until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+
+Run a guarded localhost smoke against an already-running Hub API:
+
+```bash
+EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke
+```
+
+This smoke can call the provider configured on the running Hub API. Defaults are `http://127.0.0.1:8000`, `dev-beta-key`, `mode=smoke`, and `flows=generate,remix`. The command writes per-flow summaries under `hub-api/debug_runs/smoke/manual/`, merges them into `hub-api/debug_runs/smoke/manual/summary.json`, then refreshes `hub-api/reports/launch/latest.json` and `hub-api/reports/launch/latest.md`.
+
+Launch modes are fail-closed at Hub API startup. `limited_rollout` and `broad_launch` require pinned `WEB_APP_ORIGIN`, pinned `CHROME_EXTENSION_ORIGIN`, non-dev `EMAILDJ_WEB_BETA_KEYS`, explicit `EMAILDJ_WEB_RATE_LIMIT_PER_MIN`, real provider mode, managed `REDIS_URL`, managed `DATABASE_URL`, and `VECTOR_STORE_BACKEND=pgvector`.
+
+The repo-root [`render.yaml`](/Users/mohit/EmailDJ/render.yaml) is the deployment handoff for the Hub API. It provisions the Render web service plus managed Postgres and Redis, keeps provider-stub mode off, and leaves environment-specific launch inputs as Dashboard-filled values. See [docs/ops/deployment.md](/Users/mohit/EmailDJ/docs/ops/deployment.md) before creating or updating the Blueprint.
+
+Check that handoff without Render CLI access:
+
+```bash
+make render-blueprint-check
+```
+
+Legacy surfaces remain available only through explicit targets:
+
+```bash
+make legacy-backend-test
+make legacy-frontend-test
+make legacy-build
 ```
 
 ## API overview
@@ -89,3 +200,4 @@ cd frontend && npm run build
 - manual overrides win over AI fields
 - slider/remix paths use blueprint, not raw deep research
 - deterministic validation for CTA drift/repetition/truncation/leakage/length
+- deterministic validation fallback is dev-only; launch modes fail closed on validation failure

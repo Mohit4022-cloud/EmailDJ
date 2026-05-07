@@ -16,6 +16,7 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+REPO_ROOT = ROOT.parent
 
 try:
     from dotenv import load_dotenv
@@ -31,6 +32,14 @@ DEFAULT_MAX_AGE_HOURS = 72
 DEFAULT_RECOMMENDED_MAX_AGE_HOURS = 48
 _PROD_APP_ENVS = {"staging", "prod", "production"}
 _RELEASE_FINGERPRINT_FIELDS = ("git_sha", "build_id", "image_tag", "release_version")
+_LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
+_DURABLE_REDIS_STATES = {"external_redis_configured"}
+_DURABLE_DATABASE_STATES = {"external_postgres_configured"}
+_DURABLE_VECTOR_STATES = {"pgvector_configured"}
+_LOCAL_DATABASE_STATES = {"default_local_sqlite", "local_sqlite", "local_postgres"}
+_NON_DURABLE_VECTOR_STATES = {"memory_backend", "pinecone_missing_config", "pgvector_missing_postgres_config"}
+_LAUNCH_MODES_REQUIRING_HTTP_SMOKE = {"limited_rollout", "broad_launch"}
+_BASE_REQUIRED_HTTP_SMOKE_ROUTES = ("generate", "remix")
 
 
 @dataclass
@@ -49,13 +58,22 @@ class ArtifactStatus:
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compute EmailDJ launch readiness.")
+    default_localhost_smoke_summary_path = ROOT / "debug_runs" / "smoke" / "manual" / "summary.json"
     default_staging_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "staging.json"
     default_production_debug_config_path = ROOT / "reports" / "launch" / "runtime_snapshots" / "production.json"
     parser.add_argument("--from-artifacts", action="store_true", help="Read existing artifacts only.")
     parser.add_argument(
+        "--allow-not-ready",
+        action="store_true",
+        help="Write the launch report and exit 0 even when known readiness gates still block launch.",
+    )
+    parser.add_argument(
         "--localhost-smoke-summary",
-        default="",
-        help="Optional path to a localhost smoke summary.json artifact to include.",
+        default=str(default_localhost_smoke_summary_path),
+        help=(
+            "Path to the localhost smoke summary.json artifact to include "
+            f"(default: {default_localhost_smoke_summary_path})."
+        ),
     )
     parser.add_argument(
         "--staging-debug-config",
@@ -180,6 +198,35 @@ def _artifact_status(path: Path, *, max_age: timedelta, prefer_capture_timestamp
     )
 
 
+def _deployment_discovery_evidence(status: ArtifactStatus) -> dict[str, Any]:
+    payload = status.payload or {}
+    candidate = None
+    if payload.get("usable_as_web_app_origin_candidate"):
+        candidate = payload.get("candidate_web_app_origin")
+    if status.missing:
+        state = "missing"
+    elif status.malformed:
+        state = "malformed"
+    elif status.stale:
+        state = "stale"
+    else:
+        state = "present"
+    return {
+        "state": state,
+        "path": status.path,
+        "timestamp": _timestamp_to_text(status.timestamp),
+        "found": bool(payload.get("found")),
+        "current_git_sha": payload.get("current_git_sha"),
+        "candidate_web_app_origin": candidate,
+        "usable_as_web_app_origin_candidate": bool(payload.get("usable_as_web_app_origin_candidate")),
+        "clears_launch_blockers": bool(payload.get("clears_launch_blockers")),
+        "launch_blocker_note": payload.get("launch_blocker_note"),
+        "current_head_deployment_count": len(payload.get("current_head_deployments") or []),
+        "historical_production_candidate_count": len(payload.get("historical_production_candidates") or []),
+        "error": status.error,
+    }
+
+
 def _runtime_snapshot_status(path: Path, *, max_age: timedelta, label: str) -> ArtifactStatus:
     status = _artifact_status(path, max_age=max_age, prefer_capture_timestamp=True)
     if status.missing or status.malformed or status.payload is None:
@@ -246,19 +293,6 @@ def _required_provider_env() -> tuple[str, str]:
     return provider, key_name
 
 
-def _write_backend_artifact(*, ok: bool, error: str | None = None) -> Path:
-    path = ROOT / "reports" / "launch" / "backend_suite.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "generated_at": _timestamp_to_text(_utc_now()),
-        "backend_green": "green" if ok else "red",
-        "ok": ok,
-        "error": error,
-    }
-    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    return path
-
-
 def _run_command(command: list[str], *, cwd: Path) -> tuple[bool, str]:
     completed = subprocess.run(
         command,
@@ -271,13 +305,61 @@ def _run_command(command: list[str], *, cwd: Path) -> tuple[bool, str]:
     return completed.returncode == 0, output
 
 
+def _output_tail(output: str, *, max_lines: int = 12) -> list[str]:
+    lines = [line.rstrip() for line in output.splitlines() if line.strip()]
+    return lines[-max_lines:]
+
+
+def _render_blueprint_contract() -> dict[str, Any]:
+    script_path = REPO_ROOT / "scripts" / "check_render_blueprint.py"
+    blueprint_path = REPO_ROOT / "render.yaml"
+    checked_at = _timestamp_to_text(_utc_now())
+    if not blueprint_path.exists():
+        return {
+            "green": "red",
+            "checked_at": checked_at,
+            "path": str(blueprint_path),
+            "script": str(script_path),
+            "exit_code": None,
+            "errors": ["render_blueprint_missing"],
+            "output_tail": [],
+        }
+    if not script_path.exists():
+        return {
+            "green": "red",
+            "checked_at": checked_at,
+            "path": str(blueprint_path),
+            "script": str(script_path),
+            "exit_code": None,
+            "errors": ["render_blueprint_checker_missing"],
+            "output_tail": [],
+        }
+
+    completed = subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = "\n".join(part for part in (completed.stdout.strip(), completed.stderr.strip()) if part).strip()
+    return {
+        "green": "green" if completed.returncode == 0 else "red",
+        "checked_at": checked_at,
+        "path": str(blueprint_path),
+        "script": str(script_path),
+        "exit_code": completed.returncode,
+        "errors": [] if completed.returncode == 0 else ["render_blueprint_contract_failed"],
+        "output_tail": _output_tail(output),
+    }
+
+
 def _run_fresh_checks() -> dict[str, str]:
     timestamp = _utc_now().strftime("%Y%m%dT%H%M%SZ")
     shim_dir = ROOT / "debug_runs" / "launch_ops" / "provider_shim" / timestamp
     external_dir = ROOT / "debug_runs" / "launch_ops" / "external_provider" / timestamp
 
-    ok, output = _run_command([sys.executable, "-m", "pytest", "-q", "tests"], cwd=ROOT)
-    _write_backend_artifact(ok=ok, error=None if ok else output)
+    _run_command([sys.executable, str(ROOT / "scripts" / "run_backend_suite.py")], cwd=ROOT)
 
     _run_command([str(ROOT / "scripts" / "eval:full")], cwd=ROOT)
     _run_command(
@@ -397,6 +479,122 @@ def _artifact_provenance(
     }
 
 
+def _int_field(payload: dict[str, Any], key: str) -> int:
+    try:
+        return int(payload.get(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _localhost_smoke_evidence(status: ArtifactStatus) -> dict[str, Any]:
+    if status.missing:
+        return {
+            "green": "not_run",
+            "state": "missing",
+            "path": status.path,
+            "timestamp": None,
+            "mode": None,
+            "total": 0,
+            "pass": 0,
+            "fail": 0,
+            "errors": 0,
+            "pass_rate_pct": None,
+            "provider_source_counts": {},
+            "route_pass_fail_counts": {},
+            "launch_gates": {},
+        }
+    if status.malformed or status.stale or status.payload is None:
+        return {
+            "green": "red",
+            "state": "invalid",
+            "path": status.path,
+            "timestamp": _timestamp_to_text(status.timestamp),
+            "mode": None,
+            "total": 0,
+            "pass": 0,
+            "fail": 0,
+            "errors": 0,
+            "pass_rate_pct": None,
+            "provider_source_counts": {},
+            "route_pass_fail_counts": {},
+            "launch_gates": {},
+        }
+
+    payload = status.payload
+    total = _int_field(payload, "total")
+    pass_count = _int_field(payload, "pass")
+    fail_count = _int_field(payload, "fail")
+    error_count = _int_field(payload, "errors")
+    green = "green" if total > 0 and pass_count == total and fail_count == 0 and error_count == 0 else "red"
+    return {
+        "green": green,
+        "state": "present",
+        "path": status.path,
+        "timestamp": _timestamp_to_text(status.timestamp),
+        "mode": payload.get("mode"),
+        "total": total,
+        "pass": pass_count,
+        "fail": fail_count,
+        "errors": error_count,
+        "pass_rate_pct": payload.get("pass_rate_pct"),
+        "provider_source_counts": dict(payload.get("provider_source_counts") or {}),
+        "route_pass_fail_counts": dict(payload.get("route_pass_fail_counts") or {}),
+        "launch_gates": dict(payload.get("launch_gates") or {}),
+    }
+
+
+def _required_http_smoke_routes(runtime_data: dict[str, Any]) -> list[str]:
+    routes = list(_BASE_REQUIRED_HTTP_SMOKE_ROUTES)
+    route_gates = dict(runtime_data.get("route_gates") or {})
+    if route_gates.get("preview") is True:
+        routes.append("preview")
+    return routes
+
+
+def _http_smoke_findings(
+    *,
+    launch_mode: str,
+    smoke: dict[str, Any],
+    required_routes: list[str],
+) -> tuple[list[str], list[str]]:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_HTTP_SMOKE:
+        return [], []
+    if smoke.get("path") is None:
+        return [], []
+
+    blockers: list[str] = []
+    warnings: list[str] = []
+    state = str(smoke.get("state") or "missing")
+    if state == "missing":
+        blockers.append(f"http_smoke_missing_for_launch_mode:{launch_mode}")
+        return blockers, warnings
+    if state == "invalid":
+        blockers.append(f"http_smoke_invalid_for_launch_mode:{launch_mode}")
+        return blockers, warnings
+
+    provider_counts = dict(smoke.get("provider_source_counts") or {})
+    if int(provider_counts.get("external_provider", 0) or 0) <= 0:
+        blockers.append(f"http_smoke_external_provider_missing_for_launch_mode:{launch_mode}")
+
+    route_counts = dict(smoke.get("route_pass_fail_counts") or {})
+    for route in required_routes:
+        counts = dict(route_counts.get(route) or {})
+        total = _int_field(counts, "total")
+        passed = _int_field(counts, "pass")
+        failed = _int_field(counts, "fail")
+        if total <= 0:
+            blockers.append(f"http_smoke_route_missing:{route}")
+            continue
+        if passed != total or failed > 0:
+            blockers.append(f"http_smoke_route_not_green:{route}:pass={passed}:fail={failed}:total={total}")
+
+    proven_routes = sorted(route for route, counts in route_counts.items() if _int_field(dict(counts or {}), "total") > 0)
+    missing_routes = [route for route in required_routes if route not in proven_routes]
+    if missing_routes:
+        warnings.append(f"http_smoke_missing_required_route_coverage:{','.join(missing_routes)}")
+    return blockers, warnings
+
+
 def _recommended_age_warnings(
     artifact_statuses: dict[str, ArtifactStatus],
     *,
@@ -483,6 +681,10 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
     chrome_extension_origin_state = str(runtime_data.get("chrome_extension_origin_state") or "unset").strip()
     web_app_origin_state = str(runtime_data.get("web_app_origin_state") or "unset").strip()
     beta_keys_state = str(runtime_data.get("beta_keys_state") or "unset").strip()
+    redis_config_state = str(runtime_data.get("redis_config_state") or "unknown").strip()
+    database_config_state = str(runtime_data.get("database_config_state") or "unknown").strip()
+    vector_store_config_state = str(runtime_data.get("vector_store_config_state") or "unknown").strip()
+    validation_fallback_allowed = bool(runtime_data.get("validation_fallback_allowed"))
 
     blockers: list[str] = []
     if bool(runtime_data.get("provider_stub_enabled")) and launch_mode in {"limited_rollout", "broad_launch"}:
@@ -499,6 +701,14 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
         blockers.append(f"web_app_origin_not_pinned:{web_app_origin_state}")
     if launch_mode == "limited_rollout" and beta_keys_state != "explicit_pinned":
         blockers.append(f"beta_keys_not_safe:{beta_keys_state}")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and redis_config_state not in _DURABLE_REDIS_STATES:
+        blockers.append(f"redis_not_durable_for_launch_mode:{launch_mode}:{redis_config_state}")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and database_config_state not in _DURABLE_DATABASE_STATES:
+        blockers.append(f"database_not_durable_for_launch_mode:{launch_mode}:{database_config_state}")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and vector_store_config_state not in _DURABLE_VECTOR_STATES:
+        blockers.append(f"vector_store_not_durable_for_launch_mode:{launch_mode}:{vector_store_config_state}")
+    if launch_mode in {"limited_rollout", "broad_launch"} and validation_fallback_allowed:
+        blockers.append(f"validation_fallback_enabled_for_launch_mode:{launch_mode}")
 
     warnings: list[str] = []
     if app_env not in _PROD_APP_ENVS:
@@ -508,6 +718,16 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
             warnings.append(f"{route_name}_disabled_explicitly")
     if str(runtime_data.get("web_rate_limit_source") or "").strip() != "explicit_env":
         warnings.append("web_rate_limit_default_drift_unpinned")
+    if database_config_state in _LOCAL_DATABASE_STATES and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        warnings.append(f"database_not_durable:{database_config_state}")
+    elif database_config_state == "unknown" and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        warnings.append("database_config_state_unavailable")
+    if vector_store_config_state in _NON_DURABLE_VECTOR_STATES and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        warnings.append(f"vector_store_not_durable:{vector_store_config_state}")
+    elif vector_store_config_state == "unknown" and launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        warnings.append("vector_store_config_state_unavailable")
+    if "validation_fallback_allowed" not in runtime_data:
+        warnings.append("validation_fallback_policy_unavailable")
     return blockers, warnings
 
 
@@ -555,6 +775,7 @@ def _final_recommendation(
 def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     runtime_reference = dict(report.get("runtime_reference") or {})
     release_parity = dict(report.get("release_fingerprint_parity") or {})
+    localhost_smoke = dict(report.get("localhost_smoke") or {})
     artifact_provenance = dict(report.get("artifact_provenance") or {})
     origin_fields = {
         "chrome_extension_origin": report.get("chrome_extension_origin"),
@@ -565,6 +786,14 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "web_rate_limit_per_min": report.get("web_rate_limit_per_min"),
         "web_rate_limit_source": report.get("web_rate_limit_source"),
     }
+    infra_fields = {
+        "redis_config_state": report.get("redis_config_state"),
+        "database_config_state": report.get("database_config_state"),
+        "vector_store_config_state": report.get("vector_store_config_state"),
+        "vector_store_backend": report.get("vector_store_backend"),
+    }
+    render_blueprint = dict(report.get("render_blueprint_contract") or {})
+    deployment_discovery = dict(report.get("deployment_discovery") or {})
 
     lines = [
         "# Launch Check",
@@ -578,6 +807,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "| Field | Value |",
         "|---|---|",
         f"| backend_green | `{report['backend_green']}` |",
+        f"| render_blueprint_green | `{report.get('render_blueprint_green') or 'not_run'}` |",
         f"| harness_green | `{report['harness_green']}` |",
         f"| shim_green | `{report['shim_green']}` |",
         f"| provider_green | `{report['provider_green']}` |",
@@ -618,6 +848,8 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             f"- `real_provider_preference`: `{report['real_provider_preference']}`",
             f"- `effective_provider_source`: `{report['effective_provider_source']}`",
             f"- `effective_provider_model_identifier`: `{report['effective_model_identifier']}`",
+            f"- `validation_fallback_allowed`: `{report['validation_fallback_allowed']}`",
+            f"- `validation_fallback_policy`: `{report['validation_fallback_policy'] or 'unset'}`",
             f"- `preview_pipeline_enabled`: `{report['preview_pipeline_enabled']}`",
             f"- `route_gates`: `{json.dumps(report['route_gates'], sort_keys=True)}`",
             f"- `route_gate_sources`: `{json.dumps(report['route_gate_sources'], sort_keys=True)}`",
@@ -632,6 +864,26 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         lines.append("- `limited_rollout_blocker`: `preview_route_enabled_for_launch_mode:limited_rollout`")
     else:
         lines.append("- `limited_rollout_blocker`: `none`")
+
+    lines.extend(
+        [
+            "",
+            "## Localhost Smoke Evidence",
+            "",
+            f"- `green`: `{localhost_smoke.get('green') or 'not_run'}`",
+            f"- `state`: `{localhost_smoke.get('state') or 'missing'}`",
+            f"- `mode`: `{localhost_smoke.get('mode') or 'unset'}`",
+            f"- `total`: {localhost_smoke.get('total') or 0}",
+            f"- `pass`: {localhost_smoke.get('pass') or 0}",
+            f"- `fail`: {localhost_smoke.get('fail') or 0}",
+            f"- `errors`: {localhost_smoke.get('errors') or 0}",
+            f"- `pass_rate_pct`: `{localhost_smoke.get('pass_rate_pct') if localhost_smoke.get('pass_rate_pct') is not None else 'n/a'}`",
+            f"- `provider_source_counts`: `{json.dumps(localhost_smoke.get('provider_source_counts') or {}, sort_keys=True)}`",
+            f"- `route_pass_fail_counts`: `{json.dumps(localhost_smoke.get('route_pass_fail_counts') or {}, sort_keys=True)}`",
+            f"- `required_routes`: `{json.dumps(localhost_smoke.get('required_routes') or [])}`",
+            f"- `launch_gates`: `{json.dumps(localhost_smoke.get('launch_gates') or {}, sort_keys=True)}`",
+        ]
+    )
 
     lines.extend(["", "## Artifact Freshness And Provenance", ""])
     for label, summary in artifact_provenance.items():
@@ -651,6 +903,34 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     lines.extend(["", "## Origin And Beta-Key Safety", ""])
     for field, value in origin_fields.items():
         lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
+
+    lines.extend(["", "## Deployment Discovery Evidence", ""])
+    lines.append(f"- `state`: `{deployment_discovery.get('state') or 'missing'}`")
+    lines.append(f"- `found`: `{deployment_discovery.get('found')}`")
+    lines.append(f"- `candidate_web_app_origin`: `{deployment_discovery.get('candidate_web_app_origin') or 'none'}`")
+    lines.append(
+        f"- `usable_as_web_app_origin_candidate`: `{deployment_discovery.get('usable_as_web_app_origin_candidate')}`"
+    )
+    lines.append(f"- `clears_launch_blockers`: `{deployment_discovery.get('clears_launch_blockers')}`")
+    lines.append(f"- `current_head_deployment_count`: `{deployment_discovery.get('current_head_deployment_count') or 0}`")
+    if deployment_discovery.get("launch_blocker_note"):
+        lines.append(f"- `launch_blocker_note`: {deployment_discovery.get('launch_blocker_note')}")
+
+    lines.extend(["", "## Durable Infra Readiness", ""])
+    for field, value in infra_fields.items():
+        lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
+
+    lines.extend(["", "## Render Blueprint Handoff", ""])
+    lines.append(f"- `green`: `{render_blueprint.get('green') or 'not_run'}`")
+    lines.append(f"- `path`: `{render_blueprint.get('path') or 'missing'}`")
+    lines.append(f"- `checked_at`: `{render_blueprint.get('checked_at') or 'missing'}`")
+    lines.append(f"- `exit_code`: `{render_blueprint.get('exit_code') if render_blueprint.get('exit_code') is not None else 'n/a'}`")
+    blueprint_errors = list(render_blueprint.get("errors") or [])
+    if blueprint_errors:
+        lines.append(f"- `errors`: `{json.dumps(blueprint_errors)}`")
+    blueprint_output_tail = list(render_blueprint.get("output_tail") or [])
+    if blueprint_output_tail:
+        lines.append(f"- `output_tail`: `{json.dumps(blueprint_output_tail[-3:])}`")
 
     lines.extend(["", "## Config Blockers", ""])
     blockers = list(report.get("config_blockers") or [])
@@ -677,7 +957,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
             lines.append(f"- `{error}`")
     operator_next_steps = list(report.get("operator_next_steps") or [])
     if operator_next_steps:
-        lines.extend(["", "## Operator Next Step", ""])
+        lines.extend(["", "## Operator Next Steps", ""])
         for step in operator_next_steps:
             lines.append(f"- {step}")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -700,8 +980,95 @@ def _capture_command_for(label: str) -> str:
     )
 
 
+def _has_blocker(report: dict[str, Any], prefix: str) -> bool:
+    return any(str(blocker).startswith(prefix) for blocker in report.get("config_blockers") or [])
+
+
+def _artifact_needs_operator_refresh(report: dict[str, Any], label: str) -> bool:
+    artifact = dict((report.get("artifact_provenance") or {}).get(label) or {})
+    return bool(
+        artifact.get("missing")
+        or artifact.get("stale")
+        or artifact.get("malformed")
+        or artifact.get("schema_incomplete")
+    )
+
+
 def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactStatus, production_snapshot: ArtifactStatus) -> list[str]:
     steps: list[str] = []
+    if _has_blocker(report, "render_blueprint_contract_failed"):
+        steps.append(
+            "Fix the repo-root Render Blueprint handoff by running `make render-blueprint-check`, then rerun `make launch-check`."
+        )
+    if _has_blocker(report, "web_app_origin_not_pinned:"):
+        candidate = (report.get("deployment_discovery") or {}).get("candidate_web_app_origin")
+        if candidate:
+            steps.append(
+                f"Review discovered candidate `{candidate}` first; then set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
+            )
+        else:
+            steps.append(
+                "Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
+            )
+    if _has_blocker(report, "chrome_extension_origin_not_pinned:"):
+        steps.append(
+            "Set `CHROME_EXTENSION_ORIGIN` to the deployed Chrome extension origin (`chrome-extension://<extension-id>`), then re-capture staging and production runtime snapshots."
+        )
+    if _has_blocker(report, "beta_keys_not_safe:"):
+        steps.append(
+            "Set `EMAILDJ_WEB_BETA_KEYS` to explicit non-dev beta key values and use one matching value as `$BETA_KEY` for runtime snapshot capture and localhost/deployed smoke checks."
+        )
+    if _has_blocker(report, "redis_not_durable_for_launch_mode:"):
+        steps.append(
+            "Provision managed Redis for the launch environment, set `REDIS_URL`, and ensure `REDIS_FORCE_INMEMORY` is unset or `0` before re-running launch checks."
+        )
+    if _has_blocker(report, "database_not_durable_for_launch_mode:"):
+        steps.append(
+            "Provision managed Postgres for the launch environment, set `DATABASE_URL` to the deployed database, and re-capture staging and production runtime snapshots."
+        )
+    if _has_blocker(report, "vector_store_not_durable_for_launch_mode:"):
+        steps.append(
+            "Set `VECTOR_STORE_BACKEND=pgvector` for the launch environment after managed Postgres is configured, then re-capture staging and production runtime snapshots."
+        )
+    if _has_blocker(report, "provider_stub_enabled_for_launch_mode:") or _has_blocker(
+        report, "resolved_provider_source_not_external_provider:"
+    ):
+        steps.append(
+            "Set `USE_PROVIDER_STUB=0` with a real provider configured so limited rollout resolves to `effective_provider_source=external_provider`."
+        )
+    if _has_blocker(report, "configured_quick_generate_mode_mismatch:"):
+        steps.append(
+            "Align `EMAILDJ_QUICK_GENERATE_MODE` with the resolved runtime mode, or remove the override and let launch mode choose the effective real-provider path."
+        )
+    if _has_blocker(report, "preview_route_enabled_for_launch_mode:limited_rollout"):
+        steps.append(
+            "Keep preview disabled for `limited_rollout` by removing any explicit preview-route override before recapturing runtime snapshots."
+        )
+    if _has_blocker(report, "validation_fallback_enabled_for_launch_mode:"):
+        steps.append(
+            "Disable deterministic validation fallback for launch mode; launch environments must fail closed on CTCO validation failure."
+        )
+    if _artifact_needs_operator_refresh(report, "localhost_smoke"):
+        steps.append(
+            "Run the guarded localhost smoke against the intended Hub API process with `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`, then rerun `make launch-check`."
+        )
+    if _has_blocker(report, "localhost_smoke_not_green:"):
+        steps.append(
+            "Investigate the failing localhost smoke cases, fix the harness or generation path, then rerun `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`."
+        )
+    if (
+        _has_blocker(report, "http_smoke_missing_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_invalid_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_external_provider_missing_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_route_missing:")
+        or _has_blocker(report, "http_smoke_route_not_green:")
+    ):
+        required_routes = ",".join(report.get("required_http_smoke_routes") or ["generate", "remix"])
+        steps.append(
+            "Run deployed Hub API HTTP smoke against staging with external-provider runtime evidence "
+            f"(`EMAILDJ_DEPLOYED_SMOKE_FLOWS={required_routes} make launch-verify-deployed` after exporting "
+            "`STAGING_BASE_URL`, `PROD_BASE_URL`, and `BETA_KEY`)."
+        )
     for label, status in (("staging", staging_snapshot), ("production", production_snapshot)):
         if status.missing:
             steps.append(
@@ -711,7 +1078,7 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
             continue
         if status.stale:
             steps.append(
-                f"Re-capture the stale {label} hub-api runtime snapshot with the backend URL "
+                f"Re-capture the stale {label} runtime snapshot with the backend URL "
                 f"(`{'$STAGING_BASE_URL' if label == 'staging' else '$PROD_BASE_URL'}`) and matching `BETA_KEY`: `{_capture_command_for(label)}`"
             )
             continue
@@ -769,6 +1136,8 @@ def _read_launch_report(
         max_age=max_age,
         label="production",
     )
+    deployment_discovery = _artifact_status(ROOT / "reports" / "launch" / "deployment_discovery.json", max_age=max_age)
+    render_blueprint = _render_blueprint_contract()
 
     artifact_statuses = {
         "backend": backend,
@@ -779,6 +1148,7 @@ def _read_launch_report(
         "localhost_smoke": smoke_summary,
         "staging_runtime_snapshot": staging_snapshot,
         "production_runtime_snapshot": production_snapshot,
+        "deployment_discovery": deployment_discovery,
     }
 
     errors: list[str] = []
@@ -813,11 +1183,32 @@ def _read_launch_report(
     runtime_source_used = "production_runtime_snapshot" if _runtime_payload(production_snapshot) else "local_env"
     runtime_data = _runtime_payload(production_snapshot) or build_runtime_debug_payload()
     config_blockers, config_warnings = _config_findings(runtime_data)
+    if (
+        str(runtime_data.get("launch_mode") or "") in {"limited_rollout", "broad_launch"}
+        and render_blueprint.get("green") != "green"
+    ):
+        config_blockers.append("render_blueprint_contract_failed")
     release_blockers, release_warnings, release_parity = _release_comparison(
         staging_snapshot=staging_snapshot,
         production_snapshot=production_snapshot,
         runtime_source_used=runtime_source_used,
     )
+    localhost_smoke = _localhost_smoke_evidence(smoke_summary)
+    required_http_smoke_routes = _required_http_smoke_routes(runtime_data)
+    if localhost_smoke["green"] == "red":
+        config_blockers.append(
+            f"localhost_smoke_not_green:pass={localhost_smoke['pass']}:fail={localhost_smoke['fail']}:errors={localhost_smoke['errors']}"
+        )
+    localhost_provider_counts = dict(localhost_smoke.get("provider_source_counts") or {})
+    if localhost_provider_counts and set(localhost_provider_counts) == {"provider_stub"}:
+        config_warnings.append("localhost_smoke_provider_stub_only")
+    smoke_blockers, smoke_warnings = _http_smoke_findings(
+        launch_mode=str(runtime_data.get("launch_mode") or ""),
+        smoke=localhost_smoke,
+        required_routes=required_http_smoke_routes,
+    )
+    config_blockers.extend(smoke_blockers)
+    config_warnings.extend(smoke_warnings)
     config_blockers.extend(release_blockers)
     config_warnings.extend(release_warnings)
     config_warnings.extend(_recommended_age_warnings(artifact_statuses, recommended_max_age=recommended_max_age))
@@ -841,6 +1232,8 @@ def _read_launch_report(
         "effective_provider": runtime_data.get("effective_provider"),
         "effective_model": runtime_data.get("effective_model"),
         "effective_model_identifier": runtime_data.get("effective_model_identifier"),
+        "validation_fallback_allowed": bool(runtime_data.get("validation_fallback_allowed")),
+        "validation_fallback_policy": runtime_data.get("validation_fallback_policy"),
         "launch_mode": runtime_data.get("launch_mode"),
         "route_gates": dict(runtime_data.get("route_gates") or {}),
         "route_gate_sources": dict(runtime_data.get("route_gate_sources") or {}),
@@ -855,7 +1248,13 @@ def _read_launch_report(
         "beta_keys_state": runtime_data.get("beta_keys_state"),
         "web_rate_limit_per_min": runtime_data.get("web_rate_limit_per_min"),
         "web_rate_limit_source": runtime_data.get("web_rate_limit_source"),
+        "redis_config_state": runtime_data.get("redis_config_state"),
+        "database_config_state": runtime_data.get("database_config_state"),
+        "vector_store_config_state": runtime_data.get("vector_store_config_state"),
+        "vector_store_backend": runtime_data.get("vector_store_backend"),
         "backend_green": backend_green,
+        "render_blueprint_green": render_blueprint.get("green"),
+        "render_blueprint_contract": render_blueprint,
         "harness_green": harness_green,
         "shim_green": shim_green,
         "provider_green": provider_green,
@@ -878,6 +1277,12 @@ def _read_launch_report(
             "snapshot_path": production_snapshot.path if runtime_source_used == "production_runtime_snapshot" else None,
         },
         "release_fingerprint_parity": release_parity,
+        "deployment_discovery": _deployment_discovery_evidence(deployment_discovery),
+        "required_http_smoke_routes": required_http_smoke_routes,
+        "localhost_smoke": {
+            **localhost_smoke,
+            "required_routes": required_http_smoke_routes,
+        },
         "artifact_sources": _artifact_sources(**artifact_statuses),
         "artifact_provenance": {
             label: _artifact_provenance(label, status, recommended_max_age=recommended_max_age)
@@ -947,7 +1352,9 @@ def main() -> int:
             indent=2,
         )
     )
-    return 0 if report["final_recommendation"] != "Not yet launch-ready" else 1
+    if report["final_recommendation"] == "Not yet launch-ready" and not args.allow_not_ready:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

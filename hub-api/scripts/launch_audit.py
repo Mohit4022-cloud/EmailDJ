@@ -1,0 +1,616 @@
+#!/usr/bin/env python3
+"""Build an A-to-Z launch completion audit from existing launch artifacts."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = ROOT.parent
+
+
+def _utc_now_text() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _git_head_sha() -> str | None:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    return completed.stdout.strip() or None
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _has_blocker(report: dict[str, Any], prefix: str) -> bool:
+    return any(str(item).startswith(prefix) for item in report.get("config_blockers") or [])
+
+
+def _has_warning(report: dict[str, Any], value: str) -> bool:
+    return value in set(report.get("config_warnings") or [])
+
+
+def _artifact_missing(report: dict[str, Any], key: str) -> bool:
+    provenance = dict(report.get("artifact_provenance") or {})
+    entry = dict(provenance.get(key) or {})
+    return bool(entry.get("missing", True))
+
+
+def _item(
+    *,
+    item_id: str,
+    requirement: str,
+    passed: bool,
+    evidence: list[str],
+    blockers: list[str] | None = None,
+) -> dict[str, Any]:
+    blockers = [item for item in (blockers or []) if item]
+    return {
+        "id": item_id,
+        "requirement": requirement,
+        "status": "pass" if passed else "blocked",
+        "evidence": evidence,
+        "blockers": [] if passed else blockers,
+    }
+
+
+def _surface_manifest_item(manifest: dict[str, Any]) -> dict[str, Any]:
+    launch_owned = {item.get("path") for item in manifest.get("launch_owned") or []}
+    legacy = {item.get("path"): item for item in manifest.get("legacy_explicit_only") or []}
+    expected_launch = {"hub-api/", "web-app/", "chrome-extension/"}
+    expected_legacy = {"backend/", "frontend/"}
+    legacy_safe = (
+        set(legacy) == expected_legacy
+        and all(item.get("launch_readiness_evidence") is False for item in legacy.values())
+    )
+    passed = launch_owned == expected_launch and legacy_safe
+    return _item(
+        item_id="parallel_stack_story",
+        requirement="Decide and enforce which surfaces count as launch evidence.",
+        passed=passed,
+        evidence=[
+            f"launch_owned={sorted(launch_owned)}",
+            f"legacy_explicit_only={sorted(legacy)}",
+            "source=docs/ops/launch_surfaces.json",
+        ],
+        blockers=[] if passed else ["surface_manifest_mismatch"],
+    )
+
+
+def _ux_item() -> dict[str, Any]:
+    layout_test = REPO_ROOT / "web-app" / "tests" / "layout-contract.test.js"
+    editor = REPO_ROOT / "web-app" / "src" / "components" / "EmailEditor.js"
+    layout_text = layout_test.read_text(encoding="utf-8") if layout_test.exists() else ""
+    editor_text = editor.read_text(encoding="utf-8") if editor.exists() else ""
+    passed = (
+        "draft editor owns the primary canvas chrome and empty state" in layout_text
+        and "mobile workspace controls stay within the viewport grid" in layout_text
+        and 'id="editorFrame"' in editor_text
+        and 'id="draftCanvasTitle"' in editor_text
+    )
+    return _item(
+        item_id="draft_workspace_ux",
+        requirement="Final UX pass makes the draft workspace primary and guarded on mobile.",
+        passed=passed,
+        evidence=[
+            "web-app/tests/layout-contract.test.js",
+            "web-app/src/components/EmailEditor.js",
+        ],
+        blockers=[] if passed else ["draft_workspace_layout_contract_missing"],
+    )
+
+
+def _status_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> str:
+    return "pass" if all((items_by_id.get(item_id) or {}).get("status") == "pass" for item_id in ids) else "blocked"
+
+
+def _blockers_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> list[str]:
+    blockers: list[str] = []
+    for item_id in ids:
+        item = items_by_id.get(item_id) or {}
+        blockers.extend(str(blocker) for blocker in item.get("blockers") or [])
+    return list(dict.fromkeys(blockers))
+
+
+def _evidence_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> list[str]:
+    evidence: list[str] = []
+    for item_id in ids:
+        item = items_by_id.get(item_id) or {}
+        status = item.get("status") or "unknown"
+        evidence.append(f"{item_id}={status}")
+        evidence.extend(str(entry) for entry in item.get("evidence") or [])
+    return list(dict.fromkeys(evidence))
+
+
+def _snapshot_contract(
+    *,
+    current_git_sha: str | None,
+    web_app_probe_workspace_sha: str,
+    web_app_probe_source_sha: str,
+    web_app_probe_staleness_blockers: list[str],
+) -> dict[str, Any]:
+    return {
+        "status": "point_in_time_snapshot",
+        "workspace_git_sha_at_audit": current_git_sha,
+        "web_app_probe_workspace_git_sha": web_app_probe_workspace_sha or None,
+        "web_app_probe_source_git_sha": web_app_probe_source_sha or None,
+        "currentness_blockers": web_app_probe_staleness_blockers,
+        "operator_contract": (
+            "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. "
+            "After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app "
+            "and make launch-audit in the operator session before treating the report as launch proof."
+        ),
+        "refresh_command": "make launch-probe-web-app && make launch-audit",
+    }
+
+
+def _objective_entry(
+    *,
+    number: int,
+    objective: str,
+    item_ids: list[str],
+    items_by_id: dict[str, dict[str, Any]],
+    note: str = "",
+) -> dict[str, Any]:
+    status = _status_for(items_by_id, item_ids)
+    return {
+        "number": number,
+        "objective": objective,
+        "status": status,
+        "mapped_requirements": item_ids,
+        "evidence": _evidence_for(items_by_id, item_ids),
+        "blockers": [] if status == "pass" else _blockers_for(items_by_id, item_ids),
+        "note": note,
+    }
+
+
+def _objective_checklist(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items_by_id = {str(item.get("id")): item for item in items}
+    return [
+        _objective_entry(
+            number=1,
+            objective="Fix and keep the hub-api full-suite launch-check failure green.",
+            item_ids=["hub_api_full_suite"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=2,
+            objective="Get a fresh live-provider run green, not just mock/provider-stub.",
+            item_ids=["live_provider_harness"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=3,
+            objective="Re-run lock compliance, parity, adversarial, full eval, and launch checks with fresh artifacts.",
+            item_ids=["lock_and_launch_artifacts"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=4,
+            objective="Capture staging and production runtime snapshots.",
+            item_ids=["runtime_snapshots"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=5,
+            objective="Pin real staging/prod origins, beta keys, provider mode, validation fallback policy, and release fingerprints.",
+            item_ids=["pinned_origins_beta_provider", "validation_fallback_fail_closed", "release_fingerprint_parity"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=6,
+            objective="Prove web app generate/remix/preset preview against deployed hub-api.",
+            item_ids=["deployed_http_smoke"],
+            items_by_id=items_by_id,
+            note="Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled.",
+        ),
+        _objective_entry(
+            number=7,
+            objective="Prove Chrome extension flow in the real target surface.",
+            item_ids=["chrome_extension_real_target"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=8,
+            objective="Decide and clean up the parallel stack story.",
+            item_ids=["parallel_stack_story"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=9,
+            objective="Harden durable infra: Redis/Postgres/vector store instead of local/in-memory assumptions.",
+            item_ids=["durable_infra"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=10,
+            objective="Final UX pass so draft workspace feels primary.",
+            item_ids=["draft_workspace_ux"],
+            items_by_id=items_by_id,
+        ),
+    ]
+
+
+def build_launch_audit() -> dict[str, Any]:
+    report = _read_json(ROOT / "reports" / "launch" / "latest.json")
+    preflight = _read_json(ROOT / "reports" / "launch" / "preflight.json")
+    web_app_probe = _read_json(ROOT / "reports" / "launch" / "web_app_deployment_probe.json")
+    backend_suite = _read_json(ROOT / "reports" / "launch" / "backend_suite.json")
+    provider_stub = _read_json(ROOT / "reports" / "provider_stub" / "latest.json")
+    external_provider = _read_json(ROOT / "reports" / "external_provider" / "latest.json")
+    manifest = _read_json(REPO_ROOT / "docs" / "ops" / "launch_surfaces.json")
+
+    provider_summary = dict(external_provider.get("summary") or {})
+    stub_summary = dict(provider_stub.get("summary") or {})
+    preflight_presence = dict(preflight.get("required_inputs_present") or {})
+    current_git_sha = _git_head_sha()
+
+    origin_blockers = [
+        blocker
+        for blocker in report.get("config_blockers") or []
+        if str(blocker).startswith(("web_app_origin_not_pinned", "chrome_extension_origin_not_pinned", "beta_keys_not_safe"))
+    ]
+    durable_blockers = [
+        blocker
+        for blocker in report.get("config_blockers") or []
+        if str(blocker).startswith(
+            (
+                "redis_not_durable_for_launch_mode",
+                "database_not_durable_for_launch_mode",
+                "vector_store_not_durable_for_launch_mode",
+            )
+        )
+    ]
+    http_smoke_blockers = [
+        blocker for blocker in report.get("config_blockers") or [] if str(blocker).startswith("http_smoke_")
+    ]
+    web_app_probe_failures = [str(item) for item in web_app_probe.get("failures") or []]
+    web_app_probe_workspace_sha = str(web_app_probe.get("workspace_git_sha_at_probe") or "")
+    web_app_probe_source_sha = str(web_app_probe.get("source_git_sha") or "")
+    web_app_probe_staleness_blockers: list[str] = []
+    if current_git_sha and web_app_probe_workspace_sha and web_app_probe_workspace_sha != current_git_sha:
+        web_app_probe_staleness_blockers.append(
+            f"web_app_deployment_probe_stale_for_current_head:{web_app_probe_workspace_sha[:12]}!={current_git_sha[:12]}"
+        )
+    if current_git_sha and web_app_probe_source_sha and web_app_probe_source_sha != current_git_sha:
+        web_app_probe_staleness_blockers.append(
+            f"deployment_discovery_stale_for_current_head:{web_app_probe_source_sha[:12]}!={current_git_sha[:12]}"
+        )
+    if not web_app_probe:
+        web_app_probe_blockers = ["web_app_deployment_probe_missing"]
+    elif web_app_probe.get("client_bundle_usable") is not True:
+        web_app_probe_blockers = [
+            "web_app_deployment_probe_not_usable",
+            *[f"web_app_deployment_probe:{failure}" for failure in web_app_probe_failures[:5]],
+            *web_app_probe_staleness_blockers,
+        ]
+    else:
+        web_app_probe_blockers = web_app_probe_staleness_blockers
+    validation_fallback_blockers = [
+        blocker
+        for blocker in report.get("config_blockers") or []
+        if str(blocker).startswith("validation_fallback_")
+    ]
+    release_parity = dict(report.get("release_fingerprint_parity") or {})
+    release_parity_source = str(release_parity.get("runtime_source_used") or "")
+    release_comparison_fields = [str(field) for field in release_parity.get("comparison_fields") or []]
+    release_fingerprint_blockers = [
+        "release_fingerprint_unavailable" if _has_warning(report, "release_fingerprint_unavailable") else "",
+        f"release_fingerprint_parity_not_from_production_runtime_snapshot:{release_parity_source or 'unset'}"
+        if release_parity_source != "production_runtime_snapshot"
+        else "",
+        "release_fingerprint_comparison_fields_missing" if not release_comparison_fields else "",
+        *[
+            blocker
+            for blocker in report.get("config_blockers") or []
+            if str(blocker).startswith("release_fingerprint_mismatch:")
+        ],
+    ]
+
+    items = [
+        _item(
+            item_id="hub_api_full_suite",
+            requirement="Fix and keep the Hub API full quality gate green.",
+            passed=report.get("backend_green") == "green" and backend_suite.get("ok") is True,
+            evidence=[
+                f"backend_green={report.get('backend_green')}",
+                f"backend_suite_summary={backend_suite.get('summary') or 'unset'}",
+            ],
+            blockers=["backend_suite_not_green"],
+        ),
+        _item(
+            item_id="live_provider_harness",
+            requirement="Get a fresh live-provider run green, not only provider-stub evidence.",
+            passed=(
+                report.get("provider_green") == "green"
+                and report.get("provider_source") == "external_provider"
+                and provider_summary.get("provider_source") == "external_provider"
+                and int(provider_summary.get("failed_cases") or 0) == 0
+            ),
+            evidence=[
+                f"provider_green={report.get('provider_green')}",
+                f"provider_source={report.get('provider_source')}",
+                f"external_provider_cases={provider_summary.get('passed_cases')}/{provider_summary.get('total_cases')}",
+            ],
+            blockers=["external_provider_harness_not_green"],
+        ),
+        _item(
+            item_id="lock_and_launch_artifacts",
+            requirement="Refresh lock compliance, parity/adversarial/full eval evidence, and launch check artifacts.",
+            passed=(
+                report.get("harness_green") == "green"
+                and report.get("render_blueprint_green") == "green"
+                and int(stub_summary.get("failed_cases") or 0) == 0
+                and float(stub_summary.get("pass_rate") or 0.0) >= 1.0
+            ),
+            evidence=[
+                f"harness_green={report.get('harness_green')}",
+                f"render_blueprint_green={report.get('render_blueprint_green')}",
+                f"provider_stub_cases={stub_summary.get('passed_cases')}/{stub_summary.get('total_cases')}",
+                f"launch_report_generated_at={report.get('generated_at') or 'unset'}",
+            ],
+            blockers=["local_lock_or_launch_artifacts_not_green"],
+        ),
+        _item(
+            item_id="deployed_preflight_inputs",
+            requirement="Operator exports staging/prod Hub API roots and one explicit deployed beta key.",
+            passed=preflight.get("ready") is True,
+            evidence=[
+                f"preflight_ready={preflight.get('ready')}",
+                f"required_inputs_present={preflight_presence}",
+                f"failure_bucket={preflight.get('failure_bucket') or 'none'}",
+            ],
+            blockers=list(preflight.get("missing_inputs") or preflight.get("operator_input_errors") or []),
+        ),
+        _item(
+            item_id="runtime_snapshots",
+            requirement="Capture staging and production runtime snapshots.",
+            passed=not _artifact_missing(report, "staging_runtime_snapshot")
+            and not _artifact_missing(report, "production_runtime_snapshot"),
+            evidence=[
+                f"staging_snapshot_missing={_artifact_missing(report, 'staging_runtime_snapshot')}",
+                f"production_snapshot_missing={_artifact_missing(report, 'production_runtime_snapshot')}",
+            ],
+            blockers=[
+                "staging_runtime_snapshot_missing" if _artifact_missing(report, "staging_runtime_snapshot") else "",
+                "production_runtime_snapshot_missing" if _artifact_missing(report, "production_runtime_snapshot") else "",
+            ],
+        ),
+        _item(
+            item_id="pinned_origins_beta_provider",
+            requirement="Pin deployed web/extension origins, non-dev beta keys, and real provider mode.",
+            passed=not origin_blockers
+            and report.get("provider_stub_enabled") is False
+            and report.get("effective_provider_source") == "external_provider",
+            evidence=[
+                f"web_app_origin_state={report.get('web_app_origin_state')}",
+                f"chrome_extension_origin_state={report.get('chrome_extension_origin_state')}",
+                f"beta_keys_state={report.get('beta_keys_state')}",
+                f"effective_provider_source={report.get('effective_provider_source')}",
+            ],
+            blockers=origin_blockers,
+        ),
+        _item(
+            item_id="durable_infra",
+            requirement="Use durable Redis/Postgres/pgvector instead of local or in-memory state.",
+            passed=not durable_blockers,
+            evidence=[
+                f"redis_config_state={report.get('redis_config_state')}",
+                f"database_config_state={report.get('database_config_state')}",
+                f"vector_store_config_state={report.get('vector_store_config_state')}",
+            ],
+            blockers=durable_blockers,
+        ),
+        _item(
+            item_id="validation_fallback_fail_closed",
+            requirement="Fail closed on CTCO validation failures in limited rollout and broader launch modes.",
+            passed=report.get("validation_fallback_allowed") is False and not validation_fallback_blockers,
+            evidence=[
+                f"validation_fallback_allowed={report.get('validation_fallback_allowed')}",
+                f"validation_fallback_policy={report.get('validation_fallback_policy') or 'unset'}",
+            ],
+            blockers=[
+                *validation_fallback_blockers,
+                "validation_fallback_policy_unavailable"
+                if _has_warning(report, "validation_fallback_policy_unavailable")
+                else "",
+            ],
+        ),
+        _item(
+            item_id="deployed_http_smoke",
+            requirement="Prove deployed web generate/remix coverage against staging; require preview smoke only when preview is enabled.",
+            passed=not http_smoke_blockers and not web_app_probe_blockers,
+            evidence=[
+                f"required_http_smoke_routes={report.get('required_http_smoke_routes')}",
+                f"route_gates={report.get('route_gates')}",
+                f"localhost_smoke_provider_source_counts={(report.get('localhost_smoke') or {}).get('provider_source_counts')}",
+                f"current_git_sha={current_git_sha or 'unknown'}",
+                f"web_app_probe_workspace_git_sha={web_app_probe_workspace_sha or 'unset'}",
+                f"web_app_probe_source_git_sha={web_app_probe_source_sha or 'unset'}",
+                f"web_app_client_bundle_usable={web_app_probe.get('client_bundle_usable') if web_app_probe else 'missing'}",
+                f"web_app_probe_failures={web_app_probe_failures}",
+            ],
+            blockers=[*http_smoke_blockers, *web_app_probe_blockers],
+        ),
+        _item(
+            item_id="release_fingerprint_parity",
+            requirement="Capture comparable staging/prod release fingerprints.",
+            passed=not [blocker for blocker in release_fingerprint_blockers if blocker],
+            evidence=[
+                f"release_fingerprint_available={report.get('release_fingerprint_available')}",
+                f"release_fingerprint={report.get('release_fingerprint') or 'unset'}",
+                f"runtime_source_used={release_parity_source or 'unset'}",
+                f"comparison_fields={release_comparison_fields}",
+            ],
+            blockers=release_fingerprint_blockers,
+        ),
+        _item(
+            item_id="chrome_extension_real_target",
+            requirement="Prove the Chrome extension flow against the real shipped extension origin.",
+            passed=not _has_blocker(report, "chrome_extension_origin_not_pinned:"),
+            evidence=[
+                f"chrome_extension_origin={report.get('chrome_extension_origin')}",
+                f"chrome_extension_origin_state={report.get('chrome_extension_origin_state')}",
+            ],
+            blockers=[
+                blocker
+                for blocker in report.get("config_blockers") or []
+                if str(blocker).startswith("chrome_extension_origin_not_pinned:")
+            ],
+        ),
+        _surface_manifest_item(manifest),
+        _ux_item(),
+        _item(
+            item_id="launch_report_recommendation",
+            requirement="Launch-check itself must no longer report Not yet launch-ready.",
+            passed=report.get("final_recommendation") != "Not yet launch-ready"
+            and not report.get("config_blockers")
+            and not report.get("errors"),
+            evidence=[
+                f"final_recommendation={report.get('final_recommendation') or 'unset'}",
+                f"config_blocker_count={len(report.get('config_blockers') or [])}",
+                f"error_count={len(report.get('errors') or [])}",
+            ],
+            blockers=[
+                "launch_check_not_ready"
+                if report.get("final_recommendation") == "Not yet launch-ready"
+                else "",
+                *list(report.get("errors") or []),
+            ],
+        ),
+    ]
+
+    incomplete = [item for item in items if item["status"] != "pass"]
+    objective_checklist = _objective_checklist(items)
+    artifact_snapshot = _snapshot_contract(
+        current_git_sha=current_git_sha,
+        web_app_probe_workspace_sha=web_app_probe_workspace_sha,
+        web_app_probe_source_sha=web_app_probe_source_sha,
+        web_app_probe_staleness_blockers=web_app_probe_staleness_blockers,
+    )
+    return {
+        "generated_at": _utc_now_text(),
+        "current_git_sha": current_git_sha,
+        "artifact_snapshot": artifact_snapshot,
+        "final_status": "complete" if not incomplete else "not_complete",
+        "launch_report_recommendation": report.get("final_recommendation"),
+        "source_artifacts": {
+            "launch_report": str(ROOT / "reports" / "launch" / "latest.json"),
+            "preflight": str(ROOT / "reports" / "launch" / "preflight.json"),
+            "web_app_deployment_probe": str(ROOT / "reports" / "launch" / "web_app_deployment_probe.json"),
+            "surface_manifest": str(REPO_ROOT / "docs" / "ops" / "launch_surfaces.json"),
+        },
+        "items": items,
+        "objective_checklist": objective_checklist,
+        "open_blocker_count": len(incomplete),
+        "open_blockers": [
+            {"id": item["id"], "blockers": item["blockers"]}
+            for item in incomplete
+        ],
+    }
+
+
+def _write_markdown(path: Path, audit: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_snapshot = audit.get("artifact_snapshot") or {}
+    currentness_blockers = artifact_snapshot.get("currentness_blockers") or []
+    lines = [
+        "# Launch Completion Audit",
+        "",
+        f"- Generated at: `{audit['generated_at']}`",
+        f"- Current git SHA: `{audit.get('current_git_sha') or 'unknown'}`",
+        f"- Evidence snapshot: `{artifact_snapshot.get('status') or 'unknown'}`",
+        f"- Snapshot refresh command: `{artifact_snapshot.get('refresh_command') or 'make launch-probe-web-app && make launch-audit'}`",
+        "- Snapshot contract: "
+        f"{artifact_snapshot.get('operator_contract') or 'Rerun the launch probes before using this report as launch proof.'}",
+        "- Currentness blockers: "
+        + ("<br>".join(f"`{entry}`" for entry in currentness_blockers) if currentness_blockers else "`none`"),
+        f"- Final status: `{audit['final_status']}`",
+        f"- Launch report recommendation: `{audit.get('launch_report_recommendation') or 'unset'}`",
+        f"- Open blocker count: `{audit['open_blocker_count']}`",
+        "",
+        "| Requirement | Status | Evidence | Blockers |",
+        "|---|---|---|---|",
+    ]
+    for item in audit["items"]:
+        evidence = "<br>".join(f"`{entry}`" for entry in item["evidence"])
+        blockers = "<br>".join(f"`{entry}`" for entry in item["blockers"]) or "`none`"
+        lines.append(f"| `{item['id']}` | `{item['status']}` | {evidence} | {blockers} |")
+    lines.append("")
+    lines.append("## A-Z Objective Checklist")
+    lines.append("")
+    lines.append("| # | Objective | Status | Mapped requirements | Blockers | Note |")
+    lines.append("|---:|---|---|---|---|---|")
+    for entry in audit["objective_checklist"]:
+        mapped = "<br>".join(f"`{item_id}`" for item_id in entry["mapped_requirements"])
+        blockers = "<br>".join(f"`{blocker}`" for blocker in entry["blockers"]) or "`none`"
+        note = entry.get("note") or ""
+        lines.append(
+            f"| {entry['number']} | {entry['objective']} | `{entry['status']}` | {mapped} | {blockers} | {note} |"
+        )
+    lines.append("")
+    lines.append("## Source Artifacts")
+    lines.append("")
+    for key, value in audit["source_artifacts"].items():
+        lines.append(f"- `{key}`: `{value}`")
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_launch_audit() -> tuple[Path, Path, dict[str, Any]]:
+    audit = build_launch_audit()
+    report_dir = ROOT / "reports" / "launch"
+    json_path = report_dir / "completion_audit.json"
+    md_path = report_dir / "completion_audit.md"
+    _write_json(json_path, audit)
+    _write_markdown(md_path, audit)
+    return json_path, md_path, audit
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Build an artifact-backed EmailDJ launch completion audit.")
+    parser.add_argument("--fail-if-incomplete", action="store_true", help="Exit nonzero when open blockers remain.")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = _parse_args()
+    json_path, md_path, audit = write_launch_audit()
+    print(
+        json.dumps(
+            {
+                "completion_audit_json": str(json_path),
+                "completion_audit_md": str(md_path),
+                "final_status": audit["final_status"],
+                "open_blocker_count": audit["open_blocker_count"],
+            },
+            indent=2,
+        )
+    )
+    if args.fail_if_incomplete and audit["final_status"] != "complete":
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

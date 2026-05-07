@@ -6,9 +6,12 @@ import {
   buildWhyItWorksBullets,
   normalizePreviewContext,
   normalizeSliderState,
+  parseGeneratedDraft,
   resolveEffectiveSliderState,
+  sanitizePreviewEmail,
   sliderRowsFromState,
 } from './presetPreviewUtils.js';
+import { styleToPayload } from '../style.js';
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -180,6 +183,7 @@ export class SDRPresetLibrary {
     this.previewCache = new Map();
     this.previewEntries = new Map();
     this.inflightBatches = new Map();
+    this.inflightPreviews = new Map();
     this.previewFetchDebounceMs =
       Number.isFinite(Number(options.previewFetchDebounceMs)) && Number(options.previewFetchDebounceMs) >= 0
         ? Number(options.previewFetchDebounceMs)
@@ -484,9 +488,9 @@ export class SDRPresetLibrary {
       if (unresolved.length > 0) {
         return { ok: false, error: `Missing batch previews for ${unresolved.join(', ')}.` };
       }
-      return true;
-    } catch {
-      return false;
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
     } finally {
       this.inflightBatches.delete(batchKey);
     }
@@ -521,7 +525,7 @@ export class SDRPresetLibrary {
     if (!promise) {
       promise = (async () => {
         const payload = this.buildPreviewPayload(preset, context);
-        const draft = await this.generatePreviewDraft(payload);
+        const draft = await this.generatePreview(payload);
         const parsed = parseGeneratedDraft(draft, context.prospect.company);
         const sanitized = sanitizePreviewEmail(parsed, context);
         if (!sanitized.subject || !sanitized.body) {
@@ -552,7 +556,7 @@ export class SDRPresetLibrary {
     } catch (error) {
       return { ok: false, error: String(error?.message || error || 'Preview batch generation failed.') };
     } finally {
-      this.inflightBatches.delete(batchKey);
+      this.inflightPreviews.delete(key);
     }
   }
 

@@ -65,6 +65,8 @@ _PROVIDER_KEY_ENV = {
     "groq": "GROQ_API_KEY",
 }
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
+_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
 _LOCAL_WEB_ALLOW_ORIGINS = [
     "http://localhost",
     "http://localhost:5173",
@@ -129,6 +131,105 @@ def _require_safe_production_web_contract(app_env: str) -> None:
         raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.") from exc
     if rate_limit < 1:
         raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
+
+
+def _require_pinned_launch_surfaces(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    chrome_origin = (os.environ.get("CHROME_EXTENSION_ORIGIN") or "").strip()
+    if not chrome_origin or chrome_origin == "chrome-extension://dev":
+        raise RuntimeError(
+            f"{launch_mode} requires pinned CHROME_EXTENSION_ORIGIN; "
+            "replace chrome-extension://dev with the deployed extension origin."
+        )
+
+    web_origins = _configured_web_origins()
+    if not web_origins:
+        raise RuntimeError(f"{launch_mode} requires explicit WEB_APP_ORIGIN.")
+    if _origins_are_local_only(web_origins):
+        raise RuntimeError(f"{launch_mode} requires WEB_APP_ORIGIN to point to deployed web origin(s), not localhost.")
+
+    beta_raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    beta_keys = {part.strip() for part in beta_raw.split(",") if part.strip()}
+    if not beta_keys or "dev-beta-key" in beta_keys:
+        raise RuntimeError(f"{launch_mode} requires explicit EMAILDJ_WEB_BETA_KEYS without dev-beta-key.")
+
+    rate_limit_raw = (os.environ.get("EMAILDJ_WEB_RATE_LIMIT_PER_MIN") or "").strip()
+    if not rate_limit_raw:
+        raise RuntimeError(f"{launch_mode} requires explicit EMAILDJ_WEB_RATE_LIMIT_PER_MIN.")
+    try:
+        rate_limit = int(rate_limit_raw)
+    except ValueError as exc:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.") from exc
+    if rate_limit < 1:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
+
+
+def _redis_url_is_external(raw_url: str) -> bool:
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    return parsed.scheme in {"redis", "rediss"} and bool(host) and host not in _LOCAL_INFRA_HOSTS
+
+
+def _database_url_is_external_postgres(raw_url: str) -> bool:
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    scheme = (parsed.scheme or "").strip().lower()
+    return scheme.startswith("postgres") and bool(host) and host not in _LOCAL_INFRA_HOSTS
+
+
+def _require_durable_redis_for_launch(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    if (os.environ.get("REDIS_FORCE_INMEMORY") or "").strip() == "1":
+        raise RuntimeError(
+            f"{launch_mode} requires managed Redis; unset REDIS_FORCE_INMEMORY "
+            "and set REDIS_URL to a non-local redis/rediss URL."
+        )
+
+    redis_url = (os.environ.get("REDIS_URL") or "").strip()
+    if not redis_url:
+        raise RuntimeError(f"{launch_mode} requires managed Redis; set REDIS_URL to a non-local redis/rediss URL.")
+    if not _redis_url_is_external(redis_url):
+        raise RuntimeError(f"{launch_mode} requires managed Redis; REDIS_URL must use a non-local redis/rediss host.")
+
+
+def _require_durable_database_for_launch(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    database_url = (os.environ.get("DATABASE_URL") or "").strip()
+    if not database_url:
+        raise RuntimeError(f"{launch_mode} requires managed Postgres; set DATABASE_URL to a non-local Postgres URL.")
+    if not _database_url_is_external_postgres(database_url):
+        raise RuntimeError(f"{launch_mode} requires managed Postgres; DATABASE_URL must use a non-local Postgres host.")
+
+
+def _require_durable_vector_store_for_launch(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    backend = (os.environ.get("VECTOR_STORE_BACKEND") or "memory").strip().lower() or "memory"
+    if backend != "pgvector":
+        raise RuntimeError(f"{launch_mode} requires VECTOR_STORE_BACKEND=pgvector.")
+
+
+def _require_real_runtime_for_launch(policies: object) -> None:
+    launch_mode = getattr(policies, "launch_mode", "")
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    if bool(getattr(policies, "provider_stub_enabled", False)):
+        raise RuntimeError(f"{launch_mode} requires real provider mode; set {PROVIDER_STUB_ENV_VAR}=0.")
+
+    route_gates = dict(getattr(policies, "route_gates", {}) or {})
+    if launch_mode == "limited_rollout" and route_gates.get("preview") is True:
+        raise RuntimeError(
+            "limited_rollout requires preview route disabled; unset EMAILDJ_ROUTE_PREVIEW_ENABLED "
+            "or set it to 0."
+        )
 
 
 def _cors_allow_origins() -> list[str]:
@@ -214,6 +315,11 @@ def _validate_env() -> None:
     mode = policies.quick_generate_mode
     provider = policies.real_provider_preference
     _require_safe_production_web_contract(policies.app_env)
+    _require_pinned_launch_surfaces(policies.launch_mode)
+    _require_durable_redis_for_launch(policies.launch_mode)
+    _require_durable_database_for_launch(policies.launch_mode)
+    _require_durable_vector_store_for_launch(policies.launch_mode)
+    _require_real_runtime_for_launch(policies)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
             "EMAILDJ_QUICK_GENERATE_MODE=mock ignored unless %s=1; continuing in REAL mode.",

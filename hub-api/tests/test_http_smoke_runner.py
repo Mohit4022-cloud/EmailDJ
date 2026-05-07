@@ -5,6 +5,7 @@ import json
 import pytest
 
 from devtools.http_smoke_runner import _assert_server_ready, _build_scorecard, _build_summary, _extract_stream, _load_pack
+from scripts.merge_http_smoke_summaries import merge_summaries
 
 
 def _case() -> dict:
@@ -81,6 +82,25 @@ def test_build_scorecard_passes_seller_company_for_vendor_mismatch_ownership_che
     assert "FAIL_PROSPECT_OWNS_OFFER" in scorecard["fail_tags"]
 
 
+def test_build_scorecard_strips_body_header_without_blank_separator():
+    case = _case()
+    result = {
+        "case": case,
+        "email_text": (
+            "Subject: Trademark Search, Screening, and Brand Protection\n"
+            "Body:\n"
+            "Hi Sarah, There are signs first-touch quality matters more at Acme.\n\n"
+            "Open to a quick 15-minute chat next week?"
+        ),
+        "error": None,
+        "stream_error": {},
+        "stream_error_event_seen": False,
+    }
+
+    scorecard = _build_scorecard(result)
+    assert "FAIL_PROOF_DUMP" not in scorecard["fail_tags"]
+
+
 def test_build_summary_reports_provider_sources_and_remix_gates():
     case = _case()
     results = [
@@ -126,6 +146,70 @@ def test_build_summary_reports_provider_sources_and_remix_gates():
     assert summary["claims_policy_intervention_count"] == 1
     assert summary["launch_gates"]["provider_green"] == "red"
     assert summary["launch_gates"]["remix_green"] == "red"
+
+
+def test_merge_http_smoke_summaries_combines_generate_and_remix(tmp_path):
+    generate = {
+        "run_id": "generate-run",
+        "mode": "smoke",
+        "elapsed_seconds": 3.0,
+        "total": 30,
+        "pass": 30,
+        "fail": 0,
+        "errors": 0,
+        "provider_source_counts": {"external_provider": 30},
+        "route_pass_fail_counts": {"generate": {"total": 30, "pass": 30, "fail": 0}},
+        "preset_pass_fail_counts": {"straight_shooter": {"total": 15, "pass": 15, "fail": 0}},
+        "top_violation_codes": {},
+        "top_violation_codes_by_route": {},
+        "top_violation_codes_by_preset": {},
+        "required_field_miss_count": 0,
+        "under_length_miss_count": 0,
+        "claims_policy_intervention_count": 0,
+        "fail_tag_counts": {},
+        "top_10_worst": [],
+        "breakdown_by_persona_type": {"exec": {"total": 30, "pass": 30}},
+        "breakdown_by_preset": {"straight_shooter": {"total": 15, "pass": 15}},
+    }
+    remix = {
+        "run_id": "remix-run",
+        "mode": "smoke",
+        "elapsed_seconds": 7.0,
+        "total": 30,
+        "pass": 30,
+        "fail": 0,
+        "errors": 0,
+        "provider_source_counts": {"external_provider": 30},
+        "route_pass_fail_counts": {"remix": {"total": 30, "pass": 30, "fail": 0}},
+        "preset_pass_fail_counts": {"c_suite_sniper": {"total": 15, "pass": 15, "fail": 0}},
+        "top_violation_codes": {},
+        "top_violation_codes_by_route": {},
+        "top_violation_codes_by_preset": {},
+        "required_field_miss_count": 0,
+        "under_length_miss_count": 0,
+        "claims_policy_intervention_count": 0,
+        "fail_tag_counts": {},
+        "top_10_worst": [],
+        "breakdown_by_persona_type": {"manager": {"total": 30, "pass": 30}},
+        "breakdown_by_preset": {"c_suite_sniper": {"total": 15, "pass": 15}},
+    }
+    generate_path = tmp_path / "generate" / "summary.json"
+    remix_path = tmp_path / "remix" / "summary.json"
+    generate_path.parent.mkdir()
+    remix_path.parent.mkdir()
+    generate_path.write_text(json.dumps(generate), encoding="utf-8")
+    remix_path.write_text(json.dumps(remix), encoding="utf-8")
+
+    merged = merge_summaries([generate_path, remix_path])
+
+    assert merged["total"] == 60
+    assert merged["pass"] == 60
+    assert merged["provider_source_counts"] == {"external_provider": 60}
+    assert merged["route_pass_fail_counts"]["generate"] == {"total": 30, "pass": 30, "fail": 0}
+    assert merged["route_pass_fail_counts"]["remix"] == {"total": 30, "pass": 30, "fail": 0}
+    assert merged["launch_gates"]["provider_green"] == "green"
+    assert merged["launch_gates"]["remix_green"] == "green"
+    assert [item["run_id"] for item in merged["source_summaries"]] == ["generate-run", "remix-run"]
 
 
 @pytest.mark.asyncio

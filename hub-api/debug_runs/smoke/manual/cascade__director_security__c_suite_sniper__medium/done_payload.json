@@ -1,0 +1,111 @@
+{
+  "request_id": "fb8b29a2-9f29-49dc-9388-f4e1653a6290",
+  "session_id": "48629446-d771-4c1e-93dd-46d4371b60ca",
+  "generation_id": "e3c6ac9b-e475-46dd-b658-077c1ff5446c",
+  "draft_id": 1,
+  "sequence": 16,
+  "timestamp": 1778155843.79893,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "c_suite_sniper",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": true,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+    "FEATURE_LOSSLESS_STREAMING": true,
+    "FEATURE_FLUENCY_REPAIR": true,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": true,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+    "FEATURE_PRESET_TRUE_REWRITE": true
+  },
+  "mode": "mock",
+  "provider_source": "provider_stub",
+  "provider": "mock",
+  "model": "mock",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 0,
+  "validator_attempt_count": 0,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "claims_policy_intervention_count": 0,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Trademark Search, Screening, and Brand Protection \u2014 relevant",
+    "body": "Hi Chris, Trademark search, screening, and brand protection reduces that risk by tightening message quality while preserving sales velocity.\nThere are signs message review and execution discipline matter more right now.\nCorsearch is the global leader in trademark clearance, brand protection, and ip enforcement.\nTrademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Trademark Search, Screening, and Brand Protection \u2014 relevant\nBody:\nHi Chris, Trademark search, screening, and brand protection reduces that risk by tightening message quality while preserving sales velocity.\nThere are signs message review and execution discipline matter more right now.\nCorsearch is the global leader in trademark clearance, brand protection, and ip enforcement.\nTrademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": true,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+      "FEATURE_LOSSLESS_STREAMING": true,
+      "FEATURE_FLUENCY_REPAIR": true,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": true,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+      "FEATURE_PRESET_TRUE_REWRITE": true
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 2,
+      "types": [
+        "other",
+        "ops",
+        "initiative"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "c_suite_sniper",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 714,
+      "checksum": "ebfe47ff9d8990abd1bc02228de77983ca0541325432df24cdaa6394b68793c4"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "removed",
+        "generator": "5ffdba8b0a7b9ce4",
+        "combined": "removed"
+      }
+    }
+  },
+  "stream_chunk_mode": "stable_chars",
+  "total_chunks": 15,
+  "total_chars": 714,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "ebfe47ff9d8990abd1bc02228de77983ca0541325432df24cdaa6394b68793c4",
+  "stream_integrity_server_ok": true
+}

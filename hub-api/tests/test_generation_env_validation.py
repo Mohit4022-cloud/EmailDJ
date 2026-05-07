@@ -23,6 +23,10 @@ def _apply_env(monkeypatch, values: dict[str, str]):
             "APP_ENV",
             "CHROME_EXTENSION_ORIGIN",
             "WEB_APP_ORIGIN",
+            "REDIS_FORCE_INMEMORY",
+            "REDIS_URL",
+            "DATABASE_URL",
+            "VECTOR_STORE_BACKEND",
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
             "GROQ_API_KEY",
@@ -193,3 +197,170 @@ def test_validate_env_prod_rejects_missing_rate_limit(monkeypatch):
 
     with pytest.raises(RuntimeError, match="EMAILDJ_WEB_RATE_LIMIT_PER_MIN"):
         _validate_env()
+
+
+def _limited_rollout_env() -> dict[str, str]:
+    env = _base_env()
+    env["APP_ENV"] = "staging"
+    env["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
+    env["CHROME_EXTENSION_ORIGIN"] = "chrome-extension://emaildj-test"
+    env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
+    env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
+    env["USE_PROVIDER_STUB"] = "0"
+    env["OPENAI_API_KEY"] = "test-key"
+    env["DATABASE_URL"] = "postgresql+asyncpg://db.emaildj.test/emaildj"
+    env["VECTOR_STORE_BACKEND"] = "pgvector"
+    return env
+
+
+def test_validate_env_limited_rollout_rejects_dev_chrome_origin(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["CHROME_EXTENSION_ORIGIN"] = "chrome-extension://dev"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="CHROME_EXTENSION_ORIGIN"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_web_origin_outside_prod(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["APP_ENV"] = "test"
+    env["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="WEB_APP_ORIGIN"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_dev_beta_key_outside_prod(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["APP_ENV"] = "test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "dev-beta-key"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="dev-beta-key"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_provider_stub(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["USE_PROVIDER_STUB"] = "1"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="real provider mode"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_preview_route_override(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["EMAILDJ_ROUTE_PREVIEW_ENABLED"] = "1"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="preview route disabled"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_forced_inmemory_redis(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_FORCE_INMEMORY"] = "1"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="REDIS_FORCE_INMEMORY"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_missing_redis_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="REDIS_URL"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_redis_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "redis://localhost:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_missing_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env.pop("DATABASE_URL")
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="DATABASE_URL"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["DATABASE_URL"] = "postgresql+asyncpg://localhost/emaildj"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local Postgres"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_sqlite_database_url(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["DATABASE_URL"] = "sqlite+aiosqlite:///./emaildj.db"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="Postgres"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_memory_vector_store(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["VECTOR_STORE_BACKEND"] = "memory"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="VECTOR_STORE_BACKEND=pgvector"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_accepts_external_redis(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    _validate_env()

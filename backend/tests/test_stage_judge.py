@@ -170,6 +170,12 @@ async def test_judge_message_atoms_hard_fail_on_bracket_placeholder(monkeypatch:
     assert "value_outcome_not_mechanism" in result["hard_fail_criteria"]
 
 
+def test_outcome_like_accepts_quality_scale_value_without_metric() -> None:
+    assert stage_judge._check_outcome_like("SDR managers scale opener quality without template drift.") is True
+    assert stage_judge._check_outcome_like("Vector Source prevents generic copy drift without adding another QA process.") is True
+    assert stage_judge._check_outcome_like("Use our opener QA platform for scoring and tracking.") is False
+
+
 @pytest.mark.asyncio
 async def test_judge_message_atoms_hard_fail_on_circular_proof(monkeypatch: pytest.MonkeyPatch) -> None:
     async def _fake_call_judge_llm(*, openai, messages, timeout_seconds=45.0):  # noqa: ARG001

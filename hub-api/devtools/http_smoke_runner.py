@@ -630,6 +630,9 @@ def _build_scorecard(result: dict[str, Any]) -> dict[str, Any]:
     for line in lines:
         if skip_header and line.startswith("Subject:"):
             continue
+        if skip_header and line.startswith("Body:"):
+            skip_header = False
+            continue
         if skip_header and line.strip() == "":
             skip_header = False
             continue

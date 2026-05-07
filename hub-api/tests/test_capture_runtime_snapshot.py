@@ -35,6 +35,8 @@ def _runtime_payload(**overrides) -> dict:
         "effective_provider": "openai",
         "effective_model": "gpt-5-nano",
         "effective_model_identifier": "openai/gpt-5-nano",
+        "validation_fallback_allowed": False,
+        "validation_fallback_policy": "dev_only_fail_closed_in_launch_modes",
         "app_env": "staging",
     }
     payload.update(overrides)
