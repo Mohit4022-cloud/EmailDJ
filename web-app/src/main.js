@@ -133,10 +133,16 @@ class WebApp {
               <h2>Inputs</h2>
             </div>
           </div>
-          <div class="field">
-            <label>Beta Key</label>
-            <input id="betaKey" placeholder="dev-beta-key" />
-          </div>
+          <details class="operator-settings">
+            <summary>
+              <span>Operator settings</span>
+              <small>Beta access</small>
+            </summary>
+            <div class="field">
+              <label>Beta Key</label>
+              <input id="betaKey" placeholder="dev-beta-key" />
+            </div>
+          </details>
           <div class="field">
             <label>Your Company Name (saved locally)</label>
             <input id="sellerCompanyName" placeholder="EmailDJ" />

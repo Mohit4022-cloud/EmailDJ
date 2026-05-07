@@ -59,7 +59,7 @@
       }
       @media (min-width: 980px) {
         .layout {
-          grid-template-columns: minmax(0, 1.32fr) minmax(340px, 0.78fr);
+          grid-template-columns: minmax(0, 1.62fr) minmax(320px, 0.58fr);
           align-items: start;
         }
         .hero h1 { font-size: 2.25rem; }
@@ -81,6 +81,43 @@
       }
       .brief-panel {
         min-height: 0;
+      }
+      .operator-settings {
+        border: 1px solid #e4e8f3;
+        border-radius: 8px;
+        background: #fbfcff;
+        margin-bottom: 12px;
+      }
+      .operator-settings summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        color: #343a56;
+        font-weight: 650;
+      }
+      .operator-settings summary::-webkit-details-marker {
+        display: none;
+      }
+      .operator-settings summary::after {
+        content: "+";
+        font-size: 1rem;
+        color: var(--accent-2);
+      }
+      .operator-settings[open] summary::after {
+        content: "-";
+      }
+      .operator-settings summary small {
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 600;
+      }
+      .operator-settings .field {
+        padding: 0 12px 12px;
+        margin-bottom: 0;
       }
       @media (min-width: 980px) {
         .brief-panel {
@@ -128,6 +165,7 @@
         display: flex;
         flex-direction: column;
         margin-bottom: 10px;
+        min-width: 0;
       }
       .field label {
         margin-bottom: 4px;
@@ -140,6 +178,8 @@
         padding: 10px 12px;
         font: inherit;
         background: white;
+        width: 100%;
+        min-width: 0;
       }
       .field textarea {
         min-height: 150px;
@@ -150,11 +190,15 @@
       }
       .row {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 10px;
+        min-width: 0;
       }
       @media (min-width: 640px) {
-        .row { grid-template-columns: 1fr 1fr; }
+        .row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (min-width: 980px) {
+        .brief-panel .row { grid-template-columns: minmax(0, 1fr); }
       }
       .actions {
         display: flex;
