@@ -1,6 +1,6 @@
 # Launch Completion Audit
 
-- Generated at: `2026-05-07T16:33:25.294032Z`
+- Generated at: `2026-05-07T16:40:25.452072Z`
 - Final status: `not_complete`
 - Launch report recommendation: `Not yet launch-ready`
 - Open blocker count: `8`
@@ -20,6 +20,21 @@
 | `parallel_stack_story` | `pass` | `launch_owned=['chrome-extension/', 'hub-api/', 'web-app/']`<br>`legacy_explicit_only=['backend/', 'frontend/']`<br>`source=docs/ops/launch_surfaces.json` | `none` |
 | `draft_workspace_ux` | `pass` | `web-app/tests/layout-contract.test.js`<br>`web-app/src/components/EmailEditor.js` | `none` |
 | `launch_report_recommendation` | `blocked` | `final_recommendation=Not yet launch-ready`<br>`config_blocker_count=6`<br>`error_count=0` | `launch_check_not_ready` |
+
+## A-Z Objective Checklist
+
+| # | Objective | Status | Mapped requirements | Blockers | Note |
+|---:|---|---|---|---|---|
+| 1 | Fix and keep the hub-api full-suite launch-check failure green. | `pass` | `hub_api_full_suite` | `none` |  |
+| 2 | Get a fresh live-provider run green, not just mock/provider-stub. | `pass` | `live_provider_harness` | `none` |  |
+| 3 | Re-run lock compliance, parity, adversarial, full eval, and launch checks with fresh artifacts. | `pass` | `lock_and_launch_artifacts` | `none` |  |
+| 4 | Capture staging and production runtime snapshots. | `blocked` | `runtime_snapshots` | `staging_runtime_snapshot_missing`<br>`production_runtime_snapshot_missing` |  |
+| 5 | Pin real staging/prod origins, beta keys, provider mode, and release fingerprints. | `blocked` | `pinned_origins_beta_provider`<br>`release_fingerprint_parity` | `chrome_extension_origin_not_pinned:default_dev_placeholder`<br>`web_app_origin_not_pinned:unset`<br>`release_fingerprint_unavailable` |  |
+| 6 | Prove web app generate/remix/preset preview against deployed hub-api. | `blocked` | `deployed_http_smoke` | `http_smoke_external_provider_missing_for_launch_mode:limited_rollout` | Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled. |
+| 7 | Prove Chrome extension flow in the real target surface. | `blocked` | `chrome_extension_real_target` | `chrome_extension_origin_not_pinned:default_dev_placeholder` |  |
+| 8 | Decide and clean up the parallel stack story. | `pass` | `parallel_stack_story` | `none` |  |
+| 9 | Harden durable infra: Redis/Postgres/vector store instead of local/in-memory assumptions. | `blocked` | `durable_infra` | `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`<br>`redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`<br>`vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend` |  |
+| 10 | Final UX pass so draft workspace feels primary. | `pass` | `draft_workspace_ux` | `none` |  |
 
 ## Source Artifacts
 

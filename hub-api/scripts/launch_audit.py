@@ -106,6 +106,115 @@ def _ux_item() -> dict[str, Any]:
     )
 
 
+def _status_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> str:
+    return "pass" if all((items_by_id.get(item_id) or {}).get("status") == "pass" for item_id in ids) else "blocked"
+
+
+def _blockers_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> list[str]:
+    blockers: list[str] = []
+    for item_id in ids:
+        item = items_by_id.get(item_id) or {}
+        blockers.extend(str(blocker) for blocker in item.get("blockers") or [])
+    return list(dict.fromkeys(blockers))
+
+
+def _evidence_for(items_by_id: dict[str, dict[str, Any]], ids: list[str]) -> list[str]:
+    evidence: list[str] = []
+    for item_id in ids:
+        item = items_by_id.get(item_id) or {}
+        status = item.get("status") or "unknown"
+        evidence.append(f"{item_id}={status}")
+        evidence.extend(str(entry) for entry in item.get("evidence") or [])
+    return list(dict.fromkeys(evidence))
+
+
+def _objective_entry(
+    *,
+    number: int,
+    objective: str,
+    item_ids: list[str],
+    items_by_id: dict[str, dict[str, Any]],
+    note: str = "",
+) -> dict[str, Any]:
+    status = _status_for(items_by_id, item_ids)
+    return {
+        "number": number,
+        "objective": objective,
+        "status": status,
+        "mapped_requirements": item_ids,
+        "evidence": _evidence_for(items_by_id, item_ids),
+        "blockers": [] if status == "pass" else _blockers_for(items_by_id, item_ids),
+        "note": note,
+    }
+
+
+def _objective_checklist(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items_by_id = {str(item.get("id")): item for item in items}
+    return [
+        _objective_entry(
+            number=1,
+            objective="Fix and keep the hub-api full-suite launch-check failure green.",
+            item_ids=["hub_api_full_suite"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=2,
+            objective="Get a fresh live-provider run green, not just mock/provider-stub.",
+            item_ids=["live_provider_harness"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=3,
+            objective="Re-run lock compliance, parity, adversarial, full eval, and launch checks with fresh artifacts.",
+            item_ids=["lock_and_launch_artifacts"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=4,
+            objective="Capture staging and production runtime snapshots.",
+            item_ids=["runtime_snapshots"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=5,
+            objective="Pin real staging/prod origins, beta keys, provider mode, and release fingerprints.",
+            item_ids=["pinned_origins_beta_provider", "release_fingerprint_parity"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=6,
+            objective="Prove web app generate/remix/preset preview against deployed hub-api.",
+            item_ids=["deployed_http_smoke"],
+            items_by_id=items_by_id,
+            note="Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled.",
+        ),
+        _objective_entry(
+            number=7,
+            objective="Prove Chrome extension flow in the real target surface.",
+            item_ids=["chrome_extension_real_target"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=8,
+            objective="Decide and clean up the parallel stack story.",
+            item_ids=["parallel_stack_story"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=9,
+            objective="Harden durable infra: Redis/Postgres/vector store instead of local/in-memory assumptions.",
+            item_ids=["durable_infra"],
+            items_by_id=items_by_id,
+        ),
+        _objective_entry(
+            number=10,
+            objective="Final UX pass so draft workspace feels primary.",
+            item_ids=["draft_workspace_ux"],
+            items_by_id=items_by_id,
+        ),
+    ]
+
+
 def build_launch_audit() -> dict[str, Any]:
     report = _read_json(ROOT / "reports" / "launch" / "latest.json")
     preflight = _read_json(ROOT / "reports" / "launch" / "preflight.json")
@@ -299,6 +408,7 @@ def build_launch_audit() -> dict[str, Any]:
     ]
 
     incomplete = [item for item in items if item["status"] != "pass"]
+    objective_checklist = _objective_checklist(items)
     return {
         "generated_at": _utc_now_text(),
         "final_status": "complete" if not incomplete else "not_complete",
@@ -309,6 +419,7 @@ def build_launch_audit() -> dict[str, Any]:
             "surface_manifest": str(REPO_ROOT / "docs" / "ops" / "launch_surfaces.json"),
         },
         "items": items,
+        "objective_checklist": objective_checklist,
         "open_blocker_count": len(incomplete),
         "open_blockers": [
             {"id": item["id"], "blockers": item["blockers"]}
@@ -334,6 +445,18 @@ def _write_markdown(path: Path, audit: dict[str, Any]) -> None:
         evidence = "<br>".join(f"`{entry}`" for entry in item["evidence"])
         blockers = "<br>".join(f"`{entry}`" for entry in item["blockers"]) or "`none`"
         lines.append(f"| `{item['id']}` | `{item['status']}` | {evidence} | {blockers} |")
+    lines.append("")
+    lines.append("## A-Z Objective Checklist")
+    lines.append("")
+    lines.append("| # | Objective | Status | Mapped requirements | Blockers | Note |")
+    lines.append("|---:|---|---|---|---|---|")
+    for entry in audit["objective_checklist"]:
+        mapped = "<br>".join(f"`{item_id}`" for item_id in entry["mapped_requirements"])
+        blockers = "<br>".join(f"`{blocker}`" for blocker in entry["blockers"]) or "`none`"
+        note = entry.get("note") or ""
+        lines.append(
+            f"| {entry['number']} | {entry['objective']} | `{entry['status']}` | {mapped} | {blockers} | {note} |"
+        )
     lines.append("")
     lines.append("## Source Artifacts")
     lines.append("")

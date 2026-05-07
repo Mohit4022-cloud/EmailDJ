@@ -134,6 +134,12 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     assert "deployed_http_smoke" in blocked_ids
     assert "parallel_stack_story" not in blocked_ids
     assert "draft_workspace_ux" not in blocked_ids
+    checklist = {item["number"]: item for item in payload["objective_checklist"]}
+    assert len(checklist) == 10
+    assert checklist[1]["status"] == "pass"
+    assert checklist[4]["status"] == "blocked"
+    assert checklist[6]["mapped_requirements"] == ["deployed_http_smoke"]
+    assert "Limited rollout proves generate/remix" in checklist[6]["note"]
 
 
 def test_launch_audit_can_mark_complete_when_artifacts_cover_requirements(monkeypatch, tmp_path):
@@ -149,6 +155,7 @@ def test_launch_audit_can_mark_complete_when_artifacts_cover_requirements(monkey
 
     assert payload["final_status"] == "complete"
     assert payload["open_blocker_count"] == 0
+    assert all(item["status"] == "pass" for item in payload["objective_checklist"])
 
 
 def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):
@@ -165,4 +172,6 @@ def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):
     assert json_path.exists()
     assert md_path.exists()
     assert payload["final_status"] == "not_complete"
-    assert "Launch Completion Audit" in md_path.read_text(encoding="utf-8")
+    markdown = md_path.read_text(encoding="utf-8")
+    assert "Launch Completion Audit" in markdown
+    assert "A-Z Objective Checklist" in markdown
