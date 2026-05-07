@@ -93,6 +93,43 @@ def _operator_input_step(name: str) -> str:
     return f"Set `{name}` before running launch verification."
 
 
+def _deployment_discovery_context() -> dict[str, Any]:
+    path = ROOT / "reports" / "launch" / "deployment_discovery.json"
+    context: dict[str, Any] = {
+        "path": str(path),
+        "state": "missing",
+        "found": False,
+        "candidate_web_app_origin": None,
+        "usable_as_web_app_origin_candidate": False,
+        "clears_launch_blockers": False,
+        "operator_note": None,
+    }
+    if not path.exists():
+        return context
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001 - preflight should serialize report context, not crash on it
+        context["state"] = "malformed"
+        context["operator_note"] = f"Could not read deployment discovery artifact: {exc}"
+        return context
+    candidate = payload.get("candidate_web_app_origin") if payload.get("usable_as_web_app_origin_candidate") else None
+    context.update(
+        {
+            "state": "present",
+            "found": bool(payload.get("found")),
+            "candidate_web_app_origin": candidate,
+            "usable_as_web_app_origin_candidate": bool(payload.get("usable_as_web_app_origin_candidate")),
+            "clears_launch_blockers": bool(payload.get("clears_launch_blockers")),
+            "operator_note": (
+                "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
+                if candidate
+                else payload.get("launch_blocker_note")
+            ),
+        }
+    )
+    return context
+
+
 def _normalize_url(raw_url: str) -> str:
     parsed = urlparse(raw_url.strip())
     path = parsed.path.rstrip("/")
@@ -153,6 +190,7 @@ def _report_paths() -> tuple[Path, Path]:
 
 def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> dict[str, Any]:
     operator_input_sources = _load_launch_env()
+    deployment_discovery = _deployment_discovery_context()
     provider, provider_env = _required_provider_env()
     presence = {name: bool((os.environ.get(name) or "").strip()) for name in (*_REQUIRED_INPUTS, provider_env)}
     missing_inputs = [name for name, present in presence.items() if not present]
@@ -175,11 +213,17 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
         "probe_status_code": None,
         "transport_error_type": None,
         "transport_error": None,
+        "deployment_discovery": deployment_discovery,
         "next_steps": [],
     }
     if missing_inputs:
         result["failure_bucket"] = "operator_input_missing"
         result["next_steps"] = [_operator_input_step(name) for name in missing_inputs]
+        candidate = deployment_discovery.get("candidate_web_app_origin")
+        if candidate:
+            result["next_steps"].append(
+                f"Use discovered web-app candidate `{candidate}` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
+            )
         return result
     if operator_input_errors:
         result["failure_bucket"] = "operator_input_invalid"
@@ -255,6 +299,17 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
                 f"dotenv_value_ignored=`{source.get('dotenv_value_ignored')}` "
                 f"effective_present=`{source.get('effective_present')}`"
             )
+
+    deployment_discovery = dict(result.get("deployment_discovery") or {})
+    lines.extend(["", "## Deployment Discovery Context", ""])
+    lines.append(f"- `state`: `{deployment_discovery.get('state') or 'missing'}`")
+    lines.append(f"- `candidate_web_app_origin`: `{deployment_discovery.get('candidate_web_app_origin') or 'none'}`")
+    lines.append(
+        f"- `usable_as_web_app_origin_candidate`: `{deployment_discovery.get('usable_as_web_app_origin_candidate')}`"
+    )
+    lines.append(f"- `clears_launch_blockers`: `{deployment_discovery.get('clears_launch_blockers')}`")
+    if deployment_discovery.get("operator_note"):
+        lines.append(f"- `operator_note`: {deployment_discovery.get('operator_note')}")
 
     lines.extend(
         [

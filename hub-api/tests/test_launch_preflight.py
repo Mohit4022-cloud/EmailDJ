@@ -14,6 +14,25 @@ class _FakeResponse:
         self.status_code = status_code
 
 
+def _write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _write_deployment_discovery(root: Path) -> None:
+    _write_json(
+        root / "reports" / "launch" / "deployment_discovery.json",
+        {
+            "generated_at": "2026-05-07T20:58:58Z",
+            "found": True,
+            "candidate_web_app_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+            "usable_as_web_app_origin_candidate": True,
+            "clears_launch_blockers": False,
+            "launch_blocker_note": "candidate only",
+        },
+    )
+
+
 def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypatch):
     import scripts.launch_preflight as lp
 
@@ -44,6 +63,29 @@ def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypa
     assert "hub-api root URL" in result["next_steps"][0]
     assert "hub-api root URL" in result["next_steps"][1]
     assert "EMAILDJ_WEB_BETA_KEYS" in result["next_steps"][2]
+
+
+def test_launch_preflight_marks_discovered_web_origin_as_frontend_only(monkeypatch, tmp_path):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setattr(lp, "ROOT", tmp_path)
+    _write_deployment_discovery(tmp_path)
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("STAGING_BASE_URL", raising=False)
+    monkeypatch.delenv("PROD_BASE_URL", raising=False)
+    monkeypatch.delenv("BETA_KEY", raising=False)
+
+    result = lp.run_launch_preflight()
+    next_steps = "\n".join(result["next_steps"])
+
+    assert result["ready"] is False
+    assert result["deployment_discovery"]["candidate_web_app_origin"] == (
+        "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app"
+    )
+    assert result["deployment_discovery"]["clears_launch_blockers"] is False
+    assert "only for `WEB_APP_ORIGIN`" in next_steps
+    assert "do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`" in next_steps
 
 
 def test_launch_preflight_reports_dotenv_operator_inputs_as_ignored(monkeypatch, tmp_path):
@@ -184,4 +226,5 @@ def test_launch_preflight_main_writes_reports(monkeypatch, tmp_path, capsys):
     assert payload["ready"] is True
     assert payload["operator_input_sources"]["BETA_KEY"]["explicit_env_present"] is True
     assert '"ready": true' in captured.out
-    assert (tmp_path / "reports" / "launch" / "preflight.md").exists()
+    markdown = (tmp_path / "reports" / "launch" / "preflight.md").read_text(encoding="utf-8")
+    assert "## Deployment Discovery Context" in markdown

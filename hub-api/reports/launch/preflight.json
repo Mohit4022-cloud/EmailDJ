@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T20:19:16.978293Z",
+  "generated_at": "2026-05-07T21:17:50.921702Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -43,9 +43,19 @@
   "probe_status_code": null,
   "transport_error_type": null,
   "transport_error": null,
+  "deployment_discovery": {
+    "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
+    "state": "present",
+    "found": true,
+    "candidate_web_app_origin": "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app",
+    "usable_as_web_app_origin_candidate": true,
+    "clears_launch_blockers": false,
+    "operator_note": "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
+  },
   "next_steps": [
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
     "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
-    "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
+    "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification.",
+    "Use discovered web-app candidate `https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
   ]
 }
