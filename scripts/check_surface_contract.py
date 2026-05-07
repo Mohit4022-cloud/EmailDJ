@@ -28,12 +28,14 @@ PRIMARY_TARGETS = {
         "eval-full",
         "launch-check",
         "launch-audit",
+        "launch-handoff",
     },
     "launch-verify-deployed": set(),
     "launch-verify-web-app": set(),
     "launch-verify-extension": set(),
     "launch-preflight": set(),
     "launch-audit": set(),
+    "launch-handoff": set(),
     "render-blueprint-check": set(),
 }
 
@@ -241,6 +243,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-web-app",
             "make launch-verify-extension",
             "make launch-audit",
+            "make launch-handoff",
             "make render-blueprint-check",
             "render.yaml",
         ],
@@ -256,6 +259,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-web-app",
             "make launch-verify-extension",
             "make launch-audit",
+            "make launch-handoff",
             "make render-blueprint-check",
         ],
         "docs/ops/surface_contract.md": [
@@ -268,6 +272,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-web-app",
             "make launch-verify-extension",
             "make launch-audit",
+            "make launch-handoff",
             "make render-blueprint-check",
             "render.yaml",
         ],
@@ -282,6 +287,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-web-app",
             "make launch-verify-extension",
             "make launch-audit",
+            "make launch-handoff",
             "make render-blueprint-check",
         ],
     }

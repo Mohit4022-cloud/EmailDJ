@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-05-07T16:28:00.548310Z",
+  "current_status": "not_complete",
+  "launch_recommendation": "Not yet launch-ready",
+  "preflight_ready": false,
+  "provider": "openai",
+  "provider_env": "OPENAI_API_KEY",
+  "required_exports": [
+    {
+      "name": "STAGING_BASE_URL",
+      "value": "https://<staging-hub-api-root>",
+      "required_when": true,
+      "note": "Must be the staging Hub API root URL, not the web-app URL."
+    },
+    {
+      "name": "PROD_BASE_URL",
+      "value": "https://<prod-hub-api-root>",
+      "required_when": true,
+      "note": "Must be the production Hub API root URL and must differ from staging."
+    },
+    {
+      "name": "BETA_KEY",
+      "value": "<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>",
+      "required_when": true,
+      "note": "Must be exported explicitly in the shell; .env values are intentionally ignored."
+    },
+    {
+      "name": "EMAILDJ_EXPECTED_HUB_URL",
+      "value": "$STAGING_BASE_URL",
+      "required_when": true,
+      "note": "Used by release-bundle checks."
+    },
+    {
+      "name": "EMAILDJ_EXPECTED_BETA_KEY",
+      "value": "$BETA_KEY",
+      "required_when": true,
+      "note": "Used by extension release-bundle checks."
+    },
+    {
+      "name": "EMAILDJ_EXPECTED_PRESET_PREVIEW_PIPELINE",
+      "value": "off",
+      "required_when": true,
+      "note": "Keep off for limited rollout unless preview is intentionally enabled."
+    },
+    {
+      "name": "VITE_HUB_URL",
+      "value": "$STAGING_BASE_URL",
+      "required_when": true,
+      "note": "Build-time Hub API root for web-app and extension release verification."
+    },
+    {
+      "name": "VITE_EMAILDJ_BETA_KEY",
+      "value": "$BETA_KEY",
+      "required_when": true,
+      "note": "Build-time beta key for extension release verification."
+    },
+    {
+      "name": "VITE_PRESET_PREVIEW_PIPELINE",
+      "value": "off",
+      "required_when": true,
+      "note": "Build-time preview-pipeline flag for web-app release verification."
+    }
+  ],
+  "dashboard_inputs": [
+    {
+      "name": "EMAILDJ_LAUNCH_MODE",
+      "value": "limited_rollout",
+      "required_when": true
+    },
+    {
+      "name": "EMAILDJ_REAL_PROVIDER",
+      "value": "openai",
+      "required_when": true
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "value": "<openai-api-key>",
+      "required_when": true
+    },
+    {
+      "name": "WEB_APP_ORIGIN",
+      "value": "https://<deployed-web-app-origin>",
+      "required_when": true
+    },
+    {
+      "name": "CHROME_EXTENSION_ORIGIN",
+      "value": "chrome-extension://<shipped-extension-id>",
+      "required_when": true
+    },
+    {
+      "name": "EMAILDJ_WEB_BETA_KEYS",
+      "value": "<non-dev-beta-key-1>,<non-dev-beta-key-2>",
+      "required_when": true
+    },
+    {
+      "name": "EMAILDJ_WEB_RATE_LIMIT_PER_MIN",
+      "value": "300",
+      "required_when": true
+    },
+    {
+      "name": "USE_PROVIDER_STUB",
+      "value": "0",
+      "required_when": true
+    },
+    {
+      "name": "REDIS_URL",
+      "value": "<managed-redis-url>",
+      "required_when": true
+    },
+    {
+      "name": "DATABASE_URL",
+      "value": "<managed-postgres-url>",
+      "required_when": true
+    },
+    {
+      "name": "VECTOR_STORE_BACKEND",
+      "value": "pgvector",
+      "required_when": true
+    },
+    {
+      "name": "REDIS_FORCE_INMEMORY",
+      "value": "<unset or 0>",
+      "required_when": true
+    }
+  ],
+  "commands": [
+    "make render-blueprint-check",
+    "make launch-preflight",
+    "make launch-verify-deployed",
+    "make launch-audit"
+  ],
+  "open_blockers": [
+    {
+      "id": "deployed_preflight_inputs",
+      "requirement": "Operator exports staging/prod Hub API roots and one explicit deployed beta key.",
+      "blockers": [
+        "STAGING_BASE_URL",
+        "PROD_BASE_URL",
+        "BETA_KEY"
+      ]
+    },
+    {
+      "id": "runtime_snapshots",
+      "requirement": "Capture staging and production runtime snapshots.",
+      "blockers": [
+        "staging_runtime_snapshot_missing",
+        "production_runtime_snapshot_missing"
+      ]
+    },
+    {
+      "id": "pinned_origins_beta_provider",
+      "requirement": "Pin deployed web/extension origins, non-dev beta keys, and real provider mode.",
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder",
+        "web_app_origin_not_pinned:unset"
+      ]
+    },
+    {
+      "id": "durable_infra",
+      "requirement": "Use durable Redis/Postgres/pgvector instead of local or in-memory state.",
+      "blockers": [
+        "database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite",
+        "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
+        "vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend"
+      ]
+    },
+    {
+      "id": "deployed_http_smoke",
+      "requirement": "Prove deployed web generate/remix coverage against staging; require preview smoke only when preview is enabled.",
+      "blockers": [
+        "http_smoke_external_provider_missing_for_launch_mode:limited_rollout"
+      ]
+    },
+    {
+      "id": "release_fingerprint_parity",
+      "requirement": "Capture comparable staging/prod release fingerprints.",
+      "blockers": [
+        "release_fingerprint_unavailable"
+      ]
+    },
+    {
+      "id": "chrome_extension_real_target",
+      "requirement": "Prove the Chrome extension flow against the real shipped extension origin.",
+      "blockers": [
+        "chrome_extension_origin_not_pinned:default_dev_placeholder"
+      ]
+    },
+    {
+      "id": "launch_report_recommendation",
+      "requirement": "Launch-check itself must no longer report Not yet launch-ready.",
+      "blockers": [
+        "launch_check_not_ready"
+      ]
+    }
+  ],
+  "source_artifacts": {
+    "completion_audit": "/Users/mohit/EmailDJ/hub-api/reports/launch/completion_audit.json",
+    "launch_report": "/Users/mohit/EmailDJ/hub-api/reports/launch/latest.json",
+    "preflight": "/Users/mohit/EmailDJ/hub-api/reports/launch/preflight.json"
+  }
+}

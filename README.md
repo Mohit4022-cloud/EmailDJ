@@ -78,7 +78,7 @@ Local launch gates:
 make launch-gates-local
 ```
 
-This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, and `make launch-audit`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
+This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, `make launch-audit`, and `make launch-handoff`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
 
 Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
@@ -127,6 +127,14 @@ make launch-audit
 ```
 
 This writes `hub-api/reports/launch/completion_audit.json` and `.md`, mapping launch requirements to concrete evidence or blockers.
+
+Translate the current audit/preflight state into an operator handoff:
+
+```bash
+make launch-handoff
+```
+
+This writes `hub-api/reports/launch/operator_handoff.json` and `.md` with the exact shell export template, Render/Dashboard values, next commands, and current blocker groups. It does not include secret values.
 
 Check the deployed-run operator inputs before running the full deployed gate:
 

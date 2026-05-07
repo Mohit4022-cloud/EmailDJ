@@ -11,6 +11,7 @@
         "make hub-api-test",
         "make launch-check",
         "make launch-audit",
+        "make launch-handoff",
         "make launch-verify-deployed",
         "hub-api/reports/launch/latest.json"
       ]

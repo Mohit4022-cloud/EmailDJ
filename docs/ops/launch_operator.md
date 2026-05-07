@@ -212,6 +212,21 @@ Artifacts:
 
 The audit maps each A-to-Z launch requirement to concrete evidence or explicit blockers. It is non-blocking by default so operators can refresh the readout while work remains; use `cd hub-api && python scripts/launch_audit.py --fail-if-incomplete` when a hard completion gate is needed.
 
+## Operator handoff
+
+Run this from the repo root after `make launch-audit`:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-handoff
+```
+
+Artifacts:
+- `reports/launch/operator_handoff.json`
+- `reports/launch/operator_handoff.md`
+
+The handoff translates the current audit and preflight state into the exact operator export template, Render/Dashboard values, next commands, and open blocker groups. It uses placeholders only and must not contain live secret values.
+
 ## How to interpret artifacts
 
 - `provider_source=provider_stub`: stub harness only
