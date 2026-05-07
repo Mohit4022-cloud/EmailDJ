@@ -201,10 +201,49 @@ def _limited_rollout_env() -> dict[str, str]:
     env = _base_env()
     env["APP_ENV"] = "staging"
     env["EMAILDJ_LAUNCH_MODE"] = "limited_rollout"
+    env["CHROME_EXTENSION_ORIGIN"] = "chrome-extension://emaildj-test"
     env["WEB_APP_ORIGIN"] = "https://app.emaildj.test"
     env["EMAILDJ_WEB_BETA_KEYS"] = "ops-beta-key"
     env["EMAILDJ_WEB_RATE_LIMIT_PER_MIN"] = "300"
     return env
+
+
+def test_validate_env_limited_rollout_rejects_dev_chrome_origin(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["CHROME_EXTENSION_ORIGIN"] = "chrome-extension://dev"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="CHROME_EXTENSION_ORIGIN"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_local_web_origin_outside_prod(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["APP_ENV"] = "test"
+    env["WEB_APP_ORIGIN"] = "http://localhost:5174"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="WEB_APP_ORIGIN"):
+        _validate_env()
+
+
+def test_validate_env_limited_rollout_rejects_dev_beta_key_outside_prod(monkeypatch):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["APP_ENV"] = "test"
+    env["EMAILDJ_WEB_BETA_KEYS"] = "dev-beta-key"
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="dev-beta-key"):
+        _validate_env()
 
 
 def test_validate_env_limited_rollout_rejects_forced_inmemory_redis(monkeypatch):

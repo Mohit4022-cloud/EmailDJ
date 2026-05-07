@@ -133,6 +133,39 @@ def _require_safe_production_web_contract(app_env: str) -> None:
         raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
 
 
+def _require_pinned_launch_surfaces(launch_mode: str) -> None:
+    if launch_mode not in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS:
+        return
+
+    chrome_origin = (os.environ.get("CHROME_EXTENSION_ORIGIN") or "").strip()
+    if not chrome_origin or chrome_origin == "chrome-extension://dev":
+        raise RuntimeError(
+            f"{launch_mode} requires pinned CHROME_EXTENSION_ORIGIN; "
+            "replace chrome-extension://dev with the deployed extension origin."
+        )
+
+    web_origins = _configured_web_origins()
+    if not web_origins:
+        raise RuntimeError(f"{launch_mode} requires explicit WEB_APP_ORIGIN.")
+    if _origins_are_local_only(web_origins):
+        raise RuntimeError(f"{launch_mode} requires WEB_APP_ORIGIN to point to deployed web origin(s), not localhost.")
+
+    beta_raw = (os.environ.get("EMAILDJ_WEB_BETA_KEYS") or "").strip()
+    beta_keys = {part.strip() for part in beta_raw.split(",") if part.strip()}
+    if not beta_keys or "dev-beta-key" in beta_keys:
+        raise RuntimeError(f"{launch_mode} requires explicit EMAILDJ_WEB_BETA_KEYS without dev-beta-key.")
+
+    rate_limit_raw = (os.environ.get("EMAILDJ_WEB_RATE_LIMIT_PER_MIN") or "").strip()
+    if not rate_limit_raw:
+        raise RuntimeError(f"{launch_mode} requires explicit EMAILDJ_WEB_RATE_LIMIT_PER_MIN.")
+    try:
+        rate_limit = int(rate_limit_raw)
+    except ValueError as exc:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.") from exc
+    if rate_limit < 1:
+        raise RuntimeError("EMAILDJ_WEB_RATE_LIMIT_PER_MIN must be a positive integer.")
+
+
 def _redis_url_is_external(raw_url: str) -> bool:
     parsed = urlparse(raw_url)
     host = (parsed.hostname or "").strip().lower()
@@ -239,6 +272,7 @@ def _validate_env() -> None:
     mode = policies.quick_generate_mode
     provider = policies.real_provider_preference
     _require_safe_production_web_contract(policies.app_env)
+    _require_pinned_launch_surfaces(policies.launch_mode)
     _require_durable_redis_for_launch(policies.launch_mode)
     if configured_mode == "mock" and not policies.provider_stub_enabled:
         logger.warning(
