@@ -81,6 +81,25 @@ def test_build_scorecard_passes_seller_company_for_vendor_mismatch_ownership_che
     assert "FAIL_PROSPECT_OWNS_OFFER" in scorecard["fail_tags"]
 
 
+def test_build_scorecard_strips_body_header_without_blank_separator():
+    case = _case()
+    result = {
+        "case": case,
+        "email_text": (
+            "Subject: Trademark Search, Screening, and Brand Protection\n"
+            "Body:\n"
+            "Hi Sarah, There are signs first-touch quality matters more at Acme.\n\n"
+            "Open to a quick 15-minute chat next week?"
+        ),
+        "error": None,
+        "stream_error": {},
+        "stream_error_event_seen": False,
+    }
+
+    scorecard = _build_scorecard(result)
+    assert "FAIL_PROOF_DUMP" not in scorecard["fail_tags"]
+
+
 def test_build_summary_reports_provider_sources_and_remix_gates():
     case = _case()
     results = [
