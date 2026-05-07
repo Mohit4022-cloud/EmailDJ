@@ -474,6 +474,7 @@ def build_launch_audit() -> dict[str, Any]:
     objective_checklist = _objective_checklist(items)
     return {
         "generated_at": _utc_now_text(),
+        "current_git_sha": current_git_sha,
         "final_status": "complete" if not incomplete else "not_complete",
         "launch_report_recommendation": report.get("final_recommendation"),
         "source_artifacts": {
@@ -498,6 +499,7 @@ def _write_markdown(path: Path, audit: dict[str, Any]) -> None:
         "# Launch Completion Audit",
         "",
         f"- Generated at: `{audit['generated_at']}`",
+        f"- Current git SHA: `{audit.get('current_git_sha') or 'unknown'}`",
         f"- Final status: `{audit['final_status']}`",
         f"- Launch report recommendation: `{audit.get('launch_report_recommendation') or 'unset'}`",
         f"- Open blocker count: `{audit['open_blocker_count']}`",

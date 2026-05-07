@@ -1,10 +1,10 @@
 # Web App Deployment Probe
 
-- Generated at: `2026-05-07T21:57:29.294616Z`
-- Web app URL: `https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app`
-- Normalized origin: `https://email-ej2mwxbsn-mohits-projects-e629a988.vercel.app`
-- Source git SHA: `dad03aa51d18de50ffe5c3c9330881eb86f1eaf6`
-- Workspace git SHA at probe: `dad03aa51d18de50ffe5c3c9330881eb86f1eaf6`
+- Generated at: `2026-05-07T22:04:59.040511Z`
+- Web app URL: `https://email-5b3m17max-mohits-projects-e629a988.vercel.app`
+- Normalized origin: `https://email-5b3m17max-mohits-projects-e629a988.vercel.app`
+- Source git SHA: `d07a121392cc664feacb598120338463a7bb9d65`
+- Workspace git SHA at probe: `d07a121392cc664feacb598120338463a7bb9d65`
 - Probe matches workspace HEAD: `True`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`

@@ -1,5 +1,6 @@
 {
-  "generated_at": "2026-05-07T21:57:34.206823Z",
+  "generated_at": "2026-05-07T22:06:07.441695Z",
+  "current_git_sha": "d07a121392cc664feacb598120338463a7bb9d65",
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
@@ -118,9 +119,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
-        "web_app_probe_workspace_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
-        "web_app_probe_source_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
+        "current_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
+        "web_app_probe_workspace_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
+        "web_app_probe_source_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -303,9 +304,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
-        "web_app_probe_workspace_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
-        "web_app_probe_source_git_sha=dad03aa51d18de50ffe5c3c9330881eb86f1eaf6",
+        "current_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
+        "web_app_probe_workspace_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
+        "web_app_probe_source_git_sha=d07a121392cc664feacb598120338463a7bb9d65",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],

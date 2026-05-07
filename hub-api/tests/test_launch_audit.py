@@ -143,6 +143,7 @@ def test_launch_audit_marks_external_blockers(monkeypatch, tmp_path):
     payload = audit.build_launch_audit()
     blocked_ids = {item["id"] for item in payload["items"] if item["status"] == "blocked"}
 
+    assert payload["current_git_sha"] == "current-sha"
     assert payload["final_status"] == "not_complete"
     assert "deployed_preflight_inputs" in blocked_ids
     assert "runtime_snapshots" in blocked_ids
@@ -241,12 +242,15 @@ def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):
     _write_base_artifacts(root, repo_root, ready=False)
     monkeypatch.setattr(audit, "ROOT", root)
     monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "current-sha")
 
     json_path, md_path, payload = audit.write_launch_audit()
 
     assert json_path.exists()
     assert md_path.exists()
+    assert payload["current_git_sha"] == "current-sha"
     assert payload["final_status"] == "not_complete"
     markdown = md_path.read_text(encoding="utf-8")
     assert "Launch Completion Audit" in markdown
+    assert "Current git SHA" in markdown
     assert "A-Z Objective Checklist" in markdown
