@@ -55,7 +55,10 @@ def _write_base_artifacts(root: Path, repo_root: Path, *, ready: bool = False) -
                 "staging_runtime_snapshot": {"missing": not ready},
                 "production_runtime_snapshot": {"missing": not ready},
             },
-            "release_fingerprint_parity": {"runtime_source_used": "production_runtime_snapshot" if ready else "local_env"},
+            "release_fingerprint_parity": {
+                "runtime_source_used": "production_runtime_snapshot" if ready else "local_env",
+                "comparison_fields": ["git_sha"] if ready else [],
+            },
             "config_blockers": blockers,
             "config_warnings": warnings,
         },
@@ -232,6 +235,25 @@ def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):
     assert item["status"] == "blocked"
     assert "validation_fallback_enabled_for_launch_mode:limited_rollout" in item["blockers"]
     assert checklist[5]["status"] == "blocked"
+
+
+def test_launch_audit_names_release_fingerprint_parity_gaps(monkeypatch, tmp_path):
+    import scripts.launch_audit as audit
+
+    repo_root = tmp_path / "repo"
+    root = repo_root / "hub-api"
+    _write_base_artifacts(root, repo_root, ready=False)
+    monkeypatch.setattr(audit, "ROOT", root)
+    monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "current-sha")
+
+    payload = audit.build_launch_audit()
+    item = next(item for item in payload["items"] if item["id"] == "release_fingerprint_parity")
+
+    assert item["status"] == "blocked"
+    assert "release_fingerprint_unavailable" in item["blockers"]
+    assert "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env" in item["blockers"]
+    assert "release_fingerprint_comparison_fields_missing" in item["blockers"]
 
 
 def test_launch_audit_writes_json_and_markdown(monkeypatch, tmp_path):

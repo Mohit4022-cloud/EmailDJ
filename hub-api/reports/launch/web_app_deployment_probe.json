@@ -1,15 +1,15 @@
 {
-  "generated_at": "2026-05-07T22:15:52.506872Z",
-  "web_app_url": "https://email-93zl02rcj-mohits-projects-e629a988.vercel.app",
-  "normalized_web_app_origin": "https://email-93zl02rcj-mohits-projects-e629a988.vercel.app",
-  "source_git_sha": "6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
-  "workspace_git_sha_at_probe": "6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
+  "generated_at": "2026-05-07T22:24:17.576614Z",
+  "web_app_url": "https://email-ak7wnn34m-mohits-projects-e629a988.vercel.app",
+  "normalized_web_app_origin": "https://email-ak7wnn34m-mohits-projects-e629a988.vercel.app",
+  "source_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+  "workspace_git_sha_at_probe": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
   "probe_matches_workspace_head": true,
   "vercel_protection_bypass_env": "VERCEL_AUTOMATION_BYPASS_SECRET",
   "vercel_protection_bypass_configured": false,
   "vercel_protection_bypass_header": null,
   "index": {
-    "url": "https://email-93zl02rcj-mohits-projects-e629a988.vercel.app/",
+    "url": "https://email-ak7wnn34m-mohits-projects-e629a988.vercel.app/",
     "status_code": 401,
     "content_type": null,
     "error": "http_error:401"

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-07T22:16:01.617617Z",
-  "current_git_sha": "6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
+  "generated_at": "2026-05-07T22:24:27.010793Z",
+  "current_git_sha": "5127b41db9c8a1629299ca4d3be01dea53e01bc7",
   "final_status": "not_complete",
   "launch_report_recommendation": "Not yet launch-ready",
   "source_artifacts": {
@@ -119,9 +119,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
-        "web_app_probe_workspace_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
-        "web_app_probe_source_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
+        "current_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -142,10 +142,13 @@
       "evidence": [
         "release_fingerprint_available=True",
         "release_fingerprint=git_sha=043906e45907",
-        "runtime_source_used=local_env"
+        "runtime_source_used=local_env",
+        "comparison_fields=[]"
       ],
       "blockers": [
-        "release_fingerprint_unavailable"
+        "release_fingerprint_unavailable",
+        "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
+        "release_fingerprint_comparison_fields_missing"
       ]
     },
     {
@@ -283,12 +286,15 @@
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
         "release_fingerprint=git_sha=043906e45907",
-        "runtime_source_used=local_env"
+        "runtime_source_used=local_env",
+        "comparison_fields=[]"
       ],
       "blockers": [
         "chrome_extension_origin_not_pinned:default_dev_placeholder",
         "web_app_origin_not_pinned:unset",
-        "release_fingerprint_unavailable"
+        "release_fingerprint_unavailable",
+        "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
+        "release_fingerprint_comparison_fields_missing"
       ],
       "note": ""
     },
@@ -304,9 +310,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
-        "web_app_probe_workspace_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
-        "web_app_probe_source_git_sha=6ed596c2fe2a19b659b1c3c31e0088b04222fe73",
+        "current_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "web_app_probe_workspace_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
+        "web_app_probe_source_git_sha=5127b41db9c8a1629299ca4d3be01dea53e01bc7",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -437,7 +443,9 @@
     {
       "id": "release_fingerprint_parity",
       "blockers": [
-        "release_fingerprint_unavailable"
+        "release_fingerprint_unavailable",
+        "release_fingerprint_parity_not_from_production_runtime_snapshot:local_env",
+        "release_fingerprint_comparison_fields_missing"
       ]
     },
     {

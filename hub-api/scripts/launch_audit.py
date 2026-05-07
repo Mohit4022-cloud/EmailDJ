@@ -289,6 +289,21 @@ def build_launch_audit() -> dict[str, Any]:
         for blocker in report.get("config_blockers") or []
         if str(blocker).startswith("validation_fallback_")
     ]
+    release_parity = dict(report.get("release_fingerprint_parity") or {})
+    release_parity_source = str(release_parity.get("runtime_source_used") or "")
+    release_comparison_fields = [str(field) for field in release_parity.get("comparison_fields") or []]
+    release_fingerprint_blockers = [
+        "release_fingerprint_unavailable" if _has_warning(report, "release_fingerprint_unavailable") else "",
+        f"release_fingerprint_parity_not_from_production_runtime_snapshot:{release_parity_source or 'unset'}"
+        if release_parity_source != "production_runtime_snapshot"
+        else "",
+        "release_fingerprint_comparison_fields_missing" if not release_comparison_fields else "",
+        *[
+            blocker
+            for blocker in report.get("config_blockers") or []
+            if str(blocker).startswith("release_fingerprint_mismatch:")
+        ],
+    ]
 
     items = [
         _item(
@@ -418,21 +433,14 @@ def build_launch_audit() -> dict[str, Any]:
         _item(
             item_id="release_fingerprint_parity",
             requirement="Capture comparable staging/prod release fingerprints.",
-            passed=not _has_warning(report, "release_fingerprint_unavailable")
-            and not _has_blocker(report, "release_fingerprint_mismatch:"),
+            passed=not [blocker for blocker in release_fingerprint_blockers if blocker],
             evidence=[
                 f"release_fingerprint_available={report.get('release_fingerprint_available')}",
                 f"release_fingerprint={report.get('release_fingerprint') or 'unset'}",
-                f"runtime_source_used={(report.get('release_fingerprint_parity') or {}).get('runtime_source_used')}",
+                f"runtime_source_used={release_parity_source or 'unset'}",
+                f"comparison_fields={release_comparison_fields}",
             ],
-            blockers=[
-                "release_fingerprint_unavailable" if _has_warning(report, "release_fingerprint_unavailable") else "",
-                *[
-                    blocker
-                    for blocker in report.get("config_blockers") or []
-                    if str(blocker).startswith("release_fingerprint_mismatch:")
-                ],
-            ],
+            blockers=release_fingerprint_blockers,
         ),
         _item(
             item_id="chrome_extension_real_target",
