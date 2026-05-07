@@ -721,10 +721,44 @@ def test_launch_check_markdown_includes_runtime_config_sections(monkeypatch, tmp
     assert "## Localhost Smoke Evidence" in markdown
     assert "## Artifact Freshness And Provenance" in markdown
     assert "## Origin And Beta-Key Safety" in markdown
+    assert "## Render Blueprint Handoff" in markdown
     assert "`effective_provider_source`" in markdown
     assert "`effective_provider_model_identifier`" in markdown
     assert "`validation_fallback_allowed`" in markdown
+    assert "| render_blueprint_green |" in markdown
     assert "`comparison_fields`" in markdown
+
+
+def test_launch_check_blocks_failed_render_blueprint_contract(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    monkeypatch.setattr(
+        lc,
+        "_render_blueprint_contract",
+        lambda: {
+            "green": "red",
+            "checked_at": _now_text(),
+            "path": "/tmp/render.yaml",
+            "script": "/tmp/check_render_blueprint.py",
+            "exit_code": 1,
+            "errors": ["render_blueprint_contract_failed"],
+            "output_tail": ["Render Blueprint check FAILED"],
+        },
+    )
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert report["render_blueprint_green"] == "red"
+    assert "render_blueprint_contract_failed" in report["config_blockers"]
+    assert "Fix the repo-root Render Blueprint handoff" in "\n".join(report["operator_next_steps"])
+    assert report["final_recommendation"] == "Not yet launch-ready"
 
 
 def test_launch_check_blocks_validation_fallback_in_launch_mode(monkeypatch, tmp_path):

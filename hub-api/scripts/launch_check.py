@@ -16,6 +16,7 @@ from typing import Any, Callable
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+REPO_ROOT = ROOT.parent
 
 try:
     from dotenv import load_dotenv
@@ -273,6 +274,55 @@ def _run_command(command: list[str], *, cwd: Path) -> tuple[bool, str]:
     )
     output = "\n".join(part for part in (completed.stdout.strip(), completed.stderr.strip()) if part).strip()
     return completed.returncode == 0, output
+
+
+def _output_tail(output: str, *, max_lines: int = 12) -> list[str]:
+    lines = [line.rstrip() for line in output.splitlines() if line.strip()]
+    return lines[-max_lines:]
+
+
+def _render_blueprint_contract() -> dict[str, Any]:
+    script_path = REPO_ROOT / "scripts" / "check_render_blueprint.py"
+    blueprint_path = REPO_ROOT / "render.yaml"
+    checked_at = _timestamp_to_text(_utc_now())
+    if not blueprint_path.exists():
+        return {
+            "green": "red",
+            "checked_at": checked_at,
+            "path": str(blueprint_path),
+            "script": str(script_path),
+            "exit_code": None,
+            "errors": ["render_blueprint_missing"],
+            "output_tail": [],
+        }
+    if not script_path.exists():
+        return {
+            "green": "red",
+            "checked_at": checked_at,
+            "path": str(blueprint_path),
+            "script": str(script_path),
+            "exit_code": None,
+            "errors": ["render_blueprint_checker_missing"],
+            "output_tail": [],
+        }
+
+    completed = subprocess.run(
+        [sys.executable, str(script_path)],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    output = "\n".join(part for part in (completed.stdout.strip(), completed.stderr.strip()) if part).strip()
+    return {
+        "green": "green" if completed.returncode == 0 else "red",
+        "checked_at": checked_at,
+        "path": str(blueprint_path),
+        "script": str(script_path),
+        "exit_code": completed.returncode,
+        "errors": [] if completed.returncode == 0 else ["render_blueprint_contract_failed"],
+        "output_tail": _output_tail(output),
+    }
 
 
 def _run_fresh_checks() -> dict[str, str]:
@@ -713,6 +763,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "vector_store_config_state": report.get("vector_store_config_state"),
         "vector_store_backend": report.get("vector_store_backend"),
     }
+    render_blueprint = dict(report.get("render_blueprint_contract") or {})
 
     lines = [
         "# Launch Check",
@@ -726,6 +777,7 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "| Field | Value |",
         "|---|---|",
         f"| backend_green | `{report['backend_green']}` |",
+        f"| render_blueprint_green | `{report.get('render_blueprint_green') or 'not_run'}` |",
         f"| harness_green | `{report['harness_green']}` |",
         f"| shim_green | `{report['shim_green']}` |",
         f"| provider_green | `{report['provider_green']}` |",
@@ -826,6 +878,18 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
     for field, value in infra_fields.items():
         lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
 
+    lines.extend(["", "## Render Blueprint Handoff", ""])
+    lines.append(f"- `green`: `{render_blueprint.get('green') or 'not_run'}`")
+    lines.append(f"- `path`: `{render_blueprint.get('path') or 'missing'}`")
+    lines.append(f"- `checked_at`: `{render_blueprint.get('checked_at') or 'missing'}`")
+    lines.append(f"- `exit_code`: `{render_blueprint.get('exit_code') if render_blueprint.get('exit_code') is not None else 'n/a'}`")
+    blueprint_errors = list(render_blueprint.get("errors") or [])
+    if blueprint_errors:
+        lines.append(f"- `errors`: `{json.dumps(blueprint_errors)}`")
+    blueprint_output_tail = list(render_blueprint.get("output_tail") or [])
+    if blueprint_output_tail:
+        lines.append(f"- `output_tail`: `{json.dumps(blueprint_output_tail[-3:])}`")
+
     lines.extend(["", "## Config Blockers", ""])
     blockers = list(report.get("config_blockers") or [])
     if blockers:
@@ -890,6 +954,10 @@ def _artifact_needs_operator_refresh(report: dict[str, Any], label: str) -> bool
 
 def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactStatus, production_snapshot: ArtifactStatus) -> list[str]:
     steps: list[str] = []
+    if _has_blocker(report, "render_blueprint_contract_failed"):
+        steps.append(
+            "Fix the repo-root Render Blueprint handoff by running `make render-blueprint-check`, then rerun `make launch-check`."
+        )
     if _has_blocker(report, "web_app_origin_not_pinned:"):
         steps.append(
             "Set `WEB_APP_ORIGIN` to the deployed web-app origin for the target launch environment, then re-capture staging and production runtime snapshots."
@@ -1020,6 +1088,7 @@ def _read_launch_report(
         max_age=max_age,
         label="production",
     )
+    render_blueprint = _render_blueprint_contract()
 
     artifact_statuses = {
         "backend": backend,
@@ -1064,6 +1133,11 @@ def _read_launch_report(
     runtime_source_used = "production_runtime_snapshot" if _runtime_payload(production_snapshot) else "local_env"
     runtime_data = _runtime_payload(production_snapshot) or build_runtime_debug_payload()
     config_blockers, config_warnings = _config_findings(runtime_data)
+    if (
+        str(runtime_data.get("launch_mode") or "") in {"limited_rollout", "broad_launch"}
+        and render_blueprint.get("green") != "green"
+    ):
+        config_blockers.append("render_blueprint_contract_failed")
     release_blockers, release_warnings, release_parity = _release_comparison(
         staging_snapshot=staging_snapshot,
         production_snapshot=production_snapshot,
@@ -1129,6 +1203,8 @@ def _read_launch_report(
         "vector_store_config_state": runtime_data.get("vector_store_config_state"),
         "vector_store_backend": runtime_data.get("vector_store_backend"),
         "backend_green": backend_green,
+        "render_blueprint_green": render_blueprint.get("green"),
+        "render_blueprint_contract": render_blueprint,
         "harness_green": harness_green,
         "shim_green": shim_green,
         "provider_green": provider_green,
