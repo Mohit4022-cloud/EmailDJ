@@ -90,7 +90,7 @@ launch-verify-web-app:
 launch-verify-extension:
 	cd chrome-extension && npm test && npm run check:syntax && npm run build && npm run check:release-config
 
-launch-gates-local: surface-contract render-blueprint-check hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check
+launch-gates-local: surface-contract render-blueprint-check hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check launch-audit
 
 legacy-setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt

@@ -78,7 +78,7 @@ Local launch gates:
 make launch-gates-local
 ```
 
-This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, and `make launch-check`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
+This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, and `make launch-audit`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
 
 Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:

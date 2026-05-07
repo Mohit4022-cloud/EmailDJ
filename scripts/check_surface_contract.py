@@ -27,6 +27,7 @@ PRIMARY_TARGETS = {
         "eval-adversarial",
         "eval-full",
         "launch-check",
+        "launch-audit",
     },
     "launch-verify-deployed": set(),
     "launch-verify-web-app": set(),
