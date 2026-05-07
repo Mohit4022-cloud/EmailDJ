@@ -475,6 +475,25 @@ def test_atoms_sanitizer_repairs_bracket_placeholder_slots() -> None:
     assert sanitized["target_sentence_budget"] == 3
 
 
+def test_atoms_sanitizer_repairs_mechanism_only_value_atom() -> None:
+    orchestrator = _orchestrator([])
+    atoms = _atoms_for("direct")
+    atoms["value_atom"] = "Teams use workflow QA and scoring for outbound process reviews."
+
+    sanitized, metadata = orchestrator._sanitize_message_atoms_payload(
+        atoms,
+        preset_id="direct",
+        selected_angle=_angles()["angles"][0],
+        cta_line=CTA,
+        messaging_brief=_brief(),
+        budget_plan={"target_total_words": 51},
+    )
+
+    actions = metadata["atom_sanitation_report"]["actions"]
+    assert "repair_atoms_mechanism_value_atom" in actions
+    assert sanitized["value_atom"] == "Teams tighten message quality without adding review drag."
+
+
 def test_stage_a_invalid_json_fails_closed_no_subject_body() -> None:
     req = _request()
     orchestrator = _orchestrator([{}, {}])

@@ -744,6 +744,64 @@ class AIOrchestrator:
             outcome = "message quality"
         return f"{persona} tighten {outcome} without adding review drag."
 
+    def _message_atom_value_is_outcome_like(self, text: Any) -> bool:
+        lowered = str(text or "").strip().lower()
+        if not lowered:
+            return False
+        if re.search(r"\b\d+[%xk]?\b", lowered):
+            return True
+        if any(token in lowered for token in ("week", "month", "quarter", "day", "within", "faster")):
+            return True
+        outcome_words = (
+            "reduce",
+            "reduced",
+            "improve",
+            "improved",
+            "increase",
+            "increased",
+            "lift",
+            "lifted",
+            "fewer",
+            "less",
+            "more",
+            "higher",
+            "lower",
+            "cut",
+            "protect",
+            "stabilize",
+            "scale",
+            "scaled",
+            "keep",
+            "keeps",
+            "maintain",
+            "maintains",
+            "standardize",
+            "standardized",
+            "tighten",
+            "tightened",
+        )
+        if any(word in lowered for word in outcome_words):
+            return True
+        concrete_outcome_words = (
+            "reliability",
+            "accuracy",
+            "consistency",
+            "coverage",
+            "conversion",
+            "variance",
+            "lag",
+            "delay",
+            "leakage",
+            "throughput",
+            "quality",
+            "handoff",
+            "forecast",
+            "pipeline",
+        )
+        return bool(re.search(r"\bgain(?:s|ed)?\b", lowered)) and any(
+            word in lowered for word in concrete_outcome_words
+        )
+
     def _sanitize_message_atoms_payload(
         self,
         atoms: dict[str, Any],
@@ -786,6 +844,12 @@ class AIOrchestrator:
                 messaging_brief=messaging_brief,
             )
             actions.append("repair_atoms_placeholder_value_atom")
+        elif not self._message_atom_value_is_outcome_like(out.get("value_atom")):
+            out["value_atom"] = self._fallback_placeholder_value_atom(
+                selected_angle=selected_angle,
+                messaging_brief=messaging_brief,
+            )
+            actions.append("repair_atoms_mechanism_value_atom")
 
         selected_hook_id = str(selected_angle.get("selected_hook_id") or "").strip()
         raw_hook_ids = list(out.get("used_hook_ids") or [])
