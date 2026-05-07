@@ -15,6 +15,7 @@ from email_generation.runtime_policies import resolve_runtime_policies
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
+_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "::1"}
 _RELEASE_IDENTITY_KEYS = (
     "release_fingerprint",
     "git_sha",
@@ -38,6 +39,9 @@ _RUNTIME_DEBUG_RECOMMENDED_FIELDS = (
     "app_env",
     "preview_pipeline_enabled",
     "release_fingerprint_available",
+    "redis_config_state",
+    "database_config_state",
+    "vector_store_config_state",
     "web_rate_limit_per_min",
     "web_rate_limit_source",
     "effective_provider",
@@ -131,6 +135,52 @@ def _rate_limit_value() -> int:
     return max(value, 1)
 
 
+def _redis_config_state() -> str:
+    if (os.environ.get("REDIS_FORCE_INMEMORY") or "").strip() == "1":
+        return "forced_inmemory"
+    raw_url = (os.environ.get("REDIS_URL") or "").strip()
+    if not raw_url:
+        return "default_local_redis"
+    parsed = urlparse(raw_url)
+    host = (parsed.hostname or "").strip().lower()
+    if host in _LOCAL_INFRA_HOSTS:
+        return "local_redis"
+    if parsed.scheme in {"redis", "rediss"} and host:
+        return "external_redis_configured"
+    return "redis_configured_unknown"
+
+
+def _database_config_state() -> str:
+    raw_url = (os.environ.get("DATABASE_URL") or "").strip()
+    if not raw_url:
+        return "default_local_sqlite"
+    parsed = urlparse(raw_url)
+    scheme = (parsed.scheme or "").strip().lower()
+    if scheme.startswith("sqlite"):
+        return "local_sqlite"
+    if scheme.startswith("postgres"):
+        host = (parsed.hostname or "").strip().lower()
+        if host in _LOCAL_INFRA_HOSTS:
+            return "local_postgres"
+        return "external_postgres_configured"
+    return "database_configured_unknown"
+
+
+def _vector_store_config_state() -> str:
+    backend = (os.environ.get("VECTOR_STORE_BACKEND") or "memory").strip().lower()
+    if backend in {"", "memory", "inmemory", "in_memory"}:
+        return "memory_backend"
+    if backend == "pinecone":
+        if _env_value("PINECONE_API_KEY") and _env_value("PINECONE_INDEX_NAME"):
+            return "pinecone_configured"
+        return "pinecone_missing_config"
+    if backend == "pgvector":
+        if _database_config_state() == "external_postgres_configured":
+            return "pgvector_configured"
+        return "pgvector_missing_postgres_config"
+    return "vector_store_configured_unknown"
+
+
 def validate_runtime_debug_payload(payload: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise TypeError("runtime debug payload must be a JSON object")
@@ -207,6 +257,10 @@ def build_runtime_debug_payload() -> dict[str, Any]:
         "release_fingerprint": release_fingerprint,
         "release_fingerprint_available": bool(release_fingerprint),
         **release_fields,
+        "redis_config_state": _redis_config_state(),
+        "database_config_state": _database_config_state(),
+        "vector_store_config_state": _vector_store_config_state(),
+        "vector_store_backend": (os.environ.get("VECTOR_STORE_BACKEND") or "memory").strip().lower() or "memory",
         "chrome_extension_origin": chrome_extension_origin or None,
         "chrome_extension_origin_state": _chrome_extension_origin_state(chrome_extension_origin),
         "web_app_origin": web_app_origin or None,

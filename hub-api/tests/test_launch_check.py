@@ -53,6 +53,10 @@ def _runtime_snapshot_payload(**overrides) -> dict:
         "beta_keys_state": "explicit_pinned",
         "web_rate_limit_per_min": 300,
         "web_rate_limit_source": "explicit_env",
+        "redis_config_state": "external_redis_configured",
+        "database_config_state": "external_postgres_configured",
+        "vector_store_config_state": "pgvector_configured",
+        "vector_store_backend": "pgvector",
     }
     payload.update(overrides)
     return payload
@@ -133,6 +137,10 @@ _LOCAL_RUNTIME_ENV_KEYS = (
     "EMAILDJ_ROUTE_REMIX_ENABLED",
     "EMAILDJ_ROUTE_PREVIEW_ENABLED",
     "EMAILDJ_PRESET_PREVIEW_PIPELINE",
+    "REDIS_FORCE_INMEMORY",
+    "REDIS_URL",
+    "DATABASE_URL",
+    "VECTOR_STORE_BACKEND",
 )
 
 
@@ -284,6 +292,7 @@ def test_launch_check_uses_dotenv_app_env_when_shell_env_missing(monkeypatch, tm
     monkeypatch.setenv("WEB_APP_ORIGIN", "https://staging.emaildj.test")
     monkeypatch.setenv("EMAILDJ_WEB_BETA_KEYS", "ops-beta-key")
     monkeypatch.setenv("EMAILDJ_WEB_RATE_LIMIT_PER_MIN", "300")
+    monkeypatch.setenv("REDIS_URL", "rediss://cache.emaildj.test:6379/0")
     (tmp_path / ".env").write_text("APP_ENV=staging\n", encoding="utf-8")
     _write_launch_artifacts(tmp_path)
 
@@ -333,6 +342,49 @@ def test_launch_check_blocks_stub_enabled_limited_rollout(monkeypatch, tmp_path)
     assert "provider_stub_enabled_for_launch_mode:limited_rollout" in report["config_blockers"]
     assert "resolved_provider_source_not_external_provider:provider_stub" in report["config_blockers"]
     assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_blocks_non_durable_redis_in_limited_rollout(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(redis_config_state="default_local_redis"),
+        production=_runtime_snapshot_payload(redis_config_state="default_local_redis"),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "redis_not_durable_for_launch_mode:limited_rollout:default_local_redis" in report["config_blockers"]
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
+def test_launch_check_warns_on_local_database_and_vector_store(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(
+            database_config_state="default_local_sqlite",
+            vector_store_config_state="memory_backend",
+            vector_store_backend="memory",
+        ),
+        production=_runtime_snapshot_payload(
+            database_config_state="default_local_sqlite",
+            vector_store_config_state="memory_backend",
+            vector_store_backend="memory",
+        ),
+    )
+
+    report = lc._read_launch_report(localhost_smoke_summary="", max_age_hours=72)
+
+    assert "database_not_durable:default_local_sqlite" in report["config_warnings"]
+    assert "vector_store_not_durable:memory_backend" in report["config_warnings"]
+    assert report["config_blockers"] == []
 
 
 def test_launch_check_blocks_quick_generate_mode_mismatch(monkeypatch, tmp_path):

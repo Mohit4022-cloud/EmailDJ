@@ -13,7 +13,7 @@ Generated from `hub-api/.env.example` + repository env usage.
 | BRAVE_SEARCH_API_KEY | yes | ...       # fallback | 0 | - |
 | CHROME_EXTENSION_ORIGIN | yes | chrome-extension://YOUR_EXTENSION_ID  # Required CORS ori... | 19 | hub-api/evals/runner.py, hub-api/main.py, hub-api/runtime_debug.py |
 | CONTEXT_VAULT_CACHE_TTL_SECONDS | yes | 3600 | 0 | - |
-| DATABASE_URL | yes | postgresql://user:password@localhost:5432/emaildj | 1 | hub-api/infra/db.py |
+| DATABASE_URL | yes | postgresql://user:password@localhost:5432/emaildj | 2 | hub-api/infra/db.py, hub-api/runtime_debug.py |
 | DEEP_RESEARCH_JOB_TTL_SECONDS | yes | 86400 | 1 | hub-api/api/routes/deep_research.py |
 | DEEP_RESEARCH_RATE_LIMIT_PER_HOUR | yes | 200 | 0 | - |
 | EMAILDJ_CAMPAIGN_INTELLIGENCE_MODE | yes | auto  # auto\|real\|mock\|fallback | 1 | hub-api/tests/integration/test_campaign_assignment_lifecycle.py |
@@ -71,8 +71,8 @@ Generated from `hub-api/.env.example` + repository env usage.
 | QUICK_PROVIDER_FAILURE_ALERT_STEP | yes | 5 | 2 | hub-api/email_generation/quick_generate.py, hub-api/tests/integration/test_provider_failure_alerting.py |
 | QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD | yes | 5 | 2 | hub-api/email_generation/quick_generate.py, hub-api/tests/integration/test_provider_failure_alerting.py |
 | QUICK_REQUEST_TTL_SECONDS | yes | 300 | 1 | hub-api/api/routes/quick_generate.py |
-| REDIS_FORCE_INMEMORY | no | - | 17 | hub-api/evals/runner.py, hub-api/infra/redis_client.py, hub-api/scripts/capture_ui_session.py |
-| REDIS_URL | yes | redis://localhost:6379/0  # Required for deployed hub-api... | 1 | hub-api/infra/redis_client.py |
+| REDIS_FORCE_INMEMORY | yes | 0              # Local/test only. Staging/prod must stay... | 18 | hub-api/evals/runner.py, hub-api/infra/redis_client.py, hub-api/runtime_debug.py |
+| REDIS_URL | yes | redis://localhost:6379/0  # Required for deployed hub-api... | 2 | hub-api/infra/redis_client.py, hub-api/runtime_debug.py |
 | SALESFORCE_ACCESS_TOKEN | yes | ... | 1 | hub-api/tests/integration/test_campaign_assignment_lifecycle.py |
 | SALESFORCE_API_VERSION | yes | v59.0 | 0 | - |
 | SALESFORCE_CLIENT_ID | yes | ... | 0 | - |
@@ -82,7 +82,7 @@ Generated from `hub-api/.env.example` + repository env usage.
 | SERPER_API_KEY | yes | ...             # primary | 0 | - |
 | SLACK_WEBHOOK_URL | yes | https://hooks.slack.com/services/... | 2 | hub-api/infra/alerting.py, hub-api/tests/integration/test_provider_failure_alerting.py |
 | USE_PROVIDER_STUB | yes | 0                 # Deployed services must use 0. Set 1 o... | 10 | hub-api/evals/runner.py, hub-api/scripts/debug_run_harness.py, hub-api/scripts/mock_e2e_smoke.py |
-| VECTOR_STORE_BACKEND | yes | pinecone   # or "pgvector" | 1 | hub-api/infra/vector_store.py |
+| VECTOR_STORE_BACKEND | yes | pinecone   # or "pgvector" | 2 | hub-api/infra/vector_store.py, hub-api/runtime_debug.py |
 | VITE_ALLOW_MOCK_AI | no | - | 1 | web-app/src/main.js |
 | VITE_RESPONSE_CONTRACT | no | - | 1 | web-app/src/main.js |
 | WEB_APP_ORIGIN | yes | http://localhost:5174                         # Required... | 7 | hub-api/main.py, hub-api/runtime_debug.py, hub-api/scripts/capture_ui_session.py |

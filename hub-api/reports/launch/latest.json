@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-07T04:19:34.981072Z",
+  "generated_at": "2026-05-07T04:26:05.983609Z",
   "max_age_hours": 72,
   "recommended_max_age_hours": 48,
   "app_env": "staging",
@@ -24,9 +24,9 @@
     "preview": "launch_mode:limited_rollout"
   },
   "preview_pipeline_enabled": false,
-  "release_fingerprint": "git_sha=18fa76d54f3d",
+  "release_fingerprint": "git_sha=78f56ffd53ff",
   "release_fingerprint_available": true,
-  "git_sha": "18fa76d54f3d",
+  "git_sha": "78f56ffd53ff",
   "build_id": null,
   "image_tag": null,
   "release_version": null,
@@ -37,6 +37,10 @@
   "beta_keys_state": "explicit_pinned",
   "web_rate_limit_per_min": 300,
   "web_rate_limit_source": "explicit_env",
+  "redis_config_state": "forced_inmemory",
+  "database_config_state": "default_local_sqlite",
+  "vector_store_config_state": "memory_backend",
+  "vector_store_backend": "memory",
   "backend_green": "green",
   "harness_green": "green",
   "shim_green": "green",
@@ -49,13 +53,16 @@
   "claims_policy_intervention_count": 0,
   "config_blockers": [
     "chrome_extension_origin_not_pinned:default_dev_placeholder",
+    "redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory",
     "web_app_origin_not_pinned:unset"
   ],
   "config_warnings": [
+    "database_not_durable:default_local_sqlite",
     "production_runtime_snapshot_missing",
     "release_fingerprint_unavailable",
     "runtime_parity_evaluated_from_local_env_only",
-    "staging_runtime_snapshot_missing"
+    "staging_runtime_snapshot_missing",
+    "vector_store_not_durable:memory_backend"
   ],
   "final_recommendation": "Not yet launch-ready",
   "runtime_reference": {
@@ -87,7 +94,7 @@
     "backend": {
       "label": "backend",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json",
-      "timestamp": "2026-05-07T04:19:29Z",
+      "timestamp": "2026-05-07T04:25:56Z",
       "age_hours": 0.0,
       "missing": false,
       "malformed": false,
@@ -102,7 +109,7 @@
       "label": "provider_stub_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json",
       "timestamp": "2026-05-07T04:15:46.581743Z",
-      "age_hours": 0.06,
+      "age_hours": 0.17,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -116,7 +123,7 @@
       "label": "external_provider_harness",
       "path": "/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json",
       "timestamp": "2026-05-07T04:08:44.145741Z",
-      "age_hours": 0.18,
+      "age_hours": 0.29,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -130,7 +137,7 @@
       "label": "provider_shim_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json",
       "timestamp": "2026-05-07T03:38:14.704193Z",
-      "age_hours": 0.69,
+      "age_hours": 0.8,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,
@@ -144,7 +151,7 @@
       "label": "external_provider_capture",
       "path": "/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T033921Z/summary.json",
       "timestamp": "2026-05-07T03:39:52.319820Z",
-      "age_hours": 0.66,
+      "age_hours": 0.77,
       "missing": false,
       "malformed": false,
       "schema_incomplete": false,

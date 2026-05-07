@@ -31,6 +31,10 @@ DEFAULT_MAX_AGE_HOURS = 72
 DEFAULT_RECOMMENDED_MAX_AGE_HOURS = 48
 _PROD_APP_ENVS = {"staging", "prod", "production"}
 _RELEASE_FINGERPRINT_FIELDS = ("git_sha", "build_id", "image_tag", "release_version")
+_LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
+_DURABLE_REDIS_STATES = {"external_redis_configured"}
+_LOCAL_DATABASE_STATES = {"default_local_sqlite", "local_sqlite", "local_postgres"}
+_NON_DURABLE_VECTOR_STATES = {"memory_backend", "pinecone_missing_config", "pgvector_missing_postgres_config"}
 
 
 @dataclass
@@ -483,6 +487,9 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
     chrome_extension_origin_state = str(runtime_data.get("chrome_extension_origin_state") or "unset").strip()
     web_app_origin_state = str(runtime_data.get("web_app_origin_state") or "unset").strip()
     beta_keys_state = str(runtime_data.get("beta_keys_state") or "unset").strip()
+    redis_config_state = str(runtime_data.get("redis_config_state") or "unknown").strip()
+    database_config_state = str(runtime_data.get("database_config_state") or "unknown").strip()
+    vector_store_config_state = str(runtime_data.get("vector_store_config_state") or "unknown").strip()
 
     blockers: list[str] = []
     if bool(runtime_data.get("provider_stub_enabled")) and launch_mode in {"limited_rollout", "broad_launch"}:
@@ -499,6 +506,8 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
         blockers.append(f"web_app_origin_not_pinned:{web_app_origin_state}")
     if launch_mode == "limited_rollout" and beta_keys_state != "explicit_pinned":
         blockers.append(f"beta_keys_not_safe:{beta_keys_state}")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_DURABLE_REDIS and redis_config_state not in _DURABLE_REDIS_STATES:
+        blockers.append(f"redis_not_durable_for_launch_mode:{launch_mode}:{redis_config_state}")
 
     warnings: list[str] = []
     if app_env not in _PROD_APP_ENVS:
@@ -508,6 +517,14 @@ def _config_findings(runtime_data: dict[str, Any]) -> tuple[list[str], list[str]
             warnings.append(f"{route_name}_disabled_explicitly")
     if str(runtime_data.get("web_rate_limit_source") or "").strip() != "explicit_env":
         warnings.append("web_rate_limit_default_drift_unpinned")
+    if database_config_state in _LOCAL_DATABASE_STATES:
+        warnings.append(f"database_not_durable:{database_config_state}")
+    elif database_config_state == "unknown":
+        warnings.append("database_config_state_unavailable")
+    if vector_store_config_state in _NON_DURABLE_VECTOR_STATES:
+        warnings.append(f"vector_store_not_durable:{vector_store_config_state}")
+    elif vector_store_config_state == "unknown":
+        warnings.append("vector_store_config_state_unavailable")
     return blockers, warnings
 
 
@@ -564,6 +581,12 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
         "beta_keys_state": report.get("beta_keys_state"),
         "web_rate_limit_per_min": report.get("web_rate_limit_per_min"),
         "web_rate_limit_source": report.get("web_rate_limit_source"),
+    }
+    infra_fields = {
+        "redis_config_state": report.get("redis_config_state"),
+        "database_config_state": report.get("database_config_state"),
+        "vector_store_config_state": report.get("vector_store_config_state"),
+        "vector_store_backend": report.get("vector_store_backend"),
     }
 
     lines = [
@@ -650,6 +673,10 @@ def _write_launch_markdown(report: dict[str, Any], path: Path) -> None:
 
     lines.extend(["", "## Origin And Beta-Key Safety", ""])
     for field, value in origin_fields.items():
+        lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
+
+    lines.extend(["", "## Durable Infra Readiness", ""])
+    for field, value in infra_fields.items():
         lines.append(f"- `{field}`: `{value if value is not None else 'unset'}`")
 
     lines.extend(["", "## Config Blockers", ""])
@@ -855,6 +882,10 @@ def _read_launch_report(
         "beta_keys_state": runtime_data.get("beta_keys_state"),
         "web_rate_limit_per_min": runtime_data.get("web_rate_limit_per_min"),
         "web_rate_limit_source": runtime_data.get("web_rate_limit_source"),
+        "redis_config_state": runtime_data.get("redis_config_state"),
+        "database_config_state": runtime_data.get("database_config_state"),
+        "vector_store_config_state": runtime_data.get("vector_store_config_state"),
+        "vector_store_backend": runtime_data.get("vector_store_backend"),
         "backend_green": backend_green,
         "harness_green": harness_green,
         "shim_green": shim_green,

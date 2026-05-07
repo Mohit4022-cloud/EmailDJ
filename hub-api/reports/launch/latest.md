@@ -1,6 +1,6 @@
 # Launch Check
 
-- Generated at: `2026-05-07T04:19:34.981072Z`
+- Generated at: `2026-05-07T04:26:05.983609Z`
 - Launch mode: `limited_rollout`
 - Final recommendation: `Not yet launch-ready`
 - Hard freshness threshold (hours): `72`
@@ -52,11 +52,11 @@
 
 ## Artifact Freshness And Provenance
 
-- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-05-07T04:19:29Z` age_hours=`0.0` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-05-07T04:15:46.581743Z` age_hours=`0.06` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-05-07T04:08:44.145741Z` age_hours=`0.18` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json` timestamp=`2026-05-07T03:38:14.704193Z` age_hours=`0.69` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
-- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T033921Z/summary.json` timestamp=`2026-05-07T03:39:52.319820Z` age_hours=`0.66` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `backend` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/backend_suite.json` timestamp=`2026-05-07T04:25:56Z` age_hours=`0.0` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_stub_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/provider_stub/latest.json` timestamp=`2026-05-07T04:15:46.581743Z` age_hours=`0.17` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_harness` path=`/Users/mohit/EmailDJ/hub-api/reports/external_provider/latest.json` timestamp=`2026-05-07T04:08:44.145741Z` age_hours=`0.29` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `provider_shim_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/provider_shim/20260507T033814Z/summary.json` timestamp=`2026-05-07T03:38:14.704193Z` age_hours=`0.8` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
+- `external_provider_capture` path=`/Users/mohit/EmailDJ/hub-api/debug_runs/launch_ops/external_provider/20260507T033921Z/summary.json` timestamp=`2026-05-07T03:39:52.319820Z` age_hours=`0.77` stale=`False` malformed=`False` schema_incomplete=`False` missing=`False`
 - `localhost_smoke` path=`missing` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
 - `staging_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/staging.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
 - `production_runtime_snapshot` path=`/Users/mohit/EmailDJ/hub-api/reports/launch/runtime_snapshots/production.json` timestamp=`missing` age_hours=`n/a` stale=`False` malformed=`False` schema_incomplete=`False` missing=`True`
@@ -71,17 +71,27 @@
 - `web_rate_limit_per_min`: `300`
 - `web_rate_limit_source`: `explicit_env`
 
+## Durable Infra Readiness
+
+- `redis_config_state`: `forced_inmemory`
+- `database_config_state`: `default_local_sqlite`
+- `vector_store_config_state`: `memory_backend`
+- `vector_store_backend`: `memory`
+
 ## Config Blockers
 
 - `chrome_extension_origin_not_pinned:default_dev_placeholder`
+- `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`
 - `web_app_origin_not_pinned:unset`
 
 ## Config Warnings
 
+- `database_not_durable:default_local_sqlite`
 - `production_runtime_snapshot_missing`
 - `release_fingerprint_unavailable`
 - `runtime_parity_evaluated_from_local_env_only`
 - `staging_runtime_snapshot_missing`
+- `vector_store_not_durable:memory_backend`
 
 ## Artifact Sources
 
