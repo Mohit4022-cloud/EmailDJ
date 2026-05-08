@@ -245,6 +245,7 @@ The handoff translates the current audit and preflight state into the exact oper
 - `provider_source=external_provider`: actual provider-backed verification exists
 - `provider_green=green` only counts when an external-provider artifact exists
 - `provider_green=not_run` means no external-provider artifact was produced
+- `provider_green=red` means external-provider evidence exists but failed and must be rerun or fixed before launch
 - `http_smoke_route_missing:<route>` means the deployed HTTP smoke artifact did not prove that route
 - `http_smoke_external_provider_missing_for_launch_mode:<mode>` means the smoke artifact was not provider-backed and cannot satisfy launch evidence
 

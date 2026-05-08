@@ -297,6 +297,7 @@ def _check_docs() -> list[str]:
         ],
         "docs/ops/launch_operator.md": [
             "provider_green=green",
+            "provider_green=red",
             "does not satisfy limited-rollout launch proof",
         ],
         "docs/ops/release_checklist.md": [
@@ -358,6 +359,7 @@ def _check_launch_check_contract() -> list[str]:
         for snippet in [
             'provider_green == "green"',
             "external_provider_artifact_missing_for_launch_mode:",
+            "external_provider_artifact_red_for_launch_mode:",
         ]:
             _require_snippet(launch_check, snippet, path)
     except (AssertionError, FileNotFoundError) as exc:

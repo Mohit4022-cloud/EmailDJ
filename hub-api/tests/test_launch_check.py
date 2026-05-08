@@ -985,6 +985,53 @@ def test_launch_check_surfaces_provider_stub_localhost_smoke(monkeypatch, tmp_pa
     assert "http_smoke_external_provider_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
 
 
+def test_launch_check_blocks_red_external_provider_artifact(monkeypatch, tmp_path):
+    import scripts.launch_check as lc
+
+    monkeypatch.setattr(lc, "ROOT", tmp_path)
+    _write_launch_artifacts(tmp_path)
+    _write_runtime_snapshots(
+        tmp_path,
+        staging=_runtime_snapshot_payload(),
+        production=_runtime_snapshot_payload(),
+    )
+    _write_json(
+        tmp_path / "reports" / "external_provider" / "latest.json",
+        {
+            "generated_at": _now_text(),
+            "summary": {
+                "failed_cases": 1,
+                "provider_source": "external_provider",
+                "required_field_miss_count": 0,
+                "under_length_miss_count": 0,
+                "top_violation_codes": {"provider_timeout": 1},
+                "claims_policy_intervention_count": 0,
+            },
+        },
+    )
+    _write_json(
+        tmp_path / "debug_runs" / "ui_sessions" / "20260307T211602Z" / "summary.json",
+        {
+            "captured_at_utc": _now_text(),
+            "provider_source": "external_provider",
+            "launch_gates": {
+                "shim_green": "not_run",
+                "provider_green": "red",
+                "remix_green": "green",
+            },
+        },
+    )
+    smoke_path = _write_localhost_smoke(tmp_path)
+
+    report = lc._read_launch_report(localhost_smoke_summary=str(smoke_path), max_age_hours=72)
+    steps = "\n".join(report["operator_next_steps"])
+
+    assert report["provider_green"] == "red"
+    assert "external_provider_artifact_red_for_launch_mode:limited_rollout" in report["config_blockers"]
+    assert "Run deployed Hub API HTTP smoke against staging" in steps
+    assert report["final_recommendation"] == "Not yet launch-ready"
+
+
 def test_launch_check_blocks_failed_localhost_smoke(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
