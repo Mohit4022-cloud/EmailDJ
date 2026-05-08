@@ -262,6 +262,16 @@ def build_launch_handoff() -> dict[str, Any]:
             "note": "Must be exported explicitly in the shell; .env values are intentionally ignored.",
         },
         {
+            "name": provider_env,
+            "value": f"<{provider}-api-key>",
+            "required_when": (
+                "deployed_preflight_inputs" in blocked
+                or provider_env in missing_inputs
+                or preflight_needs_inputs
+            ),
+            "note": "Required by launch-preflight provider transport and local real-provider smoke.",
+        },
+        {
             "name": VERCEL_BYPASS_ENV,
             "value": "<vercel-automation-bypass-secret>",
             "required_when": VERCEL_BYPASS_ENV in missing_inputs

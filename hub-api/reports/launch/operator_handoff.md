@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T02:04:19.265335Z`
+- Generated at: `2026-05-08T02:14:20.266318Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -17,6 +17,7 @@
 export STAGING_BASE_URL="https://<staging-hub-api-root>"
 export PROD_BASE_URL="https://<prod-hub-api-root>"
 export BETA_KEY="<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>"
+export OPENAI_API_KEY="<openai-api-key>"
 export VERCEL_AUTOMATION_BYPASS_SECRET="<vercel-automation-bypass-secret>"
 export EMAILDJ_EXPECTED_HUB_URL="$STAGING_BASE_URL"
 export EMAILDJ_EXPECTED_BETA_KEY="$BETA_KEY"

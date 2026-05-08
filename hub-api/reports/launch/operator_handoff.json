@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T02:04:19.265335Z",
+  "generated_at": "2026-05-08T02:14:20.266318Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -23,6 +23,12 @@
       "value": "<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>",
       "required_when": true,
       "note": "Must be exported explicitly in the shell; .env values are intentionally ignored."
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "value": "<openai-api-key>",
+      "required_when": true,
+      "note": "Required by launch-preflight provider transport and local real-provider smoke."
     },
     {
       "name": "VERCEL_AUTOMATION_BYPASS_SECRET",

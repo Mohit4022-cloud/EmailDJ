@@ -136,6 +136,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert payload["provider"] == "anthropic"
     assert payload["provider_env"] == "ANTHROPIC_API_KEY"
     assert {"STAGING_BASE_URL", "PROD_BASE_URL", "BETA_KEY"} <= export_names
+    assert "ANTHROPIC_API_KEY" in export_names
     assert {"VITE_HUB_URL", "VITE_EMAILDJ_BETA_KEY", "VITE_PRESET_PREVIEW_PIPELINE"} <= export_names
     assert dashboard_inputs["EMAILDJ_REAL_PROVIDER"]["value"] == "anthropic"
     assert dashboard_inputs["ANTHROPIC_API_KEY"]["required_when"] is True
@@ -215,6 +216,7 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     markdown = md_path.read_text(encoding="utf-8")
     assert "Launch Operator Handoff" in markdown
     assert 'export STAGING_BASE_URL="https://<staging-hub-api-root>"' in markdown
+    assert 'export OPENAI_API_KEY="<openai-api-key>"' in markdown
     assert 'export VITE_EMAILDJ_BETA_KEY="$BETA_KEY"' in markdown
     assert "`OPENAI_API_KEY`" in markdown
     assert "Evidence snapshot" in markdown
