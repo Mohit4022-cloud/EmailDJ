@@ -27,9 +27,9 @@ Launch-owned versus legacy surface boundaries live in [`docs/ops/surface_contrac
 ## Operator machine env
 
 - `STAGING_BASE_URL`
-  Must point to the staging hub-api root URL, not the frontend URL. Must be an HTTPS root URL with no path, query, or localhost host.
+  Must point to the staging hub-api root URL, not the frontend URL or discovered Vercel web-app origin. Must be an HTTPS root URL with no path, query, localhost host, or placeholder value.
 - `PROD_BASE_URL`
-  Must point to the production hub-api root URL, not the frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
+  Must point to the production hub-api root URL, not the frontend URL or discovered Vercel web-app origin. Must be an HTTPS root URL with no path, query, localhost host, or placeholder value, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
   Must exactly match one non-dev deployed value from `EMAILDJ_WEB_BETA_KEYS`. Do not use placeholders such as `missing`, angle-bracket templates, comma-separated lists, or values with whitespace.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
@@ -66,7 +66,7 @@ cd /Users/mohit/EmailDJ
 make launch-preflight
 ```
 
-This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, a single non-placeholder non-dev `BETA_KEY`, and the configured real-provider key are exported on the operator machine.
+This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, a single non-placeholder non-dev `BETA_KEY`, and the configured real-provider key are exported on the operator machine. It also fails if either Hub API URL is still an angle-bracket template, a literal placeholder such as `missing`, or the discovered Vercel frontend origin.
 The generated `hub-api/reports/launch/preflight.md` includes a redacted operator export template for the required Hub URLs, beta key, configured provider key, and Vercel bypass secret when the protected-preview probe requires one.
 
 If the latest web-app deployment probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`, `make launch-preflight` also requires `VERCEL_AUTOMATION_BYPASS_SECRET` before web-app probing can clear the protected-preview blocker.

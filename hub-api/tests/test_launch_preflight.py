@@ -270,6 +270,55 @@ def test_launch_preflight_blocks_invalid_operator_urls_without_transport_probe(m
     assert "non-dev deployed beta key" in "\n".join(result["next_steps"])
 
 
+def test_launch_preflight_blocks_placeholder_operator_urls_without_transport_probe(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://<staging-hub-api-root>")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "ops-beta-key")
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when operator URL is a placeholder")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert "STAGING_BASE_URL:must_not_be_placeholder" in result["operator_input_errors"]
+
+
+def test_launch_preflight_blocks_discovered_web_app_origin_as_hub_url(monkeypatch, tmp_path):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setattr(lp, "ROOT", tmp_path)
+    _write_deployment_discovery(tmp_path)
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://email-pbkwcngj2-mohits-projects-e629a988.vercel.app")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "ops-beta-key")
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when Hub API URL is the web-app origin")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+    next_steps = "\n".join(result["next_steps"])
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert "STAGING_BASE_URL:must_not_be_web_app_origin" in result["operator_input_errors"]
+    assert "only for `WEB_APP_ORIGIN`" in next_steps
+    assert "must point to Hub API roots" in next_steps
+
+
 def test_launch_preflight_blocks_placeholder_or_composite_beta_key(monkeypatch):
     import scripts.launch_preflight as lp
 

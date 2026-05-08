@@ -33,6 +33,7 @@ _PROVIDER_PROBE_URLS = {
     "groq": "https://api.groq.com/openai/v1/models",
 }
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+_UNSAFE_URL_PLACEHOLDER_VALUES = {"missing", "placeholder", "changeme", "change-me", "todo", "none", "null"}
 _UNSAFE_BETA_KEY_VALUES = {"dev-beta-key", "missing", "placeholder", "changeme", "change-me", "todo", "none", "null"}
 VERCEL_BYPASS_ENV = "VERCEL_AUTOMATION_BYPASS_SECRET"
 VERCEL_BYPASS_HEADER = "x-vercel-protection-bypass"
@@ -197,7 +198,8 @@ def _normalize_url(raw_url: str) -> str:
 
 def _validate_base_url(name: str, raw_url: str) -> list[str]:
     errors: list[str] = []
-    parsed = urlparse(raw_url.strip())
+    stripped_url = raw_url.strip()
+    parsed = urlparse(stripped_url)
     host = (parsed.hostname or "").strip().lower()
     path = (parsed.path or "").strip()
     if parsed.scheme != "https":
@@ -205,6 +207,8 @@ def _validate_base_url(name: str, raw_url: str) -> list[str]:
     if not parsed.netloc or not host:
         errors.append(f"{name}:invalid_url")
         return errors
+    if "<" in stripped_url or ">" in stripped_url or host in _UNSAFE_URL_PLACEHOLDER_VALUES:
+        errors.append(f"{name}:must_not_be_placeholder")
     if host in _LOCAL_HOSTS or host.endswith(".local"):
         errors.append(f"{name}:must_not_be_localhost")
     if path not in {"", "/"}:
@@ -214,7 +218,7 @@ def _validate_base_url(name: str, raw_url: str) -> list[str]:
     return errors
 
 
-def _validate_operator_inputs() -> list[str]:
+def _validate_operator_inputs(deployment_discovery: dict[str, Any] | None = None) -> list[str]:
     errors: list[str] = []
     staging_url = (os.environ.get("STAGING_BASE_URL") or "").strip()
     prod_url = (os.environ.get("PROD_BASE_URL") or "").strip()
@@ -223,6 +227,13 @@ def _validate_operator_inputs() -> list[str]:
     errors.extend(_validate_base_url("PROD_BASE_URL", prod_url))
     if staging_url and prod_url and _normalize_url(staging_url) == _normalize_url(prod_url):
         errors.append("STAGING_BASE_URL:must_differ_from_PROD_BASE_URL")
+    candidate_web_app_origin = str((deployment_discovery or {}).get("candidate_web_app_origin") or "").strip()
+    if candidate_web_app_origin:
+        normalized_candidate = _normalize_url(candidate_web_app_origin)
+        if staging_url and _normalize_url(staging_url) == normalized_candidate:
+            errors.append("STAGING_BASE_URL:must_not_be_web_app_origin")
+        if prod_url and _normalize_url(prod_url) == normalized_candidate:
+            errors.append("PROD_BASE_URL:must_not_be_web_app_origin")
     normalized_beta_key = beta_key.lower()
     if normalized_beta_key in _UNSAFE_BETA_KEY_VALUES or beta_key.startswith("<") or beta_key.endswith(">"):
         errors.append("BETA_KEY:must_not_be_placeholder")
@@ -241,6 +252,8 @@ def _invalid_operator_input_steps(errors: list[str]) -> list[str]:
         steps.append("Set `PROD_BASE_URL` to the deployed production hub-api root URL using HTTPS, with no path, query, or localhost host.")
     if "STAGING_BASE_URL:must_differ_from_PROD_BASE_URL" in errors:
         steps.append("Use distinct staging and production hub-api roots; launch verification must prove both environments separately.")
+    if any(error.endswith(":must_not_be_web_app_origin") for error in errors):
+        steps.append("Use the discovered web-app candidate only for `WEB_APP_ORIGIN`; `STAGING_BASE_URL` and `PROD_BASE_URL` must point to Hub API roots.")
     if any(error.startswith("BETA_KEY:") for error in errors):
         steps.append("Set `BETA_KEY` to a non-dev deployed beta key that exactly matches one `EMAILDJ_WEB_BETA_KEYS` value.")
     return list(dict.fromkeys(steps))
@@ -271,7 +284,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
     provider, provider_env = _required_provider_env()
     presence = {name: bool((os.environ.get(name) or "").strip()) for name in (*_REQUIRED_INPUTS, provider_env)}
     missing_inputs = [name for name, present in presence.items() if not present]
-    operator_input_errors = [] if missing_inputs else _validate_operator_inputs()
+    operator_input_errors = [] if missing_inputs else _validate_operator_inputs(deployment_discovery)
     if not missing_inputs and not operator_input_errors and web_app_probe.get("requires_vercel_protection_bypass"):
         presence[VERCEL_BYPASS_ENV] = bool(web_app_probe.get("vercel_bypass_env_present"))
         missing_inputs = [name for name, present in presence.items() if not present]
