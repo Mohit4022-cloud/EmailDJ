@@ -40,6 +40,7 @@ PRIMARY_TARGETS = {
 }
 
 LEGACY_TARGETS = {"legacy-setup", "legacy-backend-test", "legacy-frontend-test", "legacy-build"}
+NONBLOCKING_READOUT_TARGETS = {"launch-probe-web-app-readout"}
 SURFACE_MANIFEST_PATH = "docs/ops/launch_surfaces.json"
 
 
@@ -135,6 +136,11 @@ def _check_makefile() -> list[str]:
             failures.append(f"Makefile target `{target}` is missing primary prerequisite(s): {', '.join(missing)}")
         if legacy:
             failures.append(f"Makefile target `{target}` includes legacy prerequisite(s): {', '.join(legacy)}")
+        nonblocking = sorted(prereqs & NONBLOCKING_READOUT_TARGETS)
+        if nonblocking:
+            failures.append(
+                f"Makefile target `{target}` includes nonblocking readout prerequisite(s): {', '.join(nonblocking)}"
+            )
     return failures
 
 
@@ -279,6 +285,8 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make render-blueprint-check",
+            "make launch-probe-web-app-readout",
+            "must not be treated as launch proof",
             "render.yaml",
         ],
         "docs/ops/release_checklist.md": [
@@ -354,6 +362,16 @@ def _check_ci() -> list[str]:
     for snippet in required_legacy_snippets:
         if snippet not in legacy_eval:
             failures.append(f"Legacy eval workflow is missing `{snippet}`")
+
+    forbidden_gate_snippets = [
+        "launch-probe-web-app-readout",
+        "--allow-blocked",
+    ]
+    for snippet in forbidden_gate_snippets:
+        if snippet in ci:
+            failures.append(f"CI checks workflow must not call nonblocking readout `{snippet}`")
+        if snippet in backend_checks:
+            failures.append(f"Backend checks script must not call nonblocking readout `{snippet}`")
     return failures
 
 
