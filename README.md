@@ -141,6 +141,12 @@ make launch-unblock-inputs
 
 This writes `hub-api/reports/launch/operator_handoff.json` and `.md` with the exact shell export template, Render/Dashboard values, next commands, and current blocker groups. `make launch-unblock-inputs` also writes `hub-api/reports/launch/unblock_inputs.json` and `.md`, which filters the same contract down to the required shell exports, required Dashboard inputs, command defaults, and blocker-clearance evidence. Neither readout includes secret values.
 
+For an artifact-only status refresh that runs the audit, full handoff, and compact unblock-input readout in sequence:
+
+```bash
+make launch-status
+```
+
 Check the deployed-run operator inputs before running the full deployed gate:
 
 ```bash

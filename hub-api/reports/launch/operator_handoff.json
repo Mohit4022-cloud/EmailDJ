@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T22:33:13.763421Z",
+  "generated_at": "2026-05-08T22:41:41.331100Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -193,7 +193,7 @@
   ],
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "ecdf39b30377825682bbea73d7f294f0e14868f6",
+    "workspace_git_sha_at_audit": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
     "web_app_probe_workspace_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
     "web_app_probe_source_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
     "currentness_blockers": [],
@@ -201,7 +201,7 @@
       {
         "artifact_id": "web_app_deployment_probe",
         "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "ecdf39b30377825682bbea73d7f294f0e14868f6",
+        "current_git_sha": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
         "deployment_relevant_changed_paths": [],
         "status": "sha_drift_non_deployment_delta_only",
         "deployment_relevant_changed_path_count": 0
@@ -209,7 +209,7 @@
       {
         "artifact_id": "deployment_discovery",
         "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "ecdf39b30377825682bbea73d7f294f0e14868f6",
+        "current_git_sha": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
         "deployment_relevant_changed_paths": [],
         "status": "sha_drift_non_deployment_delta_only",
         "deployment_relevant_changed_path_count": 0

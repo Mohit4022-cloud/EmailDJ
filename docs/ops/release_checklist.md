@@ -32,6 +32,7 @@ All steps in the `checks` CI job must be green:
 | Launch completion audit | `make launch-audit` | Writes artifact-backed completion audit with every open blocker explicit |
 | Launch operator handoff | `make launch-handoff` | Writes paste-safe operator exports, Dashboard values, next commands, and current blocker groups |
 | Launch unblock inputs | `make launch-unblock-inputs` | Writes compact required shell exports, Dashboard inputs, command defaults, and blocker-clearance evidence |
+| Launch status refresh | `make launch-status` | Runs audit, handoff, and unblock-input readouts in sequence |
 
 Optional blocked-deployment readout: when a protected Vercel preview or auth wall blocks the strict web-app deployment probe, operators may run `make launch-probe-web-app-readout` to refresh the same probe artifacts. This is not a release gate and never substitutes for `make launch-probe-web-app`.
 
@@ -125,8 +126,7 @@ Before running deployed release gates, confirm the operator machine has the stag
 ```bash
 cd /Users/mohit/EmailDJ
 make launch-preflight
-make launch-handoff
-make launch-unblock-inputs
+make launch-status
 ```
 
 ```bash

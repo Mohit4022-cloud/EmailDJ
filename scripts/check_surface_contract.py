@@ -38,6 +38,7 @@ PRIMARY_TARGETS = {
     "launch-audit": set(),
     "launch-handoff": set(),
     "launch-unblock-inputs": set(),
+    "launch-status": set(),
     "render-blueprint-check": set(),
 }
 
@@ -143,6 +144,16 @@ def _check_makefile() -> list[str]:
             failures.append(
                 f"Makefile target `{target}` includes nonblocking readout prerequisite(s): {', '.join(nonblocking)}"
             )
+    for snippet in [
+        "launch-status:",
+        "$(MAKE) launch-audit",
+        "$(MAKE) launch-handoff",
+        "$(MAKE) launch-unblock-inputs",
+    ]:
+        try:
+            _require_snippet(makefile, snippet, "Makefile")
+        except AssertionError as exc:
+            failures.append(str(exc))
     return failures
 
 
@@ -267,6 +278,7 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make launch-unblock-inputs",
+            "make launch-status",
             "make render-blueprint-check",
             "render.yaml",
             "These are local/artifact-only gates.",
@@ -288,6 +300,7 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make launch-unblock-inputs",
+            "make launch-status",
             "make render-blueprint-check",
         ],
         "docs/ops/surface_contract.md": [
@@ -302,6 +315,7 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make launch-unblock-inputs",
+            "make launch-status",
             "make render-blueprint-check",
             "make launch-probe-web-app-readout",
             "must not be treated as launch proof",
@@ -328,6 +342,7 @@ def _check_docs() -> list[str]:
             "make launch-audit",
             "make launch-handoff",
             "make launch-unblock-inputs",
+            "make launch-status",
             "make render-blueprint-check",
             "Optional blocked-deployment readout",
             "This is not a release gate",

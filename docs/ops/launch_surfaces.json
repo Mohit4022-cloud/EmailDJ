@@ -14,6 +14,7 @@
         "make launch-audit",
         "make launch-handoff",
         "make launch-unblock-inputs",
+        "make launch-status",
         "make launch-verify-deployed",
         "hub-api/reports/launch/latest.json"
       ]

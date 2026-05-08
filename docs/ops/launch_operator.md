@@ -238,6 +238,13 @@ cd /Users/mohit/EmailDJ
 make launch-unblock-inputs
 ```
 
+To refresh the completion audit, full handoff, and compact unblock-input readout in the safe order, run:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-status
+```
+
 When the latest web-app probe is blocked by Vercel/auth protection, the handoff also includes a separate blocked evidence refresh section with `make launch-probe-web-app-readout`, `make launch-audit`, `make launch-handoff`, and `make launch-unblock-inputs`. That section is a readout aid only; launch proof still requires the strict `make launch-probe-web-app` path to pass.
 
 Artifacts:
