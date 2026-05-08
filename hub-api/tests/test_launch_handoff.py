@@ -161,6 +161,15 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
             "is empty or contains an invalid flow."
         ),
     }
+    assert payload["operator_command_defaults"] == [
+        {
+            "name": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+            "value": "generate,remix",
+            "applies_to": "make launch-verify-deployed",
+            "clears_launch_blockers": False,
+            "note": "Default limited rollout smoke covers generate and remix; add preview only when intentionally enabled.",
+        }
+    ]
     assert payload["commands"] == [
         "make render-blueprint-check",
         "make launch-preflight",
@@ -243,6 +252,9 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "Default: `generate,remix`" in markdown
     assert "Valid flows: `generate`, `remix`, `preview`" in markdown
     assert "exits before deployed smoke artifacts are created" in markdown
+    assert "Launch Command Defaults" in markdown
+    assert 'export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"' in markdown
+    assert "`False` | Default limited rollout smoke covers generate and remix" in markdown
     assert "Blocker Clearance Plan" in markdown
     assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
 

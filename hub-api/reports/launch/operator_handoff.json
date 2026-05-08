@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T03:54:45.222693Z",
+  "generated_at": "2026-05-08T04:02:51.181539Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -168,6 +168,15 @@
     "preview_policy": "Use generate,remix,preview only when the staging preview route is intentionally enabled.",
     "failure_policy": "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list is empty or contains an invalid flow."
   },
+  "operator_command_defaults": [
+    {
+      "name": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+      "value": "generate,remix",
+      "applies_to": "make launch-verify-deployed",
+      "clears_launch_blockers": false,
+      "note": "Default limited rollout smoke covers generate and remix; add preview only when intentionally enabled."
+    }
+  ],
   "blocked_evidence_refresh_commands": [
     {
       "id": "web_app_deployment_probe_readout",

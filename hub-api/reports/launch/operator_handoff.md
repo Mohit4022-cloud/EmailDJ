@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T03:54:45.222693Z`
+- Generated at: `2026-05-08T04:02:51.181539Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -59,6 +59,16 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 - Valid flows: `generate`, `remix`, `preview`
 - Preview policy: Use generate,remix,preview only when the staging preview route is intentionally enabled.
 - Failure policy: make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list is empty or contains an invalid flow.
+
+## Launch Command Defaults
+
+```bash
+export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"
+```
+
+| Name | Applies to | Clears launch blockers | Note |
+|---|---|---|---|
+| `EMAILDJ_DEPLOYED_SMOKE_FLOWS` | `make launch-verify-deployed` | `False` | Default limited rollout smoke covers generate and remix; add preview only when intentionally enabled. |
 
 ## Discovered Deployment Metadata
 

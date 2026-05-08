@@ -394,6 +394,16 @@ def build_launch_handoff() -> dict[str, Any]:
         "make launch-audit",
         "make launch-handoff",
     ]
+    deployed_smoke_flow_contract = {
+        "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+        "default": "generate,remix",
+        "valid_flows": ["generate", "remix", "preview"],
+        "preview_policy": "Use generate,remix,preview only when the staging preview route is intentionally enabled.",
+        "failure_policy": (
+            "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list "
+            "is empty or contains an invalid flow."
+        ),
+    }
 
     return {
         "generated_at": _utc_now_text(),
@@ -417,18 +427,16 @@ def build_launch_handoff() -> dict[str, Any]:
             ),
             "narrow_verifiers_for_intentional_drift": ["make launch-verify-web-app", "make launch-verify-extension"],
         },
-        "deployed_smoke_flow_contract": {
-            "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
-            "default": "generate,remix",
-            "valid_flows": ["generate", "remix", "preview"],
-            "preview_policy": (
-                "Use generate,remix,preview only when the staging preview route is intentionally enabled."
-            ),
-            "failure_policy": (
-                "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list "
-                "is empty or contains an invalid flow."
-            ),
-        },
+        "deployed_smoke_flow_contract": deployed_smoke_flow_contract,
+        "operator_command_defaults": [
+            {
+                "name": deployed_smoke_flow_contract["env"],
+                "value": deployed_smoke_flow_contract["default"],
+                "applies_to": "make launch-verify-deployed",
+                "clears_launch_blockers": False,
+                "note": "Default limited rollout smoke covers generate and remix; add preview only when intentionally enabled.",
+            }
+        ],
         "blocked_evidence_refresh_commands": _blocked_evidence_refresh_commands(web_app_probe),
         "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
@@ -543,6 +551,18 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
                 f"- Failure policy: {flow_contract.get('failure_policy')}",
             ]
         )
+
+    command_defaults = handoff.get("operator_command_defaults") or []
+    if command_defaults:
+        lines.extend(["", "## Launch Command Defaults", "", "```bash"])
+        for item in command_defaults:
+            lines.append(f'export {item.get("name")}="{item.get("value")}"')
+        lines.extend(["```", "", "| Name | Applies to | Clears launch blockers | Note |", "|---|---|---|---|"])
+        for item in command_defaults:
+            lines.append(
+                f"| `{_md_cell(item.get('name'))}` | `{_md_cell(item.get('applies_to'))}` | "
+                f"`{bool(item.get('clears_launch_blockers'))}` | {_md_cell(item.get('note'))} |"
+            )
 
     discovery = handoff.get("deployment_discovery") or {}
     if discovery.get("found") or discovery.get("candidate_web_app_origin"):
