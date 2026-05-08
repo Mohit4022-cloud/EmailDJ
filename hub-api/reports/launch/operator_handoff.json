@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T22:27:09.645737Z",
+  "generated_at": "2026-05-08T22:33:13.763421Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -193,7 +193,7 @@
   ],
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+    "workspace_git_sha_at_audit": "ecdf39b30377825682bbea73d7f294f0e14868f6",
     "web_app_probe_workspace_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
     "web_app_probe_source_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
     "currentness_blockers": [],
@@ -201,16 +201,18 @@
       {
         "artifact_id": "web_app_deployment_probe",
         "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+        "current_git_sha": "ecdf39b30377825682bbea73d7f294f0e14868f6",
         "deployment_relevant_changed_paths": [],
-        "status": "matches_current_head"
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
       },
       {
         "artifact_id": "deployment_discovery",
         "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+        "current_git_sha": "ecdf39b30377825682bbea73d7f294f0e14868f6",
         "deployment_relevant_changed_paths": [],
-        "status": "matches_current_head"
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
       }
     ],
     "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.",
