@@ -64,6 +64,10 @@ for raw_flow in "${smoke_flows[@]}"; do
     --max-retries "$DEPLOYED_SMOKE_MAX_RETRIES"
   summary_paths+=("${flow_out%/}/summary.json")
 done
+if [[ "${#summary_paths[@]}" -eq 0 ]]; then
+  echo "No deployed smoke flows selected. Set EMAILDJ_DEPLOYED_SMOKE_FLOWS to generate, remix, or generate,remix." >&2
+  exit 2
+fi
 merged_summary="${DEPLOYED_SMOKE_OUT%/}/summary.json"
 python scripts/merge_http_smoke_summaries.py --out "$merged_summary" "${summary_paths[@]}"
 python scripts/launch_check.py \

@@ -158,6 +158,7 @@ def _check_deployed_gate() -> list[str]:
             "python scripts/capture_runtime_snapshot.py",
             "./scripts/eval:full --real --mode smoke",
             "python -m devtools.http_smoke_runner",
+            "No deployed smoke flows selected.",
             "python scripts/merge_http_smoke_summaries.py",
             "python scripts/launch_check.py",
         ]:
