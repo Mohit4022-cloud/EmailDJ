@@ -289,6 +289,10 @@ def _check_docs() -> list[str]:
             "must not be treated as launch proof",
             "render.yaml",
         ],
+        "docs/ops/launch_operator.md": [
+            "provider_green=green",
+            "does not satisfy limited-rollout launch proof",
+        ],
         "docs/ops/release_checklist.md": [
             "Surface contract",
             "docs/ops/launch_surfaces.json",
@@ -327,6 +331,12 @@ def _check_docs() -> list[str]:
             failures.append("Release checklist must not list deployed web-app probe as a default CI check")
         if "### 1.2 Lock Compliance Gate" in release_checklist and "./scripts/eval:judge:full" in release_checklist:
             failures.append("Release checklist lock-compliance gate must use ./scripts/eval:full, not judge full")
+    except FileNotFoundError as exc:
+        failures.append(str(exc))
+    try:
+        launch_operator = _read("docs/ops/launch_operator.md")
+        if "`provider_green` may be `green` or `not_run`" in launch_operator:
+            failures.append("Launch operator guide must not treat provider_green=not_run as limited-rollout launch proof")
     except FileNotFoundError as exc:
         failures.append(str(exc))
     return failures

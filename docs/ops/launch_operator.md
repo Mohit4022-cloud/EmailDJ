@@ -35,8 +35,6 @@ Launch-owned versus legacy surface boundaries live in [`docs/ops/surface_contrac
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
   Required only when the discovered Vercel web-app deployment is protected. The probe sends it as `x-vercel-protection-bypass` and records only whether the secret was present.
 
-## Backend tests
-
 ## Surface contract
 
 Run this from the repo root before interpreting launch evidence:
@@ -262,9 +260,11 @@ The handoff translates the current audit and preflight state into the exact oper
 - non-dev `EMAILDJ_WEB_BETA_KEYS`
 - managed Redis, managed Postgres, and `VECTOR_STORE_BACKEND=pgvector`
 - deployed HTTP smoke for `generate` and `remix` with `external_provider` evidence
+- `provider_green=green` from external-provider evidence
 - `required_field_miss_count=0`
 - `under_length_miss_count=0`
-- `provider_green` may be `green` or `not_run`
+
+`provider_green=not_run` is acceptable only for local/artifact-only readouts before deployed verification. It does not satisfy limited-rollout launch proof.
 
 In `limited_rollout`, preview is disabled by default unless `EMAILDJ_ROUTE_PREVIEW_ENABLED=1` is set explicitly. A preview `route_disabled` artifact is expected in that mode and is not a launch blocker.
 
