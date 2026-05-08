@@ -337,13 +337,18 @@ def _check_ci() -> list[str]:
         "Run web app unit tests and build",
         "npm run check:syntax",
         "npm run build",
+        "EMAILDJ_RUN_JUDGE_SMOKE: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE }}",
     ]
     for snippet in required_ci_snippets:
         if snippet not in ci:
             failures.append(f"CI checks job is missing `{snippet}`")
+    if "Optional judge smoke (mock)" in ci:
+        failures.append("CI checks workflow must route optional judge smoke/sanity through hub-api/scripts/checks.sh")
 
     required_backend_check_snippets = [
         '"$ROOT/scripts/eval:full"',
+        '"$ROOT/scripts/eval:judge:smoke"',
+        '"$ROOT/scripts/eval:judge:sanity"',
         'python3 "$ROOT/scripts/launch_check.py" --from-artifacts --allow-not-ready',
         'python3 "$ROOT/scripts/launch_audit.py"',
         'python3 "$ROOT/scripts/launch_handoff.py"',

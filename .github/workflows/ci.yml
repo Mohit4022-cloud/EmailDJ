@@ -118,16 +118,11 @@ jobs:
 
       - name: Run checks
         working-directory: hub-api
+        env:
+          EMAILDJ_RUN_JUDGE_SMOKE: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE }}
         run: |
           source .venv/bin/activate
           ./scripts/checks.sh
-
-      - name: Optional judge smoke (mock)
-        if: ${{ vars.EMAILDJ_RUN_JUDGE_SMOKE == '1' }}
-        working-directory: hub-api
-        run: |
-          source .venv/bin/activate
-          ./scripts/eval:judge:smoke
 
   real-mode-nightly:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

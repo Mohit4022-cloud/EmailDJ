@@ -32,10 +32,10 @@ All steps in the `checks` CI job must be green:
 | Web-app deployment probe | `make launch-probe-web-app` | Refreshes the current deployed frontend candidate and static bundle/auth evidence before completion audit reads it |
 | Launch completion audit | `make launch-audit` | Writes artifact-backed completion audit with every open blocker explicit |
 | Launch operator handoff | `make launch-handoff` | Writes paste-safe operator exports, Dashboard values, next commands, and current blocker groups |
-| Judge smoke (mock) | `./scripts/eval:judge:smoke` | All smoke cases pass |
-| Judge sanity (mock) | `./scripts/eval:judge:sanity` | Sentinel cases all pass |
 
 Optional blocked-deployment readout: when a protected Vercel preview or auth wall blocks the strict web-app deployment probe, operators may run `make launch-probe-web-app-readout` to refresh the same probe artifacts. This is not a release gate and never substitutes for `make launch-probe-web-app`.
+
+Conditional judge smoke/sanity: set the repository variable `EMAILDJ_RUN_JUDGE_SMOKE=1` to make `hub-api/scripts/checks.sh` run both `./scripts/eval:judge:smoke` and `./scripts/eval:judge:sanity` inside the CI `checks` job. This is not part of the default every-PR gate unless that variable is enabled.
 
 ### 1.2 Lock Compliance Gate
 
