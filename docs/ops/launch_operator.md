@@ -66,7 +66,7 @@ cd /Users/mohit/EmailDJ
 make launch-preflight
 ```
 
-This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, a non-dev `BETA_KEY`, and the configured real-provider key are exported on the operator machine.
 The generated `hub-api/reports/launch/preflight.md` includes a redacted operator export template for the required Hub URLs, beta key, configured provider key, and Vercel bypass secret when the protected-preview probe requires one.
 
 If the latest web-app deployment probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`, `make launch-preflight` also requires `VERCEL_AUTOMATION_BYPASS_SECRET` before web-app probing can clear the protected-preview blocker.
@@ -146,7 +146,7 @@ The smoke runner now fails clearly if the localhost server is not healthy. By de
 
 ## Launch-check command
 
-Fastest deployed verification path, once `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
+Fastest deployed verification path, once `STAGING_BASE_URL`, `PROD_BASE_URL`, explicit `BETA_KEY`, and the configured provider key such as `OPENAI_API_KEY` are exported on the operator machine:
 
 ```bash
 cd /Users/mohit/EmailDJ

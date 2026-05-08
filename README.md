@@ -82,7 +82,7 @@ This runs the surface contract gate, the three launch-owned surface test suites,
 It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
 These are local/artifact-only gates. Passing them means the repo-controlled checks are coherent; it does not satisfy limited-rollout launch proof. Limited rollout still requires `make launch-verify-deployed` with pinned operator env, fresh staging/production runtime snapshots, deployed HTTP smoke, and `provider_green=green` from external-provider evidence.
 
-Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
+Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, explicit `BETA_KEY`, and the configured provider key such as `OPENAI_API_KEY` are exported on the operator machine:
 
 ```bash
 make launch-verify-deployed
@@ -146,7 +146,7 @@ Check the deployed-run operator inputs before running the full deployed gate:
 make launch-preflight
 ```
 
-This is intentionally strict. It exits nonzero until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+This is intentionally strict. It exits nonzero until `STAGING_BASE_URL`, `PROD_BASE_URL`, a non-dev `BETA_KEY`, and the configured real-provider key are exported on the operator machine.
 Its Markdown report includes a redacted operator export template for the Hub URLs, beta key, configured provider key, and Vercel bypass secret when protected-preview probing needs one.
 
 Run a guarded localhost smoke against an already-running Hub API:

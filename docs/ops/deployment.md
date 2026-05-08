@@ -177,6 +177,8 @@ Fill these Dashboard values during Blueprint creation or before first successful
   The production hub-api root URL, not the Vercel frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
   One exact non-dev key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list.
+- Provider API key
+  Export the key for the configured `EMAILDJ_REAL_PROVIDER`, for example `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY`. Preflight probes provider transport before any deployed smoke is accepted.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
   Required only when the discovered Vercel web-app deployment is protected. The web-app probe sends it as the `x-vercel-protection-bypass` header and records only whether it was present.
 
@@ -186,6 +188,7 @@ Example mapping:
 hub-api staging EMAILDJ_WEB_BETA_KEYS=staging-key-a,staging-key-b
 operator BETA_KEY=staging-key-a
 operator STAGING_BASE_URL=https://hub-staging.example.com
+operator OPENAI_API_KEY=<redacted>
 frontend VITE_HUB_URL=https://hub-staging.example.com
 ```
 
