@@ -40,12 +40,29 @@ fi
 source .venv/bin/activate
 
 IFS=',' read -r -a smoke_flows <<< "${FLOWS}"
-summary_paths=()
+validated_smoke_flows=()
 for raw_flow in "${smoke_flows[@]}"; do
   flow="$(echo "${raw_flow}" | tr -d '[:space:]')"
   if [[ -z "${flow}" ]]; then
     continue
   fi
+  case "${flow}" in
+    generate|remix|preview)
+      validated_smoke_flows+=("${flow}")
+      ;;
+    *)
+      echo "Invalid smoke flow '${flow}'. Set EMAILDJ_SMOKE_FLOWS to generate, remix, preview, or a comma-separated subset." >&2
+      exit 2
+      ;;
+  esac
+done
+if [[ "${#validated_smoke_flows[@]}" -eq 0 ]]; then
+  echo "No smoke flows selected. Set EMAILDJ_SMOKE_FLOWS to generate, remix, or generate,remix." >&2
+  exit 2
+fi
+
+summary_paths=()
+for flow in "${validated_smoke_flows[@]}"; do
   flow_out="${OUT_DIR%/}/${flow}"
   smoke_args=(
     -m devtools.http_smoke_runner
@@ -67,11 +84,6 @@ for raw_flow in "${smoke_flows[@]}"; do
   python "${smoke_args[@]}"
   summary_paths+=("${flow_out%/}/summary.json")
 done
-
-if [[ "${#summary_paths[@]}" -eq 0 ]]; then
-  echo "No smoke flows selected. Set EMAILDJ_SMOKE_FLOWS to generate, remix, or generate,remix." >&2
-  exit 2
-fi
 
 summary_path="${OUT_DIR%/}/summary.json"
 python scripts/merge_http_smoke_summaries.py --out "${summary_path}" "${summary_paths[@]}"

@@ -37,6 +37,28 @@ assert_same_launch_value() {
   fi
 }
 
+validated_smoke_flows=()
+IFS=',' read -r -a smoke_flows <<< "$DEPLOYED_SMOKE_FLOWS"
+for raw_flow in "${smoke_flows[@]}"; do
+  flow="$(echo "$raw_flow" | tr -d '[:space:]')"
+  if [[ -z "$flow" ]]; then
+    continue
+  fi
+  case "$flow" in
+    generate|remix|preview)
+      validated_smoke_flows+=("$flow")
+      ;;
+    *)
+      echo "Invalid deployed smoke flow '$flow'. Set EMAILDJ_DEPLOYED_SMOKE_FLOWS to generate, remix, preview, or a comma-separated subset." >&2
+      exit 2
+      ;;
+  esac
+done
+if [[ "${#validated_smoke_flows[@]}" -eq 0 ]]; then
+  echo "No deployed smoke flows selected. Set EMAILDJ_DEPLOYED_SMOKE_FLOWS to generate, remix, or generate,remix." >&2
+  exit 2
+fi
+
 cd "$HUB_API_ROOT"
 
 if [[ ! -f ".venv/bin/activate" ]]; then
@@ -70,13 +92,8 @@ python scripts/capture_runtime_snapshot.py \
   --url "$PROD_BASE_URL" \
   --header "x-emaildj-beta-key: $BETA_KEY"
 ./scripts/eval:full --real --mode smoke --min-cases "$REAL_SMOKE_CASES"
-IFS=',' read -r -a smoke_flows <<< "$DEPLOYED_SMOKE_FLOWS"
 summary_paths=()
-for raw_flow in "${smoke_flows[@]}"; do
-  flow="$(echo "$raw_flow" | tr -d '[:space:]')"
-  if [[ -z "$flow" ]]; then
-    continue
-  fi
+for flow in "${validated_smoke_flows[@]}"; do
   flow_out="${DEPLOYED_SMOKE_OUT%/}/${flow}"
   python -m devtools.http_smoke_runner \
     --mode "$DEPLOYED_SMOKE_MODE" \
@@ -89,10 +106,6 @@ for raw_flow in "${smoke_flows[@]}"; do
     --max-retries "$DEPLOYED_SMOKE_MAX_RETRIES"
   summary_paths+=("${flow_out%/}/summary.json")
 done
-if [[ "${#summary_paths[@]}" -eq 0 ]]; then
-  echo "No deployed smoke flows selected. Set EMAILDJ_DEPLOYED_SMOKE_FLOWS to generate, remix, or generate,remix." >&2
-  exit 2
-fi
 merged_summary="${DEPLOYED_SMOKE_OUT%/}/summary.json"
 python scripts/merge_http_smoke_summaries.py --out "$merged_summary" "${summary_paths[@]}"
 python scripts/launch_check.py \

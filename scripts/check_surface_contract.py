@@ -160,6 +160,7 @@ def _check_deployed_gate() -> list[str]:
             "python scripts/capture_runtime_snapshot.py",
             "./scripts/eval:full --real --mode smoke",
             "python -m devtools.http_smoke_runner",
+            "Invalid deployed smoke flow",
             "No deployed smoke flows selected.",
             "python scripts/merge_http_smoke_summaries.py",
             "python scripts/launch_check.py",
@@ -194,6 +195,8 @@ def _check_localhost_smoke() -> list[str]:
         for snippet in [
             'FLOWS="${EMAILDJ_SMOKE_FLOWS:-${EMAILDJ_SMOKE_FLOW:-generate,remix}}"',
             "-m devtools.http_smoke_runner",
+            "Invalid smoke flow",
+            "No smoke flows selected.",
             "python scripts/merge_http_smoke_summaries.py",
             "python scripts/launch_check.py",
         ]:

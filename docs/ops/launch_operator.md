@@ -153,7 +153,7 @@ cd /Users/mohit/EmailDJ
 make launch-verify-deployed
 ```
 
-This runs preflight, verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+This validates the requested deployed smoke flow list, runs preflight, verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs launch check as a failing gate. Add `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled. The flow list must be a comma-separated subset of `generate`, `remix`, and `preview`; typos fail before partial smoke artifacts are created.
 
 After the deployed gate, run `make launch-probe-web-app` before `make launch-audit` so the completion audit reads the current deployed frontend candidate and its bundle/auth state. If the preview is still protected and you only need a current readout, run `make launch-probe-web-app-readout`; it exits 0 after writing probe artifacts but leaves `client_bundle_usable=false` and does not clear launch blockers.
 
