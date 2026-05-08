@@ -1,6 +1,6 @@
 # Launch Unblock Inputs
 
-- Generated at: `2026-05-08T22:41:41.374852Z`
+- Generated at: `2026-05-08T22:48:46.300354Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -31,7 +31,7 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 | `EMAILDJ_LAUNCH_MODE` | `limited_rollout` | `none` |  |
 | `EMAILDJ_REAL_PROVIDER` | `openai` | `none` |  |
 | `OPENAI_API_KEY` | `<openai-api-key>` | `none` |  |
-| `WEB_APP_ORIGIN` | `https://<deployed-web-app-origin>` | `https://email-2xke17n6u-mohits-projects-e629a988.vercel.app` | Candidate was discovered from GitHub/Vercel deployment metadata; still operator-owned and must be pinned in the Hub API deployment dashboard. |
+| `WEB_APP_ORIGIN` | `https://<deployed-web-app-origin>` | `https://email-9sfwgo5p5-mohits-projects-e629a988.vercel.app` | Candidate was discovered from GitHub/Vercel deployment metadata; still operator-owned and must be pinned in the Hub API deployment dashboard. |
 | `CHROME_EXTENSION_ORIGIN` | `chrome-extension://<shipped-extension-id>` | `none` |  |
 | `EMAILDJ_WEB_BETA_KEYS` | `<non-dev-beta-key-1>,<non-dev-beta-key-2>` | `none` |  |
 | `EMAILDJ_WEB_RATE_LIMIT_PER_MIN` | `300` | `none` |  |

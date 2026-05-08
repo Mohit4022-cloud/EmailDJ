@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T22:41:41.374852Z",
+  "generated_at": "2026-05-08T22:48:46.300354Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -94,7 +94,7 @@
       "name": "WEB_APP_ORIGIN",
       "value": "https://<deployed-web-app-origin>",
       "required_when": true,
-      "candidate_value": "https://email-2xke17n6u-mohits-projects-e629a988.vercel.app",
+      "candidate_value": "https://email-9sfwgo5p5-mohits-projects-e629a988.vercel.app",
       "note": "Candidate was discovered from GitHub/Vercel deployment metadata; still operator-owned and must be pinned in the Hub API deployment dashboard."
     },
     {

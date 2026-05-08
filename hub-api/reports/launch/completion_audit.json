@@ -1,28 +1,26 @@
 {
-  "generated_at": "2026-05-08T22:41:41.282744Z",
-  "current_git_sha": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
+  "generated_at": "2026-05-08T22:48:46.215238Z",
+  "current_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
-    "web_app_probe_workspace_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-    "web_app_probe_source_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+    "workspace_git_sha_at_audit": "b8c6777f4bf326b3d777890ff41d838d0a921486",
+    "web_app_probe_workspace_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
+    "web_app_probe_source_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
     "currentness_blockers": [],
     "currentness_delta_checks": [
       {
         "artifact_id": "web_app_deployment_probe",
-        "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
+        "recorded_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "current_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
         "deployment_relevant_changed_paths": [],
-        "status": "sha_drift_non_deployment_delta_only",
-        "deployment_relevant_changed_path_count": 0
+        "status": "matches_current_head"
       },
       {
         "artifact_id": "deployment_discovery",
-        "recorded_git_sha": "4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "current_git_sha": "cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
+        "recorded_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "current_git_sha": "b8c6777f4bf326b3d777890ff41d838d0a921486",
         "deployment_relevant_changed_paths": [],
-        "status": "sha_drift_non_deployment_delta_only",
-        "deployment_relevant_changed_path_count": 0
+        "status": "matches_current_head"
       }
     ],
     "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.",
@@ -146,9 +144,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
-        "web_app_probe_workspace_git_sha=4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "web_app_probe_source_git_sha=4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+        "current_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "web_app_probe_workspace_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "web_app_probe_source_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -335,9 +333,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=cbaeb20c15f11523a37ea68dae6c6fbf4b0fe34b",
-        "web_app_probe_workspace_git_sha=4dd98263898214bc9723e7679ef3ac43f9c52bf9",
-        "web_app_probe_source_git_sha=4dd98263898214bc9723e7679ef3ac43f9c52bf9",
+        "current_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "web_app_probe_workspace_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
+        "web_app_probe_source_git_sha=b8c6777f4bf326b3d777890ff41d838d0a921486",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],

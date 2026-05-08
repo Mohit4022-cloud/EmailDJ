@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T22:41:41.331100Z`
+- Generated at: `2026-05-08T22:48:46.260094Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -72,18 +72,18 @@ export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"
 
 ## Discovered Deployment Metadata
 
-- Candidate WEB_APP_ORIGIN: `https://email-2xke17n6u-mohits-projects-e629a988.vercel.app`
+- Candidate WEB_APP_ORIGIN: `https://email-9sfwgo5p5-mohits-projects-e629a988.vercel.app`
 - Usable as WEB_APP_ORIGIN candidate: `True`
 - Clears launch blockers: `False`
 - Operator note: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
 
 | Deployment | Environment | SHA | Vercel origin |
 |---|---|---|---|
-| `4622366329` | `Preview` | `4dd98263898214bc9723e7679ef3ac43f9c52bf9` | `https://email-2xke17n6u-mohits-projects-e629a988.vercel.app` |
+| `4627427123` | `Preview` | `b8c6777f4bf326b3d777890ff41d838d0a921486` | `https://email-9sfwgo5p5-mohits-projects-e629a988.vercel.app` |
 
 ## Web App Deployment Probe
 
-- Web app URL: `https://email-2xke17n6u-mohits-projects-e629a988.vercel.app`
+- Web app URL: `https://email-9sfwgo5p5-mohits-projects-e629a988.vercel.app`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
