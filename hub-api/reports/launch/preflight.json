@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T12:38:49.868866Z",
+  "generated_at": "2026-05-08T13:10:55.040345Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -9,7 +9,8 @@
     "STAGING_BASE_URL": false,
     "PROD_BASE_URL": false,
     "BETA_KEY": true,
-    "OPENAI_API_KEY": true
+    "OPENAI_API_KEY": true,
+    "VERCEL_AUTOMATION_BYPASS_SECRET": false
   },
   "operator_input_sources": {
     "STAGING_BASE_URL": {
@@ -33,7 +34,8 @@
   },
   "missing_inputs": [
     "STAGING_BASE_URL",
-    "PROD_BASE_URL"
+    "PROD_BASE_URL",
+    "VERCEL_AUTOMATION_BYPASS_SECRET"
   ],
   "operator_input_errors": [],
   "transport_checked": false,
@@ -46,7 +48,7 @@
     "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
     "state": "present",
     "found": true,
-    "candidate_web_app_origin": "https://email-gazmoss91-mohits-projects-e629a988.vercel.app",
+    "candidate_web_app_origin": "https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app",
     "usable_as_web_app_origin_candidate": true,
     "clears_launch_blockers": false,
     "operator_note": "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
@@ -68,8 +70,8 @@
     "vercel_bypass_env": "VERCEL_AUTOMATION_BYPASS_SECRET",
     "vercel_bypass_env_present": false,
     "operator_note": "The latest web-app probe is blocked by Vercel protection. Export `VERCEL_AUTOMATION_BYPASS_SECRET` before rerunning `make launch-probe-web-app`.",
-    "source_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
-    "workspace_git_sha_at_probe": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe"
+    "source_git_sha": "cf0e43039b28696574ae23328445e90266a97d9e",
+    "workspace_git_sha_at_probe": "cf0e43039b28696574ae23328445e90266a97d9e"
   },
   "operator_export_template": [
     "export STAGING_BASE_URL=\"https://<staging-hub-api-root>\"",
@@ -81,6 +83,7 @@
   "next_steps": [
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
     "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
-    "Use discovered web-app candidate `https://email-gazmoss91-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
+    "Set `VERCEL_AUTOMATION_BYPASS_SECRET` to the Vercel Protection Bypass for Automation secret before probing a protected Vercel web-app deployment. The probe sends it as `x-vercel-protection-bypass` and never writes the secret value to artifacts.",
+    "Use discovered web-app candidate `https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
   ]
 }

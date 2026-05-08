@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T12:38:54.855791Z`
+- Generated at: `2026-05-08T13:11:05.054407Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -72,18 +72,18 @@ export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"
 
 ## Discovered Deployment Metadata
 
-- Candidate WEB_APP_ORIGIN: `https://email-gazmoss91-mohits-projects-e629a988.vercel.app`
+- Candidate WEB_APP_ORIGIN: `https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app`
 - Usable as WEB_APP_ORIGIN candidate: `True`
 - Clears launch blockers: `False`
 - Operator note: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
 
 | Deployment | Environment | SHA | Vercel origin |
 |---|---|---|---|
-| `4617379446` | `Preview` | `a0efad8ce5e947c2a7200938f12a81c69c46bdfe` | `https://email-gazmoss91-mohits-projects-e629a988.vercel.app` |
+| `4621720377` | `Preview` | `cf0e43039b28696574ae23328445e90266a97d9e` | `https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app` |
 
 ## Web App Deployment Probe
 
-- Web app URL: `https://email-gazmoss91-mohits-projects-e629a988.vercel.app`
+- Web app URL: `https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
@@ -125,7 +125,7 @@ make launch-handoff
 
 ## Open Blockers
 
-- `deployed_preflight_inputs`: `STAGING_BASE_URL`, `PROD_BASE_URL`
+- `deployed_preflight_inputs`: `STAGING_BASE_URL`, `PROD_BASE_URL`, `VERCEL_AUTOMATION_BYPASS_SECRET`
 - `runtime_snapshots`: `staging_runtime_snapshot_missing`, `production_runtime_snapshot_missing`
 - `pinned_origins_beta_provider`: `chrome_extension_origin_not_pinned:default_dev_placeholder`, `web_app_origin_not_pinned:unset`
 - `durable_infra`: `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`, `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`, `vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend`
@@ -138,7 +138,7 @@ make launch-handoff
 
 | Blocker | Operator action | Evidence to expect |
 |---|---|---|
-| `deployed_preflight_inputs` | Export STAGING_BASE_URL, PROD_BASE_URL, and BETA_KEY on the operator machine, then run make launch-preflight. | hub-api/reports/launch/preflight.json has ready=true and no missing_inputs. |
+| `deployed_preflight_inputs` | Export `PROD_BASE_URL`, `STAGING_BASE_URL`, `VERCEL_AUTOMATION_BYPASS_SECRET` on the operator machine, confirm BETA_KEY matches one deployed beta key, then run make launch-preflight. | hub-api/reports/launch/preflight.json has ready=true and no missing_inputs. |
 | `runtime_snapshots` | Run make launch-verify-deployed after the operator exports are set; it captures staging and production runtime snapshots with the deployed beta key. | hub-api/reports/launch/runtime_snapshots/staging.json and production.json exist and share comparable release fingerprint fields. |
 | `pinned_origins_beta_provider` | Set WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, EMAILDJ_WEB_BETA_KEYS, EMAILDJ_REAL_PROVIDER, OPENAI_API_KEY, USE_PROVIDER_STUB=0, and EMAILDJ_WEB_RATE_LIMIT_PER_MIN in the deployment dashboard. | launch latest shows web_app_origin_state=explicit_pinned, chrome_extension_origin_state=explicit_pinned, beta_keys_state=explicit_pinned, and effective_provider_source=external_provider. |
 | `durable_infra` | Provision managed Redis and Postgres, set REDIS_URL and DATABASE_URL, set VECTOR_STORE_BACKEND=pgvector, and keep REDIS_FORCE_INMEMORY unset or 0. | launch latest shows redis_config_state=external_redis_configured, database_config_state=external_postgres_configured, and vector_store_config_state=pgvector_configured. |
