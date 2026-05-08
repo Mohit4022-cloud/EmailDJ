@@ -148,6 +148,9 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert "durable_infra" in clearance
     assert "ANTHROPIC_API_KEY" in clearance["pinned_origins_beta_provider"]["action"]
     assert "make launch-probe-web-app" in clearance["launch_report_recommendation"]["action"]
+    assert payload["deployed_gate_target_alignment"]["status"] == "enforced_by_make_launch_verify_deployed"
+    assert payload["deployed_gate_target_alignment"]["hub_url_runtime_env"] == "STAGING_BASE_URL"
+    assert payload["deployed_gate_target_alignment"]["beta_key_runtime_env"] == "BETA_KEY"
     assert payload["commands"] == [
         "make render-blueprint-check",
         "make launch-preflight",
@@ -222,6 +225,9 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "Evidence snapshot" in markdown
     assert "Snapshot contract" in markdown
     assert "make launch-probe-web-app && make launch-audit" in markdown
+    assert "Deployed Gate Target Alignment" in markdown
+    assert "`EMAILDJ_EXPECTED_HUB_URL` must match `STAGING_BASE_URL`" in markdown
+    assert "`EMAILDJ_EXPECTED_BETA_KEY` must match `BETA_KEY`" in markdown
     assert "Blocker Clearance Plan" in markdown
     assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
 

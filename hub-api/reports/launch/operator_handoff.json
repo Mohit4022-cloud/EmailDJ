@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T02:14:20.266318Z",
+  "generated_at": "2026-05-08T02:44:28.564307Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -145,6 +145,18 @@
     "make launch-audit",
     "make launch-handoff"
   ],
+  "deployed_gate_target_alignment": {
+    "status": "enforced_by_make_launch_verify_deployed",
+    "hub_url_release_env": "EMAILDJ_EXPECTED_HUB_URL",
+    "hub_url_runtime_env": "STAGING_BASE_URL",
+    "beta_key_release_env": "EMAILDJ_EXPECTED_BETA_KEY",
+    "beta_key_runtime_env": "BETA_KEY",
+    "failure_policy": "The full deployed gate exits before bundle verification if release-bundle overrides point at a different Hub URL or beta key than the staging runtime proof target.",
+    "narrow_verifiers_for_intentional_drift": [
+      "make launch-verify-web-app",
+      "make launch-verify-extension"
+    ]
+  },
   "blocked_evidence_refresh_commands": [
     {
       "id": "web_app_deployment_probe_readout",

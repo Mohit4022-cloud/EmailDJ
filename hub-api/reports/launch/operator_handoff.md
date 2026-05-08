@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T02:14:20.266318Z`
+- Generated at: `2026-05-08T02:44:28.564307Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -43,6 +43,14 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 | `DATABASE_URL` | `<managed-postgres-url>` | `True` |
 | `VECTOR_STORE_BACKEND` | `pgvector` | `True` |
 | `REDIS_FORCE_INMEMORY` | `<unset or 0>` | `True` |
+
+## Deployed Gate Target Alignment
+
+- Status: `enforced_by_make_launch_verify_deployed`
+- Hub URL: `EMAILDJ_EXPECTED_HUB_URL` must match `STAGING_BASE_URL`
+- Beta key: `EMAILDJ_EXPECTED_BETA_KEY` must match `BETA_KEY`
+- Failure policy: The full deployed gate exits before bundle verification if release-bundle overrides point at a different Hub URL or beta key than the staging runtime proof target.
+- Narrow verifiers for intentional drift: `make launch-verify-web-app`, `make launch-verify-extension`
 
 ## Discovered Deployment Metadata
 

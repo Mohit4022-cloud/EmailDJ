@@ -405,6 +405,18 @@ def build_launch_handoff() -> dict[str, Any]:
         "required_exports": required_exports,
         "dashboard_inputs": dashboard_inputs,
         "commands": commands,
+        "deployed_gate_target_alignment": {
+            "status": "enforced_by_make_launch_verify_deployed",
+            "hub_url_release_env": "EMAILDJ_EXPECTED_HUB_URL",
+            "hub_url_runtime_env": "STAGING_BASE_URL",
+            "beta_key_release_env": "EMAILDJ_EXPECTED_BETA_KEY",
+            "beta_key_runtime_env": "BETA_KEY",
+            "failure_policy": (
+                "The full deployed gate exits before bundle verification if release-bundle overrides point at a "
+                "different Hub URL or beta key than the staging runtime proof target."
+            ),
+            "narrow_verifiers_for_intentional_drift": ["make launch-verify-web-app", "make launch-verify-extension"],
+        },
         "blocked_evidence_refresh_commands": _blocked_evidence_refresh_commands(web_app_probe),
         "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
@@ -487,6 +499,22 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
     ]
     for item in handoff["dashboard_inputs"]:
         lines.append(f"| `{_md_cell(item['name'])}` | `{_md_cell(item['value'])}` | `{bool(item['required_when'])}` |")
+
+    alignment = dict(handoff.get("deployed_gate_target_alignment") or {})
+    if alignment:
+        lines.extend(
+            [
+                "",
+                "## Deployed Gate Target Alignment",
+                "",
+                f"- Status: `{alignment.get('status')}`",
+                f"- Hub URL: `{alignment.get('hub_url_release_env')}` must match `{alignment.get('hub_url_runtime_env')}`",
+                f"- Beta key: `{alignment.get('beta_key_release_env')}` must match `{alignment.get('beta_key_runtime_env')}`",
+                f"- Failure policy: {alignment.get('failure_policy')}",
+                "- Narrow verifiers for intentional drift: "
+                + ", ".join(f"`{item}`" for item in alignment.get("narrow_verifiers_for_intentional_drift") or []),
+            ]
+        )
 
     discovery = handoff.get("deployment_discovery") or {}
     if discovery.get("found") or discovery.get("candidate_web_app_origin"):
