@@ -1,24 +1,24 @@
 {
-  "generated_at": "2026-05-08T13:31:23.156415Z",
-  "current_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
+  "generated_at": "2026-05-08T13:41:40.847606Z",
+  "current_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
-    "web_app_probe_workspace_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
-    "web_app_probe_source_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
+    "workspace_git_sha_at_audit": "e779b5b31ade28d429673756f225a54673319afc",
+    "web_app_probe_workspace_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
+    "web_app_probe_source_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
     "currentness_blockers": [],
     "currentness_delta_checks": [
       {
         "artifact_id": "web_app_deployment_probe",
-        "recorded_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "current_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
+        "recorded_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
+        "current_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
         "deployment_relevant_changed_paths": [],
         "status": "matches_current_head"
       },
       {
         "artifact_id": "deployment_discovery",
-        "recorded_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "current_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
+        "recorded_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
+        "current_git_sha": "e779b5b31ade28d429673756f225a54673319afc",
         "deployment_relevant_changed_paths": [],
         "status": "matches_current_head"
       }
@@ -41,7 +41,7 @@
       "status": "pass",
       "evidence": [
         "backend_green=green",
-        "backend_suite_summary=431 passed, 1 warning in 14.11s"
+        "backend_suite_summary=436 passed, 1 warning in 14.78s"
       ],
       "blockers": []
     },
@@ -64,7 +64,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-08T13:31:19.679182Z"
+        "launch_report_generated_at=2026-05-08T13:41:36.350052Z"
       ],
       "blockers": []
     },
@@ -144,9 +144,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "web_app_probe_workspace_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "web_app_probe_source_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
+        "current_git_sha=e779b5b31ade28d429673756f225a54673319afc",
+        "web_app_probe_workspace_git_sha=e779b5b31ade28d429673756f225a54673319afc",
+        "web_app_probe_source_git_sha=e779b5b31ade28d429673756f225a54673319afc",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -166,7 +166,7 @@
       "status": "blocked",
       "evidence": [
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=afb3c05736a5",
+        "release_fingerprint=git_sha=e779b5b31ade",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -233,7 +233,7 @@
       "evidence": [
         "hub_api_full_suite=pass",
         "backend_green=green",
-        "backend_suite_summary=431 passed, 1 warning in 14.11s"
+        "backend_suite_summary=436 passed, 1 warning in 14.78s"
       ],
       "blockers": [],
       "note": ""
@@ -266,7 +266,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-08T13:31:19.679182Z"
+        "launch_report_generated_at=2026-05-08T13:41:36.350052Z"
       ],
       "blockers": [],
       "note": ""
@@ -309,7 +309,7 @@
         "validation_fallback_policy=dev_only_fail_closed_in_launch_modes",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=afb3c05736a5",
+        "release_fingerprint=git_sha=e779b5b31ade",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -333,9 +333,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "web_app_probe_workspace_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
-        "web_app_probe_source_git_sha=afb3c05736a56f48ca8a5682953a4c7f0733a715",
+        "current_git_sha=e779b5b31ade28d429673756f225a54673319afc",
+        "web_app_probe_workspace_git_sha=e779b5b31ade28d429673756f225a54673319afc",
+        "web_app_probe_source_git_sha=e779b5b31ade28d429673756f225a54673319afc",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],

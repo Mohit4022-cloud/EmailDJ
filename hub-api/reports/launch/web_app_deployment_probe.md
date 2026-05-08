@@ -1,10 +1,10 @@
 # Web App Deployment Probe
 
-- Generated at: `2026-05-08T13:31:13.075251Z`
-- Web app URL: `https://email-5wmqhzw7o-mohits-projects-e629a988.vercel.app`
-- Normalized origin: `https://email-5wmqhzw7o-mohits-projects-e629a988.vercel.app`
-- Source git SHA: `afb3c05736a56f48ca8a5682953a4c7f0733a715`
-- Workspace git SHA at probe: `afb3c05736a56f48ca8a5682953a4c7f0733a715`
+- Generated at: `2026-05-08T13:41:28.795362Z`
+- Web app URL: `https://email-7fe6niti6-mohits-projects-e629a988.vercel.app`
+- Normalized origin: `https://email-7fe6niti6-mohits-projects-e629a988.vercel.app`
+- Source git SHA: `e779b5b31ade28d429673756f225a54673319afc`
+- Workspace git SHA at probe: `e779b5b31ade28d429673756f225a54673319afc`
 - Probe matches workspace HEAD: `True`
 - Vercel bypass env: `VERCEL_AUTOMATION_BYPASS_SECRET`
 - Vercel bypass configured: `False`
