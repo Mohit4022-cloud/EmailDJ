@@ -1,0 +1,110 @@
+{
+  "request_id": "d648f5f3-d615-4c64-8891-4db1cdbf88e2",
+  "session_id": "ec8bf69d-50be-44f0-85cb-3feb7b07389a",
+  "generation_id": "5f7a02f9-e181-40ed-ba72-0df7cf8c3fce",
+  "draft_id": 1,
+  "sequence": 18,
+  "timestamp": 1778155843.4546628,
+  "endpoint_name": "web_v1_generate",
+  "preset_name": "straight_shooter",
+  "slider_config": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "prompt_template_hash": "0d555f2764977d16",
+  "flags_effective": {
+    "FEATURE_STRUCTURED_OUTPUT": true,
+    "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+    "FEATURE_LOSSLESS_STREAMING": true,
+    "FEATURE_FLUENCY_REPAIR": true,
+    "FEATURE_SHADOW_MODE": false,
+    "FEATURE_PERSONA_ROUTER": true,
+    "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+    "FEATURE_PRESET_TRUE_REWRITE": true
+  },
+  "mode": "mock",
+  "provider_source": "provider_stub",
+  "provider": "mock",
+  "model": "mock",
+  "cascade_reason": "primary",
+  "provider_attempt_count": 0,
+  "validator_attempt_count": 0,
+  "json_repair_count": 0,
+  "violation_retry_count": 0,
+  "repaired": false,
+  "violation_codes": [],
+  "violation_count": 0,
+  "enforcement_level": "repair",
+  "repair_loop_enabled": true,
+  "generation_status": "ok",
+  "fallback_reason": null,
+  "claims_policy_intervention_count": 0,
+  "policy_versions": {
+    "policy_runner": "1.0.0",
+    "greeting": "1.0.0",
+    "cta": "1.0.0",
+    "offer_lock": "1.0.0",
+    "leakage": "1.0.0",
+    "claims": "1.0.0",
+    "length": "1.0.0"
+  },
+  "response_contract": "legacy_text",
+  "final": {
+    "subject": "Trademark Search, Screening, and Brand Protection \u2014 relevant",
+    "body": "Hi Natasha, It may be worth tightening first-touch quality as execution scales at Meridian Health Sciences.\nTrademark search, screening, and brand protection helps enforce message relevance without adding manager overhead.\nCorsearch is the global leader in trademark clearance.\nCorsearch is the global leader in trademark clearance, brand protection, and ip enforcement.\nTrademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?",
+    "rendered_draft": "Subject: Trademark Search, Screening, and Brand Protection \u2014 relevant\nBody:\nHi Natasha, It may be worth tightening first-touch quality as execution scales at Meridian Health Sciences.\nTrademark search, screening, and brand protection helps enforce message relevance without adding manager overhead.\nCorsearch is the global leader in trademark clearance.\nCorsearch is the global leader in trademark clearance, brand protection, and ip enforcement.\nTrademark search, screening, and brand protection helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context.\nIn week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nOpen to a quick 15-minute chat next week?"
+  },
+  "execution_trace": {
+    "flags_effective": {
+      "FEATURE_STRUCTURED_OUTPUT": true,
+      "FEATURE_SENTENCE_SAFE_TRUNCATION": true,
+      "FEATURE_LOSSLESS_STREAMING": true,
+      "FEATURE_FLUENCY_REPAIR": true,
+      "FEATURE_SHADOW_MODE": false,
+      "FEATURE_PERSONA_ROUTER": true,
+      "FEATURE_NO_PROSPECT_OWNS_GUARDRAIL": true,
+      "FEATURE_PRESET_TRUE_REWRITE": true
+    },
+    "provider_path": "fallback_parser",
+    "truncation": {
+      "notes_cut": false,
+      "research_cut": false,
+      "boundary_used": {
+        "notes": "none",
+        "research": "none"
+      }
+    },
+    "facts": {
+      "count": 4,
+      "high_conf_count": 0,
+      "types": [
+        "other",
+        "initiative"
+      ]
+    },
+    "preset_contracts": {
+      "selected_preset": "straight_shooter",
+      "violations": []
+    },
+    "final_email": {
+      "len_chars": 772,
+      "checksum": "1f2db8ef4a66474ab5c13b4e71ad1f35a6256a23709774500a68e7be01e7afc9"
+    },
+    "prompt_template_versions": {
+      "web_mvp_prompt_hash": "0d555f2764977d16",
+      "preview_prompt_hashes": {
+        "extractor": "removed",
+        "generator": "5ffdba8b0a7b9ce4",
+        "combined": "removed"
+      }
+    }
+  },
+  "stream_chunk_mode": "stable_chars",
+  "total_chunks": 17,
+  "total_chars": 772,
+  "stream_missing_chunks": 0,
+  "stream_checksum": "1f2db8ef4a66474ab5c13b4e71ad1f35a6256a23709774500a68e7be01e7afc9",
+  "stream_integrity_server_ok": true
+}

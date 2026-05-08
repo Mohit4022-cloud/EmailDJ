@@ -1,0 +1,75 @@
+{
+  "run_id": "smoke_20260507T142957Z",
+  "mode": "smoke",
+  "timestamp_utc": "2026-05-07T14:29:59.649392Z",
+  "elapsed_seconds": 1.9,
+  "total": 30,
+  "pass": 30,
+  "fail": 0,
+  "errors": 0,
+  "pass_rate_pct": 100.0,
+  "provider_source_counts": {
+    "provider_stub": 30
+  },
+  "route_pass_fail_counts": {
+    "remix": {
+      "total": 30,
+      "pass": 30,
+      "fail": 0
+    }
+  },
+  "preset_pass_fail_counts": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 15,
+      "fail": 0
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 15,
+      "fail": 0
+    }
+  },
+  "top_violation_codes": {},
+  "top_violation_codes_by_route": {},
+  "top_violation_codes_by_preset": {},
+  "required_field_miss_count": 0,
+  "required_field_miss_rate": 0.0,
+  "under_length_miss_count": 0,
+  "under_length_miss_rate": 0.0,
+  "claims_policy_intervention_count": 0,
+  "preview_generate_parity_status": "not_run",
+  "launch_gates": {
+    "backend_green": "not_run",
+    "harness_green": "not_run",
+    "shim_green": "green",
+    "provider_green": "not_run",
+    "remix_green": "green"
+  },
+  "fail_tag_counts": {},
+  "top_10_worst": [],
+  "breakdown_by_persona_type": {
+    "exec": {
+      "total": 12,
+      "pass": 12
+    },
+    "practitioner": {
+      "total": 12,
+      "pass": 12
+    },
+    "manager": {
+      "total": 6,
+      "pass": 6
+    }
+  },
+  "breakdown_by_preset": {
+    "straight_shooter": {
+      "total": 15,
+      "pass": 15
+    },
+    "c_suite_sniper": {
+      "total": 15,
+      "pass": 15
+    }
+  }
+}

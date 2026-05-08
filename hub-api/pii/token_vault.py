@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from hashlib import sha256
 
 TokenVault = dict[str, str]
 
@@ -23,13 +24,10 @@ _PATTERNS = {
 
 
 def _replace_with_tokens(text: str, pattern: re.Pattern[str], prefix: str, vault: TokenVault) -> str:
-    counter = 0
-
     def repl(match: re.Match[str]) -> str:
-        nonlocal counter
-        counter += 1
         full = match.group(0)
-        token = f"[{prefix}_{counter}]"
+        digest = sha256(f"{prefix}:{full}".encode("utf-8")).hexdigest()[:12].upper()
+        token = f"[{prefix}_{digest}]"
         vault[token] = full
         return token
 

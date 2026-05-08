@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Elena Vasquez",
+    "title": "CEO",
+    "company": "Cascade Commerce Group",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Elena",
+  "research_text": "Elena Vasquez co-founded Cascade Commerce Group and has grown it from a regional marketplace to a $400M GMV platform. She has been public about the brand trust challenges in marketplace e-commerce and has testified at an industry panel on counterfeiting in online retail. She is focused on building brand relationships and differentiating Cascade on trust and authentication. She has invested in the brand registry program as a strategic initiative and is evaluating partnerships with brand protection technology companies.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "straight_shooter",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-5-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

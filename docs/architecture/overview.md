@@ -9,6 +9,7 @@ Source anchors:
 - `hub-api/email_generation/preset_preview_pipeline.py`
 - `web-app/src/main.js`
 - `web-app/src/api/client.js`
+- `chrome-extension/src/side-panel/hub-client.js`
 
 ## Repository Inventory
 | Top-level path | Purpose |
@@ -43,6 +44,7 @@ Source anchors:
 - Preset preview batch pipeline: `hub-api/email_generation/preset_preview_pipeline.py`
 - Frontend app bootstrap: `web-app/src/main.js`
 - Frontend API client: `web-app/src/api/client.js`
+- Extension Hub client: `chrome-extension/src/side-panel/hub-client.js`
 
 ## Critical Runtime Flows
 1. Generate flow
@@ -59,6 +61,11 @@ Source anchors:
 - UI submits `POST /web/v1/preset-previews/batch`
 - backend runs extractor+generator pipeline (`run_preview_pipeline`)
 - response returns previews + validation metadata
+
+4. Chrome extension quick-generate flow
+- Side panel resolves Hub API config from Chrome sync storage first, then build env.
+- Local dev may fall back to `http://127.0.0.1:8000`; production-like runtime must use a deployed `https://` Hub API origin and rejects `dev-beta-key`.
+- Side panel submits `POST /generate/quick`, then opens `GET /generate/stream/{request_id}` and consumes the same `start`/`token`/`done`/`error` event names.
 
 ## Request Lifecycle (Generate)
 ```mermaid

@@ -1,10 +1,111 @@
 /** Hub client for side panel. */
 
-const HUB_URL = 'http://localhost:8000';
+const BUILD_ENV = import.meta.env || {};
+export const DEFAULT_HUB_URL = 'http://127.0.0.1:8000';
+const HUB_URL_STORAGE_KEY = 'emaildjHubUrl';
+const BETA_KEY_STORAGE_KEY = 'emaildjBetaKey';
 
 let pollingInterval = null;
 let keepalivePort = null;
 export let currentTokenMap = {};
+
+export function normalizeHubUrl(value, fallback = DEFAULT_HUB_URL) {
+  const raw = String(value || '').trim() || fallback;
+  const trimmed = raw.replace(/\/+$/, '');
+  try {
+    const url = new URL(trimmed);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return fallback;
+    }
+    return url.toString().replace(/\/+$/, '');
+  } catch {
+    return fallback;
+  }
+}
+
+export function isProductionLikeEnv(env = BUILD_ENV) {
+  return Boolean(env?.PROD) || String(env?.MODE || '').toLowerCase() === 'production';
+}
+
+export function isLocalHubUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'].includes(url.hostname);
+  } catch {
+    return true;
+  }
+}
+
+export function assertLaunchSafeHubConfig({ env = BUILD_ENV, hubUrl = '', betaKey = '', rawHubUrl = '' } = {}) {
+  if (!isProductionLikeEnv(env)) return;
+  if (!String(rawHubUrl || '').trim()) {
+    throw new Error(
+      'Missing VITE_HUB_URL for a production extension runtime. Set it to the deployed hub-api root URL or save a runtime override.'
+    );
+  }
+  const url = new URL(hubUrl);
+  if (url.protocol !== 'https:' || isLocalHubUrl(hubUrl)) {
+    throw new Error('Production extension hub URL must be a deployed https:// hub-api origin, not localhost.');
+  }
+  if (String(betaKey || '').trim() === 'dev-beta-key') {
+    throw new Error('Production extension beta key cannot be dev-beta-key. Use a non-dev key or leave it empty for operator override.');
+  }
+}
+
+export function resolveHubConfigFromValues({ env = BUILD_ENV, storedHubUrl = '', storedBetaKey = '' } = {}) {
+  const rawHubUrl = storedHubUrl || env.VITE_HUB_URL || '';
+  const hubUrl = normalizeHubUrl(rawHubUrl || DEFAULT_HUB_URL);
+  const betaKey = String(storedBetaKey || env.VITE_EMAILDJ_BETA_KEY || '').trim();
+  assertLaunchSafeHubConfig({ env, hubUrl, betaKey, rawHubUrl });
+  return { hubUrl, betaKey };
+}
+
+async function readStoredConfig() {
+  const storage = globalThis.chrome?.storage?.sync;
+  if (!storage?.get) return {};
+  try {
+    return await storage.get([HUB_URL_STORAGE_KEY, BETA_KEY_STORAGE_KEY]);
+  } catch {
+    return {};
+  }
+}
+
+export async function resolveHubConfig() {
+  const stored = await readStoredConfig();
+  return resolveHubConfigFromValues({
+    storedHubUrl: stored[HUB_URL_STORAGE_KEY],
+    storedBetaKey: stored[BETA_KEY_STORAGE_KEY],
+  });
+}
+
+export async function saveHubConfig({ hubUrl = '', betaKey = '' } = {}) {
+  const storage = globalThis.chrome?.storage?.sync;
+  if (!storage?.set) {
+    throw new Error('Chrome storage is unavailable.');
+  }
+  const config = resolveHubConfigFromValues({ storedHubUrl: hubUrl, storedBetaKey: betaKey });
+  await storage.set({
+    [HUB_URL_STORAGE_KEY]: config.hubUrl,
+    [BETA_KEY_STORAGE_KEY]: config.betaKey,
+  });
+  return config;
+}
+
+export function buildHubHeaders(config, headers = {}) {
+  const merged = { ...headers };
+  if (config?.betaKey) {
+    merged['X-EmailDJ-Beta-Key'] = config.betaKey;
+  }
+  return merged;
+}
+
+async function hubFetch(path, options = {}) {
+  const config = await resolveHubConfig();
+  return fetch(`${config.hubUrl}${path}`, {
+    ...options,
+    headers: buildHubHeaders(config, options.headers || {}),
+  });
+}
 
 function parseSseBlock(block) {
   const lines = block.split('\n');
@@ -48,7 +149,7 @@ export function connect() {
 }
 
 async function startGenerate(payload, sliderValue = 5) {
-  const start = await fetch(`${HUB_URL}/generate/quick`, {
+  const start = await hubFetch('/generate/quick', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ payload, slider_value: sliderValue }),
@@ -60,7 +161,7 @@ async function startGenerate(payload, sliderValue = 5) {
 }
 
 async function consumeStream(requestId) {
-  const streamRes = await fetch(`${HUB_URL}/generate/stream/${requestId}`, {
+  const streamRes = await hubFetch(`/generate/stream/${requestId}`, {
     method: 'GET',
     headers: { Accept: 'text/event-stream' },
   });
@@ -124,7 +225,7 @@ export async function generateEmail(payload, sliderValue = 5) {
 }
 
 export async function pollAssignments() {
-  const res = await fetch(`${HUB_URL}/assignments/poll?sdr_id=demo-sdr`, {
+  const res = await hubFetch('/assignments/poll?sdr_id=demo-sdr', {
     headers: { 'Cache-Control': 'no-cache' },
   });
   if (!res.ok) throw new Error(`Assignments fetch failed: ${res.status}`);
@@ -132,7 +233,7 @@ export async function pollAssignments() {
 }
 
 export async function captureEdit(original, edited) {
-  fetch(`${HUB_URL}/webhooks/edit`, {
+  hubFetch('/webhooks/edit', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ original_draft: original, final_edit: edited }),
@@ -140,7 +241,7 @@ export async function captureEdit(original, edited) {
 }
 
 export async function sendAssignment(assignmentId, emailDraft, finalEdit) {
-  return fetch(`${HUB_URL}/webhooks/send`, {
+  return hubFetch('/webhooks/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ assignment_id: assignmentId, email_draft: emailDraft, final_edit: finalEdit }),

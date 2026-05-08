@@ -7,6 +7,7 @@
     "dev": "vite build --watch",
     "build": "vite build",
     "preview": "vite preview",
+    "check:release-config": "node scripts/check-release-config.mjs",
     "check:syntax": "for f in $(find src -name '*.js' -type f); do node --check \"$f\"; done",
     "test": "node --test tests/*.test.js"
   },

@@ -817,6 +817,22 @@ def _check_outcome_like(text: str) -> bool:
         "cut",
         "protect",
         "stabilize",
+        "scale",
+        "scaled",
+        "keep",
+        "keeps",
+        "maintain",
+        "maintains",
+        "prevent",
+        "prevents",
+        "prevented",
+        "avoid",
+        "avoids",
+        "avoided",
+        "standardize",
+        "standardized",
+        "tighten",
+        "tightened",
     )
     has_outcome_verb = any(word in lowered for word in outcome_words)
     mechanism_words = (
@@ -846,6 +862,7 @@ def _check_outcome_like(text: str) -> bool:
         "handoff",
         "forecast",
         "pipeline",
+        "drift",
     )
     gain_fallback = bool(re.search(r"\bgain(?:s|ed)?\b", lowered)) and any(
         word in lowered for word in concrete_outcome_words

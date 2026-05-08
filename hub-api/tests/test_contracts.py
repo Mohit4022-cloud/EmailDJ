@@ -4,9 +4,15 @@ from pathlib import Path
 
 import pytest
 
+OPENAPI_PATH = Path(__file__).resolve().parents[1] / 'openapi.json'
+
+
+def _load_openapi_snapshot():
+    return json.loads(OPENAPI_PATH.read_text(encoding='utf-8'))
+
 
 def test_openapi_contains_mvp_paths():
-    spec = json.loads(Path('openapi.json').read_text())
+    spec = _load_openapi_snapshot()
     paths = spec['paths']
     assert '/generate/quick' in paths
     assert '/generate/stream/{request_id}' in paths
@@ -16,7 +22,7 @@ def test_openapi_contains_mvp_paths():
 
 
 def test_quick_generate_schema_present():
-    spec = json.loads(Path('openapi.json').read_text())
+    spec = _load_openapi_snapshot()
     schemas = spec['components']['schemas']
     assert 'QuickGenerateRequest' in schemas
     assert 'QuickGenerateAccepted' in schemas
@@ -36,7 +42,7 @@ def test_openapi_snapshot_matches_runtime_core_paths():
     from main import app
 
     runtime = app.openapi()
-    frozen = json.loads(Path('openapi.json').read_text())
+    frozen = _load_openapi_snapshot()
 
     for path in [
         '/generate/quick',

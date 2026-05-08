@@ -102,11 +102,58 @@ class WebApp {
         <p>Paste research, generate once, then sculpt the draft with live sliders.</p>
       </div>
       <div class="layout">
-        <section class="panel" id="inputPanel">
-          <div class="field">
-            <label>Beta Key</label>
-            <input id="betaKey" placeholder="dev-beta-key" />
+        <section class="panel workspace-panel" id="workspacePanel">
+          <div class="panel-heading workspace-heading">
+            <div>
+              <div class="section-kicker">Draft Workspace</div>
+              <h2>Email draft</h2>
+            </div>
+            <div class="workspace-actions">
+              <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
+              <div id="presetLibraryMount"></div>
+            </div>
           </div>
+          <div class="workspace-command-strip" id="workspaceCommandStrip">
+            <div class="workspace-brief-chips" aria-label="Current brief">
+              <span class="workspace-chip"><span>Prospect</span><strong id="workspaceProspectChip">Not set</strong></span>
+              <span class="workspace-chip"><span>Offer</span><strong id="workspaceOfferChip">Not set</strong></span>
+              <span class="workspace-chip"><span>Research</span><strong id="workspaceResearchChip">Not set</strong></span>
+            </div>
+            <div class="workspace-command-actions">
+              <span class="workspace-readiness" id="workspaceReadiness">Brief incomplete</span>
+              <button class="btn-primary workspace-generate-btn" id="workspaceGenerateBtn">Generate Draft</button>
+            </div>
+          </div>
+          <div id="editorMount"></div>
+          <div class="status workspace-status" id="statusLine"></div>
+          <div class="remix-panel">
+            <div class="panel-heading compact-heading">
+              <div>
+                <div class="section-kicker">Remix Controls</div>
+                <h2>Tone sliders</h2>
+              </div>
+            </div>
+            <div id="sliderBoard"></div>
+          </div>
+        </section>
+
+        <section class="panel brief-panel" id="inputPanel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">Brief</div>
+              <h2>Inputs</h2>
+            </div>
+          </div>
+          <details class="operator-settings">
+            <summary>
+              <span>Operator settings</span>
+              <small>Beta access</small>
+            </summary>
+            <div class="field">
+              <label>Beta Key</label>
+              <input id="betaKey" placeholder="dev-beta-key" />
+            </div>
+          </details>
           <div class="field">
             <label>Your Company Name (saved locally)</label>
             <input id="sellerCompanyName" placeholder="EmailDJ" />
@@ -156,15 +203,7 @@ class WebApp {
           </div>
           <div class="actions">
             <button class="btn-primary" id="generateBtn">Generate</button>
-            <button class="btn-secondary" id="saveRemixBtn" disabled>Save Remix</button>
-            <div id="presetLibraryMount"></div>
           </div>
-          <div class="status" id="statusLine"></div>
-        </section>
-
-        <section class="panel">
-          <div id="sliderBoard"></div>
-          <div id="editorMount"></div>
         </section>
       </div>
     `;
@@ -172,7 +211,12 @@ class WebApp {
     this.statusLine = this.root.querySelector('#statusLine');
     this.runtimeModeBadgeEl = this.root.querySelector('#runtimeModeBadge');
     this.generateBtn = this.root.querySelector('#generateBtn');
+    this.workspaceGenerateBtn = this.root.querySelector('#workspaceGenerateBtn');
     this.saveRemixBtn = this.root.querySelector('#saveRemixBtn');
+    this.workspaceProspectChip = this.root.querySelector('#workspaceProspectChip');
+    this.workspaceOfferChip = this.root.querySelector('#workspaceOfferChip');
+    this.workspaceResearchChip = this.root.querySelector('#workspaceResearchChip');
+    this.workspaceReadiness = this.root.querySelector('#workspaceReadiness');
     this.betaKeyInput = this.root.querySelector('#betaKey');
     this.presetLibraryMount = this.root.querySelector('#presetLibraryMount');
     this.sellerCompanyNameInput = this.root.querySelector('#sellerCompanyName');
@@ -202,6 +246,7 @@ class WebApp {
     this.seedTargetDefaults();
 
     this.generateBtn.addEventListener('click', () => this.generate());
+    this.workspaceGenerateBtn.addEventListener('click', () => this.generate());
     this.saveRemixBtn.addEventListener('click', () => this.saveRemix());
     this.betaKeyInput.addEventListener('change', () => {
       this.storageSet('emaildj_beta_key', this.betaKeyInput.value.trim() || 'dev-beta-key');
@@ -215,8 +260,14 @@ class WebApp {
       this.ctaTypeSelect,
       this.sellerCompanyNotesInput,
     ]) {
-      input?.addEventListener('input', () => this.persistCompanyContext());
-      input?.addEventListener('change', () => this.persistCompanyContext());
+      input?.addEventListener('input', () => {
+        this.persistCompanyContext();
+        this.updateWorkspaceSummary();
+      });
+      input?.addEventListener('change', () => {
+        this.persistCompanyContext();
+        this.updateWorkspaceSummary();
+      });
     }
     for (const input of [
       this.prospectNameInput,
@@ -225,13 +276,17 @@ class WebApp {
       this.prospectLinkedinInput,
       this.researchInput,
     ]) {
-      input?.addEventListener('input', () => this.persistTargetDefaults());
+      input?.addEventListener('input', () => {
+        this.persistTargetDefaults();
+        this.updateWorkspaceSummary();
+      });
     }
 
+    this.updateWorkspaceSummary();
     this.refreshRuntimeConfig({ silent: true }).catch(() => {
       this.updateRuntimeModeBadge();
     });
-    this.setStatus('Ready. Fill inputs and click Generate.');
+    this.setStatus(this.briefReadiness().status);
   }
 
   applyPreset(preset) {
@@ -338,6 +393,38 @@ class WebApp {
     return targetSaved && researchSaved;
   }
 
+  updateWorkspaceSummary() {
+    const prospectName = this.prospectNameInput.value.trim();
+    const prospectCompany = this.prospectCompanyInput.value.trim();
+    const offer = this.sellerCurrentProductInput.value.trim();
+    const researchLength = this.researchInput.value.trim().length;
+
+    const prospectLabel = [prospectName, prospectCompany].filter(Boolean).join(' · ') || 'Not set';
+    const offerLabel = offer || 'Not set';
+    const researchLabel = researchLength >= 20 ? `${researchLength} chars` : 'Not set';
+
+    this.workspaceProspectChip.textContent = prospectLabel;
+    this.workspaceOfferChip.textContent = offerLabel;
+    this.workspaceResearchChip.textContent = researchLabel;
+    this.workspaceProspectChip.closest('.workspace-chip')?.classList.toggle('is-empty', !prospectName || !prospectCompany);
+    this.workspaceOfferChip.closest('.workspace-chip')?.classList.toggle('is-empty', !offer);
+    this.workspaceResearchChip.closest('.workspace-chip')?.classList.toggle('is-empty', researchLength < 20);
+    const readiness = this.briefReadiness();
+    this.root.querySelector('#workspaceCommandStrip')?.classList.toggle('is-ready', readiness.ready);
+    if (this.workspaceReadiness) {
+      this.workspaceReadiness.textContent = readiness.label;
+      this.workspaceReadiness.classList.toggle('is-ready', readiness.ready);
+    }
+    if (!this.sessionId && !this.isGenerating) {
+      this.setStatus(readiness.status);
+    }
+  }
+
+  setGenerateDisabled(disabled) {
+    if (this.generateBtn) this.generateBtn.disabled = disabled;
+    if (this.workspaceGenerateBtn) this.workspaceGenerateBtn.disabled = disabled;
+  }
+
   payload() {
     const fullName = this.prospectNameInput.value.trim();
     // Derive first name client-side for greeting normalization
@@ -403,6 +490,24 @@ class WebApp {
     if (!data.research_text || data.research_text.length < 20) return 'Paste at least 20 characters of research.';
     if (!data.offer_lock) return 'Current Product / Service to Pitch is required.';
     return '';
+  }
+
+  briefReadiness() {
+    const data = this.payload();
+    const validation = this.validate(data);
+    if (!validation) {
+      return { ready: true, label: 'Ready', status: 'Brief ready.' };
+    }
+    if (validation.startsWith('Prospect')) {
+      return { ready: false, label: 'Needs prospect', status: validation };
+    }
+    if (validation.startsWith('Paste')) {
+      return { ready: false, label: 'Needs research', status: validation };
+    }
+    if (validation.startsWith('Current Product')) {
+      return { ready: false, label: 'Needs offer', status: validation };
+    }
+    return { ready: false, label: 'Brief incomplete', status: validation };
   }
 
   setStatus(text, pulse = false) {
@@ -497,7 +602,7 @@ class WebApp {
     }
 
     this.isGenerating = true;
-    this.generateBtn.disabled = true;
+    this.setGenerateDisabled(true);
     this.editor.reset();
     this.setStatus('Generating draft...', true);
     this.dispatchMetric('web_generate_started');
@@ -518,7 +623,7 @@ class WebApp {
       this.setStatus(String(error?.message || error));
     } finally {
       this.isGenerating = false;
-      this.generateBtn.disabled = false;
+      this.setGenerateDisabled(false);
       this.statusLine.classList.remove('pulse');
     }
   }
@@ -542,7 +647,7 @@ class WebApp {
     }
 
     this.isGenerating = true;
-    this.generateBtn.disabled = true;
+    this.setGenerateDisabled(true);
     this.setStatus('Remixing draft...', true);
     this.editor.reset();
     this.dispatchMetric('web_remix_started');
@@ -565,7 +670,7 @@ class WebApp {
       this.setStatus(String(error?.message || error));
     } finally {
       this.isGenerating = false;
-      this.generateBtn.disabled = false;
+      this.setGenerateDisabled(false);
       this.statusLine.classList.remove('pulse');
     }
   }

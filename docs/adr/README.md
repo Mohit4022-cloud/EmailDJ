@@ -8,3 +8,7 @@ Use ADRs for durable architecture/policy decisions that affect invariants, contr
 
 ## Requirement
 CI enforces ADR updates when core invariant paths change (defined in `docs/_meta/docmap.yaml`).
+
+## Decisions
+- [ADR-0001: Lock Enforcement Model (offer_lock + cta_lock)](0001-lock-enforcement-model.md)
+- [ADR-0002: Launch Runtime Gating](0002-launch-runtime-gating.md)

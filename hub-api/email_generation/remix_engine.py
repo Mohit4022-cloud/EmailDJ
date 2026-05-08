@@ -46,6 +46,7 @@ from email_generation.output_enforcement import (
     split_sentences,
 )
 from email_generation.model_defaults import default_openai_model
+from email_generation.policies.context_policy import sanitize_company_notes_for_generation
 from email_generation.policies import policy_runner
 from email_generation.policies.policy_metrics import persist_policy_metrics
 from email_generation.preset_strategies import normalize_preset_id
@@ -65,6 +66,8 @@ from email_generation.runtime_policies import (
     feature_shadow_mode_enabled,
     feature_structured_output_enabled,
     feature_sentence_safe_truncation_enabled,
+    is_production_like_environment,
+    launch_mode,
     repair_loop_enabled,
     strict_lock_enforcement_level,
     web_mvp_output_token_budget_default,
@@ -95,6 +98,11 @@ def _request_endpoint(session: dict[str, Any]) -> str:
 
 def _remix_warn_retry_on_empty_parse_output(session: dict[str, Any], raw_output: str, *, throttled: bool) -> bool:
     return _request_endpoint(session) == "remix" and not throttled and not raw_output.strip()
+
+
+def _validation_fallback_allowed() -> bool:
+    return launch_mode() == "dev" and not is_production_like_environment()
+
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 STYLE_CACHE_MAX = 5
@@ -271,7 +279,7 @@ _FACT_ENTITY_RE = re.compile(r"\b(?:[A-Z][a-z]+|[A-Z]{2,})\b")
 
 _INCOMPLETE_SENTENCE_END_CHARS = (",", ";", ":", "-", "/", "(")
 _TRAILING_FRAGMENT_RE = re.compile(
-    r"(?:\b(?:and|or|to|with|for|of|from|that|which|while|because|so)\b)\s*$",
+    r"(?:\b(?:and|or|to|with|for|of|from|at|by|in|on|that|which|while|because|so)\b)\s*$",
     flags=re.IGNORECASE,
 )
 _HANGING_CONNECTOR_END_RE = re.compile(r"(?:\b(?:and|to|with)\b)\s*$", flags=re.IGNORECASE)
@@ -1345,6 +1353,15 @@ def _fluency_completeness_violations(draft: str, session: dict[str, Any]) -> lis
     return _unique_ordered(violations)
 
 
+def _subject_fluency_violations(subject: str) -> list[str]:
+    normalized = _collapse_ws(subject).rstrip(".!?")
+    if not normalized:
+        return []
+    if normalized.endswith(_INCOMPLETE_SENTENCE_END_CHARS) or _TRAILING_FRAGMENT_RE.search(normalized):
+        return ["fluency_incomplete_subject_ending"]
+    return []
+
+
 def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dict[str, int]) -> list[str]:
     violations: list[str] = []
     plan = GenerationPlan.from_dict(session.get("generation_plan"))
@@ -1352,6 +1369,8 @@ def validate_ctco_output(draft: str, session: dict[str, Any], style_sliders: dic
     subject, body = _extract_subject_and_body(draft)
     if not subject:
         violations.append("missing_subject")
+    else:
+        violations.extend(_subject_fluency_violations(subject))
     if not body:
         violations.append("missing_body")
 
@@ -2115,10 +2134,15 @@ async def _build_real_draft(
     )
     session["generation_plan"] = plan.to_dict()
 
+    company_context = session.get("company_context") or {}
+    seller_name = company_context.get("company_name")
     seller_context = {
-        "seller_company_name": (session.get("company_context") or {}).get("company_name"),
-        "seller_company_url": (session.get("company_context") or {}).get("company_url"),
-        "seller_company_notes": (session.get("company_context") or {}).get("company_notes"),
+        "seller_company_name": seller_name,
+        "seller_company_url": company_context.get("company_url"),
+        "seller_company_notes": sanitize_company_notes_for_generation(
+            company_context.get("company_notes"),
+            allowed_text=f"{seller_name or ''} {session.get('offer_lock') or ''}",
+        ),
     }
     output_budget = _output_token_budget(style_sliders)
     attempt_trace: list[dict[str, Any]] = []
@@ -2665,6 +2689,17 @@ async def build_draft(
                 raise
             fallback_codes = _parse_ctco_violation_codes(raw_error)
             if any(code.startswith("invalid_json_output") for code in fallback_codes):
+                raise
+            if not _validation_fallback_allowed():
+                logger.warning(
+                    "web_mvp_validation_fallback_blocked",
+                    extra={
+                        "session_id": session_id,
+                        "fallback_reason": raw_error,
+                        "violation_codes": fallback_codes,
+                        "enforcement_level": enforcement_level,
+                    },
+                )
                 raise
             fallback_reason = raw_error
             generation_status = "fallback_after_validation_failure"

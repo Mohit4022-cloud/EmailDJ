@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+import re
 from typing import Any
 
 from .brief_honesty import (
@@ -12,8 +13,10 @@ from .brief_honesty import (
     fact_map_by_id,
     hook_confidence_level,
     hook_evidence_strength,
+    hook_has_strong_claim_language,
     hook_mentions_initiative,
     hook_mentions_recency,
+    hook_requires_grounded_research,
     hook_support_posture,
     normalize_text_key,
     normalize_forbidden_claim_patterns,
@@ -91,6 +94,25 @@ def _normalized_string_list(value: Any) -> list[str]:
         seen.add(key)
         out.append(text)
     return out
+
+
+def _soften_strong_claim_language(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    replacements = (
+        (r"\bis focused on\b", "may be working on"),
+        (r"\bis prioritizing\b", "may be prioritizing"),
+        (r"\bpriority now\b", "possible priority"),
+        (r"\bspecific need\b", "possible need"),
+        (r"\bmust be\b", "may be"),
+        (r"\bclearly\b", ""),
+        (r"\bdefinitely\b", ""),
+    )
+    out = text
+    for pattern, replacement in replacements:
+        out = re.sub(pattern, replacement, out, flags=re.IGNORECASE)
+    return re.sub(r"\s+", " ", out).strip()
 
 
 def _normalize_persona_cues(raw: Any) -> dict[str, Any]:
@@ -351,6 +373,11 @@ def sanitize_stage_a_brief(
     before_summary = _summary_snapshot(raw_summary_brief)
     source_field_map = _source_field_value_map(source_payload or {}) if source_payload else {}
     prospect_company = str(source_field_map.get("company") or "").strip()
+    source_text_occurrences: dict[str, int] = {}
+    for fragment in _flatten_input_text(list(source_field_map.values())):
+        key = normalize_text_key(fragment)
+        if key:
+            source_text_occurrences[key] = source_text_occurrences.get(key, 0) + 1
     seen_fact_keys: set[tuple[str, str]] = set()
     dropped_fact_rows: dict[str, dict[str, str]] = {}
 
@@ -390,13 +417,18 @@ def sanitize_stage_a_brief(
             )
             dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
-        normalized_fact_key = (source_field.lower(), normalize_text_key(text))
-        if normalized_fact_key in seen_fact_keys:
+        normalized_text = normalize_text_key(text)
+        normalized_fact_key = (canonical_fact_kind(source_field), normalized_text)
+        if (
+            normalized_fact_key in seen_fact_keys
+            and canonical_fact_kind(source_field) != "cta"
+            and source_text_occurrences.get(normalized_text, 0) <= 1
+        ):
             record(
-                "drop_fact_duplicate_text_same_source",
+                "drop_fact_duplicate_text_same_kind",
                 fact_id=fact_id,
                 source_field=source_field,
-                reason="duplicate_text_same_source",
+                reason="duplicate_text_same_kind",
             )
             dropped_fact_rows[fact_id] = {"source_field": source_field.lower(), "text": text}
             continue
@@ -517,6 +549,32 @@ def sanitize_stage_a_brief(
                 if not fact_id:
                     continue
                 if fact_id in valid_fact_ids:
+                    if field == "seller_fact_ids":
+                        fact = next((fact for fact in sanitized_facts if str(fact.get("fact_id") or "").strip() == fact_id), {})
+                        fact_kind = canonical_fact_kind(str(fact.get("source_field") or "").strip())
+                        if fact_kind not in {"seller_context", "seller_proof"}:
+                            replacement_ids = replacement_pool.get(normalize_text_key(fact.get("text") or ""))
+                            if replacement_ids:
+                                for replacement_id in replacement_ids:
+                                    if replacement_id not in filtered:
+                                        filtered.append(replacement_id)
+                                record(
+                                    "repair_hook_fact_reference",
+                                    hook_id=hook_id,
+                                    field=field,
+                                    original_fact_id=fact_id,
+                                    replacement_fact_ids=list(replacement_ids),
+                                    reason="non_seller_fact_reference_text_matched_surviving_seller_fact",
+                                )
+                            else:
+                                record(
+                                    "drop_hook_non_seller_fact_reference",
+                                    hook_id=hook_id,
+                                    field=field,
+                                    original_fact_id=fact_id,
+                                    reason="seller_fact_ids_must_reference_seller_context_or_proof",
+                                )
+                            continue
                     if fact_id not in filtered:
                         filtered.append(fact_id)
                     continue
@@ -546,6 +604,16 @@ def sanitize_stage_a_brief(
                     reason="removed_fact_reference",
                 )
             hook[field] = filtered
+
+        if hook.get("seller_support") and not [
+            str(item or "").strip() for item in (hook.get("seller_fact_ids") or []) if str(item or "").strip()
+        ]:
+            hook["seller_support"] = ""
+            record(
+                "normalize_hook_unbacked_seller_support",
+                hook_id=hook_id,
+                reason="no_valid_seller_fact_ids",
+            )
 
         if not hook_id or not str(hook.get("hook_type") or "").strip() or not str(hook.get("hook_text") or "").strip():
             record("drop_hook_structurally_empty", hook_id=hook_id, reason="missing_core_fields")
@@ -577,7 +645,7 @@ def sanitize_stage_a_brief(
                 reason="contaminated_research",
             )
             continue
-        if (hook_mentions_initiative(hook) or hook_mentions_recency(hook)) and not posture["supports_initiative_or_trigger"]:
+        if hook_requires_grounded_research(hook) and not posture["supports_initiative_or_trigger"]:
             record(
                 "drop_hook_unsupported_initiative_or_recency",
                 hook_id=hook_id,
@@ -631,6 +699,21 @@ def sanitize_stage_a_brief(
                 to_value=capped_evidence,
                 reason="seller_proof_cap",
             )
+        if hook_has_strong_claim_language(hook) and not posture["has_explicit_seller_proof"]:
+            changed_fields: list[str] = []
+            for field in ("grounded_observation", "inferred_relevance", "hook_text"):
+                original = str(hook.get(field) or "").strip()
+                softened = _soften_strong_claim_language(original)
+                if softened != original:
+                    hook[field] = softened
+                    changed_fields.append(field)
+            if changed_fields:
+                record(
+                    "soften_hook_unearned_strong_claim",
+                    hook_id=hook_id,
+                    fields=changed_fields,
+                    reason="missing_seller_proof",
+                )
         posture_sanitized_hooks.append(hook)
     sanitized["hooks"] = posture_sanitized_hooks
 
@@ -696,6 +779,7 @@ def sanitize_stage_a_brief(
             "cap_hook_confidence_level",
             "cap_hook_evidence_strength",
             "normalize_hook_unbacked_seller_support",
+            "soften_hook_unearned_strong_claim",
             "drop_hook_missing_fact_reference",
         )
     ):

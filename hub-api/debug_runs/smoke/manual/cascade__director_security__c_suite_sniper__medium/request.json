@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Chris Huang",
+    "title": "Director of Platform Security and Trust",
+    "company": "Cascade Commerce Group",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Chris",
+  "research_text": "Chris Huang is responsible for platform integrity, fraud prevention, and seller trust at Cascade Commerce Group. His team handles account takeovers, fraudulent listings, and increasingly, intellectual property abuse by sellers. He is working with Kevin Park on a joint initiative to detect and remove trademark-infringing listings at the point of upload rather than after customer complaints. He has an engineering team and is evaluating API-first tools that can integrate into the listing ingestion pipeline for pre-publication screening.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "c_suite_sniper",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-5-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

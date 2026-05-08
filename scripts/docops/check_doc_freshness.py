@@ -60,8 +60,117 @@ def _load_docmap() -> dict:
     if not DOCMAP_PATH.exists():
         raise FileNotFoundError(f"Missing doc map: {DOCMAP_PATH}")
     text = DOCMAP_PATH.read_text(encoding="utf-8")
-    # The file uses JSON-compatible YAML so stdlib json is enough.
-    return json.loads(text)
+    try:
+        import yaml  # type: ignore
+
+        return yaml.safe_load(text)
+    except ModuleNotFoundError:
+        pass
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return _load_docmap_subset(text)
+
+
+def _clean_yaml_value(value: str) -> str:
+    value = value.strip()
+    if value.startswith(("'", '"')) and value.endswith(("'", '"')):
+        return value[1:-1]
+    return value
+
+
+def _load_docmap_subset(text: str) -> dict:
+    """Parse the subset of docmap.yaml needed by this checker without PyYAML."""
+
+    data: dict[str, object] = {"coverage_rules": [], "generators": [], "adr": {}}
+    current_section: str | None = None
+    current_item: dict[str, object] | None = None
+    current_key: str | None = None
+
+    def finish_item() -> None:
+        nonlocal current_item
+        if current_section in {"coverage_rules", "generators"} and current_item is not None:
+            section = data.setdefault(current_section, [])
+            assert isinstance(section, list)
+            section.append(current_item)
+        current_item = None
+
+    for raw_line in text.splitlines():
+        line_without_comment = raw_line.split("#", 1)[0].rstrip()
+        if not line_without_comment.strip():
+            continue
+        indent = len(line_without_comment) - len(line_without_comment.lstrip(" "))
+        stripped = line_without_comment.strip()
+
+        if indent == 0 and stripped.endswith(":"):
+            finish_item()
+            current_section = stripped[:-1]
+            current_key = None
+            continue
+
+        if current_section in {"coverage_rules", "generators"}:
+            if stripped.startswith("- ") and current_key and indent > 2 and current_item is not None:
+                values = current_item.setdefault(current_key, [])
+                assert isinstance(values, list)
+                values.append(_clean_yaml_value(stripped[2:]))
+                continue
+            if stripped.startswith("- "):
+                finish_item()
+                current_item = {}
+                rest = stripped[2:].strip()
+                if rest and ":" in rest:
+                    key, value = rest.split(":", 1)
+                    current_item[key.strip()] = _clean_yaml_value(value)
+                    current_key = None
+                continue
+            if current_item is None:
+                continue
+            if stripped.endswith(":"):
+                current_key = stripped[:-1]
+                current_item[current_key] = []
+                continue
+            if ":" in stripped:
+                key, value = stripped.split(":", 1)
+                current_item[key.strip()] = _clean_yaml_value(value)
+                current_key = None
+            continue
+
+        if current_section == "adr":
+            adr = data.setdefault("adr", {})
+            assert isinstance(adr, dict)
+            if stripped.endswith(":"):
+                current_key = stripped[:-1]
+                adr[current_key] = []
+                continue
+            if stripped.startswith("- ") and current_key:
+                values = adr.setdefault(current_key, [])
+                assert isinstance(values, list)
+                values.append(_clean_yaml_value(stripped[2:]))
+                continue
+            if ":" in stripped:
+                key, value = stripped.split(":", 1)
+                adr[key.strip()] = _clean_yaml_value(value)
+
+    finish_item()
+    return data
+
+
+def _generator_check(script: str, cache: dict[str, tuple[bool, str]]) -> tuple[bool, str]:
+    if script in cache:
+        return cache[script]
+    try:
+        output = subprocess.check_output(
+            [sys.executable, script, "--check"],
+            cwd=ROOT,
+            stderr=subprocess.STDOUT,
+            text=True,
+        )
+        result = (True, output.strip())
+    except subprocess.CalledProcessError as exc:
+        result = (False, (exc.output or "").strip())
+    cache[script] = result
+    return result
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -114,8 +223,10 @@ def main(argv: list[str]) -> int:
         failures.append("\n".join(message))
 
     generators = docmap.get("generators", [])
+    generator_check_cache: dict[str, tuple[bool, str]] = {}
     for gen in generators:
         gen_id = gen.get("id", "unnamed-generator")
+        script = gen.get("script", "")
         triggers = gen.get("triggers", [])
         outputs = gen.get("outputs", [])
         matched = [path for path in changed if _match_any(path, triggers)]
@@ -123,6 +234,11 @@ def main(argv: list[str]) -> int:
             continue
         if any(path in changed for path in outputs):
             continue
+        check_output = "n/a"
+        if script:
+            ok, check_output = _generator_check(script, generator_check_cache)
+            if ok:
+                continue
         failures.append(
             "\n".join(
                 [
@@ -130,6 +246,7 @@ def main(argv: list[str]) -> int:
                     f"  Triggering file(s): {', '.join(matched[:5])}",
                     f"  Expected output(s): {', '.join(outputs)}",
                     "  Run: python3 scripts/docops/generate_docs.py",
+                    f"  Generator check output: {check_output or 'n/a'}",
                 ]
             )
         )

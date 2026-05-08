@@ -174,15 +174,15 @@ function ensureResearchText(normalized) {
   if (research.length >= 20) return research;
   const company = normalized?.prospect?.company || 'the account';
   const title = normalized?.prospect?.title || 'the target role';
-  return `${company} research is limited in this context. Keep messaging grounded for ${title} and focus on practical outbound outcomes.`;
+  return `${company} research is limited in this context. Keep the preview grounded for ${title} and avoid inventing proof.`;
 }
 
 function deriveOneLineValue(normalized) {
   const notesSentence = splitSentences(normalized?.company_context?.company_notes || '')[0];
   if (notesSentence) return notesSentence;
   const product = normalized?.company_context?.current_product;
-  if (product) return `help outbound teams with ${product}`;
-  return 'help outbound teams improve reply quality with controlled personalization';
+  if (product) return `show where ${product} is relevant`;
+  return 'help teams keep outreach specific with controlled personalization';
 }
 
 function deriveProofPoints(normalized) {

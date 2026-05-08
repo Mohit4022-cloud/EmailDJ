@@ -13,17 +13,23 @@ How EmailDJ stores, caches, and expires data across a request lifecycle.
 | Pinecone (or pgvector) | `hub-api/infra/vector_store.py` | Durable | Semantic context retrieval |
 | Chrome storage | Extension | Browser-managed | Extension UI state, cached drafts |
 
+For `limited_rollout` and `broad_launch`, Redis/Postgres/vector state must be
+durable. The launch checks block `REDIS_FORCE_INMEMORY=1`, local SQLite/default
+database URLs, and `VECTOR_STORE_BACKEND=memory`. The launch-ready state is
+managed Redis via `REDIS_URL`, managed Postgres via `DATABASE_URL`, and
+`VECTOR_STORE_BACKEND=pgvector`.
+
 ---
 
 ## Key Data Maps
 
-### Context Vault (Redis → Postgres → Pinecone)
+### Context Vault (Redis → Postgres → Pinecone/pgvector)
 
 ```
 Key pattern : vault:{account_id}
 TTL         : CONTEXT_VAULT_CACHE_TTL_SECONDS (default: 3600s = 1hr)
 Contents    : EnrichedProspectContext (CRM data, intent signals, activity timeline)
-Fallback    : On Redis miss → Postgres lookup → Pinecone semantic search
+Fallback    : On Redis miss → Postgres lookup → vector semantic search
 Write path  : POST /vault/ingest (VaultIngestRequest)
 Read path   : Internal during generate/remix (context_vault/cache.py)
 Prefetch    : POST /vault/prefetch (VaultPrefetchRequest) — warms cache for account list
@@ -95,7 +101,16 @@ POST /web/v1/remix
 
 ---
 
+## Launch Runtime Snapshots
+
+`make launch-verify-deployed` captures staging and production runtime snapshots
+under `hub-api/reports/launch/runtime_snapshots/`. Those snapshots are the
+source of truth for proving durable state, pinned origins, provider mode, route
+gates, and release fingerprint parity in launch checks.
+
 ## Redis Force-InMemory (CI / Test)
 
 Set `REDIS_FORCE_INMEMORY=1` to use a lightweight in-memory Redis shim.
 Used in CI to avoid requiring a real Redis instance for unit/integration tests.
+This setting is never launch-ready and is reported as
+`redis_not_durable_for_launch_mode` in launch modes.

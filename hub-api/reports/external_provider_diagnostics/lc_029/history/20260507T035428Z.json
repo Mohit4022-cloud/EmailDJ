@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-05-07T03:54:28.953227Z",
+  "mode": "real",
+  "selection": {
+    "selection_mode": "full",
+    "tags": []
+  },
+  "summary": {
+    "total_cases": 1,
+    "passed_cases": 1,
+    "failed_cases": 0,
+    "pass_rate": 1.0,
+    "violation_count": 0,
+    "failure_count_by_code": {},
+    "greeting_pass_rate": 1.0,
+    "offer_binding_pass_rate": 1.0,
+    "cta_lock_pass_rate": 1.0,
+    "research_containment_pass_rate": 1.0,
+    "internal_leakage_pass_rate": 1.0,
+    "claim_safety_pass_rate": 1.0,
+    "provider_source": "external_provider",
+    "failure_bucket_counts": {},
+    "transport_failure_count": 0,
+    "route_pass_fail_counts": {
+      "generate": {
+        "pass": 1,
+        "fail": 0
+      }
+    },
+    "preset_pass_fail_counts": {},
+    "top_violation_codes": {},
+    "required_field_miss_count": 0,
+    "under_length_miss_count": 0,
+    "claims_policy_intervention_count": 0
+  },
+  "top_recurring_failures": [],
+  "results": [
+    {
+      "id": "lc_029",
+      "tags": [
+        "offer_binding",
+        "cta_binding",
+        "greeting",
+        "research_containment",
+        "internal_leakage",
+        "claim_safety",
+        "research_long_noisy",
+        "name_hyphen",
+        "cta_referral_intro",
+        "offer_inbox_placement_audit"
+      ],
+      "passed": true,
+      "duration_ms": 5410,
+      "mode": "real",
+      "subject": "Quick alignment on Inbox Placement Audit",
+      "body": "Hi Jean-Luc, There are signs message review and execution discipline matter more right now. Inbox placement audit helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Inbox placement audit helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
+      "draft": "Subject: Quick alignment on Inbox Placement Audit\nBody:\nHi Jean-Luc, There are signs message review and execution discipline matter more right now. Inbox placement audit helps teams keep outreach specific while raising quality from first touch. Position the locked offer clearly. Keep claims grounded and avoid internal terminology. Inbox placement audit helps teams detect risky patterns, prioritize high-impact cases, and route follow-up actions without losing context. In week one, we'd run a focused sweep and teardown, then hand over a prioritized enforcement workflow by risk tier.\n\nCould you point me to the right owner for this?",
+      "violations": [],
+      "generation_meta": {
+        "generation_mode": "real",
+        "provider_source": "external_provider",
+        "route": "generate",
+        "preset_id": "unknown",
+        "provider": "openai",
+        "model": "gpt-5-nano",
+        "cascade_reason": "primary",
+        "provider_attempt_count": 1,
+        "validator_attempt_count": 1,
+        "json_repair_count": 0,
+        "violation_retry_count": 0,
+        "repaired": false,
+        "enforcement_level": "repair",
+        "repair_loop_enabled": true
+      },
+      "judge": {
+        "status": "disabled",
+        "repair_actions": []
+      },
+      "actionable_feedback": [],
+      "error": null
+    }
+  ]
+}

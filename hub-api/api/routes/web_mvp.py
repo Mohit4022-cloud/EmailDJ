@@ -77,9 +77,11 @@ class RequestRecord:
     style_profile: dict
     mode: str
     created_at: float
+    token_vault: dict[str, str]
 
 
 _REQUESTS: dict[str, RequestRecord] = {}
+_SESSION_TOKEN_VAULTS: dict[str, tuple[dict[str, str], float]] = {}
 
 
 def _preview_pipeline_enabled() -> bool:
@@ -106,6 +108,18 @@ def _cleanup_expired() -> None:
     expired = [rid for rid, rec in _REQUESTS.items() if now - rec.created_at > _REQUEST_TTL_SECONDS]
     for rid in expired:
         del _REQUESTS[rid]
+    stale_sessions = [
+        session_id
+        for session_id, (_, created_at) in _SESSION_TOKEN_VAULTS.items()
+        if now - created_at > 24 * 60 * 60
+    ]
+    for session_id in stale_sessions:
+        del _SESSION_TOKEN_VAULTS[session_id]
+
+
+def _request_token_vault(request: Request) -> dict[str, str]:
+    vault = getattr(request.state, "token_vault", {}) or {}
+    return dict(vault)
 
 
 def _day_key() -> str:
@@ -306,7 +320,7 @@ async def debug_config(
     }
 
 @router.post("/generate", response_model=WebGenerateAccepted)
-async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
+async def web_generate(req: WebGenerateRequest, request: Request) -> WebGenerateAccepted:
     _require_route_enabled("generate")
     _cleanup_expired()
     await _emit_metric("web_generate_started")
@@ -330,6 +344,9 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
 
     session_id = str(uuid4())
     request_id = str(uuid4())
+    token_vault = _request_token_vault(request)
+    if token_vault:
+        _SESSION_TOKEN_VAULTS[session_id] = (token_vault, time.time())
     feature_flags = _flags_snapshot_for(endpoint="generate", bucket_key=session_id)
     flags_effective = _effective_flags_for(endpoint="generate", bucket_key=session_id)
     logger.info(
@@ -377,6 +394,7 @@ async def web_generate(req: WebGenerateRequest) -> WebGenerateAccepted:
         style_profile=req.style_profile.model_dump(),
         mode="generate",
         created_at=time.time(),
+        token_vault=token_vault,
     )
     return WebGenerateAccepted(request_id=request_id, session_id=session_id, stream_url=f"/web/v1/stream/{request_id}")
 
@@ -394,6 +412,7 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
 
     await _emit_metric("web_remix_started")
     request_id = str(uuid4())
+    token_vault, _ = _SESSION_TOKEN_VAULTS.get(req.session_id, ({}, time.time()))
     feature_flags = _flags_snapshot_for(endpoint="remix", bucket_key=req.session_id)
     flags_effective = _effective_flags_for(endpoint="remix", bucket_key=req.session_id)
     logger.info(
@@ -426,6 +445,7 @@ async def web_remix(req: WebRemixRequest) -> WebRemixAccepted:
         style_profile=req.style_profile.model_dump(),
         mode="remix",
         created_at=time.time(),
+        token_vault=token_vault,
     )
     return WebRemixAccepted(request_id=request_id, stream_url=f"/web/v1/stream/{request_id}")
 
@@ -762,6 +782,7 @@ async def web_stream(request_id: str, request: Request):
         generator=_bounded(),
         done_extra=mode_info,
         event_extra={"session_id": rec.session_id, "generation_id": generation_id, "draft_id": draft_id},
+        token_vault=rec.token_vault,
     )
 
 
