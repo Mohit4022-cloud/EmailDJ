@@ -292,6 +292,28 @@ def test_launch_preflight_blocks_placeholder_operator_urls_without_transport_pro
     assert "STAGING_BASE_URL:must_not_be_placeholder" in result["operator_input_errors"]
 
 
+def test_launch_preflight_reports_malformed_operator_url_without_crashing(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://[staging-hub-api-root")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "ops-beta-key")
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when operator URL is malformed")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert "STAGING_BASE_URL:invalid_url" in result["operator_input_errors"]
+
+
 def test_launch_preflight_blocks_discovered_web_app_origin_as_hub_url(monkeypatch, tmp_path):
     import scripts.launch_preflight as lp
 
@@ -423,4 +445,6 @@ def test_launch_preflight_main_writes_reports(monkeypatch, tmp_path, capsys):
     assert "## Deployment Discovery Context" in markdown
     assert "## Web App Probe Context" in markdown
     assert "## Operator Export Template" in markdown
+    assert "non-placeholder HTTPS hub-api root URLs" in markdown
+    assert "not frontend URLs or discovered web-app origins" in markdown
     assert 'export STAGING_BASE_URL="https://<staging-hub-api-root>"' in markdown

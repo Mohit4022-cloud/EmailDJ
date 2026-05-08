@@ -196,11 +196,21 @@ def _normalize_url(raw_url: str) -> str:
     return parsed._replace(path=path, params="", query="", fragment="").geturl().rstrip("/")
 
 
+def _try_normalize_url(raw_url: str) -> str | None:
+    try:
+        return _normalize_url(raw_url)
+    except ValueError:
+        return None
+
+
 def _validate_base_url(name: str, raw_url: str) -> list[str]:
     errors: list[str] = []
     stripped_url = raw_url.strip()
-    parsed = urlparse(stripped_url)
-    host = (parsed.hostname or "").strip().lower()
+    try:
+        parsed = urlparse(stripped_url)
+        host = (parsed.hostname or "").strip().lower()
+    except ValueError:
+        return [f"{name}:invalid_url"]
     path = (parsed.path or "").strip()
     if parsed.scheme != "https":
         errors.append(f"{name}:must_use_https")
@@ -225,14 +235,16 @@ def _validate_operator_inputs(deployment_discovery: dict[str, Any] | None = None
     beta_key = (os.environ.get("BETA_KEY") or "").strip()
     errors.extend(_validate_base_url("STAGING_BASE_URL", staging_url))
     errors.extend(_validate_base_url("PROD_BASE_URL", prod_url))
-    if staging_url and prod_url and _normalize_url(staging_url) == _normalize_url(prod_url):
+    normalized_staging_url = _try_normalize_url(staging_url) if staging_url else None
+    normalized_prod_url = _try_normalize_url(prod_url) if prod_url else None
+    if normalized_staging_url and normalized_prod_url and normalized_staging_url == normalized_prod_url:
         errors.append("STAGING_BASE_URL:must_differ_from_PROD_BASE_URL")
     candidate_web_app_origin = str((deployment_discovery or {}).get("candidate_web_app_origin") or "").strip()
     if candidate_web_app_origin:
-        normalized_candidate = _normalize_url(candidate_web_app_origin)
-        if staging_url and _normalize_url(staging_url) == normalized_candidate:
+        normalized_candidate = _try_normalize_url(candidate_web_app_origin)
+        if normalized_candidate and normalized_staging_url == normalized_candidate:
             errors.append("STAGING_BASE_URL:must_not_be_web_app_origin")
-        if prod_url and _normalize_url(prod_url) == normalized_candidate:
+        if normalized_candidate and normalized_prod_url == normalized_candidate:
             errors.append("PROD_BASE_URL:must_not_be_web_app_origin")
     normalized_beta_key = beta_key.lower()
     if normalized_beta_key in _UNSAFE_BETA_KEY_VALUES or beta_key.startswith("<") or beta_key.endswith(">"):
@@ -373,7 +385,7 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
         f"- Provider env: `{result['provider_env']}`",
         f"- Timeout seconds: `{result['timeout_seconds']}`",
         "",
-        "> `STAGING_BASE_URL` and `PROD_BASE_URL` must be HTTPS hub-api root URLs, not frontend URLs. `BETA_KEY` must match one non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value.",
+        "> `STAGING_BASE_URL` and `PROD_BASE_URL` must be non-placeholder HTTPS hub-api root URLs, not frontend URLs or discovered web-app origins. `BETA_KEY` must match one non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value.",
         "",
         "## Required Inputs",
         "",
