@@ -207,6 +207,46 @@ def test_capture_runtime_snapshot_preserves_full_debug_config_url(monkeypatch, t
     assert seen["url"] == "https://prod.example.com/web/v1/debug/config?endpoint=preview&bucket_key=custom"
 
 
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        ("http://prod.example.com", "production_runtime_snapshot_requires_https"),
+        ("https://localhost:8000", "production_runtime_snapshot_must_not_use_localhost"),
+        ("https://prod.example.com/app", "production_runtime_snapshot_must_use_hub_api_root_or_debug_config_url"),
+    ],
+)
+def test_capture_runtime_snapshot_rejects_unsafe_production_urls(monkeypatch, tmp_path, url, message):
+    import scripts.capture_runtime_snapshot as csr
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("snapshot capture should fail before network call")
+
+    monkeypatch.setattr(csr.httpx, "get", fail_get)
+
+    with pytest.raises(ValueError, match=message):
+        csr.capture_runtime_snapshot(
+            url=url,
+            label="production",
+            output=str(tmp_path / "snapshot.json"),
+        )
+
+
+def test_capture_runtime_snapshot_allows_custom_label_local_output(monkeypatch, tmp_path):
+    import scripts.capture_runtime_snapshot as csr
+
+    monkeypatch.setattr(csr.httpx, "get", lambda *args, **kwargs: _FakeResponse(payload=_runtime_payload()))
+    output = tmp_path / "canary.json"
+
+    result = csr.capture_runtime_snapshot(
+        url="http://localhost:8000",
+        label="canary",
+        output=str(output),
+    )
+
+    assert result["output"] == str(output)
+    assert output.exists()
+
+
 def test_capture_runtime_snapshot_requires_output_for_custom_label():
     import scripts.capture_runtime_snapshot as csr
 

@@ -26,6 +26,7 @@ DEFAULT_OUTPUTS = {
     "staging": ROOT / "reports" / "launch" / "runtime_snapshots" / "staging.json",
     "production": ROOT / "reports" / "launch" / "runtime_snapshots" / "production.json",
 }
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 
 
 def _utc_now_text() -> str:
@@ -78,6 +79,21 @@ def _resolve_request_url(raw_url: str) -> str:
     params.setdefault("endpoint", DEFAULT_ENDPOINT)
     params.setdefault("bucket_key", DEFAULT_BUCKET_KEY)
     return urlunparse(parsed._replace(path=path, query=urlencode(params)))
+
+
+def _validate_deployed_snapshot_url(raw_url: str, *, label: str) -> None:
+    normalized_label = label.strip().lower()
+    if normalized_label not in DEFAULT_OUTPUTS:
+        return
+    parsed = urlparse(raw_url.strip())
+    host = (parsed.hostname or "").strip().lower()
+    path = parsed.path.rstrip("/")
+    if parsed.scheme != "https":
+        raise ValueError(f"{normalized_label}_runtime_snapshot_requires_https")
+    if host in _LOCAL_HOSTS or host.endswith(".local"):
+        raise ValueError(f"{normalized_label}_runtime_snapshot_must_not_use_localhost")
+    if path and not path.endswith("/web/v1/debug/config"):
+        raise ValueError(f"{normalized_label}_runtime_snapshot_must_use_hub_api_root_or_debug_config_url")
 
 
 def _parse_headers(raw_headers: list[str]) -> dict[str, str]:
@@ -134,6 +150,7 @@ def capture_runtime_snapshot(
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
 ) -> dict[str, Any]:
     target_path = _resolve_output_path(label, output)
+    _validate_deployed_snapshot_url(url, label=label)
     payload, source_url = _capture_payload(
         url=url,
         headers=_parse_headers(list(headers or [])),
