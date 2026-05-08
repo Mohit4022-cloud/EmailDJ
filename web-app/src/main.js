@@ -119,7 +119,10 @@ class WebApp {
               <span class="workspace-chip"><span>Offer</span><strong id="workspaceOfferChip">Not set</strong></span>
               <span class="workspace-chip"><span>Research</span><strong id="workspaceResearchChip">Not set</strong></span>
             </div>
-            <button class="btn-primary workspace-generate-btn" id="workspaceGenerateBtn">Generate Draft</button>
+            <div class="workspace-command-actions">
+              <span class="workspace-readiness" id="workspaceReadiness">Brief incomplete</span>
+              <button class="btn-primary workspace-generate-btn" id="workspaceGenerateBtn">Generate Draft</button>
+            </div>
           </div>
           <div id="editorMount"></div>
           <div class="status workspace-status" id="statusLine"></div>
@@ -213,6 +216,7 @@ class WebApp {
     this.workspaceProspectChip = this.root.querySelector('#workspaceProspectChip');
     this.workspaceOfferChip = this.root.querySelector('#workspaceOfferChip');
     this.workspaceResearchChip = this.root.querySelector('#workspaceResearchChip');
+    this.workspaceReadiness = this.root.querySelector('#workspaceReadiness');
     this.betaKeyInput = this.root.querySelector('#betaKey');
     this.presetLibraryMount = this.root.querySelector('#presetLibraryMount');
     this.sellerCompanyNameInput = this.root.querySelector('#sellerCompanyName');
@@ -282,7 +286,7 @@ class WebApp {
     this.refreshRuntimeConfig({ silent: true }).catch(() => {
       this.updateRuntimeModeBadge();
     });
-    this.setStatus('Ready. Fill inputs and click Generate.');
+    this.setStatus(this.briefReadiness().status);
   }
 
   applyPreset(preset) {
@@ -405,6 +409,15 @@ class WebApp {
     this.workspaceProspectChip.closest('.workspace-chip')?.classList.toggle('is-empty', !prospectName || !prospectCompany);
     this.workspaceOfferChip.closest('.workspace-chip')?.classList.toggle('is-empty', !offer);
     this.workspaceResearchChip.closest('.workspace-chip')?.classList.toggle('is-empty', researchLength < 20);
+    const readiness = this.briefReadiness();
+    this.root.querySelector('#workspaceCommandStrip')?.classList.toggle('is-ready', readiness.ready);
+    if (this.workspaceReadiness) {
+      this.workspaceReadiness.textContent = readiness.label;
+      this.workspaceReadiness.classList.toggle('is-ready', readiness.ready);
+    }
+    if (!this.sessionId && !this.isGenerating) {
+      this.setStatus(readiness.status);
+    }
   }
 
   setGenerateDisabled(disabled) {
@@ -477,6 +490,24 @@ class WebApp {
     if (!data.research_text || data.research_text.length < 20) return 'Paste at least 20 characters of research.';
     if (!data.offer_lock) return 'Current Product / Service to Pitch is required.';
     return '';
+  }
+
+  briefReadiness() {
+    const data = this.payload();
+    const validation = this.validate(data);
+    if (!validation) {
+      return { ready: true, label: 'Ready', status: 'Brief ready.' };
+    }
+    if (validation.startsWith('Prospect')) {
+      return { ready: false, label: 'Needs prospect', status: validation };
+    }
+    if (validation.startsWith('Paste')) {
+      return { ready: false, label: 'Needs research', status: validation };
+    }
+    if (validation.startsWith('Current Product')) {
+      return { ready: false, label: 'Needs offer', status: validation };
+    }
+    return { ready: false, label: 'Brief incomplete', status: validation };
   }
 
   setStatus(text, pulse = false) {

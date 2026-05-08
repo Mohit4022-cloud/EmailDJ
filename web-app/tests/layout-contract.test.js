@@ -33,11 +33,16 @@ test('draft workspace renders before brief inputs while preserving control mount
     'workspaceProspectChip',
     'workspaceOfferChip',
     'workspaceResearchChip',
+    'workspaceReadiness',
     'saveRemixBtn',
     'presetLibraryMount',
   ]) {
     assert.ok(mainSource.includes(`id="${id}"`), `${id} mount is missing`);
   }
+  assert.ok(
+    mainSource.indexOf('id="workspaceReadiness"') < mainSource.indexOf('id="workspaceGenerateBtn"'),
+    'brief readiness should sit beside the primary workspace command',
+  );
 });
 
 test('draft editor owns the primary canvas chrome and empty state', () => {
@@ -64,6 +69,14 @@ test('mobile workspace controls stay within the viewport grid', () => {
   assert.ok(
     indexSource.includes('.workspace-actions > button {\n          width: 100%;'),
     'mobile workspace action buttons should fill their available row',
+  );
+  assert.ok(
+    indexSource.includes('.workspace-command-actions {\n          justify-items: stretch;'),
+    'mobile workspace command actions should stretch inside the viewport',
+  );
+  assert.ok(
+    indexSource.includes('.workspace-readiness {\n          max-width: 100%;'),
+    'mobile workspace readiness should not overflow the command strip',
   );
   assert.ok(
     indexSource.includes('.editor-toolbar > div {\n        min-width: 0;'),
