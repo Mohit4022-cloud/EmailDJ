@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T01:40:01.663683Z",
+  "generated_at": "2026-05-08T12:38:49.868866Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -8,7 +8,7 @@
   "required_inputs_present": {
     "STAGING_BASE_URL": false,
     "PROD_BASE_URL": false,
-    "BETA_KEY": false,
+    "BETA_KEY": true,
     "OPENAI_API_KEY": true
   },
   "operator_input_sources": {
@@ -25,16 +25,15 @@
       "effective_present": false
     },
     "BETA_KEY": {
-      "explicit_env_present": false,
-      "dotenv_value_present": true,
-      "dotenv_value_ignored": true,
-      "effective_present": false
+      "explicit_env_present": true,
+      "dotenv_value_present": false,
+      "dotenv_value_ignored": false,
+      "effective_present": true
     }
   },
   "missing_inputs": [
     "STAGING_BASE_URL",
-    "PROD_BASE_URL",
-    "BETA_KEY"
+    "PROD_BASE_URL"
   ],
   "operator_input_errors": [],
   "transport_checked": false,
@@ -47,7 +46,7 @@
     "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
     "state": "present",
     "found": true,
-    "candidate_web_app_origin": "https://email-fp7idxgih-mohits-projects-e629a988.vercel.app",
+    "candidate_web_app_origin": "https://email-gazmoss91-mohits-projects-e629a988.vercel.app",
     "usable_as_web_app_origin_candidate": true,
     "clears_launch_blockers": false,
     "operator_note": "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
@@ -69,8 +68,8 @@
     "vercel_bypass_env": "VERCEL_AUTOMATION_BYPASS_SECRET",
     "vercel_bypass_env_present": false,
     "operator_note": "The latest web-app probe is blocked by Vercel protection. Export `VERCEL_AUTOMATION_BYPASS_SECRET` before rerunning `make launch-probe-web-app`.",
-    "source_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-    "workspace_git_sha_at_probe": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357"
+    "source_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+    "workspace_git_sha_at_probe": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe"
   },
   "operator_export_template": [
     "export STAGING_BASE_URL=\"https://<staging-hub-api-root>\"",
@@ -82,7 +81,6 @@
   "next_steps": [
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
     "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
-    "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification.",
-    "Use discovered web-app candidate `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
+    "Use discovered web-app candidate `https://email-gazmoss91-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
   ]
 }

@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T04:02:51.181539Z`
+- Generated at: `2026-05-08T12:38:54.855791Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -72,18 +72,18 @@ export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"
 
 ## Discovered Deployment Metadata
 
-- Candidate WEB_APP_ORIGIN: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
+- Candidate WEB_APP_ORIGIN: `https://email-gazmoss91-mohits-projects-e629a988.vercel.app`
 - Usable as WEB_APP_ORIGIN candidate: `True`
 - Clears launch blockers: `False`
 - Operator note: Deployment metadata only identifies candidate web origins. It does not clear launch blockers until the Hub API deployment pins WEB_APP_ORIGIN, CHROME_EXTENSION_ORIGIN, beta keys, provider mode, and fresh runtime snapshots.
 
 | Deployment | Environment | SHA | Vercel origin |
 |---|---|---|---|
-| `4616333545` | `Preview` | `fa77cf1be06a47fdc11c6db0b0e1b1156bd25357` | `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app` |
+| `4617379446` | `Preview` | `a0efad8ce5e947c2a7200938f12a81c69c46bdfe` | `https://email-gazmoss91-mohits-projects-e629a988.vercel.app` |
 
 ## Web App Deployment Probe
 
-- Web app URL: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
+- Web app URL: `https://email-gazmoss91-mohits-projects-e629a988.vercel.app`
 - Client bundle usable: `False`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
@@ -125,7 +125,7 @@ make launch-handoff
 
 ## Open Blockers
 
-- `deployed_preflight_inputs`: `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`
+- `deployed_preflight_inputs`: `STAGING_BASE_URL`, `PROD_BASE_URL`
 - `runtime_snapshots`: `staging_runtime_snapshot_missing`, `production_runtime_snapshot_missing`
 - `pinned_origins_beta_provider`: `chrome_extension_origin_not_pinned:default_dev_placeholder`, `web_app_origin_not_pinned:unset`
 - `durable_infra`: `database_not_durable_for_launch_mode:limited_rollout:default_local_sqlite`, `redis_not_durable_for_launch_mode:limited_rollout:forced_inmemory`, `vector_store_not_durable_for_launch_mode:limited_rollout:memory_backend`

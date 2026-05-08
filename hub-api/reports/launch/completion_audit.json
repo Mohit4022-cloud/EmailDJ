@@ -1,28 +1,26 @@
 {
-  "generated_at": "2026-05-08T02:04:17.123775Z",
-  "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+  "generated_at": "2026-05-08T12:38:54.819497Z",
+  "current_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "779040ddaae9cb261e75c26bab68cad13c20dce0",
-    "web_app_probe_workspace_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-    "web_app_probe_source_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "workspace_git_sha_at_audit": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+    "web_app_probe_workspace_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+    "web_app_probe_source_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
     "currentness_blockers": [],
     "currentness_delta_checks": [
       {
         "artifact_id": "web_app_deployment_probe",
-        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "recorded_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "current_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
         "deployment_relevant_changed_paths": [],
-        "status": "sha_drift_non_deployment_delta_only",
-        "deployment_relevant_changed_path_count": 0
+        "status": "matches_current_head"
       },
       {
         "artifact_id": "deployment_discovery",
-        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "recorded_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "current_git_sha": "a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
         "deployment_relevant_changed_paths": [],
-        "status": "sha_drift_non_deployment_delta_only",
-        "deployment_relevant_changed_path_count": 0
+        "status": "matches_current_head"
       }
     ],
     "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.",
@@ -43,7 +41,7 @@
       "status": "pass",
       "evidence": [
         "backend_green=green",
-        "backend_suite_summary=397 passed in 14.71s"
+        "backend_suite_summary=426 passed, 1 warning in 15.13s"
       ],
       "blockers": []
     },
@@ -66,7 +64,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-08T02:04:14.604056Z"
+        "launch_report_generated_at=2026-05-08T12:38:49.820327Z"
       ],
       "blockers": []
     },
@@ -76,13 +74,12 @@
       "status": "blocked",
       "evidence": [
         "preflight_ready=False",
-        "required_inputs_present={'STAGING_BASE_URL': False, 'PROD_BASE_URL': False, 'BETA_KEY': False, 'OPENAI_API_KEY': True}",
+        "required_inputs_present={'STAGING_BASE_URL': False, 'PROD_BASE_URL': False, 'BETA_KEY': True, 'OPENAI_API_KEY': True}",
         "failure_bucket=operator_input_missing"
       ],
       "blockers": [
         "STAGING_BASE_URL",
-        "PROD_BASE_URL",
-        "BETA_KEY"
+        "PROD_BASE_URL"
       ]
     },
     {
@@ -146,9 +143,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=779040ddaae9cb261e75c26bab68cad13c20dce0",
-        "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-        "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "web_app_probe_workspace_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "web_app_probe_source_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -168,7 +165,7 @@
       "status": "blocked",
       "evidence": [
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=779040ddaae9",
+        "release_fingerprint=git_sha=a0efad8ce5e9",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -235,7 +232,7 @@
       "evidence": [
         "hub_api_full_suite=pass",
         "backend_green=green",
-        "backend_suite_summary=397 passed in 14.71s"
+        "backend_suite_summary=426 passed, 1 warning in 15.13s"
       ],
       "blockers": [],
       "note": ""
@@ -268,7 +265,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-08T02:04:14.604056Z"
+        "launch_report_generated_at=2026-05-08T12:38:49.820327Z"
       ],
       "blockers": [],
       "note": ""
@@ -311,7 +308,7 @@
         "validation_fallback_policy=dev_only_fail_closed_in_launch_modes",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=779040ddaae9",
+        "release_fingerprint=git_sha=a0efad8ce5e9",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -335,9 +332,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=779040ddaae9cb261e75c26bab68cad13c20dce0",
-        "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
-        "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "web_app_probe_workspace_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
+        "web_app_probe_source_git_sha=a0efad8ce5e947c2a7200938f12a81c69c46bdfe",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -427,8 +424,7 @@
       "id": "deployed_preflight_inputs",
       "blockers": [
         "STAGING_BASE_URL",
-        "PROD_BASE_URL",
-        "BETA_KEY"
+        "PROD_BASE_URL"
       ]
     },
     {

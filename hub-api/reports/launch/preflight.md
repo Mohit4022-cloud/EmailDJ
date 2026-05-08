@@ -1,31 +1,31 @@
 # Launch Preflight
 
-- Generated at: `2026-05-08T01:40:01.663683Z`
+- Generated at: `2026-05-08T12:38:49.868866Z`
 - Ready: `False`
 - Failure bucket: `operator_input_missing`
 - Provider: `openai`
 - Provider env: `OPENAI_API_KEY`
 - Timeout seconds: `15.0`
 
-> `STAGING_BASE_URL` and `PROD_BASE_URL` must be HTTPS hub-api root URLs, not frontend URLs. `BETA_KEY` must match one non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value.
+> `STAGING_BASE_URL` and `PROD_BASE_URL` must be non-placeholder HTTPS hub-api root URLs, not frontend URLs or discovered web-app origins. `BETA_KEY` must match one non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value.
 
 ## Required Inputs
 
 - `STAGING_BASE_URL` present=`False`
 - `PROD_BASE_URL` present=`False`
-- `BETA_KEY` present=`False`
+- `BETA_KEY` present=`True`
 - `OPENAI_API_KEY` present=`True`
 
 ## Operator Input Sources
 
 - `STAGING_BASE_URL` explicit_env_present=`False` dotenv_value_present=`False` dotenv_value_ignored=`False` effective_present=`False`
 - `PROD_BASE_URL` explicit_env_present=`False` dotenv_value_present=`False` dotenv_value_ignored=`False` effective_present=`False`
-- `BETA_KEY` explicit_env_present=`False` dotenv_value_present=`True` dotenv_value_ignored=`True` effective_present=`False`
+- `BETA_KEY` explicit_env_present=`True` dotenv_value_present=`False` dotenv_value_ignored=`False` effective_present=`True`
 
 ## Deployment Discovery Context
 
 - `state`: `present`
-- `candidate_web_app_origin`: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
+- `candidate_web_app_origin`: `https://email-gazmoss91-mohits-projects-e629a988.vercel.app`
 - `usable_as_web_app_origin_candidate`: `True`
 - `clears_launch_blockers`: `False`
 - `operator_note`: Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL.
@@ -60,5 +60,4 @@ export VERCEL_AUTOMATION_BYPASS_SECRET="<vercel-automation-bypass-secret>"
 
 - Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.
 - Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.
-- Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification.
-- Use discovered web-app candidate `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`.
+- Use discovered web-app candidate `https://email-gazmoss91-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`.
