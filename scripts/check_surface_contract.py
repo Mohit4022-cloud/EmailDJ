@@ -306,6 +306,8 @@ def _check_docs() -> list[str]:
             "This is not a release gate",
             "Strict deployed web-app probe",
             "not a default CI step",
+            "# Full lock-compliance suite",
+            "./scripts/eval:full",
         ],
     }
     for path, snippets in required.items():
@@ -323,6 +325,8 @@ def _check_docs() -> list[str]:
         strict_probe_gate = "| Web-app deployment probe | `make launch-probe-web-app` |"
         if strict_probe_gate in release_checklist:
             failures.append("Release checklist must not list deployed web-app probe as a default CI check")
+        if "### 1.2 Lock Compliance Gate" in release_checklist and "./scripts/eval:judge:full" in release_checklist:
+            failures.append("Release checklist lock-compliance gate must use ./scripts/eval:full, not judge full")
     except FileNotFoundError as exc:
         failures.append(str(exc))
     return failures

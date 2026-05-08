@@ -55,8 +55,8 @@ source .venv/bin/activate
 # Adversarial suite
 ./scripts/eval:adversarial
 
-# Full suite
-./scripts/eval:judge:full
+# Full lock-compliance suite
+./scripts/eval:full
 ```
 
 **Hard gate rules** (any failure blocks release):
