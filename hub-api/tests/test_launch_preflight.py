@@ -77,6 +77,12 @@ def test_launch_preflight_blocks_missing_inputs_without_transport_probe(monkeypa
         "dotenv_value_ignored": False,
         "effective_present": False,
     }
+    assert result["operator_export_template"] == [
+        'export STAGING_BASE_URL="https://<staging-hub-api-root>"',
+        'export PROD_BASE_URL="https://<production-hub-api-root>"',
+        'export BETA_KEY="<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>"',
+        'export OPENAI_API_KEY="<openai-api-key>"',
+    ]
     assert "hub-api root URL" in result["next_steps"][0]
     assert "hub-api root URL" in result["next_steps"][1]
     assert "EMAILDJ_WEB_BETA_KEYS" in result["next_steps"][2]
@@ -130,6 +136,9 @@ def test_launch_preflight_requires_vercel_bypass_when_web_probe_is_auth_gated(mo
     assert result["failure_bucket"] == "operator_input_missing"
     assert result["missing_inputs"] == ["VERCEL_AUTOMATION_BYPASS_SECRET"]
     assert result["required_inputs_present"]["VERCEL_AUTOMATION_BYPASS_SECRET"] is False
+    assert 'export VERCEL_AUTOMATION_BYPASS_SECRET="<vercel-automation-bypass-secret>"' in result[
+        "operator_export_template"
+    ]
     assert result["web_app_probe"]["requires_vercel_protection_bypass"] is True
     assert result["web_app_probe"]["vercel_bypass_env_present"] is False
     assert "x-vercel-protection-bypass" in next_steps
@@ -188,6 +197,30 @@ def test_launch_preflight_reports_dotenv_operator_inputs_as_ignored(monkeypatch,
     }
     assert result["operator_input_sources"]["PROD_BASE_URL"]["dotenv_value_ignored"] is True
     assert result["operator_input_sources"]["BETA_KEY"]["dotenv_value_ignored"] is True
+
+
+def test_launch_preflight_reports_missing_provider_key_with_export_template(monkeypatch, tmp_path):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setattr(lp, "ROOT", tmp_path)
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "anthropic")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("STAGING_BASE_URL", "https://staging.example.com")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "ops-beta-key")
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_missing"
+    assert result["missing_inputs"] == ["ANTHROPIC_API_KEY"]
+    assert result["operator_export_template"] == [
+        'export STAGING_BASE_URL="https://<staging-hub-api-root>"',
+        'export PROD_BASE_URL="https://<production-hub-api-root>"',
+        'export BETA_KEY="<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>"',
+        'export ANTHROPIC_API_KEY="<anthropic-api-key>"',
+    ]
+    assert "configured real provider" in result["next_steps"][0]
 
 
 def test_launch_preflight_blocks_transport_failure(monkeypatch, tmp_path):
@@ -298,3 +331,5 @@ def test_launch_preflight_main_writes_reports(monkeypatch, tmp_path, capsys):
     markdown = (tmp_path / "reports" / "launch" / "preflight.md").read_text(encoding="utf-8")
     assert "## Deployment Discovery Context" in markdown
     assert "## Web App Probe Context" in markdown
+    assert "## Operator Export Template" in markdown
+    assert 'export STAGING_BASE_URL="https://<staging-hub-api-root>"' in markdown

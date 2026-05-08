@@ -67,6 +67,7 @@ make launch-preflight
 ```
 
 This is an operator-input gate. It must fail until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+The generated `hub-api/reports/launch/preflight.md` includes a redacted operator export template for the required Hub URLs, beta key, configured provider key, and Vercel bypass secret when the protected-preview probe requires one.
 
 If the latest web-app deployment probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`, `make launch-preflight` also requires `VERCEL_AUTOMATION_BYPASS_SECRET` before web-app probing can clear the protected-preview blocker.
 

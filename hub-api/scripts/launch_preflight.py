@@ -92,6 +92,8 @@ def _operator_input_step(name: str) -> str:
         return "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification."
     if name == "BETA_KEY":
         return "Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification."
+    if name in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY"}:
+        return f"Set `{name}` for the configured real provider before running launch verification."
     if name == VERCEL_BYPASS_ENV:
         return (
             f"Set `{VERCEL_BYPASS_ENV}` to the Vercel Protection Bypass for Automation secret before probing a protected "
@@ -239,6 +241,18 @@ def _invalid_operator_input_steps(errors: list[str]) -> list[str]:
     return list(dict.fromkeys(steps))
 
 
+def _operator_export_template(*, provider_env: str, include_vercel_bypass: bool = False) -> list[str]:
+    lines = [
+        'export STAGING_BASE_URL="https://<staging-hub-api-root>"',
+        'export PROD_BASE_URL="https://<production-hub-api-root>"',
+        'export BETA_KEY="<one-non-dev-beta-key-from-EMAILDJ_WEB_BETA_KEYS>"',
+        f'export {provider_env}="<{provider_env.lower().replace("_", "-")}>"',
+    ]
+    if include_vercel_bypass:
+        lines.append(f'export {VERCEL_BYPASS_ENV}="<vercel-automation-bypass-secret>"')
+    return lines
+
+
 def _report_paths() -> tuple[Path, Path]:
     report_dir = ROOT / "reports" / "launch"
     report_dir.mkdir(parents=True, exist_ok=True)
@@ -276,6 +290,10 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
         "transport_error": None,
         "deployment_discovery": deployment_discovery,
         "web_app_probe": web_app_probe,
+        "operator_export_template": _operator_export_template(
+            provider_env=provider_env,
+            include_vercel_bypass=bool(web_app_probe.get("requires_vercel_protection_bypass")),
+        ),
         "next_steps": [],
     }
     if missing_inputs:
@@ -384,6 +402,12 @@ def _write_report(result: dict[str, Any]) -> tuple[Path, Path]:
     lines.append(f"- `vercel_bypass_env_present`: `{web_app_probe.get('vercel_bypass_env_present')}`")
     if web_app_probe.get("operator_note"):
         lines.append(f"- `operator_note`: {web_app_probe.get('operator_note')}")
+
+    export_template = list(result.get("operator_export_template") or [])
+    if export_template:
+        lines.extend(["", "## Operator Export Template", "", "```bash"])
+        lines.extend(str(line) for line in export_template)
+        lines.append("```")
 
     lines.extend(
         [

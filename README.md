@@ -147,6 +147,7 @@ make launch-preflight
 ```
 
 This is intentionally strict. It exits nonzero until `STAGING_BASE_URL`, `PROD_BASE_URL`, and a non-dev `BETA_KEY` are exported on the operator machine.
+Its Markdown report includes a redacted operator export template for the Hub URLs, beta key, configured provider key, and Vercel bypass secret when protected-preview probing needs one.
 
 Run a guarded localhost smoke against an already-running Hub API:
 
