@@ -29,13 +29,14 @@ All steps in the `checks` CI job must be green:
 | OpenAPI snapshot | `./scripts/checks.sh` (step 3) | `openapi.json` matches routes |
 | Extension build | `npm test` (chrome-extension) | No build errors, unit tests pass |
 | Mock e2e smoke | `./scripts/mock_e2e_smoke.py` | Full generate + stream cycle completes in mock mode |
-| Web-app deployment probe | `make launch-probe-web-app` | Refreshes the current deployed frontend candidate and static bundle/auth evidence before completion audit reads it |
 | Launch completion audit | `make launch-audit` | Writes artifact-backed completion audit with every open blocker explicit |
 | Launch operator handoff | `make launch-handoff` | Writes paste-safe operator exports, Dashboard values, next commands, and current blocker groups |
 
 Optional blocked-deployment readout: when a protected Vercel preview or auth wall blocks the strict web-app deployment probe, operators may run `make launch-probe-web-app-readout` to refresh the same probe artifacts. This is not a release gate and never substitutes for `make launch-probe-web-app`.
 
 Conditional judge smoke/sanity: set the repository variable `EMAILDJ_RUN_JUDGE_SMOKE=1` to make `hub-api/scripts/checks.sh` run both `./scripts/eval:judge:smoke` and `./scripts/eval:judge:sanity` inside the CI `checks` job. This is not part of the default every-PR gate unless that variable is enabled.
+
+Strict deployed web-app probe: `make launch-probe-web-app` is an operator/deployed-release gate, not a default CI step. Run it after the target commit is deployed and the operator machine has any required Vercel protection bypass secret.
 
 ### 1.2 Lock Compliance Gate
 
@@ -128,10 +129,12 @@ make launch-handoff
 
 ```bash
 cd /Users/mohit/EmailDJ
+make launch-probe-web-app
+make launch-audit
 make launch-verify-web-app
 ```
 
-Pass criteria: tests, syntax checks, build, and `dist/` release config verification pass against the deployed Hub API URL and explicit preview-pipeline flag.
+Pass criteria: strict web-app deployment probe succeeds, completion audit reads the current deployed frontend candidate, and tests, syntax checks, build, and `dist/` release config verification pass against the deployed Hub API URL and explicit preview-pipeline flag.
 
 ### 3.4 Extension Build Verification
 

@@ -304,6 +304,8 @@ def _check_docs() -> list[str]:
             "make render-blueprint-check",
             "Optional blocked-deployment readout",
             "This is not a release gate",
+            "Strict deployed web-app probe",
+            "not a default CI step",
         ],
     }
     for path, snippets in required.items():
@@ -318,6 +320,9 @@ def _check_docs() -> list[str]:
         forbidden = "| Web-app blocked readout | `make launch-probe-web-app-readout` |"
         if forbidden in release_checklist:
             failures.append("Release checklist must not list nonblocking readout as a Phase 1 must-pass gate")
+        strict_probe_gate = "| Web-app deployment probe | `make launch-probe-web-app` |"
+        if strict_probe_gate in release_checklist:
+            failures.append("Release checklist must not list deployed web-app probe as a default CI check")
     except FileNotFoundError as exc:
         failures.append(str(exc))
     return failures
