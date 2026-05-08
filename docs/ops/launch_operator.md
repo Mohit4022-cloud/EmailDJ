@@ -163,7 +163,7 @@ Release verification defaults:
 - `EMAILDJ_EXPECTED_BETA_KEY=${BETA_KEY}`
 - `EMAILDJ_EXPECTED_PRESET_PREVIEW_PIPELINE=off`
 
-Override those only when the bundle is intentionally built for a different verified target.
+For the full deployed gate, the release verification Hub URL and beta key must match `STAGING_BASE_URL` and `BETA_KEY`; otherwise `make launch-verify-deployed` fails before bundle verification. Use the narrower `make launch-verify-web-app` or `make launch-verify-extension` targets when intentionally inspecting a bundle for a different target.
 
 Launch-check treats the merged HTTP smoke summary as route coverage evidence. In `limited_rollout` and `broad_launch`, the canonical smoke artifact must prove:
 

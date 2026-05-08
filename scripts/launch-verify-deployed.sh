@@ -14,6 +14,29 @@ RELEASE_HUB_URL="${EMAILDJ_EXPECTED_HUB_URL:-${STAGING_BASE_URL:-}}"
 RELEASE_PREVIEW_PIPELINE="${EMAILDJ_EXPECTED_PRESET_PREVIEW_PIPELINE:-${VITE_PRESET_PREVIEW_PIPELINE:-off}}"
 RELEASE_BETA_KEY="${EMAILDJ_EXPECTED_BETA_KEY:-${BETA_KEY:-}}"
 
+normalize_root_value() {
+  local value="${1:-}"
+  while [[ "$value" == */ ]]; do
+    value="${value%/}"
+  done
+  printf '%s' "$value"
+}
+
+assert_same_launch_value() {
+  local label="$1"
+  local release_value="$2"
+  local runtime_value="$3"
+  local override_hint="$4"
+  local normalized_release
+  local normalized_runtime
+  normalized_release="$(normalize_root_value "$release_value")"
+  normalized_runtime="$(normalize_root_value "$runtime_value")"
+  if [[ -n "$normalized_release" && -n "$normalized_runtime" && "$normalized_release" != "$normalized_runtime" ]]; then
+    echo "$label mismatch: release verification resolves to '$release_value' but deployed runtime proof uses '$runtime_value'. Unset $override_hint or run the narrower release-bundle verifier outside make launch-verify-deployed." >&2
+    exit 2
+  fi
+}
+
 cd "$HUB_API_ROOT"
 
 if [[ ! -f ".venv/bin/activate" ]]; then
@@ -24,6 +47,8 @@ fi
 source .venv/bin/activate
 
 python scripts/launch_preflight.py
+assert_same_launch_value "Hub API target" "$RELEASE_HUB_URL" "$STAGING_BASE_URL" "EMAILDJ_EXPECTED_HUB_URL/VITE_HUB_URL"
+assert_same_launch_value "Beta key" "$RELEASE_BETA_KEY" "$BETA_KEY" "EMAILDJ_EXPECTED_BETA_KEY/VITE_EMAILDJ_BETA_KEY"
 cd "$ROOT"
 EMAILDJ_EXPECTED_HUB_URL="$RELEASE_HUB_URL" \
   VITE_HUB_URL="${VITE_HUB_URL:-$RELEASE_HUB_URL}" \

@@ -153,6 +153,8 @@ def _check_deployed_gate() -> list[str]:
             'RELEASE_HUB_URL="${EMAILDJ_EXPECTED_HUB_URL:-${STAGING_BASE_URL:-}}"',
             'RELEASE_BETA_KEY="${EMAILDJ_EXPECTED_BETA_KEY:-${BETA_KEY:-}}"',
             "python scripts/launch_preflight.py",
+            'assert_same_launch_value "Hub API target"',
+            'assert_same_launch_value "Beta key"',
             "make launch-verify-web-app",
             "make launch-verify-extension",
             "python scripts/capture_runtime_snapshot.py",
@@ -167,6 +169,8 @@ def _check_deployed_gate() -> list[str]:
             script,
             [
                 "python scripts/launch_preflight.py",
+                'assert_same_launch_value "Hub API target"',
+                'assert_same_launch_value "Beta key"',
                 "make launch-verify-web-app",
                 "make launch-verify-extension",
                 "python scripts/capture_runtime_snapshot.py",
