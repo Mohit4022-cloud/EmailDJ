@@ -119,7 +119,7 @@ Pass criteria: generation completes, offer_lock appears in output, CTA lock enfo
 
 ### 3.3 Web App Build Verification
 
-Before running deployed release gates, confirm the operator machine has the staging/prod Hub API roots and deployed beta key:
+Before running deployed release gates, confirm the operator machine has the staging/prod Hub API roots and one exact deployed beta key. Placeholder values such as `missing`, templates, comma-separated lists, and whitespace-padded keys must fail preflight:
 
 ```bash
 cd /Users/mohit/EmailDJ

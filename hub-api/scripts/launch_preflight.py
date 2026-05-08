@@ -33,7 +33,7 @@ _PROVIDER_PROBE_URLS = {
     "groq": "https://api.groq.com/openai/v1/models",
 }
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
-_DEV_BETA_KEYS = {"dev-beta-key"}
+_UNSAFE_BETA_KEY_VALUES = {"dev-beta-key", "missing", "placeholder", "changeme", "change-me", "todo", "none", "null"}
 VERCEL_BYPASS_ENV = "VERCEL_AUTOMATION_BYPASS_SECRET"
 VERCEL_BYPASS_HEADER = "x-vercel-protection-bypass"
 
@@ -223,8 +223,13 @@ def _validate_operator_inputs() -> list[str]:
     errors.extend(_validate_base_url("PROD_BASE_URL", prod_url))
     if staging_url and prod_url and _normalize_url(staging_url) == _normalize_url(prod_url):
         errors.append("STAGING_BASE_URL:must_differ_from_PROD_BASE_URL")
-    if beta_key in _DEV_BETA_KEYS:
-        errors.append("BETA_KEY:must_not_be_dev_placeholder")
+    normalized_beta_key = beta_key.lower()
+    if normalized_beta_key in _UNSAFE_BETA_KEY_VALUES or beta_key.startswith("<") or beta_key.endswith(">"):
+        errors.append("BETA_KEY:must_not_be_placeholder")
+    if any(character.isspace() for character in beta_key):
+        errors.append("BETA_KEY:must_not_contain_whitespace")
+    if "," in beta_key:
+        errors.append("BETA_KEY:must_be_single_value")
     return errors
 
 

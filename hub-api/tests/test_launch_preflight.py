@@ -265,9 +265,51 @@ def test_launch_preflight_blocks_invalid_operator_urls_without_transport_probe(m
     assert "STAGING_BASE_URL:must_use_https" in result["operator_input_errors"]
     assert "STAGING_BASE_URL:must_not_be_localhost" in result["operator_input_errors"]
     assert "STAGING_BASE_URL:must_be_hub_api_root_url" in result["operator_input_errors"]
-    assert "BETA_KEY:must_not_be_dev_placeholder" in result["operator_input_errors"]
+    assert "BETA_KEY:must_not_be_placeholder" in result["operator_input_errors"]
     assert "deployed staging hub-api root URL" in result["next_steps"][0]
     assert "non-dev deployed beta key" in "\n".join(result["next_steps"])
+
+
+def test_launch_preflight_blocks_placeholder_or_composite_beta_key(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://staging.example.com")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "missing, secondary-key")
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when beta key is a placeholder or composite value")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["transport_checked"] is False
+    assert "BETA_KEY:must_not_contain_whitespace" in result["operator_input_errors"]
+    assert "BETA_KEY:must_be_single_value" in result["operator_input_errors"]
+    assert "Set `BETA_KEY` to a non-dev deployed beta key" in "\n".join(result["next_steps"])
+
+
+def test_launch_preflight_blocks_literal_missing_beta_key(monkeypatch):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("STAGING_BASE_URL", "https://staging.example.com")
+    monkeypatch.setenv("PROD_BASE_URL", "https://prod.example.com")
+    monkeypatch.setenv("BETA_KEY", "missing")
+
+    monkeypatch.setattr(lp.httpx, "get", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("no probe")))
+
+    result = lp.run_launch_preflight()
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_invalid"
+    assert result["operator_input_errors"] == ["BETA_KEY:must_not_be_placeholder"]
 
 
 def test_launch_preflight_blocks_identical_staging_and_prod_urls(monkeypatch):

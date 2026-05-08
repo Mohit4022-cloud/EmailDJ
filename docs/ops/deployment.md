@@ -176,7 +176,7 @@ Fill these Dashboard values during Blueprint creation or before first successful
 - `PROD_BASE_URL`
   The production hub-api root URL, not the Vercel frontend URL. Must be an HTTPS root URL with no path, query, or localhost host, and must differ from `STAGING_BASE_URL`.
 - `BETA_KEY`
-  One exact non-dev key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list.
+  One exact non-dev key value from the deployed `EMAILDJ_WEB_BETA_KEYS` list. This must be a single literal key, not `missing`, an angle-bracket placeholder, a comma-separated list, or a value with whitespace.
 - Provider API key
   Export the key for the configured `EMAILDJ_REAL_PROVIDER`, for example `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `GROQ_API_KEY`. Preflight probes provider transport before any deployed smoke is accepted.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`
@@ -202,7 +202,7 @@ make launch-audit
 make launch-handoff
 ```
 
-`make launch-preflight` is the fast operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, `BETA_KEY`, and provider transport. Its Markdown report includes a redacted export template for the required operator values. `make launch-verify-deployed` runs the same preflight again, then verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. The full deployed gate fails if release-bundle overrides point at a different Hub URL or beta key than `STAGING_BASE_URL` and `BETA_KEY`; use the narrower bundle verifiers for non-staging bundle inspection. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
+`make launch-preflight` is the fast operator-input check for `STAGING_BASE_URL`, `PROD_BASE_URL`, a single non-placeholder `BETA_KEY`, and provider transport. Its Markdown report includes a redacted export template for the required operator values. `make launch-verify-deployed` runs the same preflight again, then verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. The full deployed gate fails if release-bundle overrides point at a different Hub URL or beta key than `STAGING_BASE_URL` and `BETA_KEY`; use the narrower bundle verifiers for non-staging bundle inspection. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled.
 
 `make launch-probe-web-app` also supports protected Vercel previews. Export `VERCEL_AUTOMATION_BYPASS_SECRET` on the operator machine before running it when the previous probe reports `web_app_deployment_requires_auth_or_vercel_protection_bypass`. The probe sends that value as `x-vercel-protection-bypass`; the generated JSON/Markdown reports never include the secret itself.
 
