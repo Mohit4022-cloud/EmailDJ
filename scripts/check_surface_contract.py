@@ -257,6 +257,9 @@ def _check_docs() -> list[str]:
             "make launch-handoff",
             "make render-blueprint-check",
             "render.yaml",
+            "These are local/artifact-only gates.",
+            "does not satisfy limited-rollout launch proof",
+            "provider_green=green",
         ],
         "docs/ops/deployment.md": [
             "Frontend: deploy [`web-app`]",
@@ -287,6 +290,9 @@ def _check_docs() -> list[str]:
             "make render-blueprint-check",
             "make launch-probe-web-app-readout",
             "must not be treated as launch proof",
+            "local/artifact-only proof",
+            "does not satisfy limited-rollout launch proof",
+            "provider_green=green",
             "render.yaml",
         ],
         "docs/ops/launch_operator.md": [

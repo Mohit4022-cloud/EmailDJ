@@ -80,6 +80,7 @@ make launch-gates-local
 
 This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, `make launch-audit`, and `make launch-handoff`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
+These are local/artifact-only gates. Passing them means the repo-controlled checks are coherent; it does not satisfy limited-rollout launch proof. Limited rollout still requires `make launch-verify-deployed` with pinned operator env, fresh staging/production runtime snapshots, deployed HTTP smoke, and `provider_green=green` from external-provider evidence.
 
 Deployed launch gate, after `STAGING_BASE_URL`, `PROD_BASE_URL`, and explicit `BETA_KEY` are exported on the operator machine:
 
