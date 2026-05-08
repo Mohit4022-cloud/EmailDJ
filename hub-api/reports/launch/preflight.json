@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T13:10:55.040345Z",
+  "generated_at": "2026-05-08T13:31:16.722651Z",
   "ready": false,
   "failure_bucket": "operator_input_missing",
   "provider": "openai",
@@ -48,7 +48,7 @@
     "path": "/Users/mohit/EmailDJ/hub-api/reports/launch/deployment_discovery.json",
     "state": "present",
     "found": true,
-    "candidate_web_app_origin": "https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app",
+    "candidate_web_app_origin": "https://email-5wmqhzw7o-mohits-projects-e629a988.vercel.app",
     "usable_as_web_app_origin_candidate": true,
     "clears_launch_blockers": false,
     "operator_note": "Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL."
@@ -70,8 +70,8 @@
     "vercel_bypass_env": "VERCEL_AUTOMATION_BYPASS_SECRET",
     "vercel_bypass_env_present": false,
     "operator_note": "The latest web-app probe is blocked by Vercel protection. Export `VERCEL_AUTOMATION_BYPASS_SECRET` before rerunning `make launch-probe-web-app`.",
-    "source_git_sha": "cf0e43039b28696574ae23328445e90266a97d9e",
-    "workspace_git_sha_at_probe": "cf0e43039b28696574ae23328445e90266a97d9e"
+    "source_git_sha": "afb3c05736a56f48ca8a5682953a4c7f0733a715",
+    "workspace_git_sha_at_probe": "afb3c05736a56f48ca8a5682953a4c7f0733a715"
   },
   "operator_export_template": [
     "export STAGING_BASE_URL=\"https://<staging-hub-api-root>\"",
@@ -84,6 +84,6 @@
     "Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.",
     "Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.",
     "Set `VERCEL_AUTOMATION_BYPASS_SECRET` to the Vercel Protection Bypass for Automation secret before probing a protected Vercel web-app deployment. The probe sends it as `x-vercel-protection-bypass` and never writes the secret value to artifacts.",
-    "Use discovered web-app candidate `https://email-8dcxxpakj-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
+    "Use discovered web-app candidate `https://email-5wmqhzw7o-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`."
   ]
 }
