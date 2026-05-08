@@ -1,15 +1,12 @@
 {
-  "generated_at": "2026-05-08T01:12:30.272122Z",
-  "current_git_sha": "d2795463920cafdfaadcff541b02e010dcc2d9d3",
+  "generated_at": "2026-05-08T01:40:04.456156Z",
+  "current_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "d2795463920cafdfaadcff541b02e010dcc2d9d3",
-    "web_app_probe_workspace_git_sha": "002958b228086ba0b7ab794b9018e37a9e7c3bc1",
-    "web_app_probe_source_git_sha": "002958b228086ba0b7ab794b9018e37a9e7c3bc1",
-    "currentness_blockers": [
-      "web_app_deployment_probe_stale_for_current_head:002958b22808!=d2795463920c",
-      "deployment_discovery_stale_for_current_head:002958b22808!=d2795463920c"
-    ],
+    "workspace_git_sha_at_audit": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "web_app_probe_workspace_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "web_app_probe_source_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "currentness_blockers": [],
     "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
     "refresh_command": "make launch-probe-web-app && make launch-audit"
   },
@@ -131,9 +128,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=d2795463920cafdfaadcff541b02e010dcc2d9d3",
-        "web_app_probe_workspace_git_sha=002958b228086ba0b7ab794b9018e37a9e7c3bc1",
-        "web_app_probe_source_git_sha=002958b228086ba0b7ab794b9018e37a9e7c3bc1",
+        "current_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -144,9 +141,7 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:002958b22808!=d2795463920c",
-        "deployment_discovery_stale_for_current_head:002958b22808!=d2795463920c"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
       ]
     },
     {
@@ -322,9 +317,9 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=d2795463920cafdfaadcff541b02e010dcc2d9d3",
-        "web_app_probe_workspace_git_sha=002958b228086ba0b7ab794b9018e37a9e7c3bc1",
-        "web_app_probe_source_git_sha=002958b228086ba0b7ab794b9018e37a9e7c3bc1",
+        "current_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_client_bundle_usable=False",
         "web_app_probe_failures=['http_error:401', 'web_app_deployment_requires_auth', 'web_app_deployment_requires_auth_or_vercel_protection_bypass', 'vercel_protection_bypass_secret_missing', 'no_same_origin_bundle_assets_found', 'vite_hub_url_not_found_in_bundle', 'vite_preview_pipeline_not_found_in_bundle']"
       ],
@@ -335,9 +330,7 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:002958b22808!=d2795463920c",
-        "deployment_discovery_stale_for_current_head:002958b22808!=d2795463920c"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
       ],
       "note": "Limited rollout proves generate/remix by default; preview smoke is required only when preview is intentionally enabled."
     },
@@ -451,9 +444,7 @@
         "web_app_deployment_probe:web_app_deployment_requires_auth",
         "web_app_deployment_probe:web_app_deployment_requires_auth_or_vercel_protection_bypass",
         "web_app_deployment_probe:vercel_protection_bypass_secret_missing",
-        "web_app_deployment_probe:no_same_origin_bundle_assets_found",
-        "web_app_deployment_probe_stale_for_current_head:002958b22808!=d2795463920c",
-        "deployment_discovery_stale_for_current_head:002958b22808!=d2795463920c"
+        "web_app_deployment_probe:no_same_origin_bundle_assets_found"
       ]
     },
     {

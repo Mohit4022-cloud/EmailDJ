@@ -1,6 +1,6 @@
 # Launch Preflight
 
-- Generated at: `2026-05-08T01:12:18.786569Z`
+- Generated at: `2026-05-08T01:40:01.663683Z`
 - Ready: `False`
 - Failure bucket: `operator_input_missing`
 - Provider: `openai`
@@ -25,7 +25,7 @@
 ## Deployment Discovery Context
 
 - `state`: `present`
-- `candidate_web_app_origin`: `https://email-ana1autfb-mohits-projects-e629a988.vercel.app`
+- `candidate_web_app_origin`: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
 - `usable_as_web_app_origin_candidate`: `True`
 - `clears_launch_blockers`: `False`
 - `operator_note`: Candidate is for WEB_APP_ORIGIN only. It is a frontend origin, not a STAGING_BASE_URL or PROD_BASE_URL.
@@ -61,4 +61,4 @@ export VERCEL_AUTOMATION_BYPASS_SECRET="<vercel-automation-bypass-secret>"
 - Set `STAGING_BASE_URL` to the staging hub-api root URL (for example `https://hub-staging.example.com`) before running launch verification.
 - Set `PROD_BASE_URL` to the production hub-api root URL (for example `https://hub.example.com`) before running launch verification.
 - Set `BETA_KEY` to one exact non-dev deployed `EMAILDJ_WEB_BETA_KEYS` value before running launch verification.
-- Use discovered web-app candidate `https://email-ana1autfb-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`.
+- Use discovered web-app candidate `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app` only for `WEB_APP_ORIGIN`; do not use it for `STAGING_BASE_URL` or `PROD_BASE_URL`.

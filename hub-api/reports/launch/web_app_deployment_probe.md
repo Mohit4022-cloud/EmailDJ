@@ -1,15 +1,17 @@
 # Web App Deployment Probe
 
-- Generated at: `2026-05-07T23:34:35.569018Z`
-- Web app URL: `https://email-ana1autfb-mohits-projects-e629a988.vercel.app`
-- Normalized origin: `https://email-ana1autfb-mohits-projects-e629a988.vercel.app`
-- Source git SHA: `002958b228086ba0b7ab794b9018e37a9e7c3bc1`
-- Workspace git SHA at probe: `002958b228086ba0b7ab794b9018e37a9e7c3bc1`
+- Generated at: `2026-05-08T01:39:57.299535Z`
+- Web app URL: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
+- Normalized origin: `https://email-fp7idxgih-mohits-projects-e629a988.vercel.app`
+- Source git SHA: `fa77cf1be06a47fdc11c6db0b0e1b1156bd25357`
+- Workspace git SHA at probe: `fa77cf1be06a47fdc11c6db0b0e1b1156bd25357`
 - Probe matches workspace HEAD: `True`
 - Vercel bypass env: `VERCEL_AUTOMATION_BYPASS_SECRET`
 - Vercel bypass configured: `False`
 - Vercel bypass header used: `none`
 - Client bundle usable: `False`
+- Probe exit policy: `nonblocking_artifact_refresh`
+- Probe exit allows blocked deployment: `True`
 - Detected VITE_HUB_URL: `none`
 - Detected VITE_PRESET_PREVIEW_PIPELINE: `none`
 - Clears launch blockers: `False`
