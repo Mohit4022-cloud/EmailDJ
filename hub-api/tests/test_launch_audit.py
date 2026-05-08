@@ -205,6 +205,11 @@ def test_launch_audit_blocks_stale_web_app_probe_sha(monkeypatch, tmp_path):
     monkeypatch.setattr(audit, "ROOT", root)
     monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
     monkeypatch.setattr(audit, "_git_head_sha", lambda: "newsha1234567890")
+    monkeypatch.setattr(
+        audit,
+        "_deployment_relevant_changed_paths_between",
+        lambda base_sha, head_sha: ["web-app/src/App.js"],
+    )
 
     payload = audit.build_launch_audit()
     deployed_http = {item["id"]: item for item in payload["items"]}["deployed_http_smoke"]
@@ -217,6 +222,65 @@ def test_launch_audit_blocks_stale_web_app_probe_sha(monkeypatch, tmp_path):
         "web_app_deployment_probe_stale_for_current_head:oldsha123456!=newsha123456",
         "deployment_discovery_stale_for_current_head:oldsha123456!=newsha123456",
     ]
+    assert payload["artifact_snapshot"]["currentness_delta_checks"][0]["status"] == "blocked_deployment_relevant_delta"
+    assert payload["artifact_snapshot"]["currentness_delta_checks"][0]["deployment_relevant_changed_paths"] == [
+        "web-app/src/App.js"
+    ]
+
+
+def test_launch_audit_allows_sha_drift_when_only_non_deployment_artifacts_changed(monkeypatch, tmp_path):
+    import scripts.launch_audit as audit
+
+    repo_root = tmp_path / "repo"
+    root = repo_root / "hub-api"
+    _write_base_artifacts(root, repo_root, ready=True)
+    probe_path = root / "reports" / "launch" / "web_app_deployment_probe.json"
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    probe["source_git_sha"] = "oldsha1234567890"
+    probe["workspace_git_sha_at_probe"] = "oldsha1234567890"
+    probe["probe_matches_workspace_head"] = True
+    probe_path.write_text(json.dumps(probe, indent=2), encoding="utf-8")
+    monkeypatch.setattr(audit, "ROOT", root)
+    monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "newsha1234567890")
+    monkeypatch.setattr(audit, "_deployment_relevant_changed_paths_between", lambda base_sha, head_sha: [])
+
+    payload = audit.build_launch_audit()
+    deployed_http = {item["id"]: item for item in payload["items"]}["deployed_http_smoke"]
+
+    assert payload["final_status"] == "complete"
+    assert deployed_http["status"] == "pass"
+    assert payload["artifact_snapshot"]["currentness_blockers"] == []
+    assert payload["artifact_snapshot"]["currentness_delta_checks"][0]["status"] == "sha_drift_non_deployment_delta_only"
+    assert payload["artifact_snapshot"]["currentness_delta_checks"][1]["status"] == "sha_drift_non_deployment_delta_only"
+
+
+def test_launch_audit_fails_closed_when_currentness_delta_cannot_be_checked(monkeypatch, tmp_path):
+    import scripts.launch_audit as audit
+
+    repo_root = tmp_path / "repo"
+    root = repo_root / "hub-api"
+    _write_base_artifacts(root, repo_root, ready=True)
+    probe_path = root / "reports" / "launch" / "web_app_deployment_probe.json"
+    probe = json.loads(probe_path.read_text(encoding="utf-8"))
+    probe["source_git_sha"] = "oldsha1234567890"
+    probe["workspace_git_sha_at_probe"] = "oldsha1234567890"
+    probe_path.write_text(json.dumps(probe, indent=2), encoding="utf-8")
+    monkeypatch.setattr(audit, "ROOT", root)
+    monkeypatch.setattr(audit, "REPO_ROOT", repo_root)
+    monkeypatch.setattr(audit, "_git_head_sha", lambda: "newsha1234567890")
+    monkeypatch.setattr(audit, "_deployment_relevant_changed_paths_between", lambda base_sha, head_sha: None)
+
+    payload = audit.build_launch_audit()
+    deployed_http = {item["id"]: item for item in payload["items"]}["deployed_http_smoke"]
+
+    assert payload["final_status"] == "not_complete"
+    assert deployed_http["status"] == "blocked"
+    assert payload["artifact_snapshot"]["currentness_blockers"] == [
+        "web_app_deployment_probe_stale_for_current_head:oldsha123456!=newsha123456",
+        "deployment_discovery_stale_for_current_head:oldsha123456!=newsha123456",
+    ]
+    assert payload["artifact_snapshot"]["currentness_delta_checks"][0]["status"] == "blocked_diff_unavailable"
 
 
 def test_launch_audit_blocks_validation_fallback_policy(monkeypatch, tmp_path):

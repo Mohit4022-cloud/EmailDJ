@@ -1,13 +1,31 @@
 {
-  "generated_at": "2026-05-08T01:40:04.456156Z",
-  "current_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+  "generated_at": "2026-05-08T02:04:17.123775Z",
+  "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "workspace_git_sha_at_audit": "779040ddaae9cb261e75c26bab68cad13c20dce0",
     "web_app_probe_workspace_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
     "web_app_probe_source_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
     "currentness_blockers": [],
-    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
+    "currentness_delta_checks": [
+      {
+        "artifact_id": "web_app_deployment_probe",
+        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "deployment_relevant_changed_paths": [],
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
+      },
+      {
+        "artifact_id": "deployment_discovery",
+        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "deployment_relevant_changed_paths": [],
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
+      }
+    ],
+    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.",
     "refresh_command": "make launch-probe-web-app && make launch-audit"
   },
   "final_status": "not_complete",
@@ -48,7 +66,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T23:27:37.483952Z"
+        "launch_report_generated_at=2026-05-08T02:04:14.604056Z"
       ],
       "blockers": []
     },
@@ -128,7 +146,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha=779040ddaae9cb261e75c26bab68cad13c20dce0",
         "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_client_bundle_usable=False",
@@ -150,7 +168,7 @@
       "status": "blocked",
       "evidence": [
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=a91329d3b0ae",
+        "release_fingerprint=git_sha=779040ddaae9",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -250,7 +268,7 @@
         "harness_green=green",
         "render_blueprint_green=green",
         "provider_stub_cases=96/96",
-        "launch_report_generated_at=2026-05-07T23:27:37.483952Z"
+        "launch_report_generated_at=2026-05-08T02:04:14.604056Z"
       ],
       "blockers": [],
       "note": ""
@@ -293,7 +311,7 @@
         "validation_fallback_policy=dev_only_fail_closed_in_launch_modes",
         "release_fingerprint_parity=blocked",
         "release_fingerprint_available=True",
-        "release_fingerprint=git_sha=a91329d3b0ae",
+        "release_fingerprint=git_sha=779040ddaae9",
         "runtime_source_used=local_env",
         "comparison_fields=[]"
       ],
@@ -317,7 +335,7 @@
         "required_http_smoke_routes=['generate', 'remix']",
         "route_gates={'generate': True, 'remix': True, 'preview': False}",
         "localhost_smoke_provider_source_counts={'provider_stub': 60}",
-        "current_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha=779040ddaae9cb261e75c26bab68cad13c20dce0",
         "web_app_probe_workspace_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_probe_source_git_sha=fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
         "web_app_client_bundle_usable=False",

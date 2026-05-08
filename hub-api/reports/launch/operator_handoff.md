@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T01:40:04.516013Z`
+- Generated at: `2026-05-08T02:04:19.265335Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -8,7 +8,7 @@
 - Provider env: `OPENAI_API_KEY`
 - Evidence snapshot: `point_in_time_snapshot`
 - Snapshot refresh command: `make launch-probe-web-app && make launch-audit`
-- Snapshot contract: Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.
+- Snapshot contract: Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.
 - Currentness blockers: `none`
 
 ## Shell Exports

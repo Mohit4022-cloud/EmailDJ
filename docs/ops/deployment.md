@@ -206,7 +206,7 @@ make launch-handoff
 When you need an evidence refresh before the protection bypass secret exists, run `make launch-probe-web-app-readout`. It discovers the deployed candidate and writes the same probe artifacts, but the probe records `probe_exit_policy=nonblocking_artifact_refresh` and exits 0 while `client_bundle_usable=false` remains a blocker. Do not use the readout target as a launch gate.
 
 Run `make launch-probe-web-app` before `make launch-audit` so the audit reads the current deployed frontend candidate and its bundle/auth state. `make launch-audit` then writes the artifact-backed completion readout, mapping every launch requirement to current evidence or blockers.
-The reports under `hub-api/reports/launch/*` are point-in-time evidence snapshots. A new commit or Vercel deployment can make checked-in probe/audit artifacts stale, so final launch review must rerun `make launch-probe-web-app && make launch-audit` against the target deployed commit before treating those artifacts as current proof.
+The reports under `hub-api/reports/launch/*` are point-in-time evidence snapshots. A target deploy, Vercel deployment change, or deployed web-app input change can make checked-in probe/audit artifacts stale, so final launch review must rerun `make launch-probe-web-app && make launch-audit` against the target deployed commit before treating those artifacts as current proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.
 
 `make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets.
 

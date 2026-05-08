@@ -220,7 +220,7 @@ The audit maps each A-to-Z launch requirement to concrete evidence or explicit b
 
 Use `make launch-probe-web-app-readout` only for blocked evidence refreshes, such as a Vercel preview that still needs `VERCEL_AUTOMATION_BYPASS_SECRET`. The strict completion path must still use `make launch-probe-web-app` before launch proof is accepted.
 
-Treat the checked-in `reports/launch/*` files as point-in-time evidence snapshots, not proof that the latest commit is deployed and verified. After every target commit deploy or Vercel deployment change, rerun `make launch-probe-web-app && make launch-audit` in the same operator session before using `completion_audit.*` as current launch proof.
+Treat the checked-in `reports/launch/*` files as point-in-time evidence snapshots, not proof that the latest commit is deployed and verified. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun `make launch-probe-web-app && make launch-audit` in the same operator session before using `completion_audit.*` as current launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.
 
 ## Operator handoff
 

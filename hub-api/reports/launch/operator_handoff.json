@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T01:40:04.516013Z",
+  "generated_at": "2026-05-08T02:04:19.265335Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -153,11 +153,29 @@
   ],
   "artifact_snapshot": {
     "status": "point_in_time_snapshot",
-    "workspace_git_sha_at_audit": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+    "workspace_git_sha_at_audit": "779040ddaae9cb261e75c26bab68cad13c20dce0",
     "web_app_probe_workspace_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
     "web_app_probe_source_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
     "currentness_blockers": [],
-    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof.",
+    "currentness_delta_checks": [
+      {
+        "artifact_id": "web_app_deployment_probe",
+        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "deployment_relevant_changed_paths": [],
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
+      },
+      {
+        "artifact_id": "deployment_discovery",
+        "recorded_git_sha": "fa77cf1be06a47fdc11c6db0b0e1b1156bd25357",
+        "current_git_sha": "779040ddaae9cb261e75c26bab68cad13c20dce0",
+        "deployment_relevant_changed_paths": [],
+        "status": "sha_drift_non_deployment_delta_only",
+        "deployment_relevant_changed_path_count": 0
+      }
+    ],
+    "operator_contract": "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. After every target commit deploy, Vercel deployment change, or deployed web-app input change, rerun make launch-probe-web-app and make launch-audit in the operator session before treating the report as launch proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.",
     "refresh_command": "make launch-probe-web-app && make launch-audit"
   },
   "open_blockers": [

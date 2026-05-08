@@ -12,6 +12,20 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = ROOT.parent
+WEB_APP_DEPLOYMENT_INPUT_PATHS = {
+    ".github/workflows/",
+    "web-app/.env.example",
+    "web-app/dist/",
+    "web-app/index.html",
+    "web-app/package-lock.json",
+    "web-app/package.json",
+    "web-app/public/",
+    "web-app/scripts/",
+    "web-app/src/",
+    "web-app/vite.config.js",
+    "hub-api/scripts/discover_deployment_metadata.py",
+    "hub-api/scripts/probe_web_app_deployment.py",
+}
 
 
 def _utc_now_text() -> str:
@@ -35,6 +49,30 @@ def _git_head_sha() -> str | None:
     if completed.returncode != 0:
         return None
     return completed.stdout.strip() or None
+
+
+def _git_changed_paths_between(base_sha: str, head_sha: str) -> list[str] | None:
+    completed = subprocess.run(
+        ["git", "diff", "--name-only", f"{base_sha}..{head_sha}"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return None
+    return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+
+
+def _is_web_app_deployment_input(path: str) -> bool:
+    return any(path == candidate or path.startswith(candidate) for candidate in WEB_APP_DEPLOYMENT_INPUT_PATHS)
+
+
+def _deployment_relevant_changed_paths_between(base_sha: str, head_sha: str) -> list[str] | None:
+    changed_paths = _git_changed_paths_between(base_sha, head_sha)
+    if changed_paths is None:
+        return None
+    return [path for path in changed_paths if _is_web_app_deployment_input(path)]
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -148,6 +186,7 @@ def _snapshot_contract(
     web_app_probe_workspace_sha: str,
     web_app_probe_source_sha: str,
     web_app_probe_staleness_blockers: list[str],
+    web_app_probe_currentness_checks: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
         "status": "point_in_time_snapshot",
@@ -155,13 +194,51 @@ def _snapshot_contract(
         "web_app_probe_workspace_git_sha": web_app_probe_workspace_sha or None,
         "web_app_probe_source_git_sha": web_app_probe_source_sha or None,
         "currentness_blockers": web_app_probe_staleness_blockers,
+        "currentness_delta_checks": web_app_probe_currentness_checks,
         "operator_contract": (
             "Checked-in launch reports are evidence snapshots, not proof of the current deployed HEAD. "
-            "After every target commit deploy or Vercel deployment change, rerun make launch-probe-web-app "
-            "and make launch-audit in the operator session before treating the report as launch proof."
+            "After every target commit deploy, Vercel deployment change, or deployed web-app input change, "
+            "rerun make launch-probe-web-app and make launch-audit in the operator session before treating "
+            "the report as launch proof. Report-only snapshot commits may advance git SHA without "
+            "invalidating the deployed web-app probe."
         ),
         "refresh_command": "make launch-probe-web-app && make launch-audit",
     }
+
+
+def _currentness_check(
+    *,
+    artifact_id: str,
+    recorded_git_sha: str,
+    current_git_sha: str | None,
+    blocker_prefix: str,
+) -> tuple[list[str], dict[str, Any]]:
+    check: dict[str, Any] = {
+        "artifact_id": artifact_id,
+        "recorded_git_sha": recorded_git_sha or None,
+        "current_git_sha": current_git_sha,
+        "deployment_relevant_changed_paths": [],
+        "status": "not_checked",
+    }
+    if not current_git_sha or not recorded_git_sha:
+        check["status"] = "missing_sha"
+        return [], check
+    if recorded_git_sha == current_git_sha:
+        check["status"] = "matches_current_head"
+        return [], check
+
+    changed_paths = _deployment_relevant_changed_paths_between(recorded_git_sha, current_git_sha)
+    blocker = f"{blocker_prefix}:{recorded_git_sha[:12]}!={current_git_sha[:12]}"
+    if changed_paths is None:
+        check["status"] = "blocked_diff_unavailable"
+        return [blocker], check
+    check["deployment_relevant_changed_paths"] = changed_paths[:25]
+    check["deployment_relevant_changed_path_count"] = len(changed_paths)
+    if changed_paths:
+        check["status"] = "blocked_deployment_relevant_delta"
+        return [blocker], check
+    check["status"] = "sha_drift_non_deployment_delta_only"
+    return [], check
 
 
 def _objective_entry(
@@ -287,15 +364,20 @@ def build_launch_audit() -> dict[str, Any]:
     web_app_probe_failures = [str(item) for item in web_app_probe.get("failures") or []]
     web_app_probe_workspace_sha = str(web_app_probe.get("workspace_git_sha_at_probe") or "")
     web_app_probe_source_sha = str(web_app_probe.get("source_git_sha") or "")
-    web_app_probe_staleness_blockers: list[str] = []
-    if current_git_sha and web_app_probe_workspace_sha and web_app_probe_workspace_sha != current_git_sha:
-        web_app_probe_staleness_blockers.append(
-            f"web_app_deployment_probe_stale_for_current_head:{web_app_probe_workspace_sha[:12]}!={current_git_sha[:12]}"
-        )
-    if current_git_sha and web_app_probe_source_sha and web_app_probe_source_sha != current_git_sha:
-        web_app_probe_staleness_blockers.append(
-            f"deployment_discovery_stale_for_current_head:{web_app_probe_source_sha[:12]}!={current_git_sha[:12]}"
-        )
+    workspace_staleness_blockers, workspace_currentness_check = _currentness_check(
+        artifact_id="web_app_deployment_probe",
+        recorded_git_sha=web_app_probe_workspace_sha,
+        current_git_sha=current_git_sha,
+        blocker_prefix="web_app_deployment_probe_stale_for_current_head",
+    )
+    source_staleness_blockers, source_currentness_check = _currentness_check(
+        artifact_id="deployment_discovery",
+        recorded_git_sha=web_app_probe_source_sha,
+        current_git_sha=current_git_sha,
+        blocker_prefix="deployment_discovery_stale_for_current_head",
+    )
+    web_app_probe_staleness_blockers = [*workspace_staleness_blockers, *source_staleness_blockers]
+    web_app_probe_currentness_checks = [workspace_currentness_check, source_currentness_check]
     if not web_app_probe:
         web_app_probe_blockers = ["web_app_deployment_probe_missing"]
     elif web_app_probe.get("client_bundle_usable") is not True:
@@ -507,6 +589,7 @@ def build_launch_audit() -> dict[str, Any]:
         web_app_probe_workspace_sha=web_app_probe_workspace_sha,
         web_app_probe_source_sha=web_app_probe_source_sha,
         web_app_probe_staleness_blockers=web_app_probe_staleness_blockers,
+        web_app_probe_currentness_checks=web_app_probe_currentness_checks,
     )
     return {
         "generated_at": _utc_now_text(),
