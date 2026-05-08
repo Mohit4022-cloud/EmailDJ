@@ -1,6 +1,6 @@
 # Launch Unblock Inputs
 
-- Generated at: `2026-05-08T22:19:36.209307Z`
+- Generated at: `2026-05-08T22:27:13.476213Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -58,6 +58,7 @@ export EMAILDJ_DEPLOYED_SMOKE_FLOWS="generate,remix"
 make launch-probe-web-app-readout
 make launch-audit
 make launch-handoff
+make launch-unblock-inputs
 ```
 
 
@@ -70,6 +71,7 @@ make launch-verify-deployed
 make launch-probe-web-app
 make launch-audit
 make launch-handoff
+make launch-unblock-inputs
 ```
 
 ## Open Blockers
@@ -94,7 +96,7 @@ make launch-handoff
 | `deployed_http_smoke` | Run make launch-verify-deployed against staging. Default limited rollout proves generate and remix; use EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview only when preview is intentionally enabled. | hub-api/debug_runs/smoke/deployed/summary.json proves external_provider traffic and green required route coverage. |
 | `release_fingerprint_parity` | Capture both staging and production runtime snapshots from deployed services after release metadata is available. | launch latest has release_fingerprint_parity.runtime_source_used from deployed snapshots and non-empty comparison_fields. |
 | `chrome_extension_real_target` | Set CHROME_EXTENSION_ORIGIN to the shipped chrome-extension://<extension-id> and verify the side-panel flow in Chrome. | launch latest shows chrome_extension_origin_state=explicit_pinned and the extension release config passes. |
-| `launch_report_recommendation` | After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, and make launch-handoff. | completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready. |
+| `launch_report_recommendation` | After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, make launch-handoff, and make launch-unblock-inputs. | completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready. |
 
 ## Source Artifacts
 

@@ -16,6 +16,7 @@ WEB_APP_BLOCKED_READOUT_COMMANDS = [
     "make launch-probe-web-app-readout",
     "make launch-audit",
     "make launch-handoff",
+    "make launch-unblock-inputs",
 ]
 WEB_APP_AUTH_OR_PROTECTION_FAILURES = {
     "http_error:401",
@@ -187,7 +188,7 @@ def _blocker_clearance_plan(
                 "id": "launch_report_recommendation",
                 "action": (
                     "After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, "
-                    "and make launch-handoff."
+                    "make launch-handoff, and make launch-unblock-inputs."
                 ),
                 "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready.",
             }
@@ -403,6 +404,7 @@ def build_launch_handoff() -> dict[str, Any]:
         "make launch-probe-web-app",
         "make launch-audit",
         "make launch-handoff",
+        "make launch-unblock-inputs",
     ]
     deployed_smoke_flow_contract = {
         "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",

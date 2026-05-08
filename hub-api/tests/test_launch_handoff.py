@@ -180,6 +180,7 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
         "make launch-probe-web-app",
         "make launch-audit",
         "make launch-handoff",
+        "make launch-unblock-inputs",
     ]
     assert payload["blocked_evidence_refresh_commands"] == []
 
@@ -220,6 +221,7 @@ def test_launch_handoff_exports_vercel_bypass_when_web_probe_is_protected(monkey
         "make launch-probe-web-app-readout",
         "make launch-audit",
         "make launch-handoff",
+        "make launch-unblock-inputs",
     ]
     assert "strict launch gate" in refresh[0]["when"]
     clearance = {item["id"]: item for item in payload["blocker_clearance_plan"]}
@@ -298,3 +300,4 @@ def test_launch_handoff_includes_deployment_discovery_without_clearing_blockers(
     assert "`http_error:401`" in markdown
     assert "Blocked Evidence Refresh" in markdown
     assert "make launch-probe-web-app-readout" in markdown
+    assert "make launch-unblock-inputs" in markdown

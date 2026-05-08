@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T22:19:36.209307Z",
+  "generated_at": "2026-05-08T22:27:13.476213Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -166,7 +166,8 @@
     "make launch-verify-deployed",
     "make launch-probe-web-app",
     "make launch-audit",
-    "make launch-handoff"
+    "make launch-handoff",
+    "make launch-unblock-inputs"
   ],
   "blocked_evidence_refresh_commands": [
     {
@@ -174,7 +175,8 @@
       "commands": [
         "make launch-probe-web-app-readout",
         "make launch-audit",
-        "make launch-handoff"
+        "make launch-handoff",
+        "make launch-unblock-inputs"
       ],
       "when": "Use only while the web-app deployment is still auth/protection blocked and the operator needs a fresh artifact readout before the strict launch gate can pass.",
       "evidence": "hub-api/reports/launch/web_app_deployment_probe.json records probe_exit_policy=nonblocking_artifact_refresh and client_bundle_usable remains false until the strict probe succeeds."
@@ -289,7 +291,7 @@
     },
     {
       "id": "launch_report_recommendation",
-      "action": "After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, and make launch-handoff.",
+      "action": "After clearing the blocker groups above, rerun make launch-probe-web-app, make launch-audit, make launch-handoff, and make launch-unblock-inputs.",
       "evidence": "completion_audit.json final_status=complete and launch latest no longer says Not yet launch-ready."
     }
   ],
