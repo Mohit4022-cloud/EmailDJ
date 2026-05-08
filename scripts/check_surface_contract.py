@@ -414,6 +414,7 @@ def _check_ci() -> list[str]:
         "backend/**",
         ".github/workflows/eval_regression.yml",
         "legacy-backend-eval-regression",
+        "timeout-minutes: 20",
     ]
     for snippet in required_legacy_snippets:
         if snippet not in legacy_eval:

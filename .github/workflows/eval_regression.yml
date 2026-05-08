@@ -16,6 +16,7 @@ jobs:
   legacy-backend-eval-regression:
     name: Legacy backend eval regression
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       USE_PROVIDER_STUB: "0"
