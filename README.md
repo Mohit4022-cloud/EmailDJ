@@ -78,7 +78,7 @@ Local launch gates:
 make launch-gates-local
 ```
 
-This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, `make launch-audit`, and `make launch-handoff`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
+This runs the surface contract gate, the three launch-owned surface test suites, mock lock-compliance smoke, preview/generate parity, adversarial mock eval, full mock eval, `make launch-check`, `make launch-audit`, `make launch-handoff`, and `make launch-unblock-inputs`. The full mock eval runs after the adversarial subset so the canonical provider-stub report ends on the broad 96-case artifact.
 It also runs `make render-blueprint-check` so the Render Hub API handoff cannot drift from the managed Redis/Postgres and Dashboard-filled secret contract.
 These are local/artifact-only gates. Passing them means the repo-controlled checks are coherent; it does not satisfy limited-rollout launch proof. Limited rollout still requires `make launch-verify-deployed` with pinned operator env, fresh staging/production runtime snapshots, deployed HTTP smoke, and `provider_green=green` from external-provider evidence.
 
@@ -136,9 +136,10 @@ Translate the current audit/preflight state into an operator handoff:
 
 ```bash
 make launch-handoff
+make launch-unblock-inputs
 ```
 
-This writes `hub-api/reports/launch/operator_handoff.json` and `.md` with the exact shell export template, Render/Dashboard values, next commands, and current blocker groups. It does not include secret values.
+This writes `hub-api/reports/launch/operator_handoff.json` and `.md` with the exact shell export template, Render/Dashboard values, next commands, and current blocker groups. `make launch-unblock-inputs` also writes `hub-api/reports/launch/unblock_inputs.json` and `.md`, which filters the same contract down to the required shell exports, required Dashboard inputs, command defaults, and blocker-clearance evidence. Neither readout includes secret values.
 
 Check the deployed-run operator inputs before running the full deployed gate:
 

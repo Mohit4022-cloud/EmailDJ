@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-05-07",
+  "updated": "2026-05-08",
   "purpose": "Machine-readable source of truth for which repo surfaces produce launch-readiness evidence.",
   "launch_owned": [
     {
@@ -13,6 +13,7 @@
         "make launch-probe-web-app",
         "make launch-audit",
         "make launch-handoff",
+        "make launch-unblock-inputs",
         "make launch-verify-deployed",
         "hub-api/reports/launch/latest.json"
       ]

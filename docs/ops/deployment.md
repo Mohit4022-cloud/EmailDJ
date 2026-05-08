@@ -200,6 +200,7 @@ make launch-verify-deployed
 make launch-probe-web-app
 make launch-audit
 make launch-handoff
+make launch-unblock-inputs
 ```
 
 `make launch-preflight` is the fast operator-input check for non-placeholder `STAGING_BASE_URL` and `PROD_BASE_URL` Hub API roots, a single non-placeholder `BETA_KEY`, and provider transport. Its Markdown report includes a redacted export template for the required operator values. The preflight also blocks the discovered Vercel web-app origin from being reused as a Hub API URL. `make launch-verify-deployed` validates the requested deployed smoke flow list, runs the same preflight again, then verifies the web-app and Chrome-extension release bundles against the staging Hub URL and beta key, captures staging and production runtime snapshots, runs a small real-provider smoke, runs staging Hub API HTTP smoke for `generate,remix`, merges those summaries, and then runs `launch_check.py` as a failing gate. The full deployed gate fails if release-bundle overrides point at a different Hub URL or beta key than `STAGING_BASE_URL` and `BETA_KEY`; use the narrower bundle verifiers for non-staging bundle inspection. Launch-check now requires the canonical HTTP smoke artifact to prove `external_provider` traffic plus green `generate` and `remix` route coverage in launch modes. Use `EMAILDJ_DEPLOYED_SMOKE_FLOWS=generate,remix,preview` only when the staging preview route is intentionally enabled; any flow outside `generate`, `remix`, or `preview` fails before partial smoke artifacts are created.
@@ -211,7 +212,7 @@ When you need an evidence refresh before the protection bypass secret exists, ru
 Run `make launch-probe-web-app` before `make launch-audit` so the audit reads the current deployed frontend candidate and its bundle/auth state. `make launch-audit` then writes the artifact-backed completion readout, mapping every launch requirement to current evidence or blockers.
 The reports under `hub-api/reports/launch/*` are point-in-time evidence snapshots. A target deploy, Vercel deployment change, or deployed web-app input change can make checked-in probe/audit artifacts stale, so final launch review must rerun `make launch-probe-web-app && make launch-audit` against the target deployed commit before treating those artifacts as current proof. Report-only snapshot commits may advance git SHA without invalidating the deployed web-app probe.
 
-`make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets.
+`make launch-handoff` writes the operator-facing export/Dashboard checklist from the latest audit and preflight artifacts. It is the paste-safe handoff for the deploy operator and uses placeholders instead of secrets. `make launch-unblock-inputs` writes the compact view of only the required shell exports, required Dashboard inputs, command defaults, and blocker-clearance evidence.
 
 ## Manual Values You Still Need To Create
 

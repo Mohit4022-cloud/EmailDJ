@@ -29,6 +29,7 @@ PRIMARY_TARGETS = {
         "launch-check",
         "launch-audit",
         "launch-handoff",
+        "launch-unblock-inputs",
     },
     "launch-verify-deployed": set(),
     "launch-verify-web-app": set(),
@@ -36,6 +37,7 @@ PRIMARY_TARGETS = {
     "launch-preflight": set(),
     "launch-audit": set(),
     "launch-handoff": set(),
+    "launch-unblock-inputs": set(),
     "render-blueprint-check": set(),
 }
 
@@ -264,6 +266,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-extension",
             "make launch-audit",
             "make launch-handoff",
+            "make launch-unblock-inputs",
             "make render-blueprint-check",
             "render.yaml",
             "These are local/artifact-only gates.",
@@ -284,6 +287,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-extension",
             "make launch-audit",
             "make launch-handoff",
+            "make launch-unblock-inputs",
             "make render-blueprint-check",
         ],
         "docs/ops/surface_contract.md": [
@@ -297,6 +301,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-extension",
             "make launch-audit",
             "make launch-handoff",
+            "make launch-unblock-inputs",
             "make render-blueprint-check",
             "make launch-probe-web-app-readout",
             "must not be treated as launch proof",
@@ -322,6 +327,7 @@ def _check_docs() -> list[str]:
             "make launch-verify-extension",
             "make launch-audit",
             "make launch-handoff",
+            "make launch-unblock-inputs",
             "make render-blueprint-check",
             "Optional blocked-deployment readout",
             "This is not a release gate",

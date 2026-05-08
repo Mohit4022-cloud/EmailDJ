@@ -231,13 +231,22 @@ cd /Users/mohit/EmailDJ
 make launch-handoff
 ```
 
+For the shortest operator-input view, run:
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-unblock-inputs
+```
+
 When the latest web-app probe is blocked by Vercel/auth protection, the handoff also includes a separate blocked evidence refresh section with `make launch-probe-web-app-readout`, `make launch-audit`, and `make launch-handoff`. That section is a readout aid only; launch proof still requires the strict `make launch-probe-web-app` path to pass.
 
 Artifacts:
 - `reports/launch/operator_handoff.json`
 - `reports/launch/operator_handoff.md`
+- `reports/launch/unblock_inputs.json`
+- `reports/launch/unblock_inputs.md`
 
-The handoff translates the current audit and preflight state into the exact operator export template, Render/Dashboard values, next commands, and open blocker groups. It uses placeholders only and must not contain live secret values.
+The handoff translates the current audit and preflight state into the exact operator export template, Render/Dashboard values, next commands, and open blocker groups. `make launch-unblock-inputs` filters the same contract down to required shell exports, required Dashboard inputs, command defaults, and blocker-clearance evidence. Both use placeholders only and must not contain live secret values.
 
 ## How to interpret artifacts
 

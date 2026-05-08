@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup test build dev launch-preflight launch-check launch-audit launch-discover-deployment launch-probe-web-app launch-probe-web-app-readout launch-handoff localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
+.PHONY: setup test build dev launch-preflight launch-check launch-audit launch-discover-deployment launch-probe-web-app launch-probe-web-app-readout launch-handoff launch-unblock-inputs localhost-smoke launch-gates-local launch-verify-deployed launch-verify-web-app launch-verify-extension surface-contract render-blueprint-check \
 	hub-api-setup web-app-setup chrome-extension-setup \
 	hub-api-test web-app-test chrome-extension-test \
 	hub-api-build web-app-build chrome-extension-build \
@@ -87,6 +87,9 @@ launch-probe-web-app-readout: launch-discover-deployment
 launch-handoff:
 	cd hub-api && source .venv/bin/activate && python scripts/launch_handoff.py
 
+launch-unblock-inputs:
+	cd hub-api && source .venv/bin/activate && python scripts/launch_unblock_inputs.py
+
 launch-preflight:
 	cd hub-api && source .venv/bin/activate && python scripts/launch_preflight.py
 
@@ -102,7 +105,7 @@ launch-verify-web-app:
 launch-verify-extension:
 	cd chrome-extension && npm test && npm run check:syntax && npm run build && npm run check:release-config
 
-launch-gates-local: surface-contract render-blueprint-check hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check launch-audit launch-handoff
+launch-gates-local: surface-contract render-blueprint-check hub-api-test web-app-test chrome-extension-test eval-smoke eval-parity eval-adversarial eval-full launch-check launch-audit launch-handoff launch-unblock-inputs
 
 legacy-setup:
 	cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
