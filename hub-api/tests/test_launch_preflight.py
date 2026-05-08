@@ -144,6 +144,40 @@ def test_launch_preflight_requires_vercel_bypass_when_web_probe_is_auth_gated(mo
     assert "x-vercel-protection-bypass" in next_steps
 
 
+def test_launch_preflight_reports_vercel_bypass_with_other_missing_operator_inputs(monkeypatch, tmp_path):
+    import scripts.launch_preflight as lp
+
+    monkeypatch.setattr(lp, "ROOT", tmp_path)
+    _write_deployment_discovery(tmp_path)
+    _write_vercel_auth_probe(tmp_path)
+    monkeypatch.setenv("EMAILDJ_REAL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.delenv("STAGING_BASE_URL", raising=False)
+    monkeypatch.delenv("PROD_BASE_URL", raising=False)
+    monkeypatch.delenv("BETA_KEY", raising=False)
+    monkeypatch.delenv("VERCEL_AUTOMATION_BYPASS_SECRET", raising=False)
+
+    def fail_get(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("transport probe should not run when operator inputs are missing")
+
+    monkeypatch.setattr(lp.httpx, "get", fail_get)
+
+    result = lp.run_launch_preflight()
+    next_steps = "\n".join(result["next_steps"])
+
+    assert result["ready"] is False
+    assert result["failure_bucket"] == "operator_input_missing"
+    assert result["missing_inputs"] == [
+        "STAGING_BASE_URL",
+        "PROD_BASE_URL",
+        "BETA_KEY",
+        "VERCEL_AUTOMATION_BYPASS_SECRET",
+    ]
+    assert result["required_inputs_present"]["VERCEL_AUTOMATION_BYPASS_SECRET"] is False
+    assert "x-vercel-protection-bypass" in next_steps
+    assert "only for `WEB_APP_ORIGIN`" in next_steps
+
+
 def test_launch_preflight_allows_vercel_bypass_env_when_web_probe_is_auth_gated(monkeypatch, tmp_path):
     import scripts.launch_preflight as lp
 

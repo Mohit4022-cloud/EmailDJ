@@ -297,7 +297,7 @@ def run_launch_preflight(*, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) ->
     presence = {name: bool((os.environ.get(name) or "").strip()) for name in (*_REQUIRED_INPUTS, provider_env)}
     missing_inputs = [name for name, present in presence.items() if not present]
     operator_input_errors = [] if missing_inputs else _validate_operator_inputs(deployment_discovery)
-    if not missing_inputs and not operator_input_errors and web_app_probe.get("requires_vercel_protection_bypass"):
+    if web_app_probe.get("requires_vercel_protection_bypass") and (missing_inputs or not operator_input_errors):
         presence[VERCEL_BYPASS_ENV] = bool(web_app_probe.get("vercel_bypass_env_present"))
         missing_inputs = [name for name, present in presence.items() if not present]
 

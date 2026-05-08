@@ -90,13 +90,23 @@ def _md_cell(value: Any) -> str:
     return str(value).replace("|", "\\|")
 
 
-def _blocker_clearance_plan(blocked: set[str], *, provider_env: str) -> list[dict[str, str]]:
+def _blocker_clearance_plan(
+    blocked: set[str],
+    *,
+    provider_env: str,
+    preflight_missing_inputs: set[str],
+) -> list[dict[str, str]]:
     plan: list[dict[str, str]] = []
     if "deployed_preflight_inputs" in blocked:
+        missing = sorted(preflight_missing_inputs)
+        missing_text = ", ".join(f"`{name}`" for name in missing) if missing else "the missing launch inputs"
         plan.append(
             {
                 "id": "deployed_preflight_inputs",
-                "action": "Export STAGING_BASE_URL, PROD_BASE_URL, and BETA_KEY on the operator machine, then run make launch-preflight.",
+                "action": (
+                    f"Export {missing_text} on the operator machine, confirm BETA_KEY matches one deployed beta key, "
+                    "then run make launch-preflight."
+                ),
                 "evidence": "hub-api/reports/launch/preflight.json has ready=true and no missing_inputs.",
             }
         )
@@ -440,7 +450,11 @@ def build_launch_handoff() -> dict[str, Any]:
         "blocked_evidence_refresh_commands": _blocked_evidence_refresh_commands(web_app_probe),
         "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
-        "blocker_clearance_plan": _blocker_clearance_plan(blocked, provider_env=provider_env),
+        "blocker_clearance_plan": _blocker_clearance_plan(
+            blocked,
+            provider_env=provider_env,
+            preflight_missing_inputs=missing_inputs,
+        ),
         "deployment_discovery": {
             "artifact": str(deployment_discovery_path),
             "found": bool(deployment_discovery.get("found")),

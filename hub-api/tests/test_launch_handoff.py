@@ -145,6 +145,9 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert payload["artifact_snapshot"]["refresh_command"] == "make launch-probe-web-app && make launch-audit"
     clearance = {item["id"]: item for item in payload["blocker_clearance_plan"]}
     assert "deployed_preflight_inputs" in clearance
+    assert "`BETA_KEY`" in clearance["deployed_preflight_inputs"]["action"]
+    assert "`PROD_BASE_URL`" in clearance["deployed_preflight_inputs"]["action"]
+    assert "`STAGING_BASE_URL`" in clearance["deployed_preflight_inputs"]["action"]
     assert "durable_infra" in clearance
     assert "ANTHROPIC_API_KEY" in clearance["pinned_origins_beta_provider"]["action"]
     assert "make launch-probe-web-app" in clearance["launch_report_recommendation"]["action"]
@@ -219,6 +222,8 @@ def test_launch_handoff_exports_vercel_bypass_when_web_probe_is_protected(monkey
         "make launch-handoff",
     ]
     assert "strict launch gate" in refresh[0]["when"]
+    clearance = {item["id"]: item for item in payload["blocker_clearance_plan"]}
+    assert "`VERCEL_AUTOMATION_BYPASS_SECRET`" in clearance["deployed_preflight_inputs"]["action"]
 
 
 def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
