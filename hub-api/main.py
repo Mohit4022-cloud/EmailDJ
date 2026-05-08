@@ -65,7 +65,7 @@ _PROVIDER_KEY_ENV = {
     "groq": "GROQ_API_KEY",
 }
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
-_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 _LAUNCH_MODES_REQUIRING_DURABLE_REDIS = {"limited_rollout", "broad_launch"}
 _LOCAL_WEB_ALLOW_ORIGINS = [
     "http://localhost",
@@ -169,14 +169,19 @@ def _require_pinned_launch_surfaces(launch_mode: str) -> None:
 def _redis_url_is_external(raw_url: str) -> bool:
     parsed = urlparse(raw_url)
     host = (parsed.hostname or "").strip().lower()
-    return parsed.scheme in {"redis", "rediss"} and bool(host) and host not in _LOCAL_INFRA_HOSTS
+    return parsed.scheme in {"redis", "rediss"} and bool(host) and not _is_local_infra_host(host)
 
 
 def _database_url_is_external_postgres(raw_url: str) -> bool:
     parsed = urlparse(raw_url)
     host = (parsed.hostname or "").strip().lower()
     scheme = (parsed.scheme or "").strip().lower()
-    return scheme.startswith("postgres") and bool(host) and host not in _LOCAL_INFRA_HOSTS
+    return scheme.startswith("postgres") and bool(host) and not _is_local_infra_host(host)
+
+
+def _is_local_infra_host(host: str) -> bool:
+    normalized = host.strip().lower()
+    return normalized in _LOCAL_INFRA_HOSTS or normalized.endswith(".local")
 
 
 def _require_durable_redis_for_launch(launch_mode: str) -> None:

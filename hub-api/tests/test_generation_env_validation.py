@@ -308,6 +308,18 @@ def test_validate_env_limited_rollout_rejects_local_redis_url(monkeypatch):
         _validate_env()
 
 
+@pytest.mark.parametrize("redis_url", ["redis://0.0.0.0:6379/0", "redis://cache.local:6379/0"])
+def test_validate_env_limited_rollout_rejects_non_deployed_redis_hosts(monkeypatch, redis_url):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = redis_url
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local"):
+        _validate_env()
+
+
 def test_validate_env_limited_rollout_rejects_missing_database_url(monkeypatch):
     from main import _validate_env
 
@@ -326,6 +338,22 @@ def test_validate_env_limited_rollout_rejects_local_database_url(monkeypatch):
     env = _limited_rollout_env()
     env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
     env["DATABASE_URL"] = "postgresql+asyncpg://localhost/emaildj"
+    _apply_env(monkeypatch, env)
+
+    with pytest.raises(RuntimeError, match="non-local Postgres"):
+        _validate_env()
+
+
+@pytest.mark.parametrize(
+    "database_url",
+    ["postgresql+asyncpg://0.0.0.0/emaildj", "postgresql+asyncpg://db.local/emaildj"],
+)
+def test_validate_env_limited_rollout_rejects_non_deployed_database_hosts(monkeypatch, database_url):
+    from main import _validate_env
+
+    env = _limited_rollout_env()
+    env["REDIS_URL"] = "rediss://cache.emaildj.test:6379/0"
+    env["DATABASE_URL"] = database_url
     _apply_env(monkeypatch, env)
 
     with pytest.raises(RuntimeError, match="non-local Postgres"):

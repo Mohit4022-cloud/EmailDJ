@@ -45,6 +45,23 @@ def test_runtime_debug_surfaces_external_infra_config(monkeypatch):
     assert payload["validation_fallback_allowed"] is False
 
 
+def test_runtime_debug_keeps_non_deployed_infra_hosts_out_of_external_states(monkeypatch):
+    import runtime_debug
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.delenv("REDIS_FORCE_INMEMORY", raising=False)
+    monkeypatch.setenv("REDIS_URL", "redis://0.0.0.0:6379/0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql+asyncpg://db.local/emaildj")
+    monkeypatch.setenv("VECTOR_STORE_BACKEND", "pgvector")
+
+    payload = runtime_debug.build_runtime_debug_payload()
+
+    assert payload["redis_config_state"] == "local_redis"
+    assert payload["database_config_state"] == "local_postgres"
+    assert payload["vector_store_config_state"] == "pgvector_missing_postgres_config"
+
+
 def test_runtime_debug_uses_render_git_commit_as_release_fingerprint(monkeypatch):
     import runtime_debug
 

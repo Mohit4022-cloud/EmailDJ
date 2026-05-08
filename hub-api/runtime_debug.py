@@ -15,7 +15,7 @@ from email_generation.runtime_policies import is_production_like_environment, re
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _LOCAL_WEB_ORIGIN_HOSTS = {"localhost", "127.0.0.1"}
-_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "::1"}
+_LOCAL_INFRA_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
 _RELEASE_IDENTITY_KEYS = (
     "release_fingerprint",
     "git_sha",
@@ -137,6 +137,11 @@ def _rate_limit_value() -> int:
     return max(value, 1)
 
 
+def _is_local_infra_host(host: str) -> bool:
+    normalized = host.strip().lower()
+    return normalized in _LOCAL_INFRA_HOSTS or normalized.endswith(".local")
+
+
 def _redis_config_state() -> str:
     if (os.environ.get("REDIS_FORCE_INMEMORY") or "").strip() == "1":
         return "forced_inmemory"
@@ -145,7 +150,7 @@ def _redis_config_state() -> str:
         return "default_local_redis"
     parsed = urlparse(raw_url)
     host = (parsed.hostname or "").strip().lower()
-    if host in _LOCAL_INFRA_HOSTS:
+    if _is_local_infra_host(host):
         return "local_redis"
     if parsed.scheme in {"redis", "rediss"} and host:
         return "external_redis_configured"
@@ -162,7 +167,7 @@ def _database_config_state() -> str:
         return "local_sqlite"
     if scheme.startswith("postgres"):
         host = (parsed.hostname or "").strip().lower()
-        if host in _LOCAL_INFRA_HOSTS:
+        if _is_local_infra_host(host):
             return "local_postgres"
         return "external_postgres_configured"
     return "database_configured_unknown"
