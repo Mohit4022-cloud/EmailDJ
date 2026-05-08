@@ -151,6 +151,16 @@ def test_launch_handoff_translates_blockers_into_operator_inputs(monkeypatch, tm
     assert payload["deployed_gate_target_alignment"]["status"] == "enforced_by_make_launch_verify_deployed"
     assert payload["deployed_gate_target_alignment"]["hub_url_runtime_env"] == "STAGING_BASE_URL"
     assert payload["deployed_gate_target_alignment"]["beta_key_runtime_env"] == "BETA_KEY"
+    assert payload["deployed_smoke_flow_contract"] == {
+        "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+        "default": "generate,remix",
+        "valid_flows": ["generate", "remix", "preview"],
+        "preview_policy": "Use generate,remix,preview only when the staging preview route is intentionally enabled.",
+        "failure_policy": (
+            "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list "
+            "is empty or contains an invalid flow."
+        ),
+    }
     assert payload["commands"] == [
         "make render-blueprint-check",
         "make launch-preflight",
@@ -228,6 +238,11 @@ def test_launch_handoff_writes_json_and_markdown(monkeypatch, tmp_path):
     assert "Deployed Gate Target Alignment" in markdown
     assert "`EMAILDJ_EXPECTED_HUB_URL` must match `STAGING_BASE_URL`" in markdown
     assert "`EMAILDJ_EXPECTED_BETA_KEY` must match `BETA_KEY`" in markdown
+    assert "Deployed Smoke Flow Contract" in markdown
+    assert "Env: `EMAILDJ_DEPLOYED_SMOKE_FLOWS`" in markdown
+    assert "Default: `generate,remix`" in markdown
+    assert "Valid flows: `generate`, `remix`, `preview`" in markdown
+    assert "exits before deployed smoke artifacts are created" in markdown
     assert "Blocker Clearance Plan" in markdown
     assert "hub-api/reports/launch/preflight.json has ready=true" in markdown
 

@@ -1,6 +1,6 @@
 # Launch Operator Handoff
 
-- Generated at: `2026-05-08T02:44:28.564307Z`
+- Generated at: `2026-05-08T03:54:45.222693Z`
 - Current completion status: `not_complete`
 - Launch recommendation: `Not yet launch-ready`
 - Preflight ready: `False`
@@ -51,6 +51,14 @@ export VITE_PRESET_PREVIEW_PIPELINE="off"
 - Beta key: `EMAILDJ_EXPECTED_BETA_KEY` must match `BETA_KEY`
 - Failure policy: The full deployed gate exits before bundle verification if release-bundle overrides point at a different Hub URL or beta key than the staging runtime proof target.
 - Narrow verifiers for intentional drift: `make launch-verify-web-app`, `make launch-verify-extension`
+
+## Deployed Smoke Flow Contract
+
+- Env: `EMAILDJ_DEPLOYED_SMOKE_FLOWS`
+- Default: `generate,remix`
+- Valid flows: `generate`, `remix`, `preview`
+- Preview policy: Use generate,remix,preview only when the staging preview route is intentionally enabled.
+- Failure policy: make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list is empty or contains an invalid flow.
 
 ## Discovered Deployment Metadata
 

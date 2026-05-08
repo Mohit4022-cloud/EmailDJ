@@ -417,6 +417,18 @@ def build_launch_handoff() -> dict[str, Any]:
             ),
             "narrow_verifiers_for_intentional_drift": ["make launch-verify-web-app", "make launch-verify-extension"],
         },
+        "deployed_smoke_flow_contract": {
+            "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+            "default": "generate,remix",
+            "valid_flows": ["generate", "remix", "preview"],
+            "preview_policy": (
+                "Use generate,remix,preview only when the staging preview route is intentionally enabled."
+            ),
+            "failure_policy": (
+                "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list "
+                "is empty or contains an invalid flow."
+            ),
+        },
         "blocked_evidence_refresh_commands": _blocked_evidence_refresh_commands(web_app_probe),
         "artifact_snapshot": _artifact_snapshot_for_handoff(audit),
         "open_blockers": _audit_blockers(audit),
@@ -513,6 +525,22 @@ def _write_markdown(path: Path, handoff: dict[str, Any]) -> None:
                 f"- Failure policy: {alignment.get('failure_policy')}",
                 "- Narrow verifiers for intentional drift: "
                 + ", ".join(f"`{item}`" for item in alignment.get("narrow_verifiers_for_intentional_drift") or []),
+            ]
+        )
+
+    flow_contract = dict(handoff.get("deployed_smoke_flow_contract") or {})
+    if flow_contract:
+        lines.extend(
+            [
+                "",
+                "## Deployed Smoke Flow Contract",
+                "",
+                f"- Env: `{flow_contract.get('env')}`",
+                f"- Default: `{flow_contract.get('default')}`",
+                "- Valid flows: "
+                + ", ".join(f"`{item}`" for item in flow_contract.get("valid_flows") or []),
+                f"- Preview policy: {flow_contract.get('preview_policy')}",
+                f"- Failure policy: {flow_contract.get('failure_policy')}",
             ]
         )
 

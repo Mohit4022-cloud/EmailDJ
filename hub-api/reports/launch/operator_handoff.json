@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-08T02:44:28.564307Z",
+  "generated_at": "2026-05-08T03:54:45.222693Z",
   "current_status": "not_complete",
   "launch_recommendation": "Not yet launch-ready",
   "preflight_ready": false,
@@ -156,6 +156,17 @@
       "make launch-verify-web-app",
       "make launch-verify-extension"
     ]
+  },
+  "deployed_smoke_flow_contract": {
+    "env": "EMAILDJ_DEPLOYED_SMOKE_FLOWS",
+    "default": "generate,remix",
+    "valid_flows": [
+      "generate",
+      "remix",
+      "preview"
+    ],
+    "preview_policy": "Use generate,remix,preview only when the staging preview route is intentionally enabled.",
+    "failure_policy": "make launch-verify-deployed exits before deployed smoke artifacts are created if the flow list is empty or contains an invalid flow."
   },
   "blocked_evidence_refresh_commands": [
     {
