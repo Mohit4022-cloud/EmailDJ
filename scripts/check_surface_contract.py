@@ -342,6 +342,23 @@ def _check_docs() -> list[str]:
     return failures
 
 
+def _check_launch_check_contract() -> list[str]:
+    failures: list[str] = []
+    path = "hub-api/scripts/launch_check.py"
+    try:
+        launch_check = _read(path)
+        if 'provider_green in {"green", "not_run"}' in launch_check:
+            failures.append("launch_check.py must not allow provider_green=not_run for limited-rollout launch readiness")
+        for snippet in [
+            'provider_green == "green"',
+            "external_provider_artifact_missing_for_launch_mode:",
+        ]:
+            _require_snippet(launch_check, snippet, path)
+    except (AssertionError, FileNotFoundError) as exc:
+        failures.append(str(exc))
+    return failures
+
+
 def _check_ci() -> list[str]:
     failures: list[str] = []
     ci = _read(".github/workflows/ci.yml")
@@ -407,6 +424,7 @@ def main() -> int:
         + _check_localhost_smoke()
         + _check_render_blueprint()
         + _check_docs()
+        + _check_launch_check_contract()
         + _check_ci()
     )
     if failures:

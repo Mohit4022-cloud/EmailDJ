@@ -763,7 +763,7 @@ def _final_recommendation(
         return "Not yet launch-ready"
 
     if launch_mode == "limited_rollout":
-        if shim_green == "green" and remix_green == "green" and provider_green in {"green", "not_run"}:
+        if shim_green == "green" and remix_green == "green" and provider_green == "green":
             return "Stable for MVP launch behind limited rollout"
         if shim_green == "not_run" or remix_green == "not_run":
             return "Stable for broader MVP work"
@@ -1059,7 +1059,8 @@ def _operator_next_steps(report: dict[str, Any], *, staging_snapshot: ArtifactSt
             "Investigate the failing localhost smoke cases, fix the harness or generation path, then rerun `EMAILDJ_CONFIRM_LOCALHOST_SMOKE=1 make localhost-smoke`."
         )
     if (
-        _has_blocker(report, "http_smoke_missing_for_launch_mode:")
+        _has_blocker(report, "external_provider_artifact_missing_for_launch_mode:")
+        or _has_blocker(report, "http_smoke_missing_for_launch_mode:")
         or _has_blocker(report, "http_smoke_invalid_for_launch_mode:")
         or _has_blocker(report, "http_smoke_external_provider_missing_for_launch_mode:")
         or _has_blocker(report, "http_smoke_route_missing:")
@@ -1190,6 +1191,9 @@ def _read_launch_report(
         and render_blueprint.get("green") != "green"
     ):
         config_blockers.append("render_blueprint_contract_failed")
+    launch_mode = str(runtime_data.get("launch_mode") or "")
+    if launch_mode in _LAUNCH_MODES_REQUIRING_HTTP_SMOKE and provider_green == "not_run":
+        config_blockers.append(f"external_provider_artifact_missing_for_launch_mode:{launch_mode}")
     release_blockers, release_warnings, release_parity = _release_comparison(
         staging_snapshot=staging_snapshot,
         production_snapshot=production_snapshot,

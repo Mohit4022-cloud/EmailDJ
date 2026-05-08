@@ -227,7 +227,7 @@ def _clear_local_runtime_env(monkeypatch) -> None:
         monkeypatch.delenv(name, raising=False)
 
 
-def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_path):
+def test_launch_check_limited_rollout_blocks_provider_not_run(monkeypatch, tmp_path):
     import scripts.launch_check as lc
 
     monkeypatch.setattr(lc, "ROOT", tmp_path)
@@ -292,9 +292,10 @@ def test_launch_check_limited_rollout_allows_provider_not_run(monkeypatch, tmp_p
     assert report["required_http_smoke_routes"] == ["generate", "remix"]
     assert report["localhost_smoke"]["route_pass_fail_counts"]["generate"]["pass"] > 0
     assert report["localhost_smoke"]["route_pass_fail_counts"]["remix"]["pass"] > 0
-    assert report["config_blockers"] == []
+    assert "external_provider_artifact_missing_for_launch_mode:limited_rollout" in report["config_blockers"]
     assert report["config_warnings"] == []
-    assert report["final_recommendation"] == "Stable for MVP launch behind limited rollout"
+    assert report["final_recommendation"] == "Not yet launch-ready"
+    assert any("Run deployed Hub API HTTP smoke against staging" in step for step in report["operator_next_steps"])
 
 
 def test_launch_check_prefers_external_provider_artifacts(monkeypatch, tmp_path):
