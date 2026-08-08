@@ -111,6 +111,23 @@ bindings:
       - hub-api/scripts/checks.sh
     freshness: on_change
 
+  - doc: docs/ops/surface_contract.md
+    tier: 2
+    bound_to:
+      - Makefile
+      - .github/workflows/ci.yml
+      - .github/workflows/eval_regression.yml
+      - scripts/check_surface_contract.py
+    freshness: on_change
+
+  - doc: docs/README.md
+    tier: 2
+    bound_to:
+      - scripts/docops/check_doc_freshness.py
+      - scripts/docops/generate_docs.py
+      - hub-api/scripts/doc_freshness_check.py
+    freshness: on_change
+
   # ── Tier 3 — human-authored, enforced via ADR ─────────────────────────────
 
   - doc: docs/policy/control_contract.md

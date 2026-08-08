@@ -63,5 +63,15 @@ Examples:
 Preset preview path enforces equivalent constraints in:
 - `hub-api/email_generation/preset_preview_pipeline.py::_violation_messages`
 
+## PII Tokenization And Streaming Contract
+PII controls must preserve generation invariants while keeping provider-facing text redacted.
+
+- Presidio detections in `hub-api/pii/presidio_redactor.py` produce reversible request-scoped tokens instead of synthetic replacement names.
+- `PERSON` tokens restore to first name only so the greeting invariant remains `Hi {first_name},` and never full-name greeting.
+- `hub-api/pii/token_vault.py` uses stable content-derived tokens so multiple fields in the same request cannot overwrite vault entries.
+- JSON responses are detokenized by `api/middleware/pii_redaction.py`.
+- SSE token and done payloads are detokenized by `hub-api/email_generation/streaming.py` using the in-process request/session vault carried by `api/routes/web_mvp.py`.
+- The token vault must remain process-local and short lived; do not persist raw token mappings into Redis session payloads or report artifacts.
+
 ## Why This Exists
 The product intent is controlled personalization, not free-form generation. Hard validation + repair keeps lock correctness measurable and regression-testable under model drift.

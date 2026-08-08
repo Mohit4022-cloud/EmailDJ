@@ -59,6 +59,11 @@ _CLAIM_NEGATION_CUES = (
     "not promise",
     "claims like",
 )
+_INCOMPLETE_SUBJECT_END_CHARS = (",", ";", ":", "-", "/", "(")
+_SUBJECT_TRAILING_FRAGMENT_RE = re.compile(
+    r"(?:\b(?:and|or|to|with|for|of|from|at|by|in|on|that|which|while|because|so)\b)\s*$",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -150,6 +155,14 @@ def evaluate_case(case: EvalCase, draft: str) -> tuple[str, str, list[Violation]
         if code in by_code:
             return
         by_code[code] = Violation(code=code, reason=reason, snippet=snippet)
+
+    # Subject completeness
+    normalized_subject = collapse_ws(subject).rstrip(".!?")
+    if normalized_subject and (
+        normalized_subject.endswith(_INCOMPLETE_SUBJECT_END_CHARS)
+        or _SUBJECT_TRAILING_FRAGMENT_RE.search(normalized_subject)
+    ):
+        add("SUBJECT_INCOMPLETE", "Subject ends with an incomplete trailing fragment.", subject)
 
     # A) Greeting correctness
     greeting_line = _first_non_empty_line(body)

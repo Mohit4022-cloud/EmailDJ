@@ -1,0 +1,34 @@
+{
+  "prospect": {
+    "name": "Robert Kline",
+    "title": "VP Legal and Compliance",
+    "company": "Cascade Commerce Group",
+    "linkedin_url": null
+  },
+  "prospect_first_name": "Robert",
+  "research_text": "Robert Kline joined Cascade Commerce Group to build out the legal and compliance function as the platform scaled. He is managing a growing volume of trademark infringement complaints from brand partners and navigating DMCA and Lanham Act liability exposure. He has implemented a manual notice-and-takedown process but it is overwhelmed by the volume of complaints. He has flagged to the board that without automated tooling, legal exposure scales with the platform. He is the decision-maker for brand protection tooling procurement.",
+  "offer_lock": "Trademark Search, Screening, and Brand Protection",
+  "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+  "cta_type": "time_ask",
+  "preset_id": "c_suite_sniper",
+  "response_contract": "legacy_text",
+  "pipeline_meta": {
+    "mode": "generate",
+    "model_hint": "gpt-5-nano"
+  },
+  "style_profile": {
+    "formality": 0.0,
+    "orientation": 0.0,
+    "length": 0.0,
+    "assertiveness": 0.0
+  },
+  "company_context": {
+    "company_name": "Corsearch",
+    "company_url": "https://corsearch.com",
+    "current_product": "Trademark Search, Screening, and Brand Protection",
+    "other_products": "Trademark Watching\nOnline Brand Protection",
+    "company_notes": "Corsearch is the global leader in trademark clearance, brand protection, and IP enforcement. Trusted by over 5,000 brands across pharma, FMCG, tech, and retail. We help IP teams eliminate risk from similar marks before filing, monitor live infringement, and act on counterfeits at scale.",
+    "cta_offer_lock": "Open to a quick 15-minute chat next week?",
+    "cta_type": "time_ask"
+  }
+}

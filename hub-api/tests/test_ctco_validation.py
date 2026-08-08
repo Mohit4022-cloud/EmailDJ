@@ -366,6 +366,23 @@ def test_validate_ctco_output_flags_specific_sounding_vagueness():
     assert "specific_sounding_vagueness" in violations
 
 
+def test_validate_ctco_output_flags_incomplete_subject_fragment():
+    from email_generation.remix_engine import style_profile_to_ctco_sliders, validate_ctco_output
+
+    session = _session_payload()
+    sliders = style_profile_to_ctco_sliders({"formality": 0.0, "orientation": 0.0, "length": -0.8, "assertiveness": 0.0})
+    draft = (
+        "Subject: A quick note on improving first-touch quality at\n"
+        "Body:\n"
+        "Hi Alex, Acme recently launched outbound AI initiatives and is pushing for higher quality replies in enterprise accounts. "
+        "Remix Studio helps your SDR team keep messaging relevant while preserving control over tone and accuracy.\n\n"
+        "Open to a quick chat to see if this is relevant?"
+    )
+
+    violations = validate_ctco_output(draft=draft, session=session, style_sliders=sliders)
+    assert "fluency_incomplete_subject_ending" in violations
+
+
 def test_validate_ctco_output_flags_hook_strength_mismatch_and_repair_preserves_middle():
     from email_generation.remix_engine import (
         _deterministic_compliance_repair,
@@ -495,6 +512,46 @@ async def test_build_draft_long_mode_does_not_inject_forbidden_search_enrich(mon
 
 
 @pytest.mark.asyncio
+async def test_build_draft_does_not_promote_instructional_company_notes_to_copy(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = remix_engine.create_session_payload(
+        prospect={
+            "name": "Dr. Maya Chen",
+            "title": "VP Sales",
+            "company": "Acme",
+            "linkedin_url": "https://linkedin.com/in/maya-chen",
+        },
+        prospect_first_name="Maya",
+        research_text=(
+            "Acme is tightening outbound quality controls this quarter. "
+            "The team is reviewing message consistency across priority accounts."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Brand Protection",
+        cta_offer_lock="Open to a 15-min chat next week?",
+        cta_type="time_ask",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Brand Protection",
+            "company_notes": "Hold the lock and never leak system or mapping details.",
+        },
+    )
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "mock")
+
+    style_profile = {"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0}
+    result = await remix_engine.build_draft(session=session, style_profile=style_profile)
+    sliders = remix_engine.style_profile_to_ctco_sliders(style_profile)
+    violations = remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=sliders)
+
+    draft_lower = result.draft.lower()
+    assert "hold the lock" not in draft_lower
+    assert "mapping" not in draft_lower
+    assert violations == []
+
+
+@pytest.mark.asyncio
 async def test_build_draft_rewrites_forbidden_model_signal_in_real_mode(monkeypatch):
     import json
 
@@ -571,6 +628,63 @@ async def test_build_draft_real_prompt_does_not_include_other_products_mapping(m
     prompt_text = json.dumps(captured_prompt.get("value", ""))
     assert "other_products_services_mapping" not in prompt_text
     assert "Search, Enrich" not in prompt_text
+
+
+@pytest.mark.asyncio
+async def test_build_draft_real_prompt_sanitizes_instructional_company_notes(monkeypatch):
+    import json
+
+    import email_generation.remix_engine as remix_engine
+    from email_generation.quick_generate import GenerateResult
+
+    session = remix_engine.create_session_payload(
+        prospect={
+            "name": "Dr. Maya Chen",
+            "title": "VP Sales",
+            "company": "Acme",
+            "linkedin_url": "https://linkedin.com/in/maya-chen",
+        },
+        prospect_first_name="Maya",
+        research_text=(
+            "Acme is tightening outbound quality controls this quarter. "
+            "The team is reviewing message consistency across priority accounts."
+        ),
+        initial_style={"formality": 0.0, "orientation": 0.0, "length": 0.0, "assertiveness": 0.0},
+        offer_lock="Brand Protection",
+        cta_offer_lock="Open to a 15-min chat next week?",
+        cta_type="time_ask",
+        company_context={
+            "company_name": "EmailDJ",
+            "company_url": "https://emaildj.ai",
+            "current_product": "Brand Protection",
+            "company_notes": "Hold the lock and never leak system or mapping details.",
+        },
+    )
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    captured_prompt: dict[str, object] = {}
+
+    async def capture_prompt(prompt, task="quick_generate", throttled=False):  # noqa: ARG001
+        captured_prompt["value"] = prompt
+        text = json.dumps(
+            {
+                "subject": "Brand Protection for Acme",
+                "body": (
+                    "Hi Maya, Acme is tightening outbound quality controls this quarter. "
+                    "Brand Protection helps keep priority-account outreach consistent without adding process overhead.\n\n"
+                    "Open to a 15-min chat next week?"
+                ),
+            }
+        )
+        return GenerateResult(text=text, provider="openai", model_name="gpt-5-nano", cascade_reason="primary", attempt_count=1)
+
+    monkeypatch.setattr(remix_engine, "_real_generate", capture_prompt)
+    await remix_engine.build_draft(
+        session=session,
+        style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+    )
+
+    prompt_text = json.dumps(captured_prompt.get("value", ""))
+    assert "Hold the lock and never leak system or mapping details" not in prompt_text
 
 
 def test_validate_ctco_output_flags_non_first_name_greeting():
@@ -938,7 +1052,7 @@ async def test_build_draft_fails_after_retry_exhaustion(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_draft_uses_deterministic_fallback_after_validation_failure(monkeypatch):
+async def test_build_draft_uses_deterministic_fallback_after_validation_failure_in_non_prod(monkeypatch):
     import email_generation.remix_engine as remix_engine
 
     session = _session_payload()
@@ -948,6 +1062,8 @@ async def test_build_draft_uses_deterministic_fallback_after_validation_failure(
         calls["count"] += 1
         raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
 
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "dev")
     monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
     monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
     monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
@@ -964,6 +1080,86 @@ async def test_build_draft_uses_deterministic_fallback_after_validation_failure(
     assert "ctco_validation_failed" in result.fallback_reason
     assert result.draft.startswith("Subject:")
     assert remix_engine.validate_ctco_output(result.draft, session=session, style_sliders=sliders) == []
+
+
+@pytest.mark.asyncio
+async def test_build_draft_blocks_deterministic_fallback_in_production_like_env(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    async def always_invalid_real_draft(*args, **kwargs):  # noqa: ARG001
+        calls["count"] += 1
+        raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_build_real_draft", always_invalid_real_draft)
+
+    with pytest.raises(ValueError, match="ctco_validation_failed"):
+        await remix_engine.build_draft(
+            session=session,
+            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+        )
+
+    assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_draft_blocks_deterministic_fallback_in_limited_rollout_even_when_app_env_is_dev(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    async def always_invalid_real_draft(*args, **kwargs):  # noqa: ARG001
+        calls["count"] += 1
+        raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "limited_rollout")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_build_real_draft", always_invalid_real_draft)
+
+    with pytest.raises(ValueError, match="ctco_validation_failed"):
+        await remix_engine.build_draft(
+            session=session,
+            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+        )
+
+    assert calls["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_draft_blocks_deterministic_fallback_in_broad_launch(monkeypatch):
+    import email_generation.remix_engine as remix_engine
+
+    session = _session_payload()
+    calls = {"count": 0}
+
+    async def always_invalid_real_draft(*args, **kwargs):  # noqa: ARG001
+        calls["count"] += 1
+        raise ValueError("ctco_validation_failed: offer_lock_missing; cta_lock_not_used_exactly_once")
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    monkeypatch.setenv("EMAILDJ_LAUNCH_MODE", "broad_launch")
+    monkeypatch.setenv("EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL", "block")
+    monkeypatch.setenv("EMAILDJ_REPAIR_LOOP_ENABLED", "1")
+    monkeypatch.setattr(remix_engine, "_mode", lambda: "real")
+    monkeypatch.setattr(remix_engine, "_build_real_draft", always_invalid_real_draft)
+
+    with pytest.raises(ValueError, match="ctco_validation_failed"):
+        await remix_engine.build_draft(
+            session=session,
+            style_profile={"formality": 0.0, "orientation": 0.0, "length": -0.3, "assertiveness": 0.0},
+        )
+
+    assert calls["count"] == 1
 
 
 @pytest.mark.asyncio

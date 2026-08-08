@@ -1,0 +1,31 @@
+{
+  "trace_id": "f36d08cb-8583-4ddb-9b43-39957614a8c2",
+  "app_env": "local",
+  "started_at": 1778124209.8965518,
+  "finished_at": 1778124209.896563,
+  "duration_ms": 0,
+  "stage_stats": [
+    {
+      "stage": "TRANSPORT",
+      "status": "failed",
+      "model": "gpt-5-nano",
+      "elapsed_ms": 0,
+      "error_code": "OPENAI_UNAVAILABLE",
+      "details": {},
+      "raw_validation_status": "failed",
+      "final_validation_status": "failed",
+      "error_codes": [],
+      "mechanical_postprocess_applied": []
+    }
+  ],
+  "validation_errors": [],
+  "postprocess_steps": [],
+  "hashes": {},
+  "meta": {},
+  "outcome": {
+    "ok": false,
+    "code": "OPENAI_UNAVAILABLE",
+    "message": "OpenAI provider is unavailable",
+    "stage": "TRANSPORT"
+  }
+}

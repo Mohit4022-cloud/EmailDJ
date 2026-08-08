@@ -2,7 +2,7 @@
 
 <!-- AUTO-DRAFTED: review before merge -->
 
-Source: `.github/workflows/ci.yml`, `hub-api/scripts/checks.sh`, `docs/judge_eval_runbook.md`,
+Source: `.github/workflows/ci.yml`, `hub-api/scripts/checks.sh`, `docs/ops/launch_surfaces.json`, `docs/judge_eval_runbook.md`,
 `docs/lock_compliance_runbook.md`
 Last reviewed: 2026-03-02
 
@@ -18,15 +18,27 @@ All steps in the `checks` CI job must be green:
 
 | Gate | Command | Pass Criteria |
 |---|---|---|
+| Surface contract | `python3 scripts/check_surface_contract.py` | Exit 0 -- `docs/ops/launch_surfaces.json`, Makefile, CI, and docs agree that launch evidence is scoped to `hub-api`, `web-app`, and `chrome-extension`; legacy surfaces are explicit-only |
+| Render Blueprint contract | `make render-blueprint-check` | Repo-root `render.yaml` provisions Hub API with managed Redis/Postgres references, provider-stub disabled, pinned launch defaults, and no hardcoded operator secrets |
 | Doc freshness | `python3 scripts/docops/check_doc_freshness.py` | Exit 0 — no bound code changed without doc update |
 | Generated docs fresh | `python3 scripts/docops/generate_docs.py --check` | Exit 0 — no stale generated docs |
+| Web app tests | `npm test && npm run check:syntax` (`web-app`) | Unit tests pass and JS syntax checks cleanly |
+| Web app build | `npm run build` (`web-app`) | Vite production build completes |
 | Backend compile | `./scripts/checks.sh` (step 1) | No import errors, all modules load |
 | pytest suite | `./scripts/checks.sh` (step 2) | All tests pass |
 | OpenAPI snapshot | `./scripts/checks.sh` (step 3) | `openapi.json` matches routes |
 | Extension build | `npm test` (chrome-extension) | No build errors, unit tests pass |
 | Mock e2e smoke | `./scripts/mock_e2e_smoke.py` | Full generate + stream cycle completes in mock mode |
-| Judge smoke (mock) | `./scripts/eval:judge:smoke` | All smoke cases pass |
-| Judge sanity (mock) | `./scripts/eval:judge:sanity` | Sentinel cases all pass |
+| Launch completion audit | `make launch-audit` | Writes artifact-backed completion audit with every open blocker explicit |
+| Launch operator handoff | `make launch-handoff` | Writes paste-safe operator exports, Dashboard values, next commands, and current blocker groups |
+| Launch unblock inputs | `make launch-unblock-inputs` | Writes compact required shell exports, Dashboard inputs, command defaults, and blocker-clearance evidence |
+| Launch status refresh | `make launch-status` | Runs audit, handoff, and unblock-input readouts in sequence |
+
+Optional blocked-deployment readout: when a protected Vercel preview or auth wall blocks the strict web-app deployment probe, operators may run `make launch-probe-web-app-readout` to refresh the same probe artifacts. This is not a release gate and never substitutes for `make launch-probe-web-app`.
+
+Conditional judge smoke/sanity: set the repository variable `EMAILDJ_RUN_JUDGE_SMOKE=1` to make `hub-api/scripts/checks.sh` run both `./scripts/eval:judge:smoke` and `./scripts/eval:judge:sanity` inside the CI `checks` job. This is not part of the default every-PR gate unless that variable is enabled.
+
+Strict deployed web-app probe: `make launch-probe-web-app` is an operator/deployed-release gate, not a default CI step. Run it after the target commit is deployed and the operator machine has any required Vercel protection bypass secret.
 
 ### 1.2 Lock Compliance Gate
 
@@ -45,8 +57,8 @@ source .venv/bin/activate
 # Adversarial suite
 ./scripts/eval:adversarial
 
-# Full suite
-./scripts/eval:judge:full
+# Full lock-compliance suite
+./scripts/eval:full
 ```
 
 **Hard gate rules** (any failure blocks release):
@@ -75,6 +87,15 @@ Triggered automatically when `hub-api/evals/judge/prompts.py` or
 
 ## Phase 3 — Staged Rollout
 
+### 3.0 Hub API Infrastructure Handoff
+
+Create or update the Render Blueprint from the repo-root `render.yaml`. Before first successful deploy, fill the Dashboard-managed values for `WEB_APP_ORIGIN`, `CHROME_EXTENSION_ORIGIN`, `EMAILDJ_WEB_BETA_KEYS`, and `OPENAI_API_KEY`.
+
+```bash
+cd /Users/mohit/EmailDJ
+make render-blueprint-check
+```
+
 ### 3.1 Mock Mode Verification
 
 ```bash
@@ -98,13 +119,31 @@ python hub-api/scripts/real_mode_smoke.py
 
 Pass criteria: generation completes, offer_lock appears in output, CTA lock enforced.
 
-### 3.3 Extension Build Verification
+### 3.3 Web App Build Verification
+
+Before running deployed release gates, confirm the operator machine has the staging/prod Hub API roots and one exact deployed beta key. Placeholder values such as `missing`, templates, comma-separated lists, and whitespace-padded keys must fail preflight:
 
 ```bash
-cd chrome-extension
-npm run build
-# Confirm dist/ is generated without errors
-# Load unpacked in Chrome and verify side panel opens on Gmail
+cd /Users/mohit/EmailDJ
+make launch-preflight
+make launch-status
+```
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-probe-web-app
+make launch-audit
+make launch-verify-web-app
+```
+
+Pass criteria: strict web-app deployment probe succeeds, completion audit reads the current deployed frontend candidate, and tests, syntax checks, build, and `dist/` release config verification pass against the deployed Hub API URL and explicit preview-pipeline flag.
+
+### 3.4 Extension Build Verification
+
+```bash
+cd /Users/mohit/EmailDJ
+make launch-verify-extension
+# Load unpacked in Chrome and verify side panel opens on the target CRM.
 ```
 
 ---
@@ -142,6 +181,7 @@ Copy-paste for PR description:
 ```
 ## Release Checklist
 - [ ] CI `checks` job green
+- [ ] Surface contract gate passes
 - [ ] Doc freshness gate passes
 - [ ] Lock compliance smoke passes (if email_generation/ changed)
 - [ ] Pairwise regression gate passes (if prompts.py/rubric.py changed)

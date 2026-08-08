@@ -47,7 +47,7 @@ The runtime debug surface exposes these release identity fields when available:
 
 Release fingerprint precedence:
 
-- `git_sha`: `EMAILDJ_GIT_SHA`, `GITHUB_SHA`, then repo git metadata if available
+- `git_sha`: `EMAILDJ_GIT_SHA`, `GITHUB_SHA`, `RENDER_GIT_COMMIT`, then repo git metadata if available
 - `build_id`: `EMAILDJ_BUILD_ID`, `BUILD_ID`
 - `image_tag`: `EMAILDJ_IMAGE_TAG`, `IMAGE_TAG`
 - `release_version`: `EMAILDJ_RELEASE_VERSION`
@@ -64,7 +64,7 @@ Launch rule:
 Deployment expectation:
 
 - production should expose at least one stable fingerprint field
-- if git metadata is not available on-host, deployment must inject one of the env-backed identifiers above
+- if git metadata is not available on-host, deployment must inject one of the env-backed identifiers above. Render services expose `RENDER_GIT_COMMIT`, so Render-backed runtime snapshots should have a `git_sha` fingerprint without additional release-env wiring.
 
 ## Resolved Runtime Field Meanings
 
@@ -248,6 +248,9 @@ For a healthy limited-rollout host, `/web/v1/debug/config` should resolve to:
 - `web_app_origin_state=explicit_pinned`
 - `beta_keys_state=explicit_pinned`
 - `web_rate_limit_source=explicit_env`
+- `redis_config_state=external_redis_configured`
+- `database_config_state=external_postgres_configured`
+- `vector_store_config_state=pgvector_configured`
 
 ## Blocker And Warning Table
 
@@ -260,6 +263,9 @@ For a healthy limited-rollout host, `/web/v1/debug/config` should resolve to:
 | Blocker | `chrome_extension_origin_not_pinned:<state>` | Extension origin missing or default/dev |
 | Blocker | `web_app_origin_not_pinned:<state>` | Web origin missing or default/dev |
 | Blocker | `beta_keys_not_safe:<state>` | Beta key missing or default/dev |
+| Blocker | `redis_not_durable_for_launch_mode:<mode>:<state>` | Launch runtime is using forced/default/local Redis |
+| Blocker | `database_not_durable_for_launch_mode:<mode>:<state>` | Launch runtime is missing managed Postgres |
+| Blocker | `vector_store_not_durable_for_launch_mode:<mode>:<state>` | Launch runtime is missing durable pgvector storage |
 | Blocker | `release_fingerprint_mismatch:<field>:<staging>-><production>` | Approved staging build differs from production runtime |
 | Warning | `staging_runtime_snapshot_missing` | Approved staging runtime snapshot not present |
 | Warning | `production_runtime_snapshot_missing` | Production runtime snapshot not present |
@@ -310,6 +316,7 @@ Limited rollout is ready only when:
 - production runtime resolves the same approved release fingerprint as staging
 - production runtime resolves `effective_provider_source=external_provider`
 - preview remains off
+- Redis, Postgres, and vector storage are all durable
 - origins and beta keys are pinned and non-dev
 - `config_blockers=[]`
 

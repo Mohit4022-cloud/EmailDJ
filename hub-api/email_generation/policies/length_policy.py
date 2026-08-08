@@ -12,6 +12,7 @@ from email_generation.text_utils import (
     split_sentences,
     word_count,
 )
+from email_generation.policies.context_policy import context_sentence_is_output_unsafe
 
 POLICY_VERSION = "1.0.0"
 _TRUSTED_BY_PATTERN = re.compile(
@@ -27,9 +28,11 @@ def _offer_lock_sentence_case(value: str) -> str:
     return cleaned[0].upper() + cleaned[1:].lower()
 
 
-def _sanitize_proof_candidate(value: str) -> str:
+def _sanitize_proof_candidate(value: str, *, allowed_text: str = "") -> str:
     text = compact(value)
     if not text:
+        return ""
+    if context_sentence_is_output_unsafe(text, allowed_text=allowed_text):
         return ""
     if _TRUSTED_BY_PATTERN.search(text):
         return ""
@@ -100,9 +103,10 @@ def long_mode_section_pool(
     forbidden_terms: list[str] | None = None,
 ) -> list[str]:
     """Build proof lines, mechanism, deliverable, and risk statements for long-mode bodies."""
+    allowed_text = offer_lock
     note_sentences = split_sentences(company_notes)
     proof_candidates = [
-        _sanitize_proof_candidate(sentence)
+        _sanitize_proof_candidate(sentence, allowed_text=allowed_text)
         for sentence in dedupe_sentence_list(note_sentences)
     ]
     proof_candidates = [sentence for sentence in proof_candidates if sentence]
@@ -150,6 +154,8 @@ def long_mode_section_pool(
                 cleaned_line = re.sub(rf"\b{re.escape(term)}\b", "", cleaned_line, flags=re.IGNORECASE)
         cleaned_line = re.sub(r"\s{2,}", " ", cleaned_line)
         cleaned_line = re.sub(r"\s+([,.;!?])", r"\1", cleaned_line).strip(" ,;")
+        if context_sentence_is_output_unsafe(cleaned_line, allowed_text=allowed_text):
+            continue
         if cleaned_line:
             sanitized.append(cleaned_line)
     # Keep a richer pool; downstream composition/dedupe already suppresses repetition.

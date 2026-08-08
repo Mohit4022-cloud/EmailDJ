@@ -1,6 +1,25 @@
 {
-  "generated_at": "2026-03-07T22:01:09.442759Z",
+  "generated_at": "2026-05-08T13:52:03.623328Z",
   "backend_green": "green",
   "ok": true,
-  "error": null
+  "error": null,
+  "command": "python -m pytest -q tests",
+  "exit_code": 0,
+  "duration_seconds": 16.031,
+  "summary": "436 passed, 1 warning in 14.69s",
+  "output_tail": [
+    "........................................................................ [ 16%]",
+    "........................................................................ [ 33%]",
+    "........................................................................ [ 49%]",
+    "........................................................................ [ 66%]",
+    "........................................................................ [ 82%]",
+    "........................................................................ [ 99%]",
+    "....                                                                     [100%]",
+    "=============================== warnings summary ===============================",
+    ".venv/lib/python3.14/site-packages/confection/__init__.py:38",
+    "  /Users/mohit/EmailDJ/hub-api/.venv/lib/python3.14/site-packages/confection/__init__.py:38: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.",
+    "    from pydantic.v1 import BaseModel, Extra, ValidationError, create_model",
+    "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html",
+    "436 passed, 1 warning in 14.69s"
+  ]
 }

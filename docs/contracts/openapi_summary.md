@@ -2,8 +2,8 @@
 
 Generated from `hub-api/openapi.json`.
 
-- Endpoints: **24**
-- Schemas: **37**
+- Endpoints: **27**
+- Schemas: **38**
 
 ## Endpoints
 
@@ -12,10 +12,13 @@ Generated from `hub-api/openapi.json`.
 | GET | / | - | - | 200:object |
 | GET | /assignments/poll | assignments | - | 200:inline, 422:HTTPValidationError |
 | GET | /campaigns/{campaign_id} | campaigns | - | 200:inline, 422:HTTPValidationError |
+| GET | /debug/config | - | - | 200:object, 422:HTTPValidationError |
 | GET | /generate/stream/{request_id} | generate | - | 200:inline, 422:HTTPValidationError |
 | GET | /research/{job_id}/status | research | - | 200:inline, 422:HTTPValidationError |
 | GET | /vault/context/{prospect_id} | vault | - | 200:inline, 422:HTTPValidationError |
 | GET | /web/v1/compliance/dashboard | web-mvp | - | 200:ComplianceDashboardResponse, 422:HTTPValidationError |
+| GET | /web/v1/debug/config | web-mvp | - | 200:object, 422:HTTPValidationError |
+| GET | /web/v1/debug/eval | web-mvp | - | 200:object |
 | GET | /web/v1/stream/{request_id} | web-mvp | - | 200:inline, 422:HTTPValidationError |
 | POST | /assignments/{assignment_id}/accept | assignments | - | 200:inline, 422:HTTPValidationError |
 | POST | /campaigns/ | campaigns | CampaignCreateRequest | 200:inline, 422:HTTPValidationError |
@@ -56,10 +59,11 @@ Generated from `hub-api/openapi.json`.
 | WebCompanyContext | 5 | 0 |
 | WebFeedbackRequest | 4 | 3 |
 | WebGenerateAccepted | 3 | 3 |
-| WebGenerateRequest | 8 | 3 |
-| WebPresetPreviewBatchRequest | 7 | 7 |
+| WebGenerateRequest | 11 | 3 |
+| WebPipelineMeta | 4 | 0 |
+| WebPresetPreviewBatchRequest | 11 | 6 |
 | WebPresetPreviewBatchResponse | 3 | 2 |
-| WebPreviewBatchMeta | 18 | 4 |
+| WebPreviewBatchMeta | 24 | 4 |
 | WebPreviewEffectiveSliders | 4 | 4 |
 | WebPreviewGlobalSliders | 4 | 4 |
 | WebPreviewItem | 8 | 8 |
@@ -69,7 +73,7 @@ Generated from `hub-api/openapi.json`.
 | WebPreviewSliderOverrides | 4 | 0 |
 | WebProspectInput | 5 | 3 |
 | WebRemixAccepted | 2 | 2 |
-| WebRemixRequest | 2 | 2 |
+| WebRemixRequest | 3 | 2 |
 | WebStyleProfile | 4 | 0 |
 | WebSummaryPack | 4 | 4 |
 | WebhookEditRequest | 4 | 2 |

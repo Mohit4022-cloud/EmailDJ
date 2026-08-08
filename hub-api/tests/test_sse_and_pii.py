@@ -1,7 +1,12 @@
 import asyncio
 import json
 
+from starlette.requests import Request
+from starlette.responses import StreamingResponse
+
+from api.middleware.pii_redaction import PiiRedactionMiddleware
 from email_generation.streaming import _event_generator, _eventsource_stream
+from pii.presidio_redactor import _replace_entities
 from pii.token_vault import detokenize, tokenize
 
 
@@ -48,6 +53,18 @@ def test_token_vault_empty_string():
     assert tok.text == ''
     assert tok.vault == {}
     assert detokenize(tok.text, tok.vault) == ''
+
+
+def test_presidio_person_tokens_restore_first_name_only():
+    class Entity:
+        entity_type = "PERSON"
+        start = 0
+        end = len("Alex Karp")
+        score = 1.0
+
+    redacted, vault = _replace_entities("Alex Karp", [Entity()])
+    assert redacted.startswith("[PERSON_")
+    assert detokenize(redacted, vault) == "Alex"
 
 
 def test_eventsource_stream_serializes_json_data():
@@ -101,3 +118,47 @@ def test_event_generator_supports_structured_chunk_payload():
     assert done["data"]["total_chunks"] == 2
     assert done["data"]["generation_id"] == "gen-3"
     assert done["data"]["draft_id"] == 12
+
+
+def test_event_generator_detokenizes_sse_payloads():
+    async def collect():
+        async def gen():
+            yield {"token": "Hi [PERSON_TEST], "}
+
+        items = []
+        async for item in _event_generator(
+            "req-4",
+            gen(),
+            done_extra={"final": {"body": "Hi [PERSON_TEST], ready."}},
+            token_vault={"[PERSON_TEST]": "Alex"},
+        ):
+            items.append(item)
+        return items
+
+    items = asyncio.run(collect())
+    token = next(item for item in items if item["event"] == "token")
+    assert token["data"]["token"] == "Hi Alex, "
+    done = next(item for item in items if item["event"] == "done")
+    assert done["data"]["final"]["body"] == "Hi Alex, ready."
+
+
+def test_pii_middleware_detokenizes_streaming_json_response():
+    async def receive():
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def call_next(request):
+        request.state.token_vault["[PERSON_TEST]"] = "Alex"
+
+        async def body():
+            yield b'{"combined":"Hi [PERSON_TEST], ready."}'
+
+        return StreamingResponse(body(), media_type="application/json")
+
+    async def run():
+        request = Request({"type": "http", "method": "GET", "path": "/", "headers": []}, receive)
+        middleware = PiiRedactionMiddleware(app=lambda scope, receive, send: None)
+        return await middleware.dispatch(request, call_next)
+
+    response = asyncio.run(run())
+    payload = json.loads(response.body.decode("utf-8"))
+    assert payload["combined"] == "Hi Alex, ready."

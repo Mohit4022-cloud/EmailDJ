@@ -3,9 +3,12 @@
 Source anchors:
 - `hub-api/email_generation/streaming.py`
 - `hub-api/api/routes/web_mvp.py`
+- `hub-api/api/routes/quick_generate.py`
+- `chrome-extension/src/side-panel/hub-client.js`
 
 ## Endpoint
 - `GET /web/v1/stream/{request_id}`
+- `GET /generate/stream/{request_id}` for the Chrome extension quick-generate path
 - Content type: `text/event-stream`
 
 ## Event Types
@@ -87,3 +90,4 @@ Adds:
 ## Error Surface Notes
 - Request/session lookup failures are raised before stream begins via HTTP error response in `web_mvp.py`.
 - In-stream generation errors are surfaced as SSE `error` events by `streaming.py`.
+- The Chrome extension side panel consumes the same event names on the quick-generate stream path. Before it opens the stream, production-like runtime must resolve a deployed `https://` Hub API origin from Chrome sync storage or `VITE_HUB_URL`; it refuses the localhost fallback and `dev-beta-key`.

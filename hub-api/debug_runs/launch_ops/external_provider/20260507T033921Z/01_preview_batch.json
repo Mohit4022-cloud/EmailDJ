@@ -1,0 +1,87 @@
+{
+  "request_index": 1,
+  "endpoint": "/web/v1/preset-previews/batch",
+  "request_payload": {
+    "prospect": {
+      "name": "Alex Doe",
+      "title": "CEO",
+      "company": "SignalForge",
+      "linkedin_url": "https://linkedin.com/in/alex-doe"
+    },
+    "prospect_first_name": "Alex",
+    "product_context": {
+      "product_name": "Remix Studio",
+      "one_line_value": "Improve first-touch outbound quality with deterministic controls.",
+      "proof_points": [
+        "Teams use structured guardrails to reduce drift across reps.",
+        "Managers get faster visibility into risky messaging patterns."
+      ],
+      "target_outcome": "Higher-quality replies from enterprise accounts"
+    },
+    "raw_research": {
+      "deep_research_paste": "SignalForge announced a 2026 outbound quality initiative and opened 12 SDR roles in Q1. Leadership tied pipeline quality to quarterly targets.",
+      "company_notes": "Corsearch notes: consistent SDR messaging quality is a board-level focus.",
+      "extra_constraints": ""
+    },
+    "global_sliders": {
+      "formality": 45,
+      "brevity": 60,
+      "directness": 55,
+      "personalization": 65
+    },
+    "presets": [
+      {
+        "preset_id": "straight_shooter",
+        "label": "Straight Shooter",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "headliner",
+        "label": "Headliner",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "giver",
+        "label": "Giver",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "challenger",
+        "label": "Challenger",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "industry_insider",
+        "label": "Industry Insider",
+        "slider_overrides": {}
+      },
+      {
+        "preset_id": "c_suite_sniper",
+        "label": "C Suite Sniper",
+        "slider_overrides": {}
+      }
+    ],
+    "offer_lock": "Remix Studio",
+    "cta_type": "time_ask"
+  },
+  "accepted": null,
+  "response": {
+    "detail": {
+      "error": "route_disabled",
+      "route": "preview",
+      "launch_mode": "limited_rollout",
+      "route_enabled": false
+    }
+  },
+  "stream_done": null,
+  "ui_text_shown": "",
+  "provider_raw_output": null,
+  "parsed_json_output": null,
+  "post_validation_output": null,
+  "prompt_redacted": null,
+  "session_request_config": null,
+  "generation_plan": null,
+  "execution_trace": null,
+  "trace_status": null,
+  "provider_source": null
+}

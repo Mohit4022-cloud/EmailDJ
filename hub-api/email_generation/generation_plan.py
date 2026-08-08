@@ -24,6 +24,7 @@ from email_generation.output_enforcement import (
     sanitize_generic_ai_opener,
     split_sentences,
 )
+from email_generation.policies.context_policy import sanitize_company_notes_for_generation
 from email_generation.preset_strategies import PresetStrategy, get_preset_strategy, normalize_preset_id
 from email_generation.runtime_policies import (
     feature_preset_true_rewrite_enabled,
@@ -459,8 +460,9 @@ def _hook_hint_for_band(plan: "GenerationPlan", company: str, fallback_hint: str
     return f"{company} likely needs message quality to stay tight as execution scales"
 
 
-def _proof_points_from_company_notes(company_notes: str | None) -> list[dict[str, str]]:
-    points = _split_lines_catalog(company_notes, limit=3)
+def _proof_points_from_company_notes(company_notes: str | None, *, allowed_text: str = "") -> list[dict[str, str]]:
+    safe_notes = sanitize_company_notes_for_generation(company_notes, allowed_text=allowed_text)
+    points = _split_lines_catalog(safe_notes, limit=3)
     return [
         {
             "text": _normalize_sentence(point),
@@ -661,7 +663,12 @@ def build_generation_plan(
     )
     offer_lock = _compact(session.get("offer_lock")) or "this approach"
 
-    proof_points_meta = _proof_points_from_company_notes((session.get("company_context") or {}).get("company_notes"))
+    company_context = session.get("company_context") or {}
+    seller_name = _compact(company_context.get("company_name"))
+    proof_points_meta = _proof_points_from_company_notes(
+        company_context.get("company_notes"),
+        allowed_text=f"{seller_name} {offer_lock}",
+    )
     proof_points = [item["text"] for item in proof_points_meta]
 
     wedge_problem, wedge_outcome = _preset_wedge_copy(strategy.preset_id, company, offer_lock)

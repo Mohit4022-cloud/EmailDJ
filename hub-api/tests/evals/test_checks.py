@@ -82,6 +82,16 @@ def test_internal_leakage_and_claim_violation() -> None:
     assert "UNSUPPORTED_OBJECTIVE_CLAIM" in codes
 
 
+def test_subject_incomplete_violation() -> None:
+    draft = (
+        "Subject: A quick note on improving first-touch quality at\n"
+        "Body:\n"
+        "Hi Jordan, Remix Studio helps enterprise teams tighten compliance controls.\n\n"
+        "Open to a 15-min chat next week?"
+    )
+    assert "SUBJECT_INCOMPLETE" in _codes(draft)
+
+
 def test_gold_set_has_minimum_cases_and_smoke_has_ten() -> None:
     root = Path(__file__).resolve().parents[2]
     cases = load_cases(root / "evals" / "gold_set.full.json")

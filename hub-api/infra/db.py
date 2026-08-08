@@ -12,10 +12,18 @@ except Exception:  # pragma: no cover
     async_sessionmaker = None  # type: ignore[assignment]
     create_async_engine = None  # type: ignore[assignment]
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite+aiosqlite:///./emaildj.db")
+DEFAULT_DATABASE_URL = "sqlite+aiosqlite:///./emaildj.db"
 
 engine = None
 AsyncSessionLocal = None
+
+
+def _normalize_async_database_url(database_url: str) -> str:
+    if database_url.startswith("postgres://"):
+        return f"postgresql+asyncpg://{database_url.removeprefix('postgres://')}"
+    if database_url.startswith("postgresql://"):
+        return f"postgresql+asyncpg://{database_url.removeprefix('postgresql://')}"
+    return database_url
 
 
 def init_engine() -> None:
@@ -24,8 +32,9 @@ def init_engine() -> None:
         return
     if engine is not None and AsyncSessionLocal is not None:
         return
+    database_url = _normalize_async_database_url(os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL))
     engine = create_async_engine(
-        DATABASE_URL,
+        database_url,
         pool_pre_ping=True,
         pool_size=10,
         max_overflow=20,

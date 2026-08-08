@@ -233,6 +233,48 @@
       padding: 24px 0;
     }
 
+    /* Settings */
+    .settings-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .settings-field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .settings-field label {
+      color: #344054;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .settings-field input {
+      width: 100%;
+      padding: 8px 9px;
+      border: 1px solid #d0d5dd;
+      border-radius: 6px;
+      background: white;
+      color: #1a1a1a;
+      font: inherit;
+      outline: none;
+    }
+
+    .settings-field input:focus {
+      border-color: #1B3A6B;
+      box-shadow: 0 0 0 2px #EEF4FF;
+    }
+
+    .settings-status {
+      min-height: 16px;
+      color: #667085;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
     /* ── Loading skeleton ───────────────────────────────── */
     @keyframes pulse {
       0%, 100% { opacity: 1; }
@@ -260,6 +302,7 @@
   <div class="tabs">
     <button class="tab-btn active" data-tab="generatePanel">Generate</button>
     <button class="tab-btn" data-tab="campaignsPanel">Campaigns</button>
+    <button class="tab-btn" data-tab="settingsPanel">Settings</button>
   </div>
 
   <!-- Generate Panel -->
@@ -270,6 +313,22 @@
   <!-- Campaigns Panel -->
   <div id="campaignsPanel" class="tab-panel" style="display:none;">
     <div id="assignedCampaignsContainer"></div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div id="settingsPanel" class="tab-panel" style="display:none;">
+    <div class="settings-form">
+      <div class="settings-field">
+        <label for="hubUrlInput">Hub API URL</label>
+        <input id="hubUrlInput" type="url" inputmode="url" autocomplete="off" placeholder="http://127.0.0.1:8000" />
+      </div>
+      <div class="settings-field">
+        <label for="betaKeyInput">Beta key</label>
+        <input id="betaKeyInput" type="password" autocomplete="off" placeholder="Optional for legacy extension routes" />
+      </div>
+      <button id="saveSettingsBtn" class="generate-btn" type="button">Save settings</button>
+      <div id="settingsStatus" class="settings-status" aria-live="polite"></div>
+    </div>
   </div>
 
   <script type="module" src="./index.js"></script>

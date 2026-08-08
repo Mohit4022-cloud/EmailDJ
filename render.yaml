@@ -1,0 +1,130 @@
+previews:
+  generation: manual
+
+envVarGroups:
+  - name: emaildj-hub-api-launch-defaults
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: EMAILDJ_LAUNCH_MODE
+        value: limited_rollout
+      - key: USE_PROVIDER_STUB
+        value: "0"
+      - key: EMAILDJ_QUICK_GENERATE_MODE
+        value: real
+      - key: EMAILDJ_REAL_PROVIDER
+        value: openai
+      - key: REDIS_FORCE_INMEMORY
+        value: "0"
+      - key: VECTOR_STORE_BACKEND
+        value: pgvector
+      - key: EMAILDJ_PRESET_PREVIEW_PIPELINE
+        value: "off"
+      - key: EMAILDJ_WEB_RATE_LIMIT_PER_MIN
+        value: "300"
+      - key: EMAILDJ_OPENAI_MODEL
+        value: gpt-5-nano
+      - key: EMAILDJ_OPENAI_REASONING_EFFORT
+        value: high
+      - key: EMAILDJ_STRICT_LOCK_ENFORCEMENT_LEVEL
+        value: repair
+      - key: EMAILDJ_REPAIR_LOOP_ENABLED
+        value: "1"
+      - key: EMAILDJ_DEBUG_SUCCESS_SAMPLE_RATE
+        value: "0.01"
+      - key: EMAILDJ_CAMPAIGN_INTELLIGENCE_MODE
+        value: auto
+      - key: EMAILDJ_CRM_PROVIDER
+        value: salesforce
+      - key: EMAILDJ_INTENT_PROVIDER
+        value: bombora
+      - key: SALESFORCE_API_VERSION
+        value: v59.0
+      - key: BOMBORA_API_URL
+        value: https://api.bombora.com/v1/company-surge
+      - key: MONTHLY_COST_CEILING
+        value: "100"
+      - key: MONTHLY_COST_THROTTLE_MULTIPLIER
+        value: "3"
+      - key: BLAST_RADIUS_CONFIRM_THRESHOLD
+        value: "200"
+      - key: CONTEXT_VAULT_CACHE_TTL_SECONDS
+        value: "3600"
+      - key: DEEP_RESEARCH_RATE_LIMIT_PER_HOUR
+        value: "200"
+      - key: DEEP_RESEARCH_JOB_TTL_SECONDS
+        value: "86400"
+      - key: QUICK_REQUEST_TTL_SECONDS
+        value: "300"
+      - key: QUICK_MAX_CONCURRENT_STREAMS
+        value: "32"
+      - key: QUICK_PROVIDER_FAILURE_ALERT_THRESHOLD
+        value: "5"
+      - key: QUICK_PROVIDER_FAILURE_ALERT_STEP
+        value: "5"
+      - key: EMAILDJ_EXTRACTOR_ENABLE_ENRICHMENT
+        value: "0"
+      - key: EMAILDJ_EXTRACTOR_ENRICH_CONFIDENCE_MIN
+        value: "0.75"
+      - key: LANGCHAIN_TRACING_V2
+        value: "false"
+      - key: LOG_LEVEL
+        value: INFO
+
+services:
+  - type: web
+    name: emaildj-hub-api
+    runtime: python
+    plan: free
+    region: oregon
+    autoDeploy: true
+    buildCommand: cd hub-api && pip install -r requirements.txt
+    startCommand: cd hub-api && uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    buildFilter:
+      paths:
+        - hub-api/**
+        - render.yaml
+      ignoredPaths:
+        - hub-api/reports/**
+        - hub-api/debug_runs/**
+    envVars:
+      - fromGroup: emaildj-hub-api-launch-defaults
+      - key: DATABASE_URL
+        fromDatabase:
+          name: emaildj-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromDatabase:
+          name: emaildj-redis
+          property: connectionString
+      - key: WEB_APP_ORIGIN
+        sync: false
+      - key: CHROME_EXTENSION_ORIGIN
+        sync: false
+      - key: EMAILDJ_WEB_BETA_KEYS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: PROVIDER_FAILURE_METRICS_WEBHOOK_URL
+        sync: false
+      - key: SALESFORCE_INSTANCE_URL
+        sync: false
+      - key: SALESFORCE_ACCESS_TOKEN
+        sync: false
+      - key: BOMBORA_API_KEY
+        sync: false
+
+databases:
+  - name: emaildj-postgres
+    databaseName: emaildj
+    user: emaildj
+    plan: free
+    postgresMajorVersion: "15"
+    ipAllowList: []
+  - name: emaildj-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
